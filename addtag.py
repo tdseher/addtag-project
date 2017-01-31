@@ -50,12 +50,16 @@ def parse_arguments():
     parser.add_argument("--min_donor_deletions", metavar="N", type=int, default=2, help="The uniqueness of final donor DNA compared to the rest of the genome")
     parser.add_argument("--min_donor_mismatches", metavar="N", type=int, default=2, help="The uniqueness of final donor DNA compared to the rest of the genome")
     parser.add_argument("--min_donor_differences", metavar="N", type=int, default=3, help="The uniqueness of final donor DNA compared to the rest of the genome")
+    parser.add_argument("--min_donor_distance", metavar="N", type=int, default=36, help="The minimum distance in bp a difference can exist from the edge of donor DNA")
     parser.add_argument("--min_target_length", metavar="N", type=int, default=23, help="The minimum length of the 'target'/'spacer'/gRNA site")
     parser.add_argument("--max_target_length", metavar="N", type=int, default=28, help="The maximum length of the 'target'/'spacer'/gRNA site")
     
     return parser.parse_args()
 
 def read_fasta_file(args):
+    """Load contig sequences from file into dict()
+    Primary sequence headers must be unique
+    """
     contigs = {}
     with open(args.fasta, 'r') as flo:
         name = None
@@ -65,20 +69,72 @@ def read_fasta_file(args):
                 name = regex.split(r'\s+', line[1:], 1)[0]
                 contigs[name] = ''
             else:
-                contigs[name] += line
+                # Handle malformatted FASTA
+                if ((name == None) or (name == "")):
+                    raise ValueError('FASTA file malformatted')
+                else:
+                    contigs[name] += line
     
     return contigs
 
+def lcs(string1, string2):
+    """Find the longest common substring between two strings"""
+    import difflib
+    
+    matcher = difflib.SequenceMatcher(None, string1, string2, True)
+    match = matcher.find_longest_match(0, len(string1), 0, len(string2))
+    # Match(a=0, b=15, size=9)
+    return match
+    # print(string1[match.a: match.a + match.size])
+    # print(string2[match.b: match.b + match.size])
+
+def generate_excise_target(args, feature):
+    """Finds the gRNA sequence to cut within the specified places
+    on the feature.
+    """
+    pass
+
+def generate_revert_target(args, feature):
+    """
+    Creates the gRNA sequence that targets the excise donor DNA oligo
+    """
+    pass
+
+def generate_excise_donor(args, feature, revert_target):
+    """Creates the DNA oligo with the structure:
+    homology--unique gRNA--homology
+    that excises the target feature
+    """
+    pass
+
+def generate_revert_donor(args, feature):
+    """
+    Use template DNA sequence to create oligo that will be used for fixing
+    the DSB
+    """
+    # Optionally provide a list of restriction enzyme targeting sites
+    # on either side for easier cloning
+    pass
+
 def process(args):
     # The Cas9 cuts 3-4bp upstream of the PAM sequence.
+    
+    features = []
+    for f in features:
+        # identify_pam_positions()
+        et = generate_excise_target(args, f)
+        rt = generate_revert_target(args, f)
+        
+        ed = generate_excise_donor(args, f, rt)
+        rd = generate_revert_donor(args, f)
     
     # Cut site can be anywhere within target feature
     # genome          ACGGATTAGAGAGAGGCCTCCTCCCGGAT-GAATGGAAGACTAAACGGTAGATATAAG
     # feature         -------|ORF->                                <-ORF|-------
     # PAM                                              PAM         PAM
-    # cut target                            CCCGGAT^GAATGG
-    # cut genome      ACGGATTAGAGAGAGGCCTCCTCCCGGAT^GAATGGAAGACTAAACGGTAGATATAAG
-    # donor           ACGGATT-----------------------------------AAACGGTAGATATAAG
+    # excise target                         CCCGGAT^GAATGG
+    # excise genome   ACGGATTAGAGAGAGGCCTCCTCCCGGAT^GAATGGAAGACTAAACGGTAGATATAAG
+    # excise donor    ACGGATT-----------------------------------AAACGGTAGATATAAG
     # revert target      GATT-----------------------------------AAACGG
     # revert donor     CGGATTAGAGAGAGGCCTCCTCCCGGAT-GAATGGAAGACTAAACGGTAGATATA
     
