@@ -1,0 +1,61 @@
+.TH addtag 1  "February 4, 2016" "version 1" "USER COMMANDS"
+
+.SH NAME
+addtag \- Identify and create unique sgRNA sites within genomes.
+
+.SH SYNOPSIS
+.B addtag
+[\-h]
+
+.SH DESCRIPTION
+Program for identifying unique endogenous gRNA sites and creating
+unique synthetic gRNA sites.
+.PP
+This is some more stuff
+
+.SH OPTIONS
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Display a short help text
+.TP
+.B \-\-features
+Text describing this option
+
+.SH EXAMPLES
+.TP
+Do something
+.B addtag --arguments fasta gff
+.TP
+Do something else
+.B addtag --other_arguments fasta gff > results.txt
+
+.SH EXIT STATUS
+.TS
+tab(@);
+r lx .
+0@AddTag completed successfully
+>0@AddTag failed
+.TE
+
+.SH AUTHORS
+Thaddeus D. Seher (@tdseher) & Aaron Hernday
+
+.SH BUGS
+The program is still under heavy development, and there will be bugs.
+
+.SH ENVIRONMENT
+For now, current working directory must be the program folder.
+
+.SH FILES
+Complete list of files provided will be listed here.
+
+.SH REQUIREMENTS
+.TS
+tab(@);
+l l lx .
+*@Python 3.5@(https://www.python.org/downloads/)
+*@regex module@(https://pypi.python.org/pypi/regex)
+.TE
+
+.SH LICENCE
+Some of the algorithms used have their own licenses.

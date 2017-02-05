@@ -1,0 +1,5 @@
+# Ignore local Python cache
+__pycache__/
+
+# Ignore compiled python bytecode, optimized bytecode, and dynamic link libraries
+*.py[cod]
