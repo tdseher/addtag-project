@@ -29,14 +29,20 @@ def off_target_score():
 
 # This code pulled from crispor.py
 # Code is python implementation of http://crispr.mit.edu/about
-# MIT offtarget scoring
-# Also known as Matrix "M"
-hitScoreM = [
-    0.0,   0.0,   0.014, 0.0,   0.0,
-    0.395, 0.317, 0.0,   0.389, 0.079,
-    0.445, 0.508, 0.613, 0.851, 0.732,
-    0.828, 0.615, 0.804, 0.685, 0.583
-]
+
+def load_scores(file_path, sep="\t"):
+    """Function to open and parse the tab-delimited 'scores' file for
+    Hsu et al (2013), and return a list"""
+    scores = []
+    with open(file_path, 'r') as flo:
+        for line in flo:
+            line = line.rstrip()
+            if (len(line) > 0):
+                m = regex.match(r'^\s*#', line)
+                if not m:
+                    sline = line.split(sep)
+                    scores.append(float(sline[1]))
+    return scores
 
 def calcHitScore(string1,string2):
     '''Scores of Single Hits
@@ -47,6 +53,13 @@ def calcHitScore(string1,string2):
     representing the experimentally-determined effect of mismatch position on targeting. (Hsu et al, Nature Biotechnology 2013) (http://www.nature.com/nbt/journal/v31/n9/full/nbt.2647.html)
     And terms two and three factoring in the effect of mean pairwise distance between mismatches (d) and a dampening penalty for highly mismatched targets.
     '''
+    
+    # Load scores from the data file
+    try:
+        hitScoreM = load_scores(os.path.join(os.path.dirname(__file__), 'hsu_scores.txt'))
+    except: 
+        raise Exception("Could not find file with Hsu scores")
+    
     # see 'Scores of single hits' on http://crispr.mit.edu/about
     # The Patrick Hsu weighting scheme
     # S. aureus requires 21bp long guides. We fudge by using only last 20bp
