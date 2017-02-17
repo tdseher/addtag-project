@@ -4,6 +4,12 @@
 
 # source/hsu/__init__.py
 
+# List imports
+import os
+import regex
+
+# Define module functions
+
 # Off-target score
 #  Hsu specificity score
 #   The higher the specificity score, the lower are off-target effects in the genome.
@@ -11,7 +17,7 @@
 #   of a guide in the genome. See Hsu et al. Nat Biotech 2013.
 #   (http://dx.doi.org/10.1038/nbt.2647) We recommend values >50, where possible.
 
-def off_target_score():
+def off_target_score(guide, target):
     """The off-target score is from Hsu et al. (2013) doi:10.1038/nbt.2647
     and measures how specific the guide is to the target location. Guides with
     scores over 50 are good enough to be candidates. Higher scores are better.
@@ -44,7 +50,7 @@ def load_scores(file_path, sep="\t"):
                     scores.append(float(sline[1]))
     return scores
 
-def calcHitScore(string1,string2):
+def calcHitScore(string1, string2):
     '''Scores of Single Hits
     The actual algorithm used to score single offtargets is:
         \prod_{e\in{\mathcal{M}}}\left(1- W[e]\right)\times\frac{1}{\left(\frac{(19 - \bar{d})}{19}\times4 + 1\right)}\times\frac{1}{n^2_{mm}}
@@ -55,18 +61,20 @@ def calcHitScore(string1,string2):
     '''
     
     # Load scores from the data file
-    try:
-        hitScoreM = load_scores(os.path.join(os.path.dirname(__file__), 'hsu_scores.txt'))
-    except: 
-        raise Exception("Could not find file with Hsu scores")
+    #try:
+    #    hitScoreM = load_scores(os.path.join(os.path.dirname(__file__), 'hsu_scores.txt'))
+    #except: 
+    #    raise Exception("Could not find file with Hsu scores")
+    hitScoreM = SCORES
     
     # see 'Scores of single hits' on http://crispr.mit.edu/about
     # The Patrick Hsu weighting scheme
     # S. aureus requires 21bp long guides. We fudge by using only last 20bp
-    if len(string1)==21 and len(string2)==21:
+    if (len(string1) == len(string2) == 21):
         string1 = string1[-20:]
         string2 = string2[-20:]
-
+    
+    # Throw AssertionError if the lengths are not equal
     assert(len(string1)==len(string2)==20)
 
     dists = [] # distances between mismatches, for part 2
@@ -81,12 +89,14 @@ def calcHitScore(string1,string2):
                 dists.append(pos-lastMmPos)
             score1 *= 1-hitScoreM[pos]
             lastMmPos = pos
+    
     # 2nd part of the score
     if mmCount<2: # special case, not shown in the paper
         score2 = 1.0
     else:
         avgDist = sum(dists)/len(dists)
         score2 = 1.0 / (((19-avgDist)/19.0) * 4 + 1)
+    
     # 3rd part of the score
     if mmCount==0: # special case, not shown in the paper
         score3 = 1.0
@@ -113,3 +123,19 @@ def calcMitGuideScore(hitSum):
     score = int(round(score*100))
     return score
 
+def test():
+    a = 'CGATGGCTCGGATCGATTGAC'
+    b = 'AAGTGCTCTTAAGAGAAATTC'
+    c = 'CGATGGCTCGGATCCATTGAC'
+    score = calcHitScore(a, c)
+    print(score)
+
+# Define module variables
+# Load scores from the data file
+try:
+    SCORES = load_scores(os.path.join(os.path.dirname(__file__), 'hsu_scores.txt'))
+except: 
+    raise Exception("Could not find file with Hsu scores")
+
+if (__name__ == "__main__"):
+    test()

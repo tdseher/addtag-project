@@ -48,18 +48,17 @@ def parse_arguments():
     # Add optional arguments
     parser.add_argument("--min_contig_edge_distance", metavar="N", type=int, default=500, help="Minimum distance from contig edge a site can be found")
     #parser.add_argument("--features", metavar="FEATURE,FEATURE", type=str, default="ORF", help="Features to design gRNA sites against")
-    parser.add_argument("--features", metavar="FEATURE", type=str, nargs="+", default=["ORF"], help="Features to design gRNA sites against")
-    parser.add_argument("--min_donor_length", metavar="N", type=int, default=80, help="The minimum length of the final computed donor DNA for each site")
-    parser.add_argument("--max_donor_length", metavar="N", type=int, default=90, help="The maximum length of the final computed donor DNA for each site")
+    parser.add_argument("--features", metavar="FEATURE", type=str, nargs="+", default=["ORF"], help="Features to design gRNA sites against. Must exist in GFF file.")
+    parser.add_argument("--target_lengths", nargs=2, metavar=('min', 'max'), type=int, default=[19, 21], help="The length range of the 'target'/'spacer'/gRNA site")
+    parser.add_argument("--donor_lengths", nargs=2, metavar=('min', 'max'), type=int, default=[80, 100], help="The length range of the final computed donor DNA for each site")
     parser.add_argument("--min_feature_edge_distance", metavar="N", type=int, default=24, help="The minimum distance a gRNA site can be from the edge of the feature. If negative, the maximum distance a gRNA site can be outside the feature.")
     parser.add_argument("--min_donor_insertions", metavar="N", type=int, default=2, help="The uniqueness of final donor DNA compared to the rest of the genome")
     parser.add_argument("--min_donor_deletions", metavar="N", type=int, default=2, help="The uniqueness of final donor DNA compared to the rest of the genome")
     parser.add_argument("--min_donor_mismatches", metavar="N", type=int, default=2, help="The uniqueness of final donor DNA compared to the rest of the genome")
     parser.add_argument("--min_donor_differences", metavar="N", type=int, default=3, help="The uniqueness of final donor DNA compared to the rest of the genome")
-    parser.add_argument("--min_donor_distance", metavar="N", type=int, default=36, help="The minimum distance in bp a difference can exist from the edge of donor DNA")
-    parser.add_argument("--min_target_length", metavar="N", type=int, default=23, help="The minimum length of the 'target'/'spacer'/gRNA site")
-    parser.add_argument("--max_target_length", metavar="N", type=int, default=28, help="The maximum length of the 'target'/'spacer'/gRNA site")
-    parser.add_argument("--strands", type=str, choices=["+", "-", "+/-"], default="+/-", help="Strands to search for gRNAs")
+    parser.add_argument("--min_donor_distance", metavar="N", type=int, default=36, help="The minimum distance in bp a difference can exist from the edge of donor DNA") # homology with genome
+    parser.add_argument("--strands", type=str, choices=["+", "-", "both"], default="both", help="Strands to search for gRNAs")
+    parser.add_argument("--overlap", action="store_true", help="Include exhaustive search for overlapping sites. May increase computation time.")
     
     # Parse the arguments, and return
     return parser.parse_args()
@@ -67,18 +66,19 @@ def parse_arguments():
 def list_pam_sites():
     # Code taken from
     #  https://github.com/maximilianh/crisporWebsite/crispor.py
-    pamDesc = [ ('NGG','20bp-NGG - Cas9 Streptococcus Pyogenes and Cas9-HF1'),
-         ('TTTN','TTTN-23bp - Cpf1 Acidaminococcus / Lachnospiraceae'),
-         #('TTN','TTN-23bp - Cpf1 F. Novicida'), # Jean-Paul: various people have shown that it's not usable yet
-         ('NGA','20bp-NGA - Cas9 S. Pyogenes mutant VQR'),
-         ('NGCG','20bp-NGCG - Cas9 S. Pyogenes mutant VRER'),
-         ('NNAGAA','20bp-NNAGAA - Cas9 S. Thermophilus'),
-         ('NGGNG','20bp-NGGNG - Cas9 S. Thermophilus'),
-         ('NNGRRT','21bp-NNG(A/G)(A/G)T - Cas9 S. Aureus'),
-         ('NNNNGMTT','20bp-NNNNG(A/C)TT - Cas9 N. Meningitidis'),
-         ('NNNNACA','20bp-NNNNACA - Cas9 Campylobacter jejuni'),
-       ]
-
+    pamDesc = [
+        # Motif      sgRNA+motif origin system
+        ('NGG',      '20bp-NGG - Cas9 Streptococcus Pyogenes and Cas9-HF1'),
+        ('TTTN',     'TTTN-23bp - Cpf1 Acidaminococcus / Lachnospiraceae'),
+        #('TTN',      'TTN-23bp - Cpf1 F. Novicida'), # Jean-Paul: various people have shown that it's not usable yet
+        ('NGA',      '20bp-NGA - Cas9 S. Pyogenes mutant VQR'),
+        ('NGCG',     '20bp-NGCG - Cas9 S. Pyogenes mutant VRER'),
+        ('NNAGAA',   '20bp-NNAGAA - Cas9 S. Thermophilus'),
+        ('NGGNG',    '20bp-NGGNG - Cas9 S. Thermophilus'),
+        ('NNGRRT',   '21bp-NNG(A/G)(A/G)T - Cas9 S. Aureus'),
+        ('NNNNGMTT', '20bp-NNNNG(A/C)TT - Cas9 N. Meningitidis'),
+        ('NNNNACA',  '20bp-NNNNACA - Cas9 Campylobacter jejuni'),
+    ]
 
 def scores():
     pass
@@ -152,6 +152,25 @@ def process(args):
     
     pass
 
+def test(args):
+    from . import hsu
+    a = 'CGATGGCTCGGATCGATTGAC'
+    b = 'AAGTGCTCTTAAGAGAAATTC'
+    c = 'CGATGGCTCGGATCCATTGAC'
+    score = hsu.calcHitScore(a, c)
+    print(score)
+    #contigs = utils.read_fasta_file(args.fasta)
+    #contigs = utils.read_fasta_file(r'C:\Users\thaddeus\Labs\Nobile lab\CRISPR-Cas9 AddTag Project\data\C_albicans_SC5314_A22_current_chromosomes.fasta')
+    contigs = utils.read_fasta_file(r'C:\Users\thaddeus\Labs\Nobile lab\CRISPR-Cas9 AddTag Project\data\test.fasta.gz')
+    target = 'TCCGGTACAKTGAKTTGTAC' #AAAGTCAGAGTAGTTGTAAACRAGAAGAGAGTTTTAAACT
+    regex = utils.build_regex(target, max_errors=2)
+    matches = utils.find_target_matches(regex, contigs, overlap=True)
+    for m in matches:
+        print(m)
+    
+    
+    
+
 def main():
     """Function to run complete AddTag analysis"""
     # Get timestamp
@@ -164,6 +183,8 @@ def main():
     # Convert input files to memory structures
     #contigs = utils.read_fasta_file(args)
     
+    # Perform test code
+    test(args)
     
     # Print time taken for program to complete
-    print(time.time()-start, file=sys.stderr)
+    print('Runtime: {}s'.format(time.time()-start), file=sys.stderr)
