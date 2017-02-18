@@ -25,7 +25,7 @@ def rc(seq, kind="dna"):
     if (kind == "dna"):
         complements = str.maketrans('acgtrymkbdhvACGTRYMKBDHV', 'tgcayrkmvhdbTGCAYRKMVHDB') # exclude ws, WS
     elif (kind == "rna"):
-        complements = str.maketrans('acgurymkbdhvACGTRYMKBDHV', 'ugcayrkmvhdbTGCAYRKMVHDB') # exclude ws, WS
+        complements = str.maketrans('acgturymkbdhvACGTURYMKBDHV', 'ugcaayrkmvhdbTGCAAYRKMVHDB') # exclude ws, WS
     else:
         raise ValueError("'" + str(kind) + "' is an invalid argument for rc()")
     return seq.translate(complements)[::-1]
@@ -135,9 +135,12 @@ def build_regex(iupac_sequence, case_sensitive=False, max_substitutions=0, max_i
         fuzzy = ''
     
     # Choose the regex flags
-    myflags = regex.IGNORECASE
+    myflags = regex.ENHANCEMATCH | regex.IGNORECASE
     if case_sensitive:
-        myflags = 0
+        myflags = regex.ENHANCEMATCH
+    #myflags = regex.IGNORECASE
+    #if case_sensitive:
+    #    myflags = 0
     
     # Convert the IUPAC sequence to an equivalent regex
     iupac = {

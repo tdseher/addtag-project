@@ -17,6 +17,8 @@ import regex
 
 # Import included AddTag-specific modules
 from . import utils
+from . import hsu
+from . import doench
 
 # Define meta variables
 __author__ = "Thaddeus D. Seher (@tdseher), & Aaron Hernday"
@@ -46,6 +48,7 @@ def parse_arguments():
     parser.add_argument("gff", type=str, help="GFF file specifying chromosomal features")
     
     # Add optional arguments
+    #parser.add_argument("--homologs", metavar="FILE", type=str, default=None, help="Path to text file homologous contigs on the same line, separated by TAB characters")
     parser.add_argument("--min_contig_edge_distance", metavar="N", type=int, default=500, help="Minimum distance from contig edge a site can be found")
     #parser.add_argument("--features", metavar="FEATURE,FEATURE", type=str, default="ORF", help="Features to design gRNA sites against")
     parser.add_argument("--features", metavar="FEATURE", type=str, nargs="+", default=["ORF"], help="Features to design gRNA sites against. Must exist in GFF file.")
@@ -153,21 +156,34 @@ def process(args):
     pass
 
 def test(args):
-    from . import hsu
-    a = 'CGATGGCTCGGATCGATTGAC'
+    # Test Hsu score
+    a = 'CGATGGCTWGGATCGATTGAC'
     b = 'AAGTGCTCTTAAGAGAAATTC'
-    c = 'CGATGGCTCGGATCCATTGAC'
-    score = hsu.calcHitScore(a, c)
-    print(score)
+    c = 'ATGSCTCGGATCGATTGAC'
+    print(hsu.calcHitScore(a, a), hsu.hsu_score(a, a), hsu.hsu_score(a, a, True))
+    print(hsu.calcHitScore(a, b), hsu.hsu_score(a, b), hsu.hsu_score(a, b, True))
+    print(hsu.calcHitScore(a, c), hsu.hsu_score(a, c), hsu.hsu_score(a, c, True))
+    
     #contigs = utils.read_fasta_file(args.fasta)
     #contigs = utils.read_fasta_file(r'C:\Users\thaddeus\Labs\Nobile lab\CRISPR-Cas9 AddTag Project\data\C_albicans_SC5314_A22_current_chromosomes.fasta')
-    contigs = utils.read_fasta_file(r'C:\Users\thaddeus\Labs\Nobile lab\CRISPR-Cas9 AddTag Project\data\test.fasta.gz')
+    contigs = utils.read_fasta_file(r'C:\Users\thaddeus\Labs\Nobile lab\CRISPR-Cas9 AddTag Project\data\test.fasta')
     target = 'TCCGGTACAKTGAKTTGTAC' #AAAGTCAGAGTAGTTGTAAACRAGAAGAGAGTTTTAAACT
     regex = utils.build_regex(target, max_errors=2)
     matches = utils.find_target_matches(regex, contigs, overlap=True)
     for m in matches:
         print(m)
+        for seq in utils.disambiguate_iupac(m[4]):
+            print(seq, len(seq), hsu.calcHitScore(target, seq))
     
+    # Test Doench score
+    a = 'CGATGGCTTGGATCGATTGA' + 'AGG'
+    b = 'CGTTGGCTTGGATCGATTGA' + 'AGG'
+    c = 'CGATGGCTTCGATCGATTGA' + 'AGG'
+    d = 'CGATGGCTTCGAGCGATTGA' + 'AGG'
+    print(doench.on_target_score_2016_loader(a, a))
+    print(doench.on_target_score_2016_loader(a, b))
+    print(doench.on_target_score_2016_loader(a, c))
+    print(doench.on_target_score_2016_loader(a, d))
     
     
 

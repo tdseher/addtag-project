@@ -155,7 +155,9 @@ def load_mismatch_scores(file_path, sep="\t", approximation=False):
     return mismatch_scores
 
 def load_pam_scores(file_path, sep="\t", approximation=False):
-    """Load the PAM scors defined by Doench et al (2016)"""
+    """Load the PAM scors defined by Doench et al (2016)
+    These represent the 'NGG' scores, excluding the 'N'
+    """
     pam_scores = {}
     with open(file_path, 'r') as flo:
         for line in flo:
@@ -179,14 +181,16 @@ def on_target_score_2016_loader(wt, off):
     output:
       CFD score
     """
+    # Only calculate Doench score with cannonical nucleotides
+    # Otherwise return a score of 0
     m_wt = regex.search('[^ATCG]', wt)
     m_off = regex.search('[^ATCG]', off)
-    if (m_wt is None) and (m_off is None):
-        pam = off[-2:]
+    if (m_wt == None) and (m_off == None):
+        pam = off[-2:] # Get the PAM site, excluding the 'N'
         sg = off[:-3]
         cfd_score = on_target_score_2016(wt, sg, pam)
         return cfd_score
-    return None
+    return 0.0
 
 def on_target_score_2016(wt, sg, pam):
     """Also called CFD score.
@@ -204,24 +208,40 @@ def on_target_score_2016(wt, sg, pam):
     and only 5% of gRNAs receive a score of 60 or higher.
     """
     
-    # Load mismatch scores and PAM scores
-    try:
-        mm_scores = load_mismatch_scores(os.path.join(os.path.dirname(__file__), 'doench_mismatch_scores.txt'))
-        pam_scores = load_pam_scores(os.path.join(os.path.dirname(__file__), 'doench_pam_scores.txt'))
-    except: 
-        raise Exception("Could not find file with mismatch scores or PAM scores")
-    
    # Calculates CFD score
     score = 1
     sg = sg.replace('T','U')
     wt = wt.replace('T','U')
-    s_list = list(sg)
+    s_list = list(sg) # convert sg string to a list
     wt_list = list(wt)
-    for i,sl in enumerate(s_list):
-        if wt_list[i] == sl:
-            score*=1
-        else:
-            key = 'r'+wt_list[i]+':d'+rc(sl)+','+str(i+1)
-            score*= mm_scores[key]
-    score*=pam_scores[pam]
-    return (score)
+    for i, sl in enumerate(s_list):
+        #if wt_list[i] == sl:
+        #    score*=1
+        #else:
+        if (wt_list[i] != sl):
+            key = 'r'+wt_list[i]+':d'+rc(sl, kind="rna")+','+str(i+1)
+            score*= MISMATCH_SCORES[key]
+    score*=PAM_SCORES[pam]
+    return (score*100)
+
+def test():
+    test_on_target_score_2014()
+    
+    a = 'CGATGGCTTGGATCGATTGAC'
+    b = 'CGATGGCTTCGATCGATTGAC'
+    c = 'CGATGGCTTCGAGCGATTGAC'
+    print(on_target_score_2016_loader(a, a))
+    print(on_target_score_2016_loader(a, b))
+    print(on_target_score_2016_loader(a, c))
+    
+
+# Define module variables
+# Load scores from the data files
+try:
+    MISMATCH_SCORES = load_mismatch_scores(os.path.join(os.path.dirname(__file__), 'doench_mismatch_scores.txt'))
+    PAM_SCORES = load_pam_scores(os.path.join(os.path.dirname(__file__), 'doench_pam_scores.txt'))
+except: 
+    raise Exception("Could not find file with mismatch scores or PAM scores")
+
+if (__name__ == "__main__"):
+    test()

@@ -50,6 +50,99 @@ def load_scores(file_path, sep="\t"):
                     scores.append(float(sline[1]))
     return scores
 
+def hsu_score(seq1, seq2, iupac=False):
+    '''Calculate Hsu score between two oligonucleotide sequences.
+    Ideally, seq1 and seq2 are each 20 bp long.
+    Will only score the final 20nt. No penalization for less than 20nt.
+    See 'Scores of single hits' (http://crispr.mit.edu/about)
+    for algorithm used to score single offtargets.
+        
+    Within the first term, 'e' runs over the mismatch positions between guide
+    and offtarget, with 'M' representing the experimentally-determined effect
+    of mismatch position on targeting. (Hsu et al, Nature Biotechnology 2013)
+    (http://www.nature.com/nbt/journal/v31/n9/full/nbt.2647.html)
+    And terms two and three factoring in the effect of mean pairwise distance
+    between mismatches 'd' and a dampening penalty for highly mismatched
+    targets.
+    '''
+    
+    # Truncate any nt on the left side. Keep the right side the same:
+    #  input:  'ACGCTTTAGCGCCAGACTCAGT'
+    #  output:   'GCTTTAGCGCCAGACTCAGT'
+    seq1 = seq1[-20:]
+    seq2 = seq2[-20:]
+    
+    dists = [] # distances between mismatches, for part 2
+    mmCount = 0 # number of mismatches, for part 3
+    lastMmPos = None # position of last mismatch, used to calculate distance
+
+    score1 = 1.0
+    if iupac:
+        iupac = {
+            'a': ['a'],
+            'c': ['c'],
+            'g': ['g'],
+            't': ['t'],
+            'r': ['a', 'g'],
+            'y': ['c', 't'],
+            'm': ['a', 'c'],
+            'k': ['g', 't'],
+            'w': ['a', 't'],
+            's': ['c', 'g'],
+            'b': ['c', 'g', 't'],
+            'd': ['a', 'g', 't'],
+            'h': ['a', 'c', 't'],
+            'v': ['a', 'c', 'g'],
+            'n': ['a', 'c', 'g', 't'],
+            
+            'A': ['A'],
+            'C': ['C'],
+            'G': ['G'],
+            'T': ['T'],
+            'R': ['A', 'G'],
+            'Y': ['C', 'T'],
+            'M': ['A', 'C'],
+            'K': ['G', 'T'],
+            'W': ['A', 'T'],
+            'S': ['C', 'G'],
+            'B': ['C', 'G', 'T'],
+            'D': ['A', 'G', 'T'],
+            'H': ['A', 'C', 'T'],
+            'V': ['A', 'C', 'G'],
+            'N': ['A', 'C', 'G', 'T'],
+        }
+        for pos in range(-min(len(seq1), len(seq2)), 0):
+            if (len([x for x in iupac[seq1[pos]] if x in iupac[seq2[pos]]]) == 0):
+                mmCount+=1
+                if (lastMmPos != None):
+                    dists.append(pos-lastMmPos)
+                score1 *= 1-SCORES[pos]
+                lastMmPos = pos
+    else:
+        for pos in range(-min(len(seq1), len(seq2)), 0):
+            if (seq1[pos] != seq2[pos]):
+                mmCount+=1
+                if (lastMmPos != None):
+                    dists.append(pos-lastMmPos)
+                score1 *= 1-SCORES[pos]
+                lastMmPos = pos
+    
+    # 2nd part of the score
+    if (mmCount < 2): # special case, not shown in the paper
+        score2 = 1.0
+    else:
+        avgDist = sum(dists)/len(dists)
+        score2 = 1.0 / (((19-avgDist)/19.0) * 4 + 1)
+    
+    # 3rd part of the score
+    if (mmCount == 0): # special case, not shown in the paper
+        score3 = 1.0
+    else:
+        score3 = 1.0 / (mmCount**2)
+
+    score = score1 * score2 * score3 * 100
+    return score
+
 def calcHitScore(string1, string2):
     '''Scores of Single Hits
     The actual algorithm used to score single offtargets is:
@@ -73,6 +166,10 @@ def calcHitScore(string1, string2):
     if (len(string1) == len(string2) == 21):
         string1 = string1[-20:]
         string2 = string2[-20:]
+    
+    # If string lengths do not match, then return 0
+    if not (len(string1)==len(string2)==20):
+        return 0.0
     
     # Throw AssertionError if the lengths are not equal
     assert(len(string1)==len(string2)==20)
@@ -124,11 +221,12 @@ def calcMitGuideScore(hitSum):
     return score
 
 def test():
-    a = 'CGATGGCTCGGATCGATTGAC'
+    a = 'CGATGGCTWGGATCGATTGAC'
     b = 'AAGTGCTCTTAAGAGAAATTC'
-    c = 'CGATGGCTCGGATCCATTGAC'
-    score = calcHitScore(a, c)
-    print(score)
+    c = 'ATGSCTCGGATCGATTGAC'
+    print(calcHitScore(a, a), hsu_score(a, a), hsu_score(a, a, True))
+    print(calcHitScore(a, b), hsu_score(a, b), hsu_score(a, b, True))
+    print(calcHitScore(a, c), hsu_score(a, c), hsu_score(a, c, True))
 
 # Define module variables
 # Load scores from the data file
