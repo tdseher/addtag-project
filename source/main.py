@@ -29,6 +29,9 @@ __description__ = """\
 Program for identifying unique endogenous gRNA sites
 and creating unique synthetic gRNA sites. \
 Copyright (c) {__date__} {__author__}. All rights reserved. \
+
+If '--homologs' option is not used, then ambiguous bases within
+the FASTA will not be chosen for gRNA sites.
 """.format(**locals())
 __epilog__ = """\
 example:
@@ -44,14 +47,14 @@ def parse_arguments():
     )
     
     # Add mandatory arguments
-    parser.add_argument("fasta", type=str, help="FASTA file containing all contigs to derive gRNA sites for. All FASTA sequences should have unique primary headers (everything between the '>' and the first ' ' should be unique).")
-    parser.add_argument("gff", type=str, help="GFF file specifying chromosomal features")
+    parser.add_argument("--fasta", required=True, metavar="*.fasta", type=str, help="FASTA file containing all contigs to derive gRNA sites for. All FASTA sequences should have unique primary headers (everything between the '>' and the first ' ' should be unique).")
+    parser.add_argument("--gff", required=True, metavar="*.gff", type=str, help="GFF file specifying chromosomal features")
     
     # Add optional arguments
-    #parser.add_argument("--homologs", metavar="FILE", type=str, default=None, help="Path to text file homologous contigs on the same line, separated by TAB characters")
+    parser.add_argument("--tag", metavar='TAG', type=str, default='ID', help="GFF tag with protein names. Examples: 'ID', 'Name', 'Parent', or 'locus_tag'")
+    parser.add_argument("--homologs", metavar="*.homologs", type=str, default=None, help="Path to text file homologous contigs on the same line, separated by TAB characters")
     parser.add_argument("--min_contig_edge_distance", metavar="N", type=int, default=500, help="Minimum distance from contig edge a site can be found")
-    #parser.add_argument("--features", metavar="FEATURE,FEATURE", type=str, default="ORF", help="Features to design gRNA sites against")
-    parser.add_argument("--features", metavar="FEATURE", type=str, nargs="+", default=["ORF"], help="Features to design gRNA sites against. Must exist in GFF file.")
+    parser.add_argument("--features", metavar="FEATURE", type=str, nargs="+", default=["gene"], help="Features to design gRNA sites against. Must exist in GFF file. Examples: 'CDS', 'gene', 'mRNA', 'exon'")
     parser.add_argument("--target_lengths", nargs=2, metavar=('min', 'max'), type=int, default=[19, 21], help="The length range of the 'target'/'spacer'/gRNA site")
     parser.add_argument("--donor_lengths", nargs=2, metavar=('min', 'max'), type=int, default=[80, 100], help="The length range of the final computed donor DNA for each site")
     parser.add_argument("--min_feature_edge_distance", metavar="N", type=int, default=24, help="The minimum distance a gRNA site can be from the edge of the feature. If negative, the maximum distance a gRNA site can be outside the feature.")
@@ -156,18 +159,22 @@ def process(args):
     pass
 
 def test(args):
-    # Test Hsu score
-    a = 'CGATGGCTWGGATCGATTGAC'
-    b = 'AAGTGCTCTTAAGAGAAATTC'
-    c = 'ATGSCTCGGATCGATTGAC'
-    print(hsu.calcHitScore(a, a), hsu.hsu_score(a, a), hsu.hsu_score(a, a, True))
-    print(hsu.calcHitScore(a, b), hsu.hsu_score(a, b), hsu.hsu_score(a, b, True))
-    print(hsu.calcHitScore(a, c), hsu.hsu_score(a, c), hsu.hsu_score(a, c, True))
+    # Load the FASTA file specified on the command line
+    print("=== FASTA ===")
+    contigs = utils.load_fasta_file(args.fasta)
+    print(list(contigs.keys())[:5])
     
-    #contigs = utils.read_fasta_file(args.fasta)
-    #contigs = utils.read_fasta_file(r'C:\Users\thaddeus\Labs\Nobile lab\CRISPR-Cas9 AddTag Project\data\C_albicans_SC5314_A22_current_chromosomes.fasta')
-    contigs = utils.read_fasta_file(r'C:\Users\thaddeus\Labs\Nobile lab\CRISPR-Cas9 AddTag Project\data\test.fasta')
-    target = 'TCCGGTACAKTGAKTTGTAC' #AAAGTCAGAGTAGTTGTAAACRAGAAGAGAGTTTTAAACT
+    # Open and parse the GFF file specified on the command line
+    # returns a dictionary:
+    #  genes[gene] = (contig, start(bp), end(bp), frame)
+    print("=== GFF ===")
+    genes = utils.load_gff_file(args.gff, args.features, args.tag)
+    for k in list(genes.keys())[:10]:
+        print(k, genes[k])
+    
+    # Test code to find all similar oligonucleotides in the FASTA
+    print("=== Align ===")
+    target = 'TCCGGTACAKTGAKTTGTAC'
     regex = utils.build_regex(target, max_errors=2)
     matches = utils.find_target_matches(regex, contigs, overlap=True)
     for m in matches:
@@ -175,17 +182,38 @@ def test(args):
         for seq in utils.disambiguate_iupac(m[4]):
             print(seq, len(seq), hsu.calcHitScore(target, seq))
     
-    # Test Doench score
-    a = 'CGATGGCTTGGATCGATTGA' + 'AGG'
-    b = 'CGTTGGCTTGGATCGATTGA' + 'AGG'
-    c = 'CGATGGCTTCGATCGATTGA' + 'AGG'
-    d = 'CGATGGCTTCGAGCGATTGA' + 'AGG'
-    print(doench.on_target_score_2016_loader(a, a))
-    print(doench.on_target_score_2016_loader(a, b))
-    print(doench.on_target_score_2016_loader(a, c))
-    print(doench.on_target_score_2016_loader(a, d))
+    # Test Hsu score
+    print("=== Hsu 2013 ===")
+    a = 'CGATGGCTWGGATCGATTGAC'
+    b = 'AAGTGCTCTTAAGAGAAATTC'
+    c = 'ATGSCTCGGATCGATTGAC'
+    print(hsu.calcHitScore(a, a), hsu.hsu_score(a, a), hsu.hsu_score(a, a, True))
+    print(hsu.calcHitScore(a, b), hsu.hsu_score(a, b), hsu.hsu_score(a, b, True))
+    print(hsu.calcHitScore(a, c), hsu.hsu_score(a, c), hsu.hsu_score(a, c, True))
     
+    # Test Doench 2014 score:
+    print("=== Doench 2014 ===")
+    pam = 'AGG'
+    gRNAa = 'CGATGGCTTGGATCGATTGA'
+    gRNAb = 'CGTTGGCTTGGATCGATTGA'
+    gRNAc = 'CGATGGCTTCGATCGATTGA'
+    gRNAd = 'CGATGGCTTCGAGCGATTGA'
+    print(doench.on_target_score_2014(gRNAa, pam))
+    print(doench.on_target_score_2014(gRNAb, pam))
+    print(doench.on_target_score_2014(gRNAc, pam))
+    print(doench.on_target_score_2014(gRNAd, pam))
     
+    # Test Doench 2016 score
+    print("=== Doench 2016 ===")
+    pam = 'AGG'
+    gRNAa = 'CGATGGCTTGGATCGATTGA'
+    gRNAb = 'CGTTGGCTTGGATCGATTGA'
+    gRNAc = 'CGATGGCTTCGATCGATTGA'
+    gRNAd = 'CGATGGCTTCGAGCGATTGA'
+    print(doench.on_target_score_2016(gRNAa, gRNAa, pam))
+    print(doench.on_target_score_2016(gRNAa, gRNAb, pam))
+    print(doench.on_target_score_2016(gRNAa, gRNAc, pam))
+    print(doench.on_target_score_2016(gRNAa, gRNAd, pam))
 
 def main():
     """Function to run complete AddTag analysis"""

@@ -221,6 +221,8 @@ def calcMitGuideScore(hitSum):
     return score
 
 def test():
+    # Test Hsu score
+    print("=== Hsu 2013 ===")
     a = 'CGATGGCTWGGATCGATTGAC'
     b = 'AAGTGCTCTTAAGAGAAATTC'
     c = 'ATGSCTCGGATCGATTGAC'

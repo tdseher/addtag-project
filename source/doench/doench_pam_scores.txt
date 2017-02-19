@@ -1,6 +1,6 @@
 # Values are obtained from Doench et al (2016) Supplementary table 19
 # row 'GG' has a note attached?
-# ?	score	approximation
+# PAM sequence N--	score	approximation
 AG	0.25925925899999996	7/27
 GT	0.016129031999999998	1/62
 GG	1.0	1

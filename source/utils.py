@@ -30,7 +30,7 @@ def rc(seq, kind="dna"):
         raise ValueError("'" + str(kind) + "' is an invalid argument for rc()")
     return seq.translate(complements)[::-1]
 
-def read_fasta_file(filename):
+def load_fasta_file(filename):
     """Load contig sequences from file into dict()
     Primary sequence headers must be unique
     Can open a *.gz compressed file
@@ -59,6 +59,89 @@ def read_fasta_file(filename):
     
     print('FASTA file parsed: {!r}'.format(filename), file=sys.stderr)
     return contigs
+
+def load_gff_file(filename, features, tag):
+    """Load General Feature Format (GFF) file into dict()
+    One line per feature, each containing 9 columns of data, plus optional
+    track definition lines.
+    """
+    # Fields must be tab-separated. Also, all but the final field in each
+    # feature line must contain a value; "empty" columns should be denoted
+    # with a '.'
+    #  1) seqid - name of the chromosome or scaffold; chromosome names can
+    #     be given with or without the 'chr' prefix. Important note: the
+    #     seqname must be a standard chromosome name or an identifier such as
+    #     a scaffold ID, without any additional content such as species or
+    #     assembly.
+    #  2) source - name of the program that generated this feature, or the
+    #     data source (database or project name)
+    #  3) feature - feature type name, e.g. Gene, Variation, Similarity
+    #  4) start - Start position of the feature, with sequence numbering
+    #     starting at 1.
+    #  5) end - End position of the feature, with sequence numbering
+    #     starting at 1.
+    #  6) score - A floating point value. As in earlier versions of the format,
+    #     the semantics of the score are ill-defined. It is strongly
+    #     recommended that E-values be used for sequence similarity features,
+    #     and that P-values be used for ab initio gene prediction features.
+    #     If there is no score, put a '.' (a period) in this field.
+    #  7) strand - defined as '+' (forward), '-' (reverse), '.' (unstranded),
+    #     '?' (relevant, but unknown).
+    #  8) frame - for CDS features, '0', '1' or '2'. '0' indicates that the first base of
+    #     the feature is the first base of a codon, '1' that the second base
+    #     is the first base of a codon, and so on. Other features can use '.'.
+    #  9) attribute - A semicolon-separated list of tag-value pairs, providing
+    #     additional information about each feature. A list of feature
+    #     attributes in the format tag=value. Multiple tag=value pairs are
+    #     separated by semicolons. URL escaping rules are used for tags or
+    #     values containing the following characters: ",=;". Spaces are allowed
+    #     in this field, but tabs must be replaced with the %09 URL escape.
+    #     This field is not required.
+    #     Column 9 tags have predefined meanings:
+    #       ID - Indicates the unique identifier of the feature. IDs must be
+    #            unique within the scope of the GFF file.
+    #       Name - Display name for the feature. This is the name to be displayed to the user. Unlike IDs, there is no requirement that the Name be unique within the file.
+    #       Alias - A secondary name for the feature. It is suggested that this tag be used whenever a secondary identifier for the feature is needed, such as locus names and accession numbers. Unlike ID, there is no requirement that Alias be unique within the file.
+    #       Parent - Indicates the parent of the feature. A parent ID can be used to group exons into transcripts, transcripts into genes, and so forth. A feature may have multiple parents. Parent can *only* be used to indicate a partof relationship.
+    #       Target - Indicates the target of a nucleotide-to-nucleotide or protein-to-nucleotide alignment. The format of the value is "target_id start end [strand]", where strand is optional and may be "+" or "-". If the target_id contains spaces, they must be escaped as hex escape %20.
+    #       Gap - The alignment of the feature to the target if the two are not collinear (e.g. contain gaps). The alignment format is taken from the CIGAR format described in the Exonerate documentation. http://cvsweb.sanger.ac.uk/cgi-bin/cvsweb.cgi/exonerate?cvsroot=Ensembl). See the GFF3 specification for more information.
+    #       Derives_from - Used to disambiguate the relationship between one feature and another when the relationship is a temporal one rather than a purely structural "part of" one. This is needed for polycistronic genes. See the GFF3 specification for more information.
+    #       Note - A free text note.
+    #       Dbxref - A database cross reference. See the GFF3 specification for more information.
+    #       Ontology_term - A cross reference to an ontology term. See the GFF3 specification for more information.
+    #     Multiple attributes of the same type are indicated by separating the
+    #     values with the comma "," character, as in: 'Parent=AF2312,AB2812,abc-3'
+    #     Note that attribute names are case sensitive. "Parent" is not the
+    #     same as "parent". All attributes that begin with an uppercase letter
+    #     are reserved for later use. Attributes that begin with a lowercase
+    #     letter can be used freely by applications. You can stash any
+    #     semi-structured data into the database by using one or more
+    #     unreserved (lowercase) tags.
+    
+    feature = features[0]
+    
+    #contig_lengths = {}
+    annotations = {}
+    
+    with open(filename, 'r') as flo:
+        for line in flo:
+            line = line.rstrip()
+            #if line.startswith("##sequence-region"):
+            #    # sample line:
+            #    # ##sequence-region contig_1 1 209073
+            #    sline = line.split(' ')
+            #    contig_lengths[sline[1]] = int(sline[3])
+            #else:
+            if not line.startswith('#'):
+                sline = line.split('\t')
+                if ((len(sline) > 6) and (sline[2] == feature)):
+                    m = regex.findall(tag + r'=([^;]*)', sline[8])
+                    if m:
+                        #           gene     contig    start(bp)      end(bp)        frame
+                        annotations[m[0]] = (sline[0], int(sline[3]), int(sline[4]), sline[6])
+    
+    print('GFF file parsed: {!r}'.format(filename), file=sys.stderr)
+    return annotations
 
 def disambiguate_iupac(iupac_sequence):
     """converts a string containing IUPAC nucleotide sequence to a list

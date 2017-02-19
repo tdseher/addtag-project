@@ -1,5 +1,6 @@
-# pasted/typed table from PDF and converted to zero-based positions
-# ?	?	score
+# Pasted/typed table from PDF and converted to zero-based positions
+# position-sequence pairs absent from this table receive a score of 0
+# position	model sequence	score
 1	G	-0.2753771
 2	A	-0.3238875
 2	C	0.17212887
