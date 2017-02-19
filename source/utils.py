@@ -9,6 +9,32 @@ import sys
 import gzip
 import regex
 
+class sliding_window(object):
+    """Iterator for a sliding window across a nucleotide sequence"""
+    def __init__(self, sequence, window, start=0, stop=None, step=1):
+        """Initialize a new instance of this iterator"""
+        self.sequence = sequence
+        self.window = window
+        self.step = step
+        self.start = start
+        if (stop == None):
+            self.stop = len(self.sequence)
+        else:
+            self.stop = stop
+        self.position = self.start
+    def __iter__(self):
+        """Return this object as an iterator"""
+        return self
+    def __next__(self):
+        """Return the next element if there is one, otherwise, raise a
+        StopIteration exception
+        """
+        if ((self.position >= self.stop) or (self.position + self.window > len(self.sequence))):
+            raise StopIteration
+        seq = self.sequence[self.position:self.position+self.window]
+        self.position += self.step
+        return seq
+
 def lcs(string1, string2):
     """Find the longest common substring between two strings"""
     import difflib
@@ -45,17 +71,18 @@ def load_fasta_file(filename):
     #with open(filename, 'r') as flo:
     with flo:
         name = None
+        seq = None
         for line in flo:
             line = line.rstrip()
             if line.startswith('>'):
+                if (name != None):
+                    contigs[name] = seq
                 name = regex.split(r'\s+', line[1:], 1)[0]
-                contigs[name] = ''
+                seq = ''
             else:
-                # Handle malformatted FASTA
-                if ((name == None) or (name == "")):
-                    raise ValueError('FASTA file malformatted')
-                else:
-                    contigs[name] += line
+                seq += line
+        if (name != None):
+            contigs[name] = seq
     
     print('FASTA file parsed: {!r}'.format(filename), file=sys.stderr)
     return contigs
@@ -64,6 +91,8 @@ def load_gff_file(filename, features, tag):
     """Load General Feature Format (GFF) file into dict()
     One line per feature, each containing 9 columns of data, plus optional
     track definition lines.
+    
+    Converts positions to 0-based index.
     """
     # Fields must be tab-separated. Also, all but the final field in each
     # feature line must contain a value; "empty" columns should be denoted
@@ -137,8 +166,8 @@ def load_gff_file(filename, features, tag):
                 if ((len(sline) > 6) and (sline[2] == feature)):
                     m = regex.findall(tag + r'=([^;]*)', sline[8])
                     if m:
-                        #           gene     contig    start(bp)      end(bp)        frame
-                        annotations[m[0]] = (sline[0], int(sline[3]), int(sline[4]), sline[6])
+                        #           gene     contig       start(bp)          end(bp)      strand
+                        annotations[m[0]] = (sline[0], int(sline[3])-1, int(sline[4])-1, sline[6])
     
     print('GFF file parsed: {!r}'.format(filename), file=sys.stderr)
     return annotations
