@@ -6,6 +6,7 @@
 
 # Import standard packages
 import sys
+import os
 import gzip
 import regex
 
@@ -35,6 +36,14 @@ class sliding_window(object):
         self.position += self.step
         return seq
 
+def flatten(iterable, remove_none=False):
+    """Make a flat list out of a list of lists"""
+    # Will remove None
+    if remove_none:
+        return [item for sublist in iterable for item in sublist if item != None]
+    else:
+        return [item for sublist in iterable for item in sublist]
+
 def lcs(string1, string2):
     """Find the longest common substring between two strings"""
     import difflib
@@ -56,11 +65,54 @@ def rc(seq, kind="dna"):
         raise ValueError("'" + str(kind) + "' is an invalid argument for rc()")
     return seq.translate(complements)[::-1]
 
+def load_sam_file(filename):
+    """Read in SAM file."""
+    
+    # Code to decompress a *.bam file should go here
+    
+    with open(filename, 'r') as flo:
+        r1 = None
+        r2 = None
+        for line in flo:
+            if not line.startswith('@'):
+                sline = line.split("\t")
+                if (r1 == None):
+                    r1 = sline
+                elif (r2 == None):
+                    r2 = sline
+                    if (r1[0] == r2[0]):
+                        if (r1[2] != r2[2]):
+                            if (((int(r1[3]) < edge_distance) or
+                                 #(int(r1[3]) > (data[r1[2]]["length"] - args.edge_distance))) and
+                                 (int(r1[3]) > (data[r1[2]] - edge_distance))) and
+                                ((int(r2[3]) < edge_distance) or
+                                 #(int(r2[3]) > (data[r2[2]]["length"] - args.edge_distance)))):
+                                 (int(r2[3]) > (data[r2[2]] - edge_distance)))):
+                                links[(r1[2], r2[2])][0] += 1
+                        else:
+                            if (r1[2] != '*'):
+                                links[(r1[2], r2[2])][0] += 1 # approximation of contig depth
+                    r1 = None
+                    r2 = None
+    
+    depths = {}
+    for contig in data:
+        depths[contig] = links[(contig, contig)][0]
+    
+    return links, depths
+
 def load_fasta_file(filename):
     """Load contig sequences from file into dict()
     Primary sequence headers must be unique
     Can open a *.gz compressed file
     """
+    # Future features: parse the non-primary sequence header to find tags
+    # specifying whether the contig is linear or circular:
+    #  linear=true, linear=yes, linear=1
+    #  circular=true, circular=yes, circular=1
+    #  etc
+    # instead of storing the values as strings, use tuples:
+    #  contigs['header'] = ('ACGTGACGA', 'linear')
     
     if filename.endswith('.gz'):
         flo = gzip.open(filename, 'rt')
@@ -294,6 +346,21 @@ def build_regex(iupac_sequence, case_sensitive=False, max_substitutions=0, max_i
     compiled_regex = regex.compile(pattern, flags=myflags)
     return compiled_regex
 
+def load_git_version():
+    '''Returns the git version for the current head and master'''
+    # Current repository version stored in this file:
+    #   .../addtag-project/.git/refs/heads/master
+    root = os.path.join(os.path.dirname(__file__), '..')
+    filename = os.path.join('.git', 'refs', 'heads', 'master')
+    filepath = os.path.join(root, filename)
+    version = None
+    try:
+        with open(filepath, 'r') as flo:
+            version = flo.readline().rstrip()
+    except FileNotFoundError:
+        version = 'missing'
+    return version
+
 def find_target_matches(compiled_regex, contigs, overlap=False):
     '''Finds all instances of the compiled_regex within the contigs(dict),
     and returns list of matches as 0-indexed
@@ -325,3 +392,8 @@ def find_target_matches(compiled_regex, contigs, overlap=False):
     
     return matches
 
+def test():
+    print(load_git_version())
+
+if (__name__ == "__main__"):
+    test()

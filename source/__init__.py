@@ -20,51 +20,117 @@ from . import hsu
 from . import doench
 
 # Define meta variables
-__author__ = "Thaddeus D. Seher (@tdseher), & Aaron Hernday"
+__author__ = "Thaddeus D. Seher (@tdseher) & Aaron Hernday"
 __date__ = "2017-02-03"
-__version__ = "1"
+__fullversion__ = utils.load_git_version()
+__version__ = __fullversion__[:7]
 __program__ = os.path.basename(sys.argv[0])
 __description__ = """\
-Program for identifying unique endogenous gRNA sites
-and creating unique synthetic gRNA sites. \
-Copyright (c) {__date__} {__author__}. All rights reserved. \
+description:
+  Program for identifying unique endogenous gRNA sites 
+  and creating unique synthetic gRNA sites.
+  
+  Copyright (c) {__date__} {__author__}.
+  All rights reserved.
 
-If '--homologs' option is not used, then ambiguous bases within
-the FASTA will not be chosen for gRNA sites.
+version:
+  short {__version__}
+  full  {__fullversion__}
+
 """.format(**locals())
 __epilog__ = """\
 example:
  $ python3 {__program__} genome.fasta genome.gff > results.txt
 """.format(**locals())
 
+class CustomHelpFormatter(argparse.HelpFormatter):
+    """Help message formatter which retains any formatting in descriptions
+    and adds default values to argument help.
+    
+    Only the name of this class is considered a public API. All the methods
+    provided by the class are considered an implementation detail.
+    """
+    # This class combines:
+    #   argparse.ArgumentDefaultsHelpFormatter
+    #   argparse.RawDescriptionHelpFormatter
+    
+    def _fill_text(self, text, width, indent):
+        return ''.join([indent + line for line in text.splitlines(True)])
+    
+    def _get_help_string(self, action):
+        help = action.help
+        if '%(default)' not in action.help:
+            if action.default is not argparse.SUPPRESS:
+                defaulting_nargs = [argparse.OPTIONAL, argparse.ZERO_OR_MORE]
+                if action.option_strings or action.nargs in defaulting_nargs:
+                    help += ' (default: %(default)s)'
+        return help
+
 def parse_arguments():
     # Create the argument parser
     parser = argparse.ArgumentParser(
         description=__description__,
         epilog=__epilog__,
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+        formatter_class=CustomHelpFormatter
     )
     
-    # Add mandatory arguments
-    parser.add_argument("--fasta", required=True, metavar="*.fasta", type=str, help="FASTA file containing all contigs to derive gRNA sites for. All FASTA sequences should have unique primary headers (everything between the '>' and the first ' ' should be unique).")
-    parser.add_argument("--gff", required=True, metavar="*.gff", type=str, help="GFF file specifying chromosomal features")
+    # Add required arguments
+    required_group = parser.add_argument_group('required arguments')
+    required_group.add_argument("--fasta", required=True, metavar="*.fasta", type=str,
+        help="FASTA file with contigs to find unique gRNA sites. Input FASTA \
+            must not be compressed. Ambiguous bases within the FASTA will not \
+            be chosen for gRNA sites. All FASTA sequences should have unique \
+            primary headers (everything between the '>' and the first ' ' \
+            should be unique).")
+    required_group.add_argument("--gff", required=True, metavar="*.gff", type=str,
+        help="GFF file specifying chromosomal features")
     
     # Add optional arguments
-    parser.add_argument("--test", action="store_true", help="Perform tests only")
-    parser.add_argument("--tag", metavar='TAG', type=str, default='ID', help="GFF tag with protein names. Examples: 'ID', 'Name', 'Parent', or 'locus_tag'")
-    parser.add_argument("--homologs", metavar="*.homologs", type=str, default=None, help="Path to text file homologous contigs on the same line, separated by TAB characters")
-    parser.add_argument("--min_contig_edge_distance", metavar="N", type=int, default=500, help="Minimum distance from contig edge a site can be found")
-    parser.add_argument("--features", metavar="FEATURE", type=str, nargs="+", default=["gene"], help="Features to design gRNA sites against. Must exist in GFF file. Examples: 'CDS', 'gene', 'mRNA', 'exon'")
-    parser.add_argument("--target_lengths", nargs=2, metavar=('min', 'max'), type=int, default=[19, 21], help="The length range of the 'target'/'spacer'/gRNA site")
-    parser.add_argument("--donor_lengths", nargs=2, metavar=('min', 'max'), type=int, default=[80, 100], help="The length range of the final computed donor DNA for each site")
-    parser.add_argument("--min_feature_edge_distance", metavar="N", type=int, default=24, help="The minimum distance a gRNA site can be from the edge of the feature. If negative, the maximum distance a gRNA site can be outside the feature.")
-    parser.add_argument("--min_donor_insertions", metavar="N", type=int, default=2, help="The uniqueness of final donor DNA compared to the rest of the genome")
-    parser.add_argument("--min_donor_deletions", metavar="N", type=int, default=2, help="The uniqueness of final donor DNA compared to the rest of the genome")
-    parser.add_argument("--min_donor_mismatches", metavar="N", type=int, default=2, help="The uniqueness of final donor DNA compared to the rest of the genome")
-    parser.add_argument("--min_donor_differences", metavar="N", type=int, default=3, help="The uniqueness of final donor DNA compared to the rest of the genome")
-    parser.add_argument("--min_donor_distance", metavar="N", type=int, default=36, help="The minimum distance in bp a difference can exist from the edge of donor DNA") # homology with genome
-    parser.add_argument("--strands", type=str, choices=["+", "-", "both"], default="both", help="Strands to search for gRNAs")
-    parser.add_argument("--overlap", action="store_true", help="Include exhaustive search for overlapping sites. May increase computation time.")
+    parser.add_argument("--test", action="store_true",
+        help="Perform tests only")
+    parser.add_argument("--tag", metavar='TAG', type=str, default='ID',
+        help="GFF tag with feature names. Examples: 'ID', 'Name', 'Parent', or 'locus_tag'")
+    #parser.add_argument("--feature_homolog_regex", metavar="REGEX", type=str, default=None, help="regular expression with capturing group containing invariant feature. Example: '(.*)_[AB]' will treat features C2_10010C_A and C2_10010C_B as homologs")
+    # okay idea, but needs more thought before implementation
+    parser.add_argument("--feature_homologs", metavar="*.homologs", type=str, default=None,
+        help="Path to text file containing homologous features on the same \
+            line, separated by TAB characters")
+    parser.add_argument("--min_contig_edge_distance", metavar="N", type=int, default=500,
+        help="Minimum distance from contig edge a site can be found")
+    parser.add_argument("--features", metavar="FEATURE", type=str, nargs="+", default=["gene"],
+        help="Features to design gRNA sites against. Must exist in GFF file. Examples: 'CDS', 'gene', 'mRNA', 'exon'")
+    parser.add_argument("--target_lengths", nargs=2, metavar=('MIN', 'MAX'), type=int, default=[19, 21],
+        help="The length range of the 'target'/'spacer'/gRNA site")
+    parser.add_argument("--donor_lengths", nargs=2, metavar=('MIN', 'MAX'), type=int, default=[80, 100],
+        help="The length range of the final computed donor DNA for each site")
+    parser.add_argument("--min_feature_edge_distance", metavar="N", type=int, default=24,
+        help="The minimum distance a gRNA site can be from the edge of the \
+             feature. If negative, the maximum distance a gRNA site can be \
+             outside the feature.")
+    parser.add_argument("--min_donor_insertions", metavar="N", type=int, default=2,
+        help="The uniqueness of final donor DNA compared to the rest of the genome")
+    parser.add_argument("--min_donor_deletions", metavar="N", type=int, default=2,
+        help="The uniqueness of final donor DNA compared to the rest of the genome")
+    parser.add_argument("--min_donor_substitutions", metavar="N", type=int, default=2,
+        help="The uniqueness of final donor DNA compared to the rest of the genome")
+    parser.add_argument("--min_donor_errors", metavar="N", type=int, default=3,
+        help="The uniqueness of final donor DNA compared to the rest of the genome")
+    parser.add_argument("--min_donor_distance", metavar="N", type=int, default=36,
+        help="The minimum distance in bp a difference can exist from the edge of donor DNA") # homology with genome
+    parser.add_argument("--strands", type=str, choices=["+", "-", "both"], default="both",
+        help="Strands to search for gRNAs")
+    parser.add_argument("--overlap", action="store_true",
+        help="Include exhaustive search for overlapping sites. May increase computation time.")
+    parser.add_argument("--processors", type=int, default=(os.cpu_count() or 1),
+        help="Number of processors to use when performing pairwise sequence alignments")
+    parser.add_argument("--aligner", type=str, choices=['bowtie2'], default='bowtie2',
+        help="Program to calculate pairwise alignments")
+    # Other aligners to consider: 'bowtie', 'bwa', 'blastn', 'blat', 'rmap', 'maq', 'shrimp2', 'soap2', 'star', 'rhat', 'mrsfast', 'stampy'
+    parser.add_argument("--temp", type=str, default=os.getcwd(),
+        help="Path of folder to store temporary files")
+    
+    # Special version action
+    parser.add_argument("-v", "--version", action='version', version='{__program__} {__version__}'.format(**globals()))
     
     # Parse the arguments, and return
     return parser.parse_args()
