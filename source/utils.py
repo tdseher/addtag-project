@@ -12,7 +12,7 @@ import regex
 
 class sliding_window(object):
     """Iterator for a sliding window across a nucleotide sequence"""
-    def __init__(self, sequence, window, start=0, stop=None, step=1):
+    def __init__(self, sequence, window=20, start=0, stop=None, step=1):
         """Initialize a new instance of this iterator"""
         self.sequence = sequence
         self.window = window
@@ -30,11 +30,14 @@ class sliding_window(object):
         """Return the next element if there is one, otherwise, raise a
         StopIteration exception
         """
-        if ((self.position >= self.stop) or (self.position + self.window > len(self.sequence))):
+        s = self.position
+        e = self.position + self.window
+        #if ((self.position >= self.stop) or (end > len(self.sequence))):
+        if (e > self.stop):
             raise StopIteration
-        seq = self.sequence[self.position:self.position+self.window]
+        seq = self.sequence[s:e]
         self.position += self.step
-        return seq
+        return s, e, seq
 
 def flatten(iterable, remove_none=False):
     """Make a flat list out of a list of lists"""
@@ -65,41 +68,68 @@ def rc(seq, kind="dna"):
         raise ValueError("'" + str(kind) + "' is an invalid argument for rc()")
     return seq.translate(complements)[::-1]
 
-def load_sam_file(filename):
+def cigar_length(cigar):
+    """Returns the length of the sequence specified by the CIGAR string"""
+    # The CIGAR operations are given in the following table (set '*' if unavailable):
+    #   Op BAM Description
+    #   M    0 alignment match (can be a sequence match or mismatch)
+    #   I    1 insertion to the reference
+    #   D    2 deletion from the reference
+    #   N    3 skipped region from the reference
+    #   S    4 soft clipping (clipped sequences present in SEQ)
+    #   H    5 hard clipping (clipped sequences NOT present in SEQ)
+    #   P    6 padding (silent deletion from padded reference)
+    #   =    7 sequence match
+    #   X    8 sequence mismatch
+    #
+    # Notes
+    #  * H can only be present as the first and/or last operation.
+    #  * S may only have H operations between them and the ends of the CIGAR string.
+    #  * For mRNA-to-genome alignment, an N operation represents an intron. For other types of alignments, the interpretation of N is not defined.
+    #  * Sum of lengths of the M/I/S/=/X operations shall equal the length of SEQ.
+    
+    m = regex.findall(r'(\d+)[MISP=X]', cigar)
+    return sum(map(int, m))
+
+def load_sam_file(filename, sep=':'):
     """Read in SAM file."""
+    
+    # Sequence Alignment/Map (SAM) format is TAB-delimited. Apart from the
+    # header lines, which are started with the '@' symbol, each alignment line
+    # consists of:
+    #   Col  Field  Description
+    #   1    QNAME  Query template/pair NAME
+    #   2    FLAG   bitwise FLAG
+    #   3    RNAME  Reference sequence NAME
+    #   4    POS    1-based leftmost POSition/coordinate of clipped sequence
+    #   5    MAPQ   MAPping Quality (Phred-scaled)
+    #   6    CIAGR  extended CIGAR string
+    #   7    MRNM   Mate Reference sequence NaMe ('=' if same as RNAME)
+    #   8    MPOS   1-based Mate POSistion
+    #   9    TLEN   inferred Template LENgth (insert size)
+    #   10   SEQ    query SEQuence on the same strand as the reference
+    #   11   QUAL   query QUALity (ASCII-33 gives the Phred base quality)
+    #   12+  OPT    variable OPTional fields in the format TAG:VTYPE:VALUE
     
     # Code to decompress a *.bam file should go here
     
+    alignments = {}
     with open(filename, 'r') as flo:
-        r1 = None
-        r2 = None
         for line in flo:
             if not line.startswith('@'):
-                sline = line.split("\t")
-                if (r1 == None):
-                    r1 = sline
-                elif (r2 == None):
-                    r2 = sline
-                    if (r1[0] == r2[0]):
-                        if (r1[2] != r2[2]):
-                            if (((int(r1[3]) < edge_distance) or
-                                 #(int(r1[3]) > (data[r1[2]]["length"] - args.edge_distance))) and
-                                 (int(r1[3]) > (data[r1[2]] - edge_distance))) and
-                                ((int(r2[3]) < edge_distance) or
-                                 #(int(r2[3]) > (data[r2[2]]["length"] - args.edge_distance)))):
-                                 (int(r2[3]) > (data[r2[2]] - edge_distance)))):
-                                links[(r1[2], r2[2])][0] += 1
-                        else:
-                            if (r1[2] != '*'):
-                                links[(r1[2], r2[2])][0] += 1 # approximation of contig depth
-                    r1 = None
-                    r2 = None
+                sline = line.rstrip().split("\t")
+                feature, source_contig, source_start, source_end = sline[0].split(sep)
+                source = (source_contig, int(source_start), int(source_end))
+                dest = (sline[2], int(sline[3]), int(sline[3])+cigar_length(sline[5]))
+                try:
+                    alignments[feature][source].append(dest)
+                except KeyError:
+                    try:
+                        alignments[feature][source] = [dest]
+                    except KeyError:
+                        alignments[feature] = {source: [dest]}
     
-    depths = {}
-    for contig in data:
-        depths[contig] = links[(contig, contig)][0]
-    
-    return links, depths
+    return alignments
 
 def load_fasta_file(filename):
     """Load contig sequences from file into dict()

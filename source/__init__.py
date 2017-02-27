@@ -18,6 +18,7 @@ import regex
 from . import utils
 from . import hsu
 from . import doench
+from . import bowtie2
 
 # Define meta variables
 __author__ = "Thaddeus D. Seher (@tdseher) & Aaron Hernday"
@@ -318,18 +319,36 @@ def main():
         # Set gRNA target_length to be 20 nt, despite what the command line specifies
         target_length = 20
         
-        # Find unique gRNA sites within each feature:
-        # Use naive method:
+        # Index the reference FASTA
+        if (args.aligner == 'bowtie2'):
+            index_file = bowtie2.index_reference(args.fasta, tempdir=args.temp, threads=args.processors)
+        
+        # Ideally, this code would procedurally write to the query file
+        # as new sequences were being added, thus limiting the amount of memory
+        # used to store sequences.
+        
+        # Find unique gRNA sites within each feature
+        targets = []
         # Use a sliding window to make a list of queries
-        for gene in features:
-            print(gene, features[gene])
-            contig, start, end, strand = features[gene]
-            # Find a site within this feature that will serve as a unique gRNA
-            for target in utils.sliding_window(contigs[contig][start:end], target_length):
-                regex = utils.build_regex(target, max_substitutions=2)
-                matches = utils.find_target_matches(regex, contigs, overlap=True)
-                for m in matches:
-                    print(m)
+        for feature in features:
+            contig, start, end, strand = features[feature]
+            # Make sure the contig the feature is on is present in the FASTA
+            if contig in contigs:
+                print(feature, features[feature], file=sys.stderr)
+                # Find a site within this feature that will serve as a unique gRNA
+                targets.extend(map(lambda x: (feature, contig,)+x, utils.sliding_window(contigs[contig], window=target_length, start=start, stop=end)))
+                
+                #for target in utils.sliding_window(contigs[contig][start:end], target_length):
+                #    Use regex (slow) to find all matches in the genome
+                #    regex = utils.build_regex(target, max_substitutions=2)
+                #    matches = utils.find_target_matches(regex, contigs, overlap=True)
+                #    for m in matches:
+                #        print(m)
         
+        name = 'temp_alignment'
+        # os.path.join(args.temp, name+'.fasta')
+        query_file = bowtie2.generate_query(name+'.fasta', targets)
         
+        # Use bowtie2 to find all matches in the genome
+        sam_file = bowtie2.align(query_file, index_file)
         
