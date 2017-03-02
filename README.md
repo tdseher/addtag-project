@@ -5,12 +5,13 @@ Program for identifying unique endogenous gRNA sites and creating unique synthet
 ### Description ###
 
 The CRISPR/Cas9 AddTag system can be used to do the following:
-1. Generate gRNAs that target specific "features" uniquely (specified as GFF input), with low probabilities of off-target binding across the entire genome (specified as FASTA input).
-2. Create "donor" DNA that contains a genome-wide unique gRNA-binding site with upstream and downstream homologous flanking regions, for use with complete gene knock-outs.
-3. Construct conservative PCR primers for positive/negative amplification of "feature" knock-out.
-4. Design gRNAs that target these unique "donor" DNA sites for Cas9 cutting.
-5. Make "reversion" DNA sequences, composed of homologous sequences flanking the original "features" specific to each site, so the "feature" can be be re-inserted back into the genome. Please note, that at this time, no special restriction sites will be taken into account.
-6. Compose conservative PCR primers for positive/negative amplification of "feature" reversion knock-in.
+
+ 1. Generate gRNAs that target specific "features" uniquely (specified as GFF input), with low probabilities of off-target binding across the entire genome (specified as FASTA input).
+ 2. Create "donor" DNA that contains a genome-wide unique gRNA-binding site with upstream and downstream homologous flanking regions, for use with complete gene knock-outs.
+ 3. Construct conservative PCR primers for positive/negative amplification of "feature" knock-out.
+ 4. Design gRNAs that target these unique "donor" DNA sites for Cas9 cutting.
+ 5. Make "reversion" DNA sequences, composed of homologous sequences flanking the original "features" specific to each site, so the "feature" can be be re-inserted back into the genome. Please note, that at this time, no special restriction sites will be taken into account.
+ 6. Compose conservative PCR primers for positive/negative amplification of "feature" reversion knock-in.
 
 All generated sequences can be designed as either strand-specific or strand-agnostic. Additionally, generated sequences can target homologous chromosomes with the same gRNA or "donor" DNA if the input FASTA includes IUPAC ambiguity codes for polymorphisms. By default, AddTag will try to avoid all polymorphisms whenever possible.
 
