@@ -68,6 +68,63 @@ def rc(seq, kind="dna"):
         raise ValueError("'" + str(kind) + "' is an invalid argument for rc()")
     return seq.translate(complements)[::-1]
 
+def linear_score(seq1, seq2):
+    """Scores low if substitutions near 3' end of the sequence
+    To add: insertions and deletions """
+    x = list(range(20))
+    t = sum(x)
+    y = list(map(lambda i: i/t, x))
+    score = 1
+    for i in range(len(seq1)):
+        if (seq1[i] != seq2[i]):
+            score -= y[i]
+    return score*100
+
+def gc_score(seq):
+    """Caclulates the %GC content for seq. IUPAC ambiguities okay."""
+    iupac = {
+        'a': ['a'],
+        'c': ['c'],
+        'g': ['g'],
+        't': ['t'],
+        'r': ['a', 'g'],
+        'y': ['c', 't'],
+        'm': ['a', 'c'],
+        'k': ['g', 't'],
+        'w': ['a', 't'],
+        's': ['c', 'g'],
+        'b': ['c', 'g', 't'],
+        'd': ['a', 'g', 't'],
+        'h': ['a', 'c', 't'],
+        'v': ['a', 'c', 'g'],
+        'n': ['a', 'c', 'g', 't'],
+        
+        'A': ['A'],
+        'C': ['C'],
+        'G': ['G'],
+        'T': ['T'],
+        'R': ['A', 'G'],
+        'Y': ['C', 'T'],
+        'M': ['A', 'C'],
+        'K': ['G', 'T'],
+        'W': ['A', 'T'],
+        'S': ['C', 'G'],
+        'B': ['C', 'G', 'T'],
+        'D': ['A', 'G', 'T'],
+        'H': ['A', 'C', 'T'],
+        'V': ['A', 'C', 'G'],
+        'N': ['A', 'C', 'G', 'T'],
+    }
+    
+    gc = 0.0
+    for i in seq:
+        k = iupac[i]
+        for j in ['G', 'g', 'C', 'c']:
+            if j in k:
+                gc += 1.0/len(k)
+    
+    return 100*gc/len(seq)
+
 def cigar_length(cigar):
     """Returns the length of the sequence specified by the CIGAR string"""
     # The CIGAR operations are given in the following table (set '*' if unavailable):
@@ -91,8 +148,44 @@ def cigar_length(cigar):
     m = regex.findall(r'(\d+)[MISP=X]', cigar)
     return sum(map(int, m))
 
+def sam_orientation(field):
+    """Uses the bit flag column in SAM output to determine the orientation
+    Returns
+      '+' for forward orientation
+      '-' for reverse-complement orientation
+    """
+    # Typecast if necessary
+    if isinstance(field, str):
+        field = int(field)
+    
+    if (field & 16):
+        return '-'
+    else:
+        return '+'
+
+def decode_sam_flags(field, kind='str'):
+    """Decodes the bit flag column in SAM output into a string or list of characters"""
+    flags = {1:'p', 2:'P', 4:'u', 8:'U', 16:'r', 32:'R', 64:'1', 128:'2',256:'s', 512:'f', 1024:'d', 2048:'a'}
+    # Typecast if necessary
+    if isinstance(field, str):
+        field = int(field)
+    
+    str_flags = ''
+    list_flags = []
+    for k in flags:
+        if (field & k):
+            str_flags += flags[k]
+            list_flags.append(flags[k])
+    
+    if (kind == 'str'):
+        return str_flags
+    elif (kind == 'list'):
+        return list_flags
+
 def load_sam_file(filename, sep=':'):
-    """Read in SAM file."""
+    """Read in SAM file.
+      sep is the separator for the header. Positions are converted to 0-index
+    """
     
     # Sequence Alignment/Map (SAM) format is TAB-delimited. Apart from the
     # header lines, which are started with the '@' symbol, each alignment line
@@ -118,16 +211,19 @@ def load_sam_file(filename, sep=':'):
         for line in flo:
             if not line.startswith('@'):
                 sline = line.rstrip().split("\t")
-                feature, source_contig, source_start, source_end = sline[0].split(sep)
-                source = (source_contig, int(source_start), int(source_end))
-                dest = (sline[2], int(sline[3]), int(sline[3])+cigar_length(sline[5]))
-                try:
-                    alignments[feature][source].append(dest)
-                except KeyError:
+                if (len(sline) > 5):
+                    feature, source_contig, source_start, source_end = sline[0].split(sep)
+                    
+                    source = (source_contig, int(source_start), int(source_end))
+                    # convert mapping to 0-based index
+                    dest = (sline[2], int(sline[3])-1, int(sline[3])-1+cigar_length(sline[5]), sam_orientation(int(sline[1])))
                     try:
-                        alignments[feature][source] = [dest]
+                        alignments[feature][source].append(dest)
                     except KeyError:
-                        alignments[feature] = {source: [dest]}
+                        try:
+                            alignments[feature][source] = [dest]
+                        except KeyError:
+                            alignments[feature] = {source: [dest]}
     
     return alignments
 
@@ -254,43 +350,97 @@ def load_gff_file(filename, features, tag):
     print('GFF file parsed: {!r}'.format(filename), file=sys.stderr)
     return annotations
 
-def disambiguate_iupac(iupac_sequence):
+def filter_polyt(sequences, max_allowed=4):
+    """Uses filter to remove sequences with consecutive Ts (in genome) or
+    consecutive Us (in gRNA)
+    
+    subsequence   consecutive Ts   polymerase termination frequency
+         TTTTTT   6                mostly
+          TTTTT   5                sometimes
+           TTTT   4                rarely
+    """
+    # consider using a generator instead
+    #def filter_polyt(sequences, max_allowed):
+    #    for s in sequences:
+    #        if not ('T'*(max_allowed+1) in s):
+    #            yield s
+    
+    return list(filter(lambda x: 'T'*(max_allowed+1) not in x, sequences))
+
+def disambiguate_iupac(iupac_sequence, kind="dna"):
     """converts a string containing IUPAC nucleotide sequence to a list
     of non-iupac sequences.
     """
-    iupac = {
-        'a': ['a'],
-        'c': ['c'],
-        'g': ['g'],
-        't': ['t'],
-        'r': ['a', 'g'],
-        'y': ['c', 't'],
-        'm': ['a', 'c'],
-        'k': ['g', 't'],
-        'w': ['a', 't'],
-        's': ['c', 'g'],
-        'b': ['c', 'g', 't'],
-        'd': ['a', 'g', 't'],
-        'h': ['a', 'c', 't'],
-        'v': ['a', 'c', 'g'],
-        'n': ['a', 'c', 'g', 't'],
-        
-        'A': ['A'],
-        'C': ['C'],
-        'G': ['G'],
-        'T': ['T'],
-        'R': ['A', 'G'],
-        'Y': ['C', 'T'],
-        'M': ['A', 'C'],
-        'K': ['G', 'T'],
-        'W': ['A', 'T'],
-        'S': ['C', 'G'],
-        'B': ['C', 'G', 'T'],
-        'D': ['A', 'G', 'T'],
-        'H': ['A', 'C', 'T'],
-        'V': ['A', 'C', 'G'],
-        'N': ['A', 'C', 'G', 'T'],
-    }
+    if (kind == 'dna'):
+        iupac = {
+            'a': ['a'],
+            'c': ['c'],
+            'g': ['g'],
+            't': ['t'],
+            'r': ['a', 'g'],
+            'y': ['c', 't'],
+            'm': ['a', 'c'],
+            'k': ['g', 't'],
+            'w': ['a', 't'],
+            's': ['c', 'g'],
+            'b': ['c', 'g', 't'],
+            'd': ['a', 'g', 't'],
+            'h': ['a', 'c', 't'],
+            'v': ['a', 'c', 'g'],
+            'n': ['a', 'c', 'g', 't'],
+            
+            'A': ['A'],
+            'C': ['C'],
+            'G': ['G'],
+            'T': ['T'],
+            'R': ['A', 'G'],
+            'Y': ['C', 'T'],
+            'M': ['A', 'C'],
+            'K': ['G', 'T'],
+            'W': ['A', 'T'],
+            'S': ['C', 'G'],
+            'B': ['C', 'G', 'T'],
+            'D': ['A', 'G', 'T'],
+            'H': ['A', 'C', 'T'],
+            'V': ['A', 'C', 'G'],
+            'N': ['A', 'C', 'G', 'T'],
+        }
+    elif (kind == 'rna'):
+        iupac = {
+            'a': ['a'],
+            'c': ['c'],
+            'g': ['g'],
+            't': ['u'],
+            'u': ['u'],
+            'r': ['a', 'g'],
+            'y': ['c', 'u'],
+            'm': ['a', 'c'],
+            'k': ['g', 'u'],
+            'w': ['a', 'u'],
+            's': ['c', 'g'],
+            'b': ['c', 'g', 'u'],
+            'd': ['a', 'g', 'u'],
+            'h': ['a', 'c', 'u'],
+            'v': ['a', 'c', 'g'],
+            'n': ['a', 'c', 'g', 'u'],
+            
+            'A': ['A'],
+            'C': ['C'],
+            'G': ['G'],
+            'T': ['U'],
+            'U': ['U'],
+            'R': ['A', 'G'],
+            'Y': ['C', 'U'],
+            'M': ['A', 'C'],
+            'K': ['G', 'U'],
+            'W': ['A', 'U'],
+            'S': ['C', 'G'],
+            'B': ['C', 'G', 'U'],
+            'D': ['A', 'G', 'U'],
+            'H': ['A', 'C', 'U'],
+            'V': ['A', 'C', 'G'],
+            'N': ['A', 'C', 'G', 'U'],
+        }
     sequences = ['']
     for char in iupac_sequence:
         # If the current character is an ambiguous base,
@@ -304,11 +454,77 @@ def disambiguate_iupac(iupac_sequence):
         for i in range(len(sequences)):
             sequences[i] += iupac[char][i % len(iupac[char])]
     
-    # Throw an error if there is a non-cannonical nucleotide
+    # Throw an error if there is a non-canonical nucleotide
     assert all(map(lambda seq: all(map(lambda x: x in 'AaCcGgTtUu', seq)), sequences)) == True
+    
+    # Full list of non-canonical nucleotides/nucleobases can be found in:
+    #  Chawla et al (2015) (https://doi.org/10.1093/nar/gkv606)
+    #  .     low quality N, exotic base, or missing bp
+    #  -     gap
+    #  x, X  rarely used alternative for N, or exotic base
     
     return sequences
 
+# So far for DNA only
+def build_regex_pattern(iupac_sequence, max_substitutions=0, max_insertions=0, max_deletions=0, max_errors=0):
+    """Build a regular expression pattern for the nucleotide search, taking IUPAC
+    ambiguities into account.
+    """
+    # Format the fuzzy matching restrictions
+    fuzzy = []
+    if (max_substitutions > 0):
+        fuzzy.append('s<={}'.format(max_substitutions))
+    if (max_insertions > 0):
+        fuzzy.append('i<={}'.format(max_insertions))
+    if (max_deletions > 0):
+        fuzzy.append('d<={}'.format(max_deletions))
+    if (max_errors > 0):
+        fuzzy.append('e<={}'.format(max_errors))
+    if (len(fuzzy) > 0):
+        fuzzy = '{' + ','.join(fuzzy) + '}'
+    else:
+        fuzzy = ''
+    
+    # Convert the IUPAC sequence to an equivalent regex
+    iupac = {
+        'a': 'a',
+        'c': 'c',
+        'g': 'g',
+        't': 't',
+        'r': '[ag]',
+        'y': '[ct]',
+        'm': '[ac]',
+        'k': '[gt]',
+        'w': '[at]',
+        's': '[cg]',
+        'b': '[cgt]',
+        'd': '[agt]',
+        'h': '[act]',
+        'v': '[acg]',
+        'n': '[acgt]',
+        
+        'A': 'A',
+        'C': 'C',
+        'G': 'G',
+        'T': 'T',
+        'R': '[AG]',
+        'Y': '[CT]',
+        'M': '[AC]',
+        'K': '[GT]',
+        'W': '[AT]',
+        'S': '[CG]',
+        'B': '[CGT]',
+        'D': '[AGT]',
+        'H': '[ACT]',
+        'V': '[ACG]',
+        'N': '[ACGT]',
+    }
+    sequence = ''.join(map(lambda x: iupac[x], iupac_sequence))
+    pattern = '(' + sequence + ')' + fuzzy
+    print('Built regex string: {!r}'.format(pattern), file=sys.stderr)
+    return pattern
+
+# So far for DNA only
 def build_regex(iupac_sequence, case_sensitive=False, max_substitutions=0, max_insertions=0, max_deletions=0, max_errors=0):
     """Build a regular expression for the nucleotide search, taking IUPAC
     ambiguities into account.
@@ -423,7 +639,11 @@ def find_target_matches(compiled_regex, contigs, overlap=False):
     return matches
 
 def test():
-    print(load_git_version())
+    #print(load_git_version())
+    alignments = load_sam_file(sys.argv[1])
+    for a in alignments:
+        for b in sorted(alignments[a]):
+            print(a, b, alignments[a][b])
 
 if (__name__ == "__main__"):
     test()

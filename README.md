@@ -30,6 +30,8 @@ All generated sequences can be designed as either strand-specific or strand-agno
 * The Cas9 protein you use should be engineered specifically for your organism. It should be codon-optomized, and contain a nuclear localization sequence for eukarya.
 
 ### References ###
+* [Fu et al 2014](http://dx.doi.org/10.1038/nbt.2808) Using a shorter gRNAs (17-19 nt) can greatly improve specificity by reducing off-target binding
+* [Braglia et al 2005](http://dx.doi.org/10.1074/jbc.M412238200) sequences containing consecutive Ts may cause polymerase termination
 * [Ryan et al 2014](http://dx.doi.org/10.7554/eLife.03703) indicates that 50 bp flanking homology is sufficient to drive homologous recombination "donor" DNA knock-in.
 * [Doench et al 2014](http://dx.doi.org/10.1038/nbt.3026) for scoring algorithm
 * [Doench et al 2016](http://dx.doi.org/10.1038/nbt.3437) for scoring algorithm

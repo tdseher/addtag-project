@@ -44,6 +44,43 @@ example:
  $ python3 {__program__} genome.fasta genome.gff > results.txt
 """.format(**locals())
 
+class Sequence(object):
+    """Data structure defining a sequence"""
+    def __init__(contig_target, contig_pam, contig=None, contig_start=None, contig_end=None):
+        """Create a structure for holding individual sequence information"""
+        self.contig_target = contig_target
+        self.contig_pam = contig_pam
+        self.contig_sequence = contig_target + contig_pam
+        self.disambiguated_sequences = disambiguate_iupac(self.contig_sequence, kind="dna") # need to apply pre-filters
+        self.contig = contig
+        self.contig_start = contig_start
+        self.contig_end = contig_end
+        self.alignments = []
+        
+        # query sequence only
+        self.gc = None # utils.gc_score(contig_sequence)
+        self.doench2014 = None #doench.on_target_score_2014(seq, pam, upstream='', downstream='')
+        
+        # query x subject score
+        self.doench2016 = None
+        self.hsu = None
+        self.linear = None
+    
+    def add_alignment(aligned_sequence, aligned_contig, aligned_start, aligned_end):
+        """Add a genomic position to the list of alignments"""
+        seq = (
+            aligned_sequence,
+            aligned_contig,
+            aligned_start,
+            aligned_end,
+            doench.on_target_score_2016(self.contig_target, seq2, pam),
+            hsu.hsu_score(seq1, seq2, iupac=False),
+        )
+        self.alignments.append(seq)
+    
+    def test():
+        pass
+    
 class CustomHelpFormatter(argparse.HelpFormatter):
     """Help message formatter which retains any formatting in descriptions
     and adds default values to argument help.
@@ -85,10 +122,14 @@ def parse_arguments():
             should be unique).")
     required_group.add_argument("--gff", required=True, metavar="*.gff", type=str,
         help="GFF file specifying chromosomal features")
+    required_group.add_argument("--folder", required=True, metavar="FOLDER",
+        type=str, help="Path of folder to store generated files")
     
     # Add optional arguments
     parser.add_argument("--test", action="store_true",
         help="Perform tests only")
+    parser.add_argument("--pams", metavar="SEQ", nargs="+", type=str,
+        default=["NGG"], help="Constrain finding only targets with these PAM sites")
     parser.add_argument("--tag", metavar='TAG', type=str, default='ID',
         help="GFF tag with feature names. Examples: 'ID', 'Name', 'Parent', or 'locus_tag'")
     #parser.add_argument("--feature_homolog_regex", metavar="REGEX", type=str, default=None, help="regular expression with capturing group containing invariant feature. Example: '(.*)_[AB]' will treat features C2_10010C_A and C2_10010C_B as homologs")
@@ -100,11 +141,11 @@ def parse_arguments():
         help="Minimum distance from contig edge a site can be found")
     parser.add_argument("--features", metavar="FEATURE", type=str, nargs="+", default=["gene"],
         help="Features to design gRNA sites against. Must exist in GFF file. Examples: 'CDS', 'gene', 'mRNA', 'exon'")
-    parser.add_argument("--target_lengths", nargs=2, metavar=('MIN', 'MAX'), type=int, default=[19, 21],
+    parser.add_argument("--target_lengths", nargs=2, metavar=('MIN', 'MAX'), type=int, default=[17, 20],
         help="The length range of the 'target'/'spacer'/gRNA site")
-    parser.add_argument("--donor_lengths", nargs=2, metavar=('MIN', 'MAX'), type=int, default=[80, 100],
+    parser.add_argument("--donor_lengths", nargs=2, metavar=('MIN', 'MAX'), type=int, default=[90, 100],
         help="The length range of the final computed donor DNA for each site")
-    parser.add_argument("--min_feature_edge_distance", metavar="N", type=int, default=24,
+    parser.add_argument("--min_feature_edge_distance", metavar="N", type=int, default=23,
         help="The minimum distance a gRNA site can be from the edge of the \
              feature. If negative, the maximum distance a gRNA site can be \
              outside the feature.")
@@ -118,6 +159,8 @@ def parse_arguments():
         help="The uniqueness of final donor DNA compared to the rest of the genome")
     parser.add_argument("--min_donor_distance", metavar="N", type=int, default=36,
         help="The minimum distance in bp a difference can exist from the edge of donor DNA") # homology with genome
+    parser.add_argument("--max_consecutive_ts", metavar="N", type=int, default=4,
+        help="The maximum number of Ts allowed in generated gRNA sequences")
     parser.add_argument("--strands", type=str, choices=["+", "-", "both"], default="both",
         help="Strands to search for gRNAs")
     parser.add_argument("--overlap", action="store_true",
@@ -127,8 +170,6 @@ def parse_arguments():
     parser.add_argument("--aligner", type=str, choices=['bowtie2'], default='bowtie2',
         help="Program to calculate pairwise alignments")
     # Other aligners to consider: 'bowtie', 'bwa', 'blastn', 'blat', 'rmap', 'maq', 'shrimp2', 'soap2', 'star', 'rhat', 'mrsfast', 'stampy'
-    parser.add_argument("--temp", type=str, default=os.getcwd(),
-        help="Path of folder to store temporary files")
     
     # Special version action
     parser.add_argument("-v", "--version", action='version', version='{__program__} {__version__}'.format(**globals()))
@@ -153,9 +194,9 @@ def list_pam_sites():
         ('NNNNACA',  '20bp-NNNNACA - Cas9 Campylobacter jejuni'),
     ]
 
-def scores():
-    pass
-    
+def score(sequence, algorithms):
+    """Code that scores a gRNA sequence
+    Returns scores"""
     # two types of off-target scores
     #  CFD off-target score
     #  MIT off-target score
@@ -167,8 +208,8 @@ def scores():
     #   0-2-5-10-20     These are the off-targets that have no mismatches in the 12 bp adjacent to the PAM. These are the most likely off-targets.
     #   
     #   Off-targets are considered if they are flanked by one of the motifs NGG, NAG or NGA.
-    
 
+# Template 1
 def generate_excise_target(args, feature):
     """Finds the gRNA sequence to cut within the specified places
     on the feature. May target either the + or - strand.
@@ -297,6 +338,34 @@ def test(args):
     # Print time taken for program to complete
     print('Runtime: {}s'.format(time.time()-start), file=sys.stderr)
 
+# Template 2
+def find_candidate_targets():
+    pass
+
+def align_targets():
+    pass
+
+def find_targets():
+    pass
+
+def make_primers():
+    pass
+
+def make_donors():
+    pass
+
+def excise():
+    candidate_targets = find_targets()
+    
+    excise_primers = make_primers()
+    
+    excise_donors, revert_targets = make_donors()
+
+def revert(revert_targets):
+    revert_donors = make_donors()
+    
+    revert_primers = make_primers()
+
 def main():
     """Function to run complete AddTag analysis"""
     
@@ -314,14 +383,26 @@ def main():
         features = utils.load_gff_file(args.gff, args.features, args.tag)
         
         # Merge features?
-        features = merge_features(features)
+        #features = merge_features(features)
         
         # Set gRNA target_length to be 20 nt, despite what the command line specifies
+        # for simple testing purposes
         target_length = 20
+        
+        # Create the project directory if it doesn't exist
+        os.makedirs(args.folder, exist_ok=True)
         
         # Index the reference FASTA
         if (args.aligner == 'bowtie2'):
-            index_file = bowtie2.index_reference(args.fasta, tempdir=args.temp, threads=args.processors)
+            index_file = bowtie2.index_reference(args.fasta, tempdir=args.folder, threads=args.processors)
+        
+        # Build a regex to only match strings with PAM sites specified in args.pams
+        re_pams = []
+        for p in args.pams:
+            re_pams.append(utils.build_regex_pattern(p) + '$')
+        re_pattern = '|'.join(re_pams)
+        re_flags = regex.ENHANCEMATCH | regex.IGNORECASE
+        re_compiled = regex.compile(re_pattern, flags=re_flags)
         
         # Ideally, this code would procedurally write to the query file
         # as new sequences were being added, thus limiting the amount of memory
@@ -331,12 +412,35 @@ def main():
         targets = []
         # Use a sliding window to make a list of queries
         for feature in features:
+            
+            # for each orientation:
+            # if (args.strands in ['+', 'both']):
+            #  targets.extend...
+            # if (args.strands in ['-', 'both']):
+            #  targets.extend...
+            
             contig, start, end, strand = features[feature]
             # Make sure the contig the feature is on is present in the FASTA
             if contig in contigs:
                 print(feature, features[feature], file=sys.stderr)
                 # Find a site within this feature that will serve as a unique gRNA
-                targets.extend(map(lambda x: (feature, contig,)+x, utils.sliding_window(contigs[contig], window=target_length, start=start, stop=end)))
+                
+                # Get all potential gRNAs from feature
+                ts = utils.sliding_window(contigs[contig], window=target_length+3, start=start, stop=end)
+                
+                # Convert sequences to upper-case
+                ts = [ (s, e, seq.upper()) for s, e, seq in ts ]
+                
+                # Remove targets with T{5,}
+                # ts = utils.filter_polyt(ts, args.max_consecutive_ts)
+                ts = [ item for item in ts if ('T'*(args.max_consecutive_ts+1) not in item[2]) ]
+                
+                # Remove targets that do not end with intended PAM sites
+                ts = [ item for item in ts if re_compiled.search(item[2]) ]
+                
+                # Add all targets for this feature to the targets list
+                #targets.extend(map(lambda x: (feature, contig,)+x, utils.sliding_window(contigs[contig], window=target_length, start=start, stop=end)))
+                targets.extend(map(lambda x: (feature, contig,)+x, ts))
                 
                 #for target in utils.sliding_window(contigs[contig][start:end], target_length):
                 #    Use regex (slow) to find all matches in the genome
@@ -346,9 +450,8 @@ def main():
                 #        print(m)
         
         name = 'temp_alignment'
-        # os.path.join(args.temp, name+'.fasta')
-        query_file = bowtie2.generate_query(name+'.fasta', targets)
+        query_file = bowtie2.generate_query(os.path.join(args.folder, name+'.fasta'), targets)
         
         # Use bowtie2 to find all matches in the genome
-        sam_file = bowtie2.align(query_file, index_file)
+        sam_file = bowtie2.align(query_file, index_file, folder=args.folder)
         
