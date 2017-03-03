@@ -46,41 +46,58 @@ example:
 
 class Sequence(object):
     """Data structure defining a sequence"""
-    def __init__(contig_target, contig_pam, contig=None, contig_start=None, contig_end=None):
+    def __init__(self, feature, contig_sequence, pams, contig=None, contig_start=None, contig_end=None, contig_orientation=None, feature_orientation=None):
         """Create a structure for holding individual sequence information"""
-        self.contig_target = contig_target
-        self.contig_pam = contig_pam
-        self.contig_sequence = contig_target + contig_pam
-        self.disambiguated_sequences = disambiguate_iupac(self.contig_sequence, kind="dna") # need to apply pre-filters
+        self.feature = feature
+        self.feature_orientation = feature_orientation
+        
+        self.contig_sequence = contig_sequence
+        self.contig_target, self.contig_pam = split_target_sequence(self.contig_sequence, pams)
+        #self.disambiguated_sequences = disambiguate_iupac(self.contig_sequence, kind="dna") # need to apply pre-filters
         self.contig = contig
         self.contig_start = contig_start
         self.contig_end = contig_end
+        self.contig_orientation = contig_orientation
+        
+        # List to store alignments
         self.alignments = []
         
         # query sequence only
-        self.gc = None # utils.gc_score(contig_sequence)
-        self.doench2014 = None #doench.on_target_score_2014(seq, pam, upstream='', downstream='')
+        self.gc = utils.gc_score(self.contig_target)
+        self.doench2014 = doench.on_target_score_2014(self.contig_target, self.contig_pam, upstream='', downstream='')
         
         # query x subject score
         self.doench2016 = None
         self.hsu = None
         self.linear = None
     
-    def add_alignment(aligned_sequence, aligned_contig, aligned_start, aligned_end):
+    def add_alignment(self, aligned_sequence, pams, aligned_contig, aligned_start, aligned_end, aligned_orientation):
         """Add a genomic position to the list of alignments"""
+        aligned_target, aligned_pam = split_target_sequence(aligned_sequence, pams)
+        substitutions, insertions, deletions = utils.count_errors(self.contig_sequence, aligned_sequence)
         seq = (
             aligned_sequence,
+            aligned_target,
+            aligned_pam,
             aligned_contig,
             aligned_start,
             aligned_end,
-            doench.on_target_score_2016(self.contig_target, seq2, pam),
-            hsu.hsu_score(seq1, seq2, iupac=False),
+            aligned_orientation,
+            substitutions,
+            insertions,
+            deletions,
+            doench.on_target_score_2016(self.contig_target, aligned_target, aligned_pam),
+            hsu.hsu_score(self.contig_target, aligned_target, iupac=False),
+            utils.linear_score(self.contig_target, aligned_target),
         )
         self.alignments.append(seq)
     
-    def test():
-        pass
-    
+    def __repr__(self):
+        return 'Sequence(feature=' + self.feature + ', ' + \
+            self.contig + ':' + str(self.contig_start) + '..' + \
+            str(self.contig_end) + ', ' + self.contig_target + '|' + \
+            self.contig_pam + ', alignments=' + str(len(self.alignments)) + ')'
+
 class CustomHelpFormatter(argparse.HelpFormatter):
     """Help message formatter which retains any formatting in descriptions
     and adds default values to argument help.
@@ -103,6 +120,53 @@ class CustomHelpFormatter(argparse.HelpFormatter):
                 if action.option_strings or action.nargs in defaulting_nargs:
                     help += ' (default: %(default)s)'
         return help
+
+def load_sam_file_test(filename, pams, contigs, sep=':'):
+    """Read in SAM file.
+    sep is the separator for the header. Positions are converted to 0-index
+    Creates a list of Sequence objects
+    """
+    
+    alignments = {}
+    with open(filename, 'r') as flo:
+        for line in flo:
+            if not line.startswith('@'):
+                sline = line.rstrip().split("\t")
+                if (len(sline) > 5):
+                    feature, source_contig, source_start, source_end = sline[0].split(sep)
+                    source = (feature, source_contig, int(source_start), int(source_end))
+                    
+                    # if source not in alignments:
+                    #    alignments[source] = s
+                    # alignments[sournce].add_alignment(...)
+                    
+                    # Assuming creating an instance of Sequence() is cheaper
+                    # than traversing alignments dict()
+                    s = Sequence(
+                        feature,
+                        contigs[source_contig][int(source_start):int(source_end)], # contig_sequence
+                        pams, # ['NGG']
+                        contig=source_contig,
+                        contig_start=int(source_start),
+                        contig_end=int(source_end),
+                        contig_orientation=None,
+                        feature_orientation=None
+                    )
+                    alno = utils.sam_orientation(int(sline[1]))
+                    alns = sline[9]
+                    if (alno == '-'):
+                        alns = utils.rc(alns)
+                    alignments.setdefault(source, s).add_alignment(
+                        alns, # aligned_sequence (as when matched with reference, thus may be revcomp of initial query)
+                        pams,
+                        sline[2], # aligned_contig
+                        int(sline[3])-1, # aligned_start
+                        int(sline[3])-1+utils.cigar_length(sline[5]), # aligned_end
+                        alno # aligned_orientation (+/-)
+                    )
+    
+    #return list(alignments.values()) # unsorted list
+    return list(map(lambda x: alignments[x], sorted(alignments))) # sorted
 
 def parse_arguments():
     # Create the argument parser
@@ -143,8 +207,12 @@ def parse_arguments():
         help="Features to design gRNA sites against. Must exist in GFF file. Examples: 'CDS', 'gene', 'mRNA', 'exon'")
     parser.add_argument("--target_lengths", nargs=2, metavar=('MIN', 'MAX'), type=int, default=[17, 20],
         help="The length range of the 'target'/'spacer'/gRNA site")
-    parser.add_argument("--donor_lengths", nargs=2, metavar=('MIN', 'MAX'), type=int, default=[90, 100],
-        help="The length range of the final computed donor DNA for each site")
+    parser.add_argument("--target_gc", nargs=2, metavar=('MIN', 'MAX'), type=int, default=[25, 75],
+        help="Generated gRNAs must have %%GC content between these values (excluding PAM motif)")
+    parser.add_argument("--excise_donor_lengths", nargs=2, metavar=('MIN', 'MAX'), type=int, default=[90, 100],
+        help="Range of lengths acceptable for knock-out dDNAs.")
+    parser.add_argument("--revert_donor_lengths", nargs=2, metavar=('MIN', 'MAX'), type=int, default=[300, 600],
+        help="Range of lengths acceptable for knock-in dDNAs.")
     parser.add_argument("--min_feature_edge_distance", metavar="N", type=int, default=23,
         help="The minimum distance a gRNA site can be from the edge of the \
              feature. If negative, the maximum distance a gRNA site can be \
@@ -165,7 +233,7 @@ def parse_arguments():
         help="Strands to search for gRNAs")
     parser.add_argument("--overlap", action="store_true",
         help="Include exhaustive search for overlapping sites. May increase computation time.")
-    parser.add_argument("--processors", type=int, default=(os.cpu_count() or 1),
+    parser.add_argument("--processors", metavar="N", type=int, default=(os.cpu_count() or 1),
         help="Number of processors to use when performing pairwise sequence alignments")
     parser.add_argument("--aligner", type=str, choices=['bowtie2'], default='bowtie2',
         help="Program to calculate pairwise alignments")
@@ -248,7 +316,10 @@ def merge_features(features):
     return features
 
 def process(args):
-    # The Cas9 cuts 3-4bp upstream of the PAM sequence.
+    # The Cas9 cuts 3-4bp upstream of the PAM sequence:
+    #  ======= gRNA ==== === PAM
+    #  CGATGCATCGACTTTAC CGA AGG
+    #                   ^ Cut
     
     features = []
     for f in features:
@@ -283,6 +354,17 @@ def test(args):
     print("=== FASTA ===")
     contigs = utils.load_fasta_file(args.fasta)
     print(list(contigs.keys())[:5])
+    
+    # Test SAM file parsing
+    print("=== SAM ===")
+    try:
+        alignments = load_sam_file_test(os.path.join(args.folder, 'temp_alignment.sam'), args.pams, contigs)
+        for s in alignments:
+            print(s)
+            for a in s.alignments:
+                print('  ', a)
+    except FileNotFoundError:
+        print('Skipping...')
     
     # Open and parse the GFF file specified on the command line
     # returns a dictionary:
@@ -366,6 +448,21 @@ def revert(revert_targets):
     
     revert_primers = make_primers()
 
+def split_target_sequence(seq, pams):
+    """Searches for all PAMs in sequence, and splits accordingly
+    Returns: gRNA, PAM
+    """
+    # Build a regex to only match strings with PAM sites specified in args.pams
+    re_pattern = '|'.join(map(lambda x: utils.build_regex_pattern(x)+'$', pams))
+    
+    # by default, regex finds the longest pattern
+    m = regex.search(re_pattern, seq, flags=regex.ENHANCEMATCH|regex.IGNORECASE)
+    if m:
+        # gRNA, PAM
+        return seq[:m.start()], seq[m.start():]
+    else:
+        return seq, ''
+
 def main():
     """Function to run complete AddTag analysis"""
     
@@ -422,7 +519,7 @@ def main():
             contig, start, end, strand = features[feature]
             # Make sure the contig the feature is on is present in the FASTA
             if contig in contigs:
-                print(feature, features[feature], file=sys.stderr)
+                # print(feature, features[feature], file=sys.stderr)
                 # Find a site within this feature that will serve as a unique gRNA
                 
                 # Get all potential gRNAs from feature
@@ -431,12 +528,27 @@ def main():
                 # Convert sequences to upper-case
                 ts = [ (s, e, seq.upper()) for s, e, seq in ts ]
                 
+                # Disambiguate sequences
+                # This code takes way too much memory:
+                #tts = []
+                #for s in ts:
+                #    for ds in utils.disambiguate_iupac(s[2]):
+                #        tts.append((s[0], s[1], ds))
+                #ts = tts
+                #ts = [ map(lambda x: (s, e, x), utils.disambiguate_iupac(seq)) for s, e, seq in ts ]
+                #ts = utils.flatten(ts)
+                #ts = [(a[0], a[1], x) for a in ts for x in utils.disambiguate_iupac(a[2])]
+                
                 # Remove targets with T{5,}
                 # ts = utils.filter_polyt(ts, args.max_consecutive_ts)
                 ts = [ item for item in ts if ('T'*(args.max_consecutive_ts+1) not in item[2]) ]
                 
                 # Remove targets that do not end with intended PAM sites
                 ts = [ item for item in ts if re_compiled.search(item[2]) ]
+                
+                # Remove targets whose %GC is outside the chosen bounds
+                # hard-coded PAM length at 3
+                ts = [ item for item in ts if (args.target_gc[0] <= utils.gc_score(item[2][:-3]) <= args.target_gc[1]) ]
                 
                 # Add all targets for this feature to the targets list
                 #targets.extend(map(lambda x: (feature, contig,)+x, utils.sliding_window(contigs[contig], window=target_length, start=start, stop=end)))

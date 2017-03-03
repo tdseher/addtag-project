@@ -224,6 +224,9 @@ def on_target_score_2016(seq1, seq2, pam):
     top 20% of cleavage activity. Note that the scoring system is not linear,
     and only 5% of gRNAs receive a score of 60 or higher.
     """
+    # Return a score of 0 if sequences are of different length
+    if (len(seq1) != len(seq2)):
+        return 0.0
     
     # Only calculate Doench score with cannonical nucleotides
     m1 = regex.search('[^ATCG]', seq1)

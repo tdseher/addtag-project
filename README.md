@@ -17,8 +17,8 @@ All generated sequences can be designed as either strand-specific or strand-agno
 
 ### Requirements ###
 
-* [Python 3.5+](https://www.python.org/downloads/)
-* [regex module](https://pypi.python.org/pypi/regex)
+* [Python >= 3.5.2](https://www.python.org/downloads/)
+* [Python regex module](https://pypi.python.org/pypi/regex)
 * [Bowtie 2](http://bowtie-bio.sourceforge.net/bowtie2/)
 
 ### Who do I talk to? ###
@@ -28,9 +28,10 @@ All generated sequences can be designed as either strand-specific or strand-agno
 
 ### Notes ###
 
-* The Cas9 protein you use should be engineered specifically for your organism. It should be codon-optomized, and contain a nuclear localization sequence for eukarya.
+* The Cas9 protein you use should be engineered specifically for your organism. It should be codon-optomized, and if using eukarya, contain an appropriate nuclear localization sequence.
 
 ### References ###
+* [Lin et al 2014](http://dx.doi.org/10.1093/nar/gku402) The GC content of Cas9 target may affects binding specificity; gRNA may bind off-target if it has insertions/deletions (RNA-bulge/DNA-bulge) relative to multiple genome locations.
 * [Fu et al 2014](http://dx.doi.org/10.1038/nbt.2808) Using a shorter gRNAs (17-19 nt) can greatly improve specificity by reducing off-target binding
 * [Braglia et al 2005](http://dx.doi.org/10.1074/jbc.M412238200) sequences containing consecutive Ts may cause polymerase termination
 * [Ryan et al 2014](http://dx.doi.org/10.7554/eLife.03703) indicates that 50 bp flanking homology is sufficient to drive homologous recombination "donor" DNA knock-in.

@@ -68,16 +68,30 @@ def rc(seq, kind="dna"):
         raise ValueError("'" + str(kind) + "' is an invalid argument for rc()")
     return seq.translate(complements)[::-1]
 
+def count_errors(seq1, seq2):
+    """Counts number of substitutions, insertions, and deletions"""
+    m = regex.match('(?:'+seq1+'){e}', seq2, flags=regex.ENHANCEMATCH|regex.IGNORECASE)
+    # substitutions, insertions, deletions
+    return m.fuzzy_counts
+
 def linear_score(seq1, seq2):
-    """Scores low if substitutions near 3' end of the sequence
-    To add: insertions and deletions """
-    x = list(range(20))
-    t = sum(x)
-    y = list(map(lambda i: i/t, x))
+    """Scores lower if substitutions near 3' end of the sequence
+    Should be gRNA only, with no PAM
+      Scores >94 are good.
+    Insertions and deletions are strongly penalized (as they are not aligned)
+    """
+    shorter_seq_len, longer_seq_len = sorted([len(seq1), len(seq2)])
+    x = list(range(longer_seq_len))
+    x_sum = sum(x)
+    y = list(map(lambda i: i/x_sum, x))
     score = 1
-    for i in range(len(seq1)):
-        if (seq1[i] != seq2[i]):
+    for i in range(longer_seq_len):
+        if (i < shorter_seq_len):
+            if (seq1[i] != seq2[i]):
+                score -= y[i]
+        else:
             score -= y[i]
+    
     return score*100
 
 def gc_score(seq):
@@ -216,6 +230,7 @@ def load_sam_file(filename, sep=':'):
                     
                     source = (source_contig, int(source_start), int(source_end))
                     # convert mapping to 0-based index
+                    #       contig,   contig_start,    contig_end,                             orientation(+/-)
                     dest = (sline[2], int(sline[3])-1, int(sline[3])-1+cigar_length(sline[5]), sam_orientation(int(sline[1])))
                     try:
                         alignments[feature][source].append(dest)
