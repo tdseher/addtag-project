@@ -48,7 +48,7 @@ def align(query, index, threads=(os.cpu_count() or 1), folder=os.getcwd(), optio
         '-S': sam_file,
         '-x': index,
         '-U': query,
-        '-k': 10,   # specifies the maximum number of alignments per sequence to return
+        '-k': 20,   # specifies the maximum number of alignments per sequence to return
         '-N': 1,    # Sets the number of mismatches to allowed in a seed alignment
                     # during multiseed alignment. Can be set to 0 or 1. Setting
                     # this higher makes alignment slower (often much slower) but
@@ -80,6 +80,13 @@ def align(query, index, threads=(os.cpu_count() or 1), folder=os.getcwd(), optio
         '--rfg': '4,2', # Sets the reference gap open (<int1>) and extend (<int2>)
                         # penalties. A reference gap of length N gets a penalty of
                         # <int1> + N * <int2>. Default: '5,3'.
+        '--score-min': 'L,-0.9,-0.9', # Sets function governing minimum alignment
+                                      # score needed for an alignment to be considered
+                                      # good enough to report, where 'read length' = L:
+                                      #   score(L, a, b) = a + b * L
+                                      # Default: 'L,-0.6,-0.6'
+                                      # Switching to 'L,-0.9,-0.9' returns roughly 9 times
+                                      # more alignments than the default
     }
     fixed_options = utils.flatten(fixed_options_dict.items(), remove_none=True)
     
@@ -186,8 +193,9 @@ def cleanup():
     pass
 
 def test():
-    """Code to test the bowtie2-associated functions"""
+    """Code to test the classes and functions in 'source/bowtie2.py'"""
     
+    print("=== index_reference ===")
     sequences = [
         ('Ca22chr2A_C_albicans_SC5314',  392771,   392791, 'TTACGATCCATTAACTCCTC'),
         ('Ca22chr2A_C_albicans_SC5314',  400860,   400880, 'ACCTCCATTATTTGGTGAGT'),
@@ -203,6 +211,8 @@ def test():
     #        if i>=0:
     #            print(s[3], c, i)
     ref = index_reference(sys.argv[1])
+    
+    print("=== align ===")
     sam = align('temp_ca_alignment', sequences, ref)
     
 

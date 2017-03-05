@@ -2,7 +2,7 @@
 
 """AddTag Copyright (c) 2016 Thaddeus D. Seher & Aaron Hernday"""
 
-# source/hsu/__init__.py
+# source/hsuzhang/__init__.py
 
 # List imports
 import os
@@ -10,30 +10,7 @@ import regex
 
 # Define module functions
 
-# Off-target score
-#  Hsu specificity score
-#   The higher the specificity score, the lower are off-target effects in the genome.
-#   The specificity score ranges from 0-100 and measures the uniqueness
-#   of a guide in the genome. See Hsu et al. Nat Biotech 2013.
-#   (http://dx.doi.org/10.1038/nbt.2647) We recommend values >50, where possible.
-
-def off_target_score(guide, target):
-    """The off-target score is from Hsu et al. (2013) doi:10.1038/nbt.2647
-    and measures how specific the guide is to the target location. Guides with
-    scores over 50 are good enough to be candidates. Higher scores are better.
-    Scores range from 0-100, and should be used to rank guides relative
-    to each other.
-    
-    The off-target score tells you the inverse probability of Cas9 off-target
-    binding. A higher score means the sequence has less chance to bind to
-    sequences in the rest of the genome.
-    
-    Returns the off-target score and the list of potential off-target sequences
-    and their genomic coordinates.
-    """
-    pass
-
-# This code pulled from crispor.py
+# Some code pulled from crispor.py
 # Code is python implementation of http://crispr.mit.edu/about
 
 def load_scores(file_path, sep="\t"):
@@ -50,8 +27,10 @@ def load_scores(file_path, sep="\t"):
                     scores.append(float(sline[1]))
     return scores
 
-def hsu_score(seq1, seq2, iupac=False):
+def hsuzhang_score(seq1, seq2, iupac=False):
     '''Calculate Hsu score between two oligonucleotide sequences.
+    (Also called 'MIT score') Should not include PAM.
+    
     Ideally, seq1 and seq2 are each 20 bp long.
     Will only score the final 20nt. No penalization for less than 20nt.
     See 'Scores of single hits' (http://crispr.mit.edu/about)
@@ -75,8 +54,11 @@ def hsu_score(seq1, seq2, iupac=False):
     dists = [] # distances between mismatches, for part 2
     mmCount = 0 # number of mismatches, for part 3
     lastMmPos = None # position of last mismatch, used to calculate distance
-
+    
     score1 = 1.0
+    
+    shorter, longer = sorted([seq1, seq2], key=len)
+    
     if iupac:
         iupac = {
             'a': ['a'],
@@ -111,15 +93,16 @@ def hsu_score(seq1, seq2, iupac=False):
             'V': ['A', 'C', 'G'],
             'N': ['A', 'C', 'G', 'T'],
         }
-        for pos in range(-min(len(seq1), len(seq2)), 0):
+        for pos in range(-len(shorter), 0):
             if (len([x for x in iupac[seq1[pos]] if x in iupac[seq2[pos]]]) == 0):
+                # Consider 1/2, 1/3, and 1/4 mismatches for ambiguities...
                 mmCount+=1
                 if (lastMmPos != None):
                     dists.append(pos-lastMmPos)
                 score1 *= 1-SCORES[pos]
                 lastMmPos = pos
     else:
-        for pos in range(-min(len(seq1), len(seq2)), 0):
+        for pos in range(-len(shorter), 0):
             if (seq1[pos] != seq2[pos]):
                 mmCount+=1
                 if (lastMmPos != None):
@@ -203,38 +186,41 @@ def calcHitScore(string1, string2):
     score = score1 * score2 * score3 * 100
     return score
 
-def calcMitGuideScore(hitSum):
-    """Aggregate Scores by Guide
-    Once individual hits have been scored, each guide is assigned a score:
-        S_{guide} = \frac{100}{100 + \sum_{i=1}^{n_{mm}}S_{hit}(h_i)}
-    and colored according to a broad categorization of guide quality which,
-    taken into account with the presence or absence of marked genes in
-    high-scoring offtargets indicate the relative (un)favorability of using a
-    particular guide for specific targeting in the query region.
-    
-    This MitGuideScore is defined on http://crispr.mit.edu/about 
-    Input is the sum of all off-target hit scores.
-    Returns the specificity of the guide.
-    """
-    score = 100 / (100+hitSum)
-    score = int(round(score*100))
-    return score
+# def calcMitGuideScore(hitSum):
+#     """Aggregate Scores by Guide
+#     Once individual hits have been scored, each guide is assigned a score:
+#         S_{guide} = \frac{100}{100 + \sum_{i=1}^{n_{mm}}S_{hit}(h_i)}
+#     and colored according to a broad categorization of guide quality which,
+#     taken into account with the presence or absence of marked genes in
+#     high-scoring offtargets indicate the relative (un)favorability of using a
+#     particular guide for specific targeting in the query region.
+#     
+#     Expects values between 0 and 100
+#     
+#     This MitGuideScore is defined on http://crispr.mit.edu/about 
+#     Input is the sum of all off-target hit scores.
+#     Returns the specificity of the guide.
+#     """
+#     score = 100 / (100+hitSum)
+#     score = int(round(score*100))
+#     return score
 
 def test():
-    # Test Hsu score
-    print("=== Hsu 2013 ===")
+    """Code to test the classes and functions in 'source/hsuzhang/__init__.py'"""
+    
+    print("=== hsuzhang_score ===")
     a = 'CGATGGCTWGGATCGATTGAC'
     b = 'AAGTGCTCTTAAGAGAAATTC'
-    c = 'ATGSCTCGGATCGATTGAC'
-    print(calcHitScore(a, a), hsu_score(a, a), hsu_score(a, a, True))
-    print(calcHitScore(a, b), hsu_score(a, b), hsu_score(a, b, True))
-    print(calcHitScore(a, c), hsu_score(a, c), hsu_score(a, c, True))
+    c =   'ATGSCTCGGATCGATTGAC'
+    print(calcHitScore(a, a), hsuzhang_score(a, a), hsuzhang_score(a, a, True))
+    print(calcHitScore(a, b), hsuzhang_score(a, b), hsuzhang_score(a, b, True))
+    print(calcHitScore(a, c), hsuzhang_score(a, c), hsuzhang_score(a, c, True))
 
 # Define module variables
 # Load scores from the data file
 try:
     SCORES = load_scores(os.path.join(os.path.dirname(__file__), 'hsu_scores.txt'))
-except: 
+except FileNotFoundError:
     raise Exception("Could not find file with Hsu scores")
 
 if (__name__ == "__main__"):

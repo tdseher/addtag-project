@@ -8,5 +8,8 @@
 #  Fusi
 #   Range: 0-100. Boosted Regression Tree model, trained on data produced
 #   by Doench et al (881 guides, MOLM13/NB4/TF1 cells + unpublished
-#   additional data). Delivery: lentivirus. See Fusi et al.:
+#   additional data). Delivery: lentivirus. See Fusi et al. 2015:
 #   http://biorxiv.org/content/early/2015/06/26/021568
+#   implemented in Azimuth?
+#    https://github.com/MicrosoftResearch/Azimuth
+#    https://www.microsoft.com/en-us/research/project/azimuth/

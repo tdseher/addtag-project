@@ -1,4 +1,16 @@
 # Simplified version of Supplementary table 19 from Doench et al (2016)
+#
+# The Cutting Frequency Determination (CFD) score is calculated by using the
+# percent activity values provided in a matrix of penalties based on mismatches
+# of each possible type at each position within the guide RNA sequence. 
+#
+# For example, if the interaction between the sgRNA and DNA has a single
+# rG:dA ("rna G aligning with dna A") mismatch in position 6, then that
+# interaction receives a score of 0.67. If there are two or more mismatches,
+# then individual mismatch values are multiplied together. For example, 
+# an rG:dA mismatch at position 7 coupled with an rC:dT mismatch at position
+# 10 receives a CFD score of 0.57 x 0.87 = 0.50.
+#
 # rN:dN is the 'mismatch type'
 # score is the 'percent active'
 # r	d	position	score	approximation

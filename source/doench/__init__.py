@@ -5,6 +5,7 @@
 # source/doench/__init__.py
 
 # Import standard packages
+import sys
 import os
 import math
 import fractions
@@ -23,9 +24,9 @@ if (__name__ == "__main__"):
     # Convert to absolute path, and add to the pythonpath
     sys.path.append(os.path.normpath(os.path.join(SCRIPT_DIR, PACKAGE_PARENT)))
     
-    from utils import rc
+    from nucleotides import rc
 else:
-    from ..utils import rc
+    from ..nucleotides import rc
 
 # This code only deals with mismatches
 # It can be expanded to take insertions and deletions into account
@@ -219,14 +220,30 @@ def on_target_score_2016(seq1, seq2, pam):
     Scores range from 0-100, and should be used to rank guides relative to
     each other.
     
-    The on-target score represents the cleavage efficiency of Cas96.
+    This score only penalizes mismatches in gRNA sequence, then modulates
+    the score based on the PAM.
+    
+    The Cutting Frequency Determination (CFD) score is calculated by using the
+    percent activity values provided in a matrix of penalties based on mismatches
+    of each possible type at each position within the guide RNA sequence. 
+    
+    For example, if the interaction between the sgRNA and DNA has a single
+    rG:dA ("rna G aligning with dna A") mismatch in position 6, then that
+    interaction receives a score of 0.67. If there are two or more mismatches,
+    then individual mismatch values are multiplied together. For example, 
+    an rG:dA mismatch at position 7 coupled with an rC:dT mismatch at position
+    10 receives a CFD score of 0.57 x 0.87 = 0.50.
+    
+    The on-target score represents the cleavage efficiency of Cas9.
     You can think of the score as the probability a given gRNA will be in
     top 20% of cleavage activity. Note that the scoring system is not linear,
     and only 5% of gRNAs receive a score of 60 or higher.
+    
+    see: http://portals.broadinstitute.org/gpp/public/software/sgrna-scoring-help
     """
     # Return a score of 0 if sequences are of different length
-    if (len(seq1) != len(seq2)):
-        return 0.0
+    #if (len(seq1) != len(seq2)):
+    #    return 0.0
     
     # Only calculate Doench score with cannonical nucleotides
     m1 = regex.search('[^ATCG]', seq1)
@@ -243,11 +260,20 @@ def on_target_score_2016(seq1, seq2, pam):
     seq2 = seq2.replace('T','U')
     seq1 = seq1.replace('T','U')
     
-    # Reduce the score multiplicatively if there is a mismatch
-    for i in range(len(seq2)):
+    # modify algorithm to allow for less than 20 nt gRNAs
+    # loop should start at far-right (of longer sequence) and move left
+    shorter, longer = sorted([seq1, seq2], key=len)
+    #for i in range(-1, -len(shorter)-1, -1):
+    for i in range(-len(shorter), 0):
         if (seq1[i] != seq2[i]):
-            key = 'r'+seq1[i]+':d'+rc(seq2[i], kind="rna")+','+str(i+1)
+            key = 'r'+seq1[i]+':d'+rc(seq2[i], kind="rna")+','+str(20+i+1)
             score *= MISMATCH_SCORES[key]
+    
+    # Reduce the score multiplicatively if there is a mismatch
+    #for i in range(len(seq2)):
+    #    if (seq1[i] != seq2[i]):
+    #        key = 'r'+seq1[i]+':d'+rc(seq2[i], kind="rna")+','+str(i+1)
+    #        score *= MISMATCH_SCORES[key]
     
     # Modulate the aggregate mismatch score by the PAM score
     # Exclude the most upstream residue in PAM motif (usually 'N'),
@@ -257,8 +283,10 @@ def on_target_score_2016(seq1, seq2, pam):
     return score * 100
 
 def test():
+    """Code to test the classes and functions in 'source/doench/__init__.py'"""
+    
     # Test Doench 2014 score:
-    print("=== Doench 2014 ===")
+    print("=== on_target_score_2014 ===")
     test_sequences = {
         ('TATA', 'GCTGCGATCTGAGGTAGGGA', 'GGG', 'ACC'): 71.3089368437,
         ('TATAGCT', 'GCGATCTGAGGTAGGGA', 'GGG', 'ACC'): 71.3089368437,
@@ -280,7 +308,7 @@ def test():
         print("Expected:", test_sequences[(upstream, seq, pam, downstream)])
     
     # Test Doench 2016 score
-    print("=== Doench 2016 ===")
+    print("=== on_target_score_2016 ===")
     pam = 'AGG'
     gRNAa = 'CGATGGCTTGGATCGATTGA'
     gRNAb = 'CGTTGGCTTGGATCGATTGA'
@@ -291,6 +319,16 @@ def test():
     print(on_target_score_2016(gRNAa, gRNAc, pam))
     print(on_target_score_2016(gRNAa, gRNAd, pam))
     
+    print(on_target_score_2016('GGAAATGTCAATCAACAGCG', 'GGAAATGTAAATCAACAGCG', 'GGG')) # should be 85.7142857
+    print(on_target_score_2016('GGAAATGTCAATCAACAGCG',  'GAAATGTAAATCAACAGCG', 'GGG')) # should be 85.7142857
+    print(on_target_score_2016('GGAAATGTCAATCAACAGCG',   'AAATGTAAATCAACAGCG', 'GGG')) # should be 85.7142857
+    print(on_target_score_2016( 'GAAATGTCAATCAACAGCG', 'GGAAATGTAAATCAACAGCG', 'GGG')) # should be 85.7142857
+    print(on_target_score_2016(  'AAATGTCAATCAACAGCG', 'GGAAATGTAAATCAACAGCG', 'GGG')) # should be 85.7142857
+    print(on_target_score_2016('GGAAATGTCAATCAACAGCG', 'ATAAATGTAAATCAACAGCA', 'GGG')) # should be 46.0227272
+    print(on_target_score_2016('AGTCAATAGAGCTAGAAACT', 'AGTCAATAAAGCTAGAAACT', 'GGG')) # should be 64.2857143
+    print(on_target_score_2016('AGTCAATAGAGCTAGAAACT',    'CAATAAAGCTAGAAACT', 'GGG')) # should be 64.2857143
+    print(on_target_score_2016('AGTCAATAGAGCTAGAAACT',      'ATAAAGCTAGAAACT', 'GGG')) # should be 64.2857143
+    print(on_target_score_2016(   'CAATAGAGCTAGAAACT', 'AGTCAATAAAGCTAGAAACT', 'GGG')) # should be 64.2857143
 
 # Define module variables
 # Load scores from the data files
@@ -298,7 +336,7 @@ try:
     MISMATCH_SCORES = load_mismatch_scores(os.path.join(os.path.dirname(__file__), 'doench_mismatch_scores.txt'))
     PAM_SCORES = load_pam_scores(os.path.join(os.path.dirname(__file__), 'doench_pam_scores.txt'))
     OLD_SCORES = load_old_scores(os.path.join(os.path.dirname(__file__), 'doench_params.txt'))
-except: 
+except FileNotFoundError:
     raise Exception("Could not find file with mismatch scores or PAM scores")
 
 if (__name__ == "__main__"):
