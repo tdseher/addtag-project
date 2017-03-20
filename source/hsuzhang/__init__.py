@@ -4,8 +4,10 @@
 
 # source/hsuzhang/__init__.py
 
-# List imports
+# Import standard packages
 import os
+
+# Import non-standard packages
 import regex
 
 # Define module functions
@@ -126,6 +128,73 @@ def hsuzhang_score(seq1, seq2, iupac=False):
     score = score1 * score2 * score3 * 100
     return score
 
+def calculate_fz_score(string1,string2,strlen = 20 ):
+    """Implementation of Hsu-Zhang score as written by Hari Jay
+    (https://snipt.net/harijay/fz-score-d1324dab/, http://web.archive.org/web/20161102001525/https://snipt.net/harijay/fz-score-d1324dab/)
+    and published in Haeussler et al 2016
+    (https://genomebiology.biomedcentral.com/articles/10.1186/s13059-016-1012-2)
+    For some reason it is called the FZ-score
+    """
+    # This script retrieved from
+    #  http://web.archive.org/web/20161102001525/https://snipt.net/harijay/fz-score-d1324dab/
+    
+    import operator
+    from functools import reduce
+    
+    #print "STRING1" , string1 , "STRING2",string2
+    # The Patrick Hsu weighting scheme
+    M = [0,0,0.014,0,0,0.395,0.317,0,0.389,0.079,0.445,0.508,0.613,0.851,0.732,0.828,0.615,0.804,0.685,0.583]
+    if strlen == 17:
+        M  = M[3:]
+    #Mismatch counts
+    #Get the minimum of distances and the maximum of distances \
+    #between mismatches and the actual mismatch positions"
+    if len(string1) != len(string2):
+        raise ValueError("Sequences need to be the same length")
+    mismatch_positions = [index+1 for index,elem in enumerate(zip(string1.strip(),string2.strip())) if elem[0] != elem[1] if index < 20]
+    #
+    # print mismatch_positions
+    num_mismatch = len(mismatch_positions)
+    min_d,max_d = None,None
+    if num_mismatch >= 1:
+        min_d,max_d = min(mismatch_positions),max(mismatch_positions)
+
+    #print "MIN_D,MAX_D",min_d,max_d
+    # Now calculate the value of d
+    d = None
+    if string1 == string2 :
+        d = 19
+    else:
+        try:
+            d = (max_d - min_d)/(num_mismatch-1.0)
+        except ZeroDivisionError:
+            # num mismatch is 1
+            print("STRINGS MATCH")
+            d = 19
+    #print "D is :",d
+    #Now calculate the pi term
+    #Define a function that multi
+    pi_term = None
+    if mismatch_positions != []:
+        pi_term = reduce(operator.mul, [ 1-M[i-1] for i in mismatch_positions], 1)
+    else:
+        pi_term = 1
+    #print "Pi term is %s" % pi_term
+    # second term
+    second_term = None
+    if d:
+        second_term = 1/((((19.0-d)/19.0)*4.0)+1)
+    else:
+        second_term =  1
+    #print "Second term is %s" % second_term
+    final_fz_score = None
+    if num_mismatch > 0:
+        final_fz_score= second_term*pi_term*(1.0/(num_mismatch)**2)*100
+    else:
+        final_fz_score = 100
+    #print("FZ SCORE is %s" % final_fz_score)
+    return final_fz_score
+
 def calcHitScore(string1, string2):
     '''Scores of Single Hits
     The actual algorithm used to score single offtargets is:
@@ -215,6 +284,12 @@ def test():
     print(calcHitScore(a, a), hsuzhang_score(a, a), hsuzhang_score(a, a, True))
     print(calcHitScore(a, b), hsuzhang_score(a, b), hsuzhang_score(a, b, True))
     print(calcHitScore(a, c), hsuzhang_score(a, c), hsuzhang_score(a, c, True))
+    
+    guide = 'AAAATTAACTATAGGTAAAG'
+    offtarget = 'AATATAAAAAATAGGTAAAG'
+    print(hsuzhang_score(guide, offtarget)) # 0.46532338607757784
+    offtarget = 'AAAAGTAGCCATAGGAAAAG'
+    print(hsuzhang_score(guide, offtarget)) # 0.2341671161825727
 
 # Define module variables
 # Load scores from the data file
