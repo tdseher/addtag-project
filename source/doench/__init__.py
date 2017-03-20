@@ -25,20 +25,14 @@ if (__name__ == "__main__"):
     sys.path.append(os.path.normpath(os.path.join(SCRIPT_DIR, PACKAGE_PARENT)))
     
     from nucleotides import rc
+    import scores
 else:
     from ..nucleotides import rc
+    from .. import scores
 
 # This code only deals with mismatches
 # It can be expanded to take insertions and deletions into account
 # See Supplementary table 19
-
-# Metric for "efficiency"
-#  Doench
-#   Range: 0-100. Linear regression model trained on 880 guides transfected
-#   into human MOLM13/NB4/TF1 cells (three genes) and mouse cells
-#   (six genes). Delivery: lentivirus. The Fusi score can be considered an
-#   updated version this score, as their training data overlaps a lot.
-#   See Doench et al.: http://www.nature.com/nbt/journal/v32/n12/full/nbt.3026.html
 
 def load_old_scores(file_path, sep="\t"):
     """Function to open and parse the tab-delimited 'params' file for
@@ -64,6 +58,14 @@ def on_target_score_2014(seq, pam, upstream='', downstream=''):
     Should return a score between 0.0 & 100.0, with higher numbers being
     better.
     """
+    # Metric for "efficiency"
+    #  Doench
+    #   Range: 0-100. Linear regression model trained on 880 guides transfected
+    #   into human MOLM13/NB4/TF1 cells (three genes) and mouse cells
+    #   (six genes). Delivery: lentivirus. The Fusi score can be considered an
+    #   updated version this score, as their training data overlaps a lot.
+    #   See Doench et al.: http://www.nature.com/nbt/journal/v32/n12/full/nbt.3026.html
+    
     # Code retrieved from:
     #  https://github.com/maximilianh/crisporWebsite/doenchScore.py
     # Calculates the sgRNA on-target efficacy score from the article
@@ -106,9 +108,9 @@ def on_target_score_2014(seq, pam, upstream='', downstream=''):
     score += abs(10 - gcCount) * gcWeight
     
     # ...shouldn't it be pos-1, so the scores are 0-indexed???
-    for pos, modelSeq, weight in OLD_SCORES:
-        #if (seq[pos:pos + len(modelSeq)] == modelSeq):
-        if (new[pos:pos + len(modelSeq)] == modelSeq):
+    for pos, model_seq, weight in OLD_SCORES:
+        #if (seq[pos:pos + len(model_seq)] == model_seq):
+        if (new[pos:pos + len(model_seq)] == model_seq):
             score += weight
     
     return (1.0/(1.0+math.exp(-score))) * 100
@@ -241,14 +243,26 @@ def on_target_score_2016(seq1, seq2, pam):
     
     see: http://portals.broadinstitute.org/gpp/public/software/sgrna-scoring-help
     """
+    # Also called the Fusi score
+    # Metric for "efficiency"
+    #  Fusi
+    #   Range: 0-100. Boosted Regression Tree model, trained on data produced
+    #   by Doench et al (881 guides, MOLM13/NB4/TF1 cells + unpublished
+    #   additional data). Delivery: lentivirus. See Fusi et al. 2015:
+    #   http://biorxiv.org/content/early/2015/06/26/021568
+    #   implemented in Azimuth?
+    #    https://github.com/MicrosoftResearch/Azimuth
+    #    https://www.microsoft.com/en-us/research/project/azimuth/
+
+    
     # Return a score of 0 if sequences are of different length
     #if (len(seq1) != len(seq2)):
     #    return 0.0
     
     # Only calculate Doench score with cannonical nucleotides
-    m1 = regex.search('[^ATCG]', seq1)
-    m2 = regex.search('[^ATCG]', seq2)
-    mp = regex.search('[^ATCG]', pam[-2:])
+    m1 = regex.search('[^ATCGatcg]', seq1)
+    m2 = regex.search('[^ATCGatcg]', seq2)
+    mp = regex.search('[^ATCGatcg]', pam[-2:])
     if ((m1 != None) or (m2 != None) or (mp != None)):
         # Otherwise return a score of 0
         return 0.0
@@ -329,6 +343,25 @@ def test():
     print(on_target_score_2016('AGTCAATAGAGCTAGAAACT',    'CAATAAAGCTAGAAACT', 'GGG')) # should be 64.2857143
     print(on_target_score_2016('AGTCAATAGAGCTAGAAACT',      'ATAAAGCTAGAAACT', 'GGG')) # should be 64.2857143
     print(on_target_score_2016(   'CAATAGAGCTAGAAACT', 'AGTCAATAAAGCTAGAAACT', 'GGG')) # should be 64.2857143
+    
+    print("another test...")
+    guide, pam = 'GTAATGGACTACATTGAAGG', 'TGG'
+    offtargets = [
+        'ATAATGGAGTACATGGAAGG',
+        'ATTATGGATTATATTGAAGG',
+        'GAAATGGACAACATTGGAGA',
+        'ATTATGGAATACATGGAAGG',
+        'GTGATGGATTATATCGAAGG',
+        'GTAATGCACGACATTGGACG'
+    ]
+    g_score = on_target_score_2016(guide, guide, pam)
+    print('on-target:', g_score)
+    offtarget_scores = []
+    for ot in offtargets:
+        offtarget_scores.append(on_target_score_2016(ot, guide, pam))
+        print('off-target:', offtarget_scores[-1])
+    print('off-target score:', scores.off_target_score(offtarget_scores, (g_score,)))
+    
 
 # Define module variables
 # Load scores from the data files

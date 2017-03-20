@@ -10,6 +10,9 @@ import sys
 # import non-standard package
 import regex
 
+# import AddTag-specific packages
+from . import nucleotides
+
 def linear_score(seq1, seq2):
     """Scores lower if substitutions near 3' end of the sequence
     Should be gRNA only, with no PAM
@@ -104,9 +107,25 @@ def off_target_score(off_target_scores, on_target_scores=(100,)):
     and measures how specific the guide is to the target location. Scores should
     be used to rank guides relative to each other.
     
-    This MIT Guide Score is defined on http://crispr.mit.edu/about
+    This "MIT Guide Score" is defined on http://crispr.mit.edu/about
+    Also called "Efficiency score", I think (or Eff Score) (see CRISPOR).
     """
     return  100.0*sum(on_target_scores)/(sum(on_target_scores)+sum(off_target_scores))
+
+def r_score(seq1, seq2, length):
+    """
+    Input should not include PAM sequence.
+    
+    nnnnnnnnnnnnnnnnnnnnPAM query
+                    iiii--- no mismatch within 4 nt of PAM
+                iiiiiiii--- no mismatch within 8 nt of PAM
+            iiiiiiiiiiii--- no mismatch within 12 nt of PAM
+        iiiiiiiiiiiiiiii--- no mismatch within 16 nt of PAM
+    """
+    if (nucleotides.ridentities(seq1, seq2) >= length):
+        return 1.0
+    else:
+        return 0.0
 
 def test():
     """Code to test the classes and functions in 'source/scores.py'"""

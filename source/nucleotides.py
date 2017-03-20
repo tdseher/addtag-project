@@ -50,6 +50,18 @@ def rc(seq, kind="dna"):
         raise ValueError("'" + str(kind) + "' is an invalid argument for rc()")
     return seq.translate(complements)[::-1]
 
+def kmers(k, y=''):
+    '''
+    Generator for recursive definition of k-mers in string form.
+    k >= 0
+    y for internal use
+    '''
+    if k==0:
+        yield y
+    else:
+        for m in ['A','C','G','T']:
+            yield from kmer(k-1, m+y)
+
 def lcs(string1, string2):
     """Find the longest common substring between two strings"""
     matcher = difflib.SequenceMatcher(None, string1, string2, True)
@@ -58,6 +70,44 @@ def lcs(string1, string2):
     return match
     # print(string1[match.a: match.a + match.size])
     # print(string2[match.b: match.b + match.size])
+
+def ridentities(seq1, seq2):
+    """
+    Returns the number of invariant nucleotides from the 3' side
+    of the alignment. Assumes alignments are right-justified.
+    
+    input:
+      seq1 = 'GCTATCTGGGACCAGGCTGA'
+      seq2 =  'CTATCTGCGACCAGGCTGA'
+    output:
+      11
+    """
+    identities = 0
+    for i in range(-1,-len(seq1)-1, -1):
+        if (seq1[i] != seq2[i]):
+            break
+        else:
+            identities += 1
+    return identities
+
+def lidentities(seq1, seq2):
+    """
+    Returns the number of invariant nucleotides from the 5' side
+    of the alignment. Assumes alignments are left-justified.
+    
+    input:
+      seq1 = 'GCTATCTGGGACCAGGCTGA'
+      seq2 = 'GCTATCTGCGACCAGGCTG'
+    output:
+      8
+    """
+    identities = 0
+    for i in range(len(seq1)):
+        if (seq1[i] != seq2[i]):
+            break
+        else:
+            identities += 1
+    return identities
 
 def filter_polyt(sequences, max_allowed=4):
     """Uses filter to remove sequences with consecutive Ts (in genome) or
@@ -203,37 +253,6 @@ def build_regex(iupac_sequence, case_sensitive=False, max_substitutions=0, max_i
     compiled_regex = regex.compile(pattern, flags=myflags)
     return compiled_regex
 
-def find_target_matches(compiled_regex, contigs, overlap=False):
-    '''Finds all instances of the compiled_regex within the contigs(dict),
-    and returns list of matches as 0-indexed
-    [contig, start, stop, orientation, oriented-sequence]
-    '''
-    
-    matches = []
-    
-    for contig in contigs:
-        # '+' orientation
-        ref = contigs[contig]
-        ref_len = len(ref)
-        for m in compiled_regex.finditer(ref, overlapped=overlap):
-            s = m.start()
-            e = m.end()
-            matches.append([contig, s, e, '+', ref[s:e]])
-        # '-' orientation
-        rc_ref = rc(contigs[contig])
-        rc_ref_len = len(rc_ref)
-        for m in compiled_regex.finditer(rc_ref, overlapped=overlap):
-            s = m.start()
-            e = m.end()
-            #print("match: ", s, e, m.groups(), rc_ref[s:e], ref[ref_len-e:ref_len-s], file=sys.stderr)
-            assert m.groups()[0] == rc_ref[s:e]
-            assert m.groups()[0] == rc(ref[ref_len-e:ref_len-s]) # m.groups()[0] should be what was matched...
-            assert ref_len == rc_ref_len
-            matches.append([contig, rc_ref_len-s, rc_ref_len-e, '-', rc_ref[s:e]])
-    print("Matching finished", file=sys.stderr)
-    
-    return matches
-
 def disambiguate_iupac(iupac_sequence, kind="dna"):
     """converts a string containing IUPAC nucleotide sequence to a list
     of non-iupac sequences.
@@ -338,8 +357,29 @@ def count_errors(seq1, seq2):
     # substitutions, insertions, deletions
     return m.fuzzy_counts
 
-def split_target_sequence(seq, pams):
-    """Searches for all PAMs in sequence, and splits accordingly
+def split_target_sequence2(seq, pams):
+    """
+    Searches for all PAMs in sequence, and splits it. Assumes PAM at 3' end.
+    Splits at the shortest PAM...
+    Returns gRNA, PAM
+    """
+    # Build a regex to only match strings with PAM sites specified in args.pams
+    re_pattern = '^(.*)(?:' + '|'.join(map(lambda x: build_regex_pattern(x), pams)) + ')$'
+    #m = regex.match('^(.*)([ACGT]GG)$', nt)
+    print(re_pattern)
+    m = regex.match(re_pattern, seq)
+    if m:
+        return m.group(1), m.group(2)
+    else:
+        # Force finding the PAM...
+        #return seq, ''
+        l = max(map(len, pams))
+        return seq[:-l], seq[-l:]
+
+def split_target_sequence(seq, pams, force=False):
+    """
+    Searches for all PAMs in sequence, and splits it accordingly.
+    Assumes PAM at 3' end. Returns the longest matched PAM sequence.
     Returns: gRNA, PAM
     """
     # Build a regex to only match strings with PAM sites specified in args.pams
@@ -350,11 +390,13 @@ def split_target_sequence(seq, pams):
     if m:
         # gRNA, PAM
         return seq[:m.start()], seq[m.start():]
-    else:
+    elif force:
         # Force finding the PAM...
         #return seq, ''
         l = max(map(len, pams))
         return seq[:-l], seq[-l:]
+    else:
+        return None
 
 def test():
     """Code to test the classes and functions in 'source/nucleotides.py'"""

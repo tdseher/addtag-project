@@ -19,6 +19,8 @@ from . import utils
 from . import nucleotides
 from . import scores
 from . import hsuzhang
+from . import housden
+from . import morenomateos
 from . import doench
 from . import bowtie2
 
@@ -51,13 +53,25 @@ example:
 
 class Sequence(object):
     """Data structure defining a sequence"""
+    
+    substitution_threshold = 4
+    insertion_threshold = 2
+    deletion_threshold = 2
+    error_threshold = 5
+    
+    doench2014_threshold = 1.0
+    doench2016_threshold = 1.0
+    hsuzhang_threshold = 1.0
+    linear_threshold = 80.0
+    morenomateos_threshold = 1.0
+    
     def __init__(self, feature, contig_sequence, pams, contig=None, contig_start=None, contig_end=None, contig_orientation=None, feature_orientation=None):
         """Create a structure for holding individual sequence information"""
         self.feature = feature
         self.feature_orientation = feature_orientation
         
         self.contig_sequence = contig_sequence
-        self.contig_target, self.contig_pam = nucleotides.split_target_sequence(self.contig_sequence, pams)
+        self.contig_target, self.contig_pam = nucleotides.split_target_sequence(self.contig_sequence, pams, force=True)
         #self.disambiguated_sequences = disambiguate_iupac(self.contig_sequence, kind="dna") # need to apply pre-filters
         self.contig = contig
         self.contig_start = contig_start
@@ -73,16 +87,19 @@ class Sequence(object):
         self.doench2016 = 100 # assume perfect match (should NOT assume if ambiguities in reference)
         self.hsuzhang = 100 # assume perfect match (should NOT assume if ambiguities in reference)
         self.linear = 100 # assume perfect match (should NOT assume if ambiguities in reference)
+        self.housden = housden.housden_score(self.contig_target)
+        self.morenomateos = morenomateos.morenomateos_score(self.contig_target, self.contig_pam, upstream='', downstream='')
         
         # query x subject score
         self.off_target_doench2014 = None
         self.off_target_doench2016 = None
         self.off_target_hsuzhang = None
         self.off_target_linear = None
+        self.off_target_morenomateos = None
     
     def add_alignment(self, aligned_sequence, pams, aligned_contig, aligned_start, aligned_end, aligned_orientation):
         """Add a genomic position to the list of alignments"""
-        aligned_target, aligned_pam = nucleotides.split_target_sequence(aligned_sequence, pams)
+        aligned_target, aligned_pam = nucleotides.split_target_sequence(aligned_sequence, pams, force=True)
         substitutions, insertions, deletions = nucleotides.count_errors(self.contig_sequence, aligned_sequence)
         seq = (
             aligned_sequence,
@@ -99,12 +116,51 @@ class Sequence(object):
             doench.on_target_score_2016(self.contig_target, aligned_target, aligned_pam),
             hsuzhang.hsuzhang_score(self.contig_target, aligned_target, iupac=False),
             scores.linear_score(self.contig_target, aligned_target),
+            housden.housden_score(aligned_target),
+            morenomateos.morenomateos_score(aligned_target, aligned_pam),
+            nucleotides.ridentities(self.contig_target, aligned_target),
+            scores.r_score(self.contig_target, aligned_target, 4),
+            scores.r_score(self.contig_target, aligned_target, 8),
+            scores.r_score(self.contig_target, aligned_target, 12),
+            scores.r_score(self.contig_target, aligned_target, 16),
         )
         self.alignments.append(seq)
     
+    def score(self):
+        """Calculate Guide scores for each algorithm"""
+        doench2014_list = []
+        doench2016_list = []
+        hsuzhang_list = []
+        linear_list = []
+        morenomateos_list = []
+        for a in self.alignments:
+            if (a[3:6] != (self.contig, self.contig_start, self.contig_end)):
+                # lambda a, b: all([a[0]<=b[0], a[1]<=b[1], a[2]<b[2], sum(a)<=b[3]])
+                if ((a[7] <= self.substitution_threshold) and
+                    (a[8] <= self.insertion_threshold) and
+                    (a[9] <= self.deletion_threshold) and 
+                    (sum(a[7:10]) <= self.error_threshold)
+                ):
+                    if (a[10] >= self.doench2014_threshold):
+                        doench2014_list.append(a[10])
+                    if (a[11] >= self.doench2016_threshold):
+                        doench2016_list.append(a[11])
+                    if (a[12] >= self.hsuzhang_threshold):
+                        hsuzhang_list.append(a[12])
+                    if (a[13] >= self.linear_threshold):
+                        linear_list.append(a[13])
+                    if (a[15] >= self.morenomateos_threshold):
+                        morenomateos_list.append(a[15])
+        self.off_target_doench2014 = scores.off_target_score(doench2014_list, (self.doench2014,))
+        self.off_target_doench2016 = scores.off_target_score(doench2016_list, (self.doench2016,))
+        self.off_target_hsuzhang = scores.off_target_score(hsuzhang_list, (self.hsuzhang,))
+        self.off_target_linear = scores.off_target_score(linear_list, (self.linear,))
+        self.off_target_morenomateos = scores.off_target_score(morenomateos_list, (self.morenomateos,))
+    
     def __repr__(self):
+        """Return a string containing a printable representation of the Sequence object."""
         return 'Sequence(feature=' + self.feature + ', ' + \
-            self.contig + ':' + str(self.contig_start) + '..' + \
+            self.contig + ':' + str(self.contig_start) + ':' + \
             str(self.contig_end) + ', ' + self.contig_target + '|' + \
             self.contig_pam + ', alignments=' + str(len(self.alignments)) + ')'
 
@@ -217,7 +273,8 @@ def parse_arguments():
         help="Perform tests only")
     parser.add_argument("--pams", metavar="SEQ", nargs="+", type=str,
         default=["NGG"], help="Constrain finding only targets with these PAM sites")
-    parser.add_argument("--target_lengths", nargs=2, metavar=('MIN', 'MAX'), type=int, default=[17, 20],
+    parser.add_argument("--target_lengths", nargs=2, metavar=('MIN', 'MAX'),
+        type=int, default=[17, 20],
         help="The length range of the 'target'/'spacer'/gRNA site")
     # Eventually, replace --pams and --target_lengths with this:
     #parser.add_argument("--motifs", metavar="SEQ", nargs="+", type=str,
@@ -232,17 +289,21 @@ def parse_arguments():
     parser.add_argument("--feature_homologs", metavar="*.homologs", type=str, default=None,
         help="Path to text file containing homologous features on the same \
             line, separated by TAB characters")
-    parser.add_argument("--min_contig_edge_distance", metavar="N", type=int, default=500,
-        help="Minimum distance from contig edge a site can be found")
+    #parser.add_argument("--min_contig_edge_distance", metavar="N", type=int, default=500,
+    #    help="Minimum distance from contig edge a site can be found")
     parser.add_argument("--features", metavar="FEATURE", type=str, nargs="+", default=["gene"],
         help="Features to design gRNA sites against. Must exist in GFF file. Examples: 'CDS', 'gene', 'mRNA', 'exon'")
     parser.add_argument("--target_gc", nargs=2, metavar=('MIN', 'MAX'), type=int, default=[25, 75],
         help="Generated gRNAs must have %%GC content between these values (excluding PAM motif)")
+    parser.add_argument("--excise_donor_homology", nargs=2, metavar=("MIN", "MAX"), type=int, default=[40,80],
+        help="Range of homology lengths acceptable for knock-out dDNAs, inclusive.")
     parser.add_argument("--excise_donor_lengths", nargs=2, metavar=('MIN', 'MAX'), type=int, default=[90, 100],
-        help="Range of lengths acceptable for knock-out dDNAs.")
+        help="Range of lengths acceptable for knock-out dDNAs, inclusive.")
+    parser.add_argument("--excise_insert_lengths", nargs=2, metavar=("MIN", "MAX"), type=int, default=[0,7],
+        help="Range for inserted DNA lengths, inclusive (mini-AddTag, mAT). If MIN < 0, then regions of dDNA homology (outside the feature) will be removed.")
     parser.add_argument("--revert_donor_lengths", nargs=2, metavar=('MIN', 'MAX'), type=int, default=[300, 600],
         help="Range of lengths acceptable for knock-in dDNAs.")
-    parser.add_argument("--min_feature_edge_distance", metavar="N", type=int, default=23,
+    parser.add_argument("--min_feature_edge_distance", metavar="MIN", type=int, default=23,
         help="The minimum distance a gRNA site can be from the edge of the \
              feature. If negative, the maximum distance a gRNA site can be \
              outside the feature.")
@@ -258,8 +319,9 @@ def parse_arguments():
         help="The minimum distance in bp a difference can exist from the edge of donor DNA") # homology with genome
     parser.add_argument("--max_consecutive_ts", metavar="N", type=int, default=4,
         help="The maximum number of Ts allowed in generated gRNA sequences")
-    parser.add_argument("--strands", type=str, choices=["+", "-", "both"], default="both",
-        help="Strands to search for gRNAs")
+    # program currently will only search 'both' strands
+    #parser.add_argument("--strands", type=str, choices=["+", "-", "both"], default="both",
+    #    help="Strands to search for gRNAs")
     parser.add_argument("--ambiguities", type=str, choices=["discard", "disambiguate", "keep"], default="discard",
         help="How generated gRNAs should treat ambiguous bases: \
         discard - no gRNAs will be created where the FASTA has an ambiguous base; \
@@ -267,13 +329,31 @@ def parse_arguments():
         keep - gRNAs can have ambiguous bases")
     parser.add_argument("--lower_case_mask", action="store_true",
         help="Do not generated gRNAs targeting lower case nucleotides in input FASTA")
-    parser.add_argument("--overlap", action="store_true",
-        help="Include exhaustive search for overlapping sites. May increase computation time.")
+    # Add command line arguments for the additional hard constraints:
+    #  Only report potential targets that have no off targets with mismatches within 8, 12, N nt from 3' end
     parser.add_argument("--processors", metavar="N", type=int, default=(os.cpu_count() or 1),
         help="Number of processors to use when performing pairwise sequence alignments")
-    parser.add_argument("--aligner", type=str, choices=['bowtie', 'bowtie2', 'bwa'], default='bowtie2',
-        help="Program to calculate pairwise alignments")
-    # Other aligners to consider: 'bowtie', 'bwa', 'blastn', 'blat', 'rmap', 'maq', 'shrimp2', 'soap2', 'star', 'rhat', 'mrsfast', 'stampy'
+    parser.add_argument("--aligner", type=str, choices=['addtag', 'blast+',
+        'blat', 'bowtie', 'bowtie2', 'bwa', 'cas-offinder'], default='bowtie2',
+        help="Program to calculate pairwise alignments. Please note that the 'addtag' internal aligner is very slow.")
+    # Other aligners to consider: 'rmap', 'maq', 'shrimp2', 'soap2', 'star', 'rhat', 'mrsfast', 'stampy'
+    parser.add_argument("--python2_path", type=str, default="python",
+        help="Path to the Python 2.7+ program")
+    parser.add_argument("--bowtie_path", type=str, default="bowtie",
+        help="Path to the 'bowtie' executable")
+    parser.add_argument("--bowtie-build_path", type=str, default="bowtie-build",
+        help="Path to the 'bowtie-build' executable")
+    parser.add_argument("--bowtie2_path", type=str, default="bowtie2",
+        help="Path to the 'bowtie2' executable")
+    parser.add_argument("--bowtie2-build_path", type=str, default="bowtie2-build",
+        help="Path to the 'bowtie2-build' executable")
+    parser.add_argument("--bwa_path", type=str, default="bwa",
+        help="Path to the 'bwa' executable")
+    parser.add_argument("--blastn_path", type=str, default="blastn",
+        help="Path to the 'blastn' executable")
+    parser.add_argument("--blat_path", type=str, default="blat",
+        help="Path to the 'blat' executable")
+    
     
     # Special version action
     parser.add_argument("-v", "--version", action='version', version='{__program__} {__version__}'.format(**globals()))
@@ -353,12 +433,53 @@ def generate_revert_target(args, feature):
     """
     pass
 
-def generate_excise_donor(args, feature, revert_target):
-    """Creates the DNA oligo with the structure:
-    homology--unique gRNA--homology
+def generate_excise_donor(args, feature, contigs, revert_target):
+    """
+    Creates the DNA oligo with the structure:
+    [upstream homology][unique gRNA][downstream homology]
     that excises the target feature
     """
-    pass
+    
+    # Generate the full set of potential dDNAs
+    
+    # First, get the homology blocks up- and down-stream of the feature
+    contig, start, end, strand = feature
+    # start & end are 0-based indices, inclusive
+    
+    # assumes start < end
+    # DNA 5' of feature is upstream
+    upstream = contigs[contig][start-args.excise_donor_homology[1]:start]
+    
+    # DNA 3' of feature is downstream
+    downstream = contigs[contig][end+1:end+1+args.excise_donor_homology[1]]
+    
+    # mini_addtags = itertools.something()
+    # dDNAs = [upstream + x + downstream for x in itertools.something()]
+    
+    dDNAs = []
+    targets = []
+    
+    # For each potential dDNA, evaluate how good it is
+    for insert_length in range(args.excise_insert_lengths[0], args.excise_insert_lengths[1]+1):
+        if insert_length >= 0:
+            for mAT in nucleotides.kmers(insert_length):
+                # Add this candidate dDNA to the list of all candidate dDNAs
+                dDNAs.append(upstream + mAT + downstream)
+                
+                # Use code to generate targets for this revised region
+                # between [maximum 5' distance] upstream mAT downstream [maximum 3' distance]
+                targets.extend(get_targets(...))
+        else:
+            pass
+    
+    # Write the targets to a FASTA file
+    query_file = utils.generate_query(os.path.join(args.folder, 'reversion-query.fasta'), targets)
+    
+    # Use selected alignment program to find all potential off-targets in the genome
+    sam_file = align(query_file, index_file, args.folder, args.processors)
+    
+    # Calculate scores for each target
+    
 
 def generate_revert_donor(args, feature):
     """Use template DNA sequence to create oligo that will be used for fixing
@@ -406,7 +527,7 @@ def process(args):
     pass
 
 # Template 2
-def find_candidate_targets():
+def find_candidate_targets(args):
     pass
 
 def align_targets():
@@ -433,6 +554,184 @@ def revert(revert_targets):
     
     revert_primers = make_primers()
 
+def get_targets(args, contigs, features):
+    ## Build a regex to only match strings with PAM sites specified in args.pams
+    ## Assumes PAM site is at 3' end
+    #re_pattern = '|'.join([ nucleotides.build_regex_pattern(p)+'$' for p in args.pams ])
+    ##re_pams = []
+    ##for p in pams:
+    ##    re_pams.append(nucleotides.build_regex_pattern(p) + '$')
+    ##re_pattern = '|'.join(re_pams)
+    re_flags = regex.ENHANCEMATCH | regex.IGNORECASE
+    #re_compiled = regex.compile(re_pattern, flags=re_flags)
+    
+    # Ideally, this code would procedurally write to the query file
+    # as new sequences were being added, thus limiting the amount of memory
+    # used to store sequences.
+    
+    # Find unique gRNA sites within each feature
+    targets = []
+    # Use a sliding window to make a list of queries
+    for feature in features:
+        
+        contig, start, end, strand = features[feature]
+        if (end == None):
+            end = len(contigs[contig])
+        
+        # Make sure the contig the feature is on is present in the FASTA
+        if contig in contigs:
+            # print(feature, features[feature], file=sys.stderr)
+            # Find a site within this feature that will serve as a unique gRNA
+            
+            # for each orientation:
+            # if (args.strands in ['+', 'both']):
+            #  targets.extend...
+            # if (args.strands in ['-', 'both']):
+            #  targets.extend...
+            
+            # Search both the '+' and '-' strands
+            for contig_seq in [contigs[contig], utils.rc(contigs[contig])]:
+                for pam in args.pams:
+                    #pam_seq = 'NGG'
+                    #pam_regex = '([ACGT]GG)'
+                    pam_length = len(pam)
+                    #pam_regex_compiled = regex.compile(pam_regex+'$', flags=re_flags
+                    
+                    # Problem: what if user wants lengths 17 & 20, but not 18 & 19?
+                    # solution...use that regex-stype motif command line argument
+                    for target_length in range(target_lengths[0], target_lengths[1]+1):
+                        for pos in range(start, end+1-target_length+pam_length, 1):
+                            nt = contig_seq[pos:pos+target_length]
+                            
+                            # Skip this sequence if the mask is on
+                            # and it has lower-case characters
+                            if (args.lower_case_mask):
+                                if regex.search('[a-z]', nt):
+                                    continue
+                            
+                            # Convert sequences to upper-case
+                            nt = nt.upper()
+                            
+                            # Disambiguate sequences if necessary
+                            if (args.ambiguities == 'discard'):
+                                if regex.search('[^ATCGatcg]', nt):
+                                    continue
+                                nts = [nt]
+                            elif (args.ambiguities == 'disambiguate'):
+                                nts = nucleotides.disambiguate_iupac(nt)
+                            
+                            # Remove targets with T{5,}
+                            nts = [ nt for nt in nts if ('T'*(args.max_consecutive_ts+1) not in nt) ]
+                            
+                            # Remove targets that do not end with intended PAM sites
+                            temp_nts = []
+                            temp_targets = []
+                            temp_pams = []
+                            for nt in nts:
+                                m = nucleotides.split_target_sequence(nt, args.pams)
+                                if m:
+                                    temp_nts.append(nt)
+                                    temp_targets.append(m[0])
+                                    temp_pams.append(m[1])
+                            nts = temp_nts
+                            #nts = [ nt for nt in nts if re_compiled.search(nt) ]
+                            
+                            # Remove targets whose %GC is outside the chosen bounds
+                            # hard-coded PAM length at 3
+                            temp_nts = []
+                            for i in range(len(nts)):
+                                if (args.target_gc[0] <= scores.gc_score(temp_targets) <= args.target_gc[1]):
+                                    temp_nts.append(nts[i])
+                            nts = temp_nts
+                            #nts = [ nt for nt in nts if (target_gc[0] <= scores.gc_score(nt[:-3]) <= target_gc[1]) ]
+                            
+                            # Add all targets for this feature to the targets list
+                            #targets.extend(map(lambda x: (feature, contig,)+x, utils.sliding_window(contigs[contig], window=target_length, start=start, stop=end)))
+                            #targets.extend(map(lambda x: (feature, contig, pos, pos+target_length, x), nts))
+                            for nt in nts:
+                                targets.append((feature, contig, pos, pos+target_length, nt))
+    
+    return targets
+    
+    
+            # # Get all potential gRNAs from feature
+            # ts = nucleotides.SlidingWindow(contigs[contig], window=target_length+3, start=start, stop=end)
+            # 
+            # # Convert sequences to upper-case
+            # ts = [ (s, e, seq.upper()) for s, e, seq in ts ]
+            # 
+            # # Disambiguate sequences if necessary
+            # if (ambiguities == 'discard'):
+            #     ts = [ item for item in ts if not regex.search('[^ATCGatcg]', item[2]) ]
+            # 
+            # # This code takes way too much memory
+            # elif (ambiguities == 'disambiguate'):
+            #     #tts = []
+            #     #for s in ts:
+            #     #    for ds in utils.disambiguate_iupac(s[2]):
+            #     #        tts.append((s[0], s[1], ds))
+            #     #ts = tts
+            #     #ts = [ map(lambda x: (s, e, x), utils.disambiguate_iupac(seq)) for s, e, seq in ts ]
+            #     #ts = utils.flatten(ts)
+            #     ts = [(a[0], a[1], x) for a in ts for x in nucleotides.disambiguate_iupac(a[2])]
+            # 
+            # # Remove targets with T{5,}
+            # # ts = utils.filter_polyt(ts, args.max_consecutive_ts)
+            # ts = [ item for item in ts if ('T'*(max_consecutive_ts+1) not in item[2]) ]
+            # 
+            # # Remove targets that do not end with intended PAM sites
+            # ts = [ item for item in ts if re_compiled.search(item[2]) ]
+            # 
+            # # Remove targets whose %GC is outside the chosen bounds
+            # # hard-coded PAM length at 3
+            # ts = [ item for item in ts if (target_gc[0] <= scores.gc_score(item[2][:-3]) <= target_gc[1]) ]
+            # 
+            # # Add all targets for this feature to the targets list
+            # #targets.extend(map(lambda x: (feature, contig,)+x, utils.sliding_window(contigs[contig], window=target_length, start=start, stop=end)))
+            # targets.extend(map(lambda x: (feature, contig,)+x, ts))
+            # 
+            # #for target in utils.sliding_window(contigs[contig][start:end], target_length):
+            # #    Use regex (slow) to find all matches in the genome
+            # #    regex = utils.build_regex(target, max_substitutions=2)
+            # #    matches = utils.find_target_matches(regex, contigs, overlap=True)
+            # #    for m in matches:
+            # #        print(m)
+    
+
+def index_reference(fasta, folder, processors):
+    if (args.aligner == 'addtag'):
+        index_file = fasta
+    elif (args.aligner == 'blast+'):
+        pass
+    elif (args.aligner == 'blat'):
+        pass
+    elif (args.aligner == 'bowtie'):
+        pass
+    elif (args.aligner == 'bowtie2'):
+        index_file = bowtie2.index_reference(fasta, tempdir=folder, threads=processors)
+    elif (args.aligner == 'bwa'):
+        pass
+    elif (args.aligner == 'cas-offinder'):
+        pass
+    return index_file
+
+def align(query_file, index_file, folder, processors):
+    if (args.aligner == 'addtag'):
+        sam_file = None
+    elif (args.aligner == 'blast+'):
+        pass
+    elif (args.aligner == 'blat'):
+        pass
+    elif (args.aligner == 'bowtie'):
+        pass
+    elif (args.aligner == 'bowtie2'):
+        sam_file = bowtie2.align(query_file, index_file, folder=folder, threads=processors)
+    elif (args.aligner == 'bwa'):
+        pass
+    elif (args.aligner == 'cas-offinder'):
+        pass
+    return sam_file
+
 def main():
     """Function to run complete AddTag analysis"""
     
@@ -443,12 +742,15 @@ def main():
     #  folder/                            folder holding output
     #  folder/log.txt                     log
     #  folder/bowtie2-index/*             bowtie2 index for input FASTA
-    #  folder/alignment.fasta             FASTA file of all candidate gRNAs
-    #  folder/alignment.sam               SAM file for alignment of candidate gRNAs
-    #  folder/alignment.err               STDOUT/STDERR from alignment
-    #  folder/excission-gRNAs.fasta       sequences to be synthesized/amplified/transcribed (header contains scores)
-    #  folder/excission-dDNAs.fasta       sequences to be synthesized (paired with reversion-gRNAs)
-    #  folder/reversion-gRNAs.fasta       sequences to be synthesized/amplified/transcribed (paired with escission-dDNAs)
+    #  folder/excision-query.fasta             FASTA file of all candidate gRNAs
+    #  folder/excision-query.sam               SAM file for alignment of candidate gRNAs
+    #  folder/excision-query.err               STDOUT/STDERR from alignment
+    #  folder/excision-gRNAs.fasta        sequences to be synthesized/amplified/transcribed (header contains scores)
+    #  folder/excision-dDNAs.fasta        sequences to be synthesized (paired with reversion-gRNAs)
+    #  folder/reversion-query.fasta
+    #  folder/reversion-query.sam
+    #  folder/reversion-query.err
+    #  folder/reversion-gRNAs.fasta       sequences to be synthesized/amplified/transcribed (paired with excision-dDNAs)
     #  folder/reversion-dDNAs.fasta       sequence to be amplified
     #  folder/reversion-primers.fasta     primers for amplifying reversion dDNAs
     #  folder/off-target-dDNAs.fasta      wt dDNAs to prevent mutations at off-target Cas9 binding sites (contains edit distance in header s/i/d)
@@ -458,6 +760,9 @@ def main():
         # Perform test code
         test(args)
     else:
+        # Create the project directory if it doesn't exist
+        os.makedirs(args.folder, exist_ok=True)
+        
         # Load the FASTA file specified on the command line
         contigs = utils.load_fasta_file(args.fasta)
         
@@ -467,95 +772,25 @@ def main():
         # Merge features?
         #features = merge_features(features)
         
-        # Set gRNA target_length to be 20 nt, despite what the command line specifies
-        # for simple testing purposes
-        target_length = 20
-        
-        # Create the project directory if it doesn't exist
-        os.makedirs(args.folder, exist_ok=True)
+        # Generate the query list: [(feature, contig, start, end, sequence), ...]
+        targets = get_targets(args, contigs, features)
         
         # Index the reference FASTA
-        if (args.aligner == 'bowtie2'):
-            index_file = bowtie2.index_reference(args.fasta, tempdir=args.folder, threads=args.processors)
+        index_file = index_reference(args.fasta, args.folder, args.processors)
         
-        # Build a regex to only match strings with PAM sites specified in args.pams
-        re_pams = []
-        for p in args.pams:
-            re_pams.append(nucleotides.build_regex_pattern(p) + '$')
-        re_pattern = '|'.join(re_pams)
-        re_flags = regex.ENHANCEMATCH | regex.IGNORECASE
-        re_compiled = regex.compile(re_pattern, flags=re_flags)
+        # Write the query list to FASTA
+        query_file = utils.generate_query(os.path.join(args.folder, 'excision-query.fasta'), targets)
         
-        # Ideally, this code would procedurally write to the query file
-        # as new sequences were being added, thus limiting the amount of memory
-        # used to store sequences.
+        # Use selected alignment program to find all matches in the genome
+        sam_file = align(query_file, index_file, args.folder, args.processors)
         
-        # Find unique gRNA sites within each feature
-        targets = []
-        # Use a sliding window to make a list of queries
-        for feature in features:
-            
-            # for each orientation:
-            # if (args.strands in ['+', 'both']):
-            #  targets.extend...
-            # if (args.strands in ['-', 'both']):
-            #  targets.extend...
-            
-            contig, start, end, strand = features[feature]
-            # Make sure the contig the feature is on is present in the FASTA
-            if contig in contigs:
-                # print(feature, features[feature], file=sys.stderr)
-                # Find a site within this feature that will serve as a unique gRNA
-                
-                # Get all potential gRNAs from feature
-                ts = nucleotides.SlidingWindow(contigs[contig], window=target_length+3, start=start, stop=end)
-                
-                # Convert sequences to upper-case
-                ts = [ (s, e, seq.upper()) for s, e, seq in ts ]
-                
-                # Disambiguate sequences if necessary
-                if (args.ambiguities == 'discard'):
-                    #ts = [ item for item in ts if item[2] ]
-                    pass
-                # This code takes way too much memory
-                if (args.ambiguities == 'disambiguate'):
-                    #tts = []
-                    #for s in ts:
-                    #    for ds in utils.disambiguate_iupac(s[2]):
-                    #        tts.append((s[0], s[1], ds))
-                    #ts = tts
-                    #ts = [ map(lambda x: (s, e, x), utils.disambiguate_iupac(seq)) for s, e, seq in ts ]
-                    #ts = utils.flatten(ts)
-                    ts = [(a[0], a[1], x) for a in ts for x in nucleotides.disambiguate_iupac(a[2])]
-                
-                # Remove targets with T{5,}
-                # ts = utils.filter_polyt(ts, args.max_consecutive_ts)
-                ts = [ item for item in ts if ('T'*(args.max_consecutive_ts+1) not in item[2]) ]
-                
-                # Remove targets that do not end with intended PAM sites
-                ts = [ item for item in ts if re_compiled.search(item[2]) ]
-                
-                # Remove targets whose %GC is outside the chosen bounds
-                # hard-coded PAM length at 3
-                ts = [ item for item in ts if (args.target_gc[0] <= scores.gc_score(item[2][:-3]) <= args.target_gc[1]) ]
-                
-                # Add all targets for this feature to the targets list
-                #targets.extend(map(lambda x: (feature, contig,)+x, utils.sliding_window(contigs[contig], window=target_length, start=start, stop=end)))
-                targets.extend(map(lambda x: (feature, contig,)+x, ts))
-                
-                #for target in utils.sliding_window(contigs[contig][start:end], target_length):
-                #    Use regex (slow) to find all matches in the genome
-                #    regex = utils.build_regex(target, max_substitutions=2)
-                #    matches = utils.find_target_matches(regex, contigs, overlap=True)
-                #    for m in matches:
-                #        print(m)
-        
-        name = 'alignment'
-        query_file = bowtie2.generate_query(os.path.join(args.folder, name+'.fasta'), targets)
-        
-        # Use bowtie2 to find all matches in the genome
-        sam_file = bowtie2.align(query_file, index_file, folder=args.folder)
-        
+        # Open the SAM file
+        alignments = load_sam_file_test(os.path.join(args.folder, 'excision-query.sam'), args.pams, contigs)
+        for s in alignments:
+            print(s)
+            for a in s.alignments:
+                print('  ', a)
+
 def test(args):
     """Code to test the classes and functions in 'source/__init__.py'"""
     # Echo the command line parameters
@@ -572,7 +807,7 @@ def test(args):
     # Test SAM file parsing
     print("=== SAM ===")
     try:
-        alignments = load_sam_file_test(os.path.join(args.folder, 'alignment.sam'), args.pams, contigs)
+        alignments = load_sam_file_test(os.path.join(args.folder, 'excision-query.sam'), args.pams, contigs)
         for s in alignments:
             print(s)
             for a in s.alignments:
