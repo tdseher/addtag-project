@@ -15,19 +15,6 @@ import regex
 # import AddTag-specific packages
 from . import utils
 
-def generate_query(filename, sequences, sep=':'):
-    """Creates a FASTA file"""
-    # Create the query, converting list of sequences into a FASTA file
-    with open(filename, 'w') as flo:
-        for line in sequences:
-            feature, contig, start, end, seq = line
-            print(">" + sep.join(map(str, [feature, contig, start, end])), file=flo)
-            print(seq, file=flo)
-            #print('+')
-            #print('9'*len(seq))
-    print('Query FASTA generated: {!r}'.format(filename), file=sys.stderr)
-    return filename
-
 def align(query, index, threads=(os.cpu_count() or 1), folder=os.getcwd(), options=None):
     """Aligns sequences using Bowtie 2
     
