@@ -271,17 +271,20 @@ def parse_arguments():
     # Add optional arguments
     parser.add_argument("--test", action="store_true",
         help="Perform tests only")
-    parser.add_argument("--pams", metavar="SEQ", nargs="+", type=str,
-        default=["NGG"], help="Constrain finding only targets with these PAM sites")
-    parser.add_argument("--target_lengths", nargs=2, metavar=('MIN', 'MAX'),
-        type=int, default=[17, 20],
-        help="The length range of the 'target'/'spacer'/gRNA site")
-    # Eventually, replace --pams and --target_lengths with this:
-    #parser.add_argument("--motifs", metavar="SEQ", nargs="+", type=str,
-    #    default=["N{17,20}>NGG"], help="Find only targets with these \
-    #    'SPACER>PAM' motifs, written from 5' to 3'. '>' points toward PAM. \
-    #    IUPAC ambiguities accepted. '{a,b}' are quantifiers. \
-    #    Examples: 'G{,2}N{19,20}>NGG', 'N{17,20}>NGA', 'N{20,21}>NNGRRT', 'TTTN<N{20,23}'")
+    #parser.add_argument("--pams", metavar="SEQ", nargs="+", type=str,
+    #    default=["NGG"], help="Constrain finding only targets with these PAM sites")
+    #parser.add_argument("--target_lengths", nargs=2, metavar=('MIN', 'MAX'),
+    #    type=int, default=[17, 20],
+    #    help="The length range of the 'target'/'spacer'/gRNA site")
+    # Replacement for --pams and --target_lengths with this:
+    parser.add_argument("--motifs", metavar="MOTIF", nargs="+", type=str,
+        default=["N{17,20}>NGG"],
+        help="Find only targets with these 'SPACER>PAM' motifs, written from \
+        5' to 3'. '>' points toward PAM. IUPAC ambiguities accepted. '{a,b}' \
+        are quantifiers. Examples: 'G{,2}N{19,20}>NGG', 'N{8,10}AN{10}>NGA', \
+        'N{20,21}>NNGRRT', 'TTTN<N{20,23}'")
+    #    maybe this: 'GGN<N{20}|N{4-20}|N{20}>NGG' where '|' separates spacer from non-targets?
+    #       or this: 'GGN<N{20}.{4-20}N{20}>NGG' where '.' is any non-spacer nucleotide?
     parser.add_argument("--tag", metavar='TAG', type=str, default='ID',
         help="GFF tag with feature names. Examples: 'ID', 'Name', 'Parent', or 'locus_tag'")
     #parser.add_argument("--feature_homolog_regex", metavar="REGEX", type=str, default=None, help="regular expression with capturing group containing invariant feature. Example: '(.*)_[AB]' will treat features C2_10010C_A and C2_10010C_B as homologs")
@@ -327,8 +330,9 @@ def parse_arguments():
         discard - no gRNAs will be created where the FASTA has an ambiguous base; \
         disambiguate - gRNAs containing ambiguous bases will be converted to a set of non-ambiguous gRNAs; \
         keep - gRNAs can have ambiguous bases")
-    parser.add_argument("--lower_case_mask", action="store_true",
-        help="Do not generated gRNAs targeting lower case nucleotides in input FASTA")
+    parser.add_argument("--case", type=str, default="ignore",
+        choices=["ignore", "discard-lower", "discard-upper", "invariant-lower", "invariant-upper"],
+        help="Restrict generation of gRNAs based on case of nucleotides in input FASTA")
     # Add command line arguments for the additional hard constraints:
     #  Only report potential targets that have no off targets with mismatches within 8, 12, N nt from 3' end
     parser.add_argument("--processors", metavar="N", type=int, default=(os.cpu_count() or 1),
@@ -358,8 +362,98 @@ def parse_arguments():
     # Special version action
     parser.add_argument("-v", "--version", action='version', version='{__program__} {__version__}'.format(**globals()))
     
-    # Parse the arguments, and return
-    return parser.parse_args()
+    # Parse the arguments
+    args = parser.parse_args()
+    
+    # Parse the motifs
+    args.parsed_motifs = []
+    for motif in args.motifs:
+        args.parsed_motifs.append(parse_motif(motif))
+    
+    # Return the parsed arguments
+    return args
+
+def _parse_motif_helper(submotif):
+    # Keep track of expanded sequences
+    sequences = ['']
+    
+    # Keep track if a quantifier is being parsed
+    quantifier = None
+    
+    # Iterate through the characters
+    for c in submotif:
+        if (c == '{'): # Start the quantifier
+            quantifier = ''
+        elif (c == '}'): # End the quantifier
+            quantifier_list = quantifier.split(',')
+            if (len(quantifier_list) == 1):
+                min_length = int(quantifier)
+                max_length = min_length
+                
+            elif (len(quantifier_list) == 2):
+                if (quantifier_list[0] == ''):
+                    min_length = 0
+                else:
+                    min_length = int(quantifier_list[0])
+                if (quantifier_list[1] == ''):
+                    raise Exception("Motif quantifier '{" + quantifier + "}' contains no maximum value")
+                else:
+                    max_length = int(quantifier_list[1])
+                if (min_length > max_length):
+                    raise Exception("Motif quantifier '{" + quantifier + "}' minimum and maximum lengths are invalid")
+            
+            last_chars = [ x[-1] for x in sequences ]
+            
+            sequences = [ x[:-1] for x in sequences ]
+            
+            new_sequences = []
+            for i, s in enumerate(sequences):
+                for length in range(min_length, max_length+1):
+                    new_sequences.append(s + last_chars[i]*length)
+            sequences = new_sequences
+            quantifier = None
+        elif (quantifier != None): # add current character to quantifier if it is open
+            quantifier += c
+        else: # add the current character to the expanded sequences
+            for i in range(len(sequences)):
+                sequences[i] = sequences[i] + c
+    
+    return sequences
+
+def parse_motif(motif):
+    # Eventually, replace --pams and --target_lengths with this:
+    #parser.add_argument("--motifs", metavar="SEQ", nargs="+", type=str,
+    #    default=["N{17,20}>NGG"], help="Find only targets with these \
+    #    'SPACER>PAM' motifs, written from 5' to 3'. '>' points toward PAM. \
+    #    IUPAC ambiguities accepted. '{a,b}' are quantifiers. \
+    #    Examples: 'G{,2}N{19,20}>NGG', 'N{17,20}>NGA', 'N{20,21}>NNGRRT', 'TTTN<N{20,23}'")
+    
+    gt_count = motif.count('>')
+    lt_count = motif.count('<')
+    lb_count = motif.count('{')
+    rb_count = motif.count('}')
+    # Make sure motif does not violate basic rules
+    if (gt_count + lt_count < 1):
+        raise Exception("Motif lacks distinction between spacer and PAM sequences ('>' or '<' character)")
+    elif (gt_count + lt_count > 1):
+        raise Exception("Motif has too many '>' or '<' characters")
+    if (lb_count != rb_count):
+        raise Exception("Motif braces '{' and '}' do not match")
+    if (motif.count(' ') > 0):
+        raise Exception("Motif contains invalid space ' ' characters")
+    if (motif.count('{}') > 0):
+        raise Exception("Motif contains invalid quantifier '{}'")
+    if (motif.count('{,}') > 0):
+        raise Exception("Motif contains invalid quantifier '{,}'")
+    
+    if (gt_count == 1):
+        spacer_motif, pam_motif = motif.split('>')
+        side = '>'
+    elif (lt_count == 1):
+        pam_motif, spacer_motif = motif.split('<')
+        side = '<'
+    
+    return _parse_motif_helper(spacer_motif), _parse_motif_helper(pam_motif), side
 
 def list_pam_sites():
     # Code taken from
@@ -553,6 +647,74 @@ def revert(revert_targets):
     revert_donors = make_donors()
     
     revert_primers = make_primers()
+
+def target_filter(seq, args):
+    '''
+    Filters the candidate gRNA sequence based on the following criteria:
+     1) case: ignore, discard-lower, discard-upper (does not process invariant-lower/invariant-upper)
+     2) ambiguous characters: discard, keep, disambiguate
+     3) maximum consecutive Ts
+     4) PAM site
+     * %GC
+     
+    Assumes the sequence is of the appropriate length
+    '''
+    # check for ambiguity expansion
+    # Check for PAM motif
+    # check for poly-T
+    
+    # Check the case of the potential gRNA sequence
+    if (args.case == "discard-lower"):
+        if regex.search('[a-z]', seq):
+            return [] # Reject this sequence because it has lower-case characters
+    elif (args.case == "discard-upper"):
+        if regex.search('[A-Z]', seq):
+            return [] # Reject this sequence because it has upper-case characters
+    # if (args.case == "ignore"), then do nothing
+    
+    # Convert sequences to upper-case so it can be evaluated by the scoring algorithms
+    seq = seq.upper()
+    
+    # Check if target sequence has any ambiguities
+    if (args.ambiguities == 'discard'):
+        if regex.search('[^ATCGatcg]', seq):
+            # Reject this sequence
+            return []
+        seqs = [seq]
+    # Disambiguate sequences if necessary
+    elif (args.ambiguities == 'disambiguate'):
+        seqs = nucleotides.disambiguate_iupac(seq)
+    # Do nothing if just 'keep'
+    else:
+        seqs = [seq]
+    
+    # Remove targets with T{5,}
+    seqs = [ nt for nt in seqs if ('T'*(args.max_consecutive_ts+1) not in nt) ]
+    
+    # Remove targets that do not end with intended PAM sites
+    temp_nts = []
+    temp_targets = []
+    temp_pams = []
+    for nt in seqs:
+        m = nucleotides.split_target_sequence(nt, args.pams)
+        if m:
+            temp_nts.append(nt)
+            temp_targets.append(m[0])
+            temp_pams.append(m[1])
+    seqs = temp_nts
+    #nts = [ nt for nt in nts if re_compiled.search(nt) ]
+    
+    # Remove targets whose %GC is outside the chosen bounds
+    # hard-coded PAM length at 3
+    temp_nts = []
+    for i in range(len(nts)):
+        if (args.target_gc[0] <= scores.gc_score(temp_targets) <= args.target_gc[1]):
+            temp_nts.append(nts[i])
+    seqs = temp_nts
+    #nts = [ nt for nt in nts if (target_gc[0] <= scores.gc_score(nt[:-3]) <= target_gc[1]) ]
+    
+    # Add all targets for this feature to the targets list
+    return seqs
 
 def get_targets(args, contigs, features):
     ## Build a regex to only match strings with PAM sites specified in args.pams
@@ -790,11 +952,19 @@ def main():
             print(s)
             for a in s.alignments:
                 print('  ', a)
+        
+        # Discard potential gRNAs that have mismatches with their target site
+        #if (args.case == "invariant-lower"):
+        #    pass
+        #elif (args.case == "invariant-upper"):
+        #    pass
 
 def test(args):
     """Code to test the classes and functions in 'source/__init__.py'"""
     # Echo the command line parameters
     print(args, file=sys.stderr)
+    
+    sys.exit()
     
     # Get timestamp
     start = time.time()
