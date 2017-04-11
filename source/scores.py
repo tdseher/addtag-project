@@ -127,6 +127,22 @@ def r_score(seq1, seq2, length):
     else:
         return 0.0
 
+#def score_histogram(sequence, algorithms):
+#    """Code that scores a gRNA sequence
+#    Returns scores"""
+#    # two types of off-target scores
+#    #  CFD off-target score
+#    #  MIT off-target score
+#    
+#    # Histogram of off-targets:
+#    #  For each number of mismatches, the number of off-targets is indicated.
+#    #  Example:
+#    #   1-3-20-50-60    This means 1 off-target with 0 mismatches, 3 off-targets with 1 mismatch, 20 off-targets with 2 mismatches, etc.
+#    #   0-2-5-10-20     These are the off-targets that have no mismatches in the 12 bp adjacent to the PAM. These are the most likely off-targets.
+#    #   
+#    #   Off-targets are considered if they are flanked by one of the motifs NGG, NAG or NGA.
+
+
 def test():
     """Code to test the classes and functions in 'source/scores.py'"""
     

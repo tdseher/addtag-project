@@ -45,10 +45,64 @@ version:
   commits {__commits__}
   date    {__date__}
 
+proteins:
+  The Cas9 or Cpf1 protein you use should be engineered specifically for your
+  organism. It should be codon-optomized, and if using eukarya, contain an
+  appropriate nuclear localization sequence.
+  
+  Cas9 family nucleases
+  dCas9       Catalytically "dead" Cas9 protein
+  FokI-dCas9  dCas9 fused with the dimerization-dependent FokI nuclease domain:
+              creates a dimeric RNA-guided FokI-dCas9 nuclease (RFN)
+              architecture requiring recognition of extended double-length
+              target sites for efficient cleavage. Amino-terminal fusions of
+              FokI to dCas9 can recognize two 20-nucleotide 'half-sites' in a
+              'PAM-out' orientation separated by a 13-18 bp spacer and can
+              efficiently cleave in this intervening region.
+  SpCas9      Cas9 from Streptococcus pyogenes
+  eCas9       Any engineered Cas9 variant
+  eSpCas9     SpCas9 variant bearing alanine substitutions at three positions
+              predicted to interact with the non-target DNA strand
+  NmCas9      Cas9 from Neisseria meningitidis
+  SaCas9      Cas9 from Staphylococcus aureus
+  SpCas9-HF1  Alanine substitutions introduced at four residues in SpCas9,
+              identified from previously published crystal structures, to
+              disrupt non-specific contacts with the phosphate backbone of the
+              target DNA strand (which interacts with the gRNA) to create
+              SpCas9-HF1 (high-fidelity variant 1).
+  Cas9n       Engineered variants of Cas9 in which one of the two nuclease
+              domains has been catalytically inactivated, which results in the
+              nicking of only one DNA strand and leaving the other strand
+              intact. Another strategy proposed to reduce off-target effects
+              is to use paired Cas9 nickases (Cas9n), mutated versions of Cas9
+              in which one of the two nuclease domains (RuvC or HNH) has been
+              catalytically inactivated (for example, by introduction of a
+              D10A or H840A mutation). Paired nickases can be directed by two
+              gRNAs targeted to neighbouring sites to create offset nicks that
+              can induce indel mutations.
+  
+ Cpf1 family nucleases
+
+motifs:
+  Below are common SPACER>PAM arrangements.
+             Motif        Protein  Origin system
+       N{{17,20}}>NGG       Cas9     Streptococcus Pyogenes
+          N{{20}}>NGG       Cas9     Streptococcus Pyogenes
+  G{{,2}}N{{19,20}}>NGG       Cas9?    ???
+          N{{20}}>NGA       Cas9     Streptococcus pyogenes mutant VQR
+          N{{20}}>NAG       Cas9?    ???
+          N{{20}}>NGCG      Cas9     Streptococcus pyogenes mutant VRER
+          N{{20}}>NNAGAA    Cas9     Streptococcus thermophilus
+          N{{20}}>NGGNG     Cas9     Streptococcus thermophilus
+          N{{21}}>NNGRRT    Cas9     Staphylococcus aureus
+          N{{20}}>NNNNGMTT  Cas9     Neisseria meningitidis
+          N{{20}}>NNNNACA   Cas9     Campylobacter jejuni
+           TTTN<N{{20,23}}  Cpf1     Acidaminococcus/Lachnospiraceae
+            TTN<N{{20,23}}  Cpf1     Francisella novicida (putative)
 """.format(**locals())
 __epilog__ = """\
 example:
- $ python3 {__program__} genome.fasta genome.gff > results.txt
+ $ python3 {__program__} --fasta genome.fasta --gff genome.gff --folder addtag-output
 """.format(**locals())
 
 class Sequence(object):
@@ -261,16 +315,15 @@ def parse_arguments():
         help="FASTA file with contigs to find unique gRNA sites. Input FASTA \
             must not be compressed. Ambiguous bases within the FASTA will not \
             be chosen for gRNA sites. All FASTA sequences should have unique \
-            primary headers (everything between the '>' and the first ' ' \
-            should be unique).")
+            primary headers (everything between the '>' symbol and the first \
+            whitespace should be unique).")
     required_group.add_argument("--gff", required=True, metavar="*.gff", type=str,
         help="GFF file specifying chromosomal features")
     required_group.add_argument("--folder", required=True, metavar="FOLDER",
         type=str, help="Path of folder to store generated files")
     
     # Add optional arguments
-    parser.add_argument("--test", action="store_true",
-        help="Perform tests only")
+    parser.add_argument("--test", action="store_true", help="Perform tests only")
     #parser.add_argument("--pams", metavar="SEQ", nargs="+", type=str,
     #    default=["NGG"], help="Constrain finding only targets with these PAM sites")
     #parser.add_argument("--target_lengths", nargs=2, metavar=('MIN', 'MAX'),
@@ -281,10 +334,8 @@ def parse_arguments():
         default=["N{17,20}>NGG"],
         help="Find only targets with these 'SPACER>PAM' motifs, written from \
         5' to 3'. '>' points toward PAM. IUPAC ambiguities accepted. '{a,b}' \
-        are quantifiers. Examples: 'G{,2}N{19,20}>NGG', 'N{8,10}AN{10}>NGA', \
-        'N{20,21}>NNGRRT', 'TTTN<N{20,23}'")
-    #    maybe this: 'GGN<N{20}|N{4-20}|N{20}>NGG' where '|' separates spacer from non-targets?
-    #       or this: 'GGN<N{20}.{4-20}N{20}>NGG' where '.' is any non-spacer nucleotide?
+        are quantifiers. Be sure to enclose motif parameters in quotes so your \
+        shell does not interpret STDIN/STDOUT redirection.")
     parser.add_argument("--tag", metavar='TAG', type=str, default='ID',
         help="GFF tag with feature names. Examples: 'ID', 'Name', 'Parent', or 'locus_tag'")
     #parser.add_argument("--feature_homolog_regex", metavar="REGEX", type=str, default=None, help="regular expression with capturing group containing invariant feature. Example: '(.*)_[AB]' will treat features C2_10010C_A and C2_10010C_B as homologs")
@@ -374,6 +425,10 @@ def parse_arguments():
     return args
 
 def _parse_motif_helper(submotif):
+    """
+    Helper function that parses either the SPACER or PAM motif.
+    Decodes quantifiers and returns a list
+    """
     # Keep track of expanded sequences
     sequences = ['']
     
@@ -421,12 +476,18 @@ def _parse_motif_helper(submotif):
     return sequences
 
 def parse_motif(motif):
-    # Eventually, replace --pams and --target_lengths with this:
-    #parser.add_argument("--motifs", metavar="SEQ", nargs="+", type=str,
-    #    default=["N{17,20}>NGG"], help="Find only targets with these \
-    #    'SPACER>PAM' motifs, written from 5' to 3'. '>' points toward PAM. \
-    #    IUPAC ambiguities accepted. '{a,b}' are quantifiers. \
-    #    Examples: 'G{,2}N{19,20}>NGG', 'N{17,20}>NGA', 'N{20,21}>NNGRRT', 'TTTN<N{20,23}'")
+    """
+    Takes string of SPACER>PAM and returns ([spacer, spacer, ...], [pam, pam ...], '>')
+    
+    Example inputs: 'G{,2}N{19,20}>NGG', 'N{20,21}>NNGRRT', 'TTTN<N{20,23}'
+    """
+    
+    # Still need to implement:
+    #  Identify gRNA pairs on opposite strands appropriate for "nickase" Cas9
+    #  allow for PAM-out and PAM-in orientations
+    #  --motifs, where '.' is any non-spacer nucleotide
+    #    'CCN<N{17,20}.{13,18}N{17,20}>NGG'     # PAM-out
+    #    'N{17,20}>NGG.{13,18}CCN<N{17,20}'     # PAM-in
     
     gt_count = motif.count('>')
     lt_count = motif.count('<')
@@ -455,64 +516,34 @@ def parse_motif(motif):
     
     return _parse_motif_helper(spacer_motif), _parse_motif_helper(pam_motif), side
 
-def list_pam_sites():
-    # Code taken from
-    #  https://github.com/maximilianh/crisporWebsite/crispor.py
-    pamDesc = [
-        # Motif      sgRNA+motif origin system
-        ('NGG',      '20bp-NGG - Cas9 Streptococcus Pyogenes and Cas9-HF1'),
-        ('TTTN',     'TTTN-23bp - Cpf1 Acidaminococcus / Lachnospiraceae'),
-        #('TTN',      'TTN-23bp - Cpf1 F. Novicida'), # Jean-Paul: various people have shown that it's not usable yet
-        ('NGA',      '20bp-NGA - Cas9 S. Pyogenes mutant VQR'),
-        #('NAG',       '???'),
-        ('NGCG',     '20bp-NGCG - Cas9 S. Pyogenes mutant VRER'),
-        ('NNAGAA',   '20bp-NNAGAA - Cas9 S. Thermophilus'),
-        ('NGGNG',    '20bp-NGGNG - Cas9 S. Thermophilus'),
-        ('NNGRRT',   '21bp-NNG(A/G)(A/G)T - Cas9 S. Aureus'),
-        ('NNNNGMTT', '20bp-NNNNG(A/C)TT - Cas9 N. Meningitidis'),
-        ('NNNNACA',  '20bp-NNNNACA - Cas9 Campylobacter jejuni'),
-    ]
-    
-    # from (https://benchling.com/pub/cpf1):
-    # Cpf1 is an RNA-guided nuclease, similar to Cas9. It recognizes a T-rich
-    # PAM, TTTN, but on the 5' side of the guide. This makes it distinct from
-    # Cas9, which uses an NGG PAM on the 3' side. The cut Cpf1 makes is
-    # staggered. In AsCpf1 and LbCpf1, it occurs 19 bp after the PAM on the
-    # targeted (+) strand and 23 bp on the other strand, as shown here:
-    #                        Cpf1
-    #   TTTC GAGAAGTCATCTAATAAGG|CCAC TGTTA
-    #   AAAG CTCTTCAGTAGATTATTCC GGTG|ACAAT
-    #   -PAM =========gRNA====== =
-    #
-    # Benchling suggests 20 nt guides can be used for now, as there is not real
-    # suggestion for optimal guide length. Robust guide scores for Cpf1 are
-    # still in development, but simple scoring based on the number of off-target
-    # sites is available on Benchling.
-    # 
-    # Cpf1 requires only a crRNA for activity and does not need a tracrRNA to
-    # also be present.
-    #
-    # Two Cp1-family proteins, AsCpf1 (from Acidaminococcus)
-    # and LbCpf1 (from Lachnospiraceae), have been shown to perform efficient
-    # genome editing in human cells.
-    #
-    # Why use Cpf1 over Cas9?
-    #  see https://benchling.com/pub/cpf1
+# List of common motifs obtained from
+#  https://github.com/maximilianh/crisporWebsite/crispor.py
 
-#def score(sequence, algorithms):
-#    """Code that scores a gRNA sequence
-#    Returns scores"""
-#    # two types of off-target scores
-#    #  CFD off-target score
-#    #  MIT off-target score
-#    
-#    # Histogram of off-targets:
-#    #  For each number of mismatches, the number of off-targets is indicated.
-#    #  Example:
-#    #   1-3-20-50-60    This means 1 off-target with 0 mismatches, 3 off-targets with 1 mismatch, 20 off-targets with 2 mismatches, etc.
-#    #   0-2-5-10-20     These are the off-targets that have no mismatches in the 12 bp adjacent to the PAM. These are the most likely off-targets.
-#    #   
-#    #   Off-targets are considered if they are flanked by one of the motifs NGG, NAG or NGA.
+# from (https://benchling.com/pub/cpf1):
+# Cpf1 is an RNA-guided nuclease, similar to Cas9. It recognizes a T-rich
+# PAM, TTTN, but on the 5' side of the guide. This makes it distinct from
+# Cas9, which uses an NGG PAM on the 3' side. The cut Cpf1 makes is
+# staggered. In AsCpf1 and LbCpf1, it occurs 19 bp after the PAM on the
+# targeted (+) strand and 23 bp on the other strand, as shown here:
+#                        Cpf1
+#   TTTC GAGAAGTCATCTAATAAGG|CCAC TGTTA
+#   AAAG CTCTTCAGTAGATTATTCC GGTG|ACAAT
+#   =PAM =========gRNA====== =
+#
+# Benchling suggests 20 nt guides can be used for now, as there is not real
+# suggestion for optimal guide length. Robust guide scores for Cpf1 are
+# still in development, but simple scoring based on the number of off-target
+# sites is available on Benchling.
+# 
+# Cpf1 requires only a crRNA for activity and does not need a tracrRNA to
+# also be present.
+#
+# Two Cp1-family proteins, AsCpf1 (from Acidaminococcus)
+# and LbCpf1 (from Lachnospiraceae), have been shown to perform efficient
+# genome editing in human cells.
+#
+# Why use Cpf1 over Cas9?
+#  see https://benchling.com/pub/cpf1
 
 # Template 1
 def generate_excise_target(args, feature):
@@ -652,16 +683,13 @@ def target_filter(seq, args):
     '''
     Filters the candidate gRNA sequence based on the following criteria:
      1) case: ignore, discard-lower, discard-upper (does not process invariant-lower/invariant-upper)
-     2) ambiguous characters: discard, keep, disambiguate
+     2) ambiguous character expansion: discard, keep, disambiguate
      3) maximum consecutive Ts
-     4) PAM site
-     * %GC
-     
-    Assumes the sequence is of the appropriate length
+     4) SPACER>PAM check using regex
+     5) %GC
+    
+    Returns list of validated sequences
     '''
-    # check for ambiguity expansion
-    # Check for PAM motif
-    # check for poly-T
     
     # Check the case of the potential gRNA sequence
     if (args.case == "discard-lower"):
@@ -691,29 +719,28 @@ def target_filter(seq, args):
     # Remove targets with T{5,}
     seqs = [ nt for nt in seqs if ('T'*(args.max_consecutive_ts+1) not in nt) ]
     
-    # Remove targets that do not end with intended PAM sites
-    temp_nts = []
+    # Remove targets that do not confine to at least one of the defined
+    # SPACER>PAM motifs.
+    # Also, separate the SPACER and PAM motifs
+    temp_seqs = []
     temp_targets = []
     temp_pams = []
     for nt in seqs:
-        m = nucleotides.split_target_sequence(nt, args.pams)
-        if m:
-            temp_nts.append(nt)
-            temp_targets.append(m[0])
-            temp_pams.append(m[1])
-    seqs = temp_nts
-    #nts = [ nt for nt in nts if re_compiled.search(nt) ]
+        for spacers, pams, side in args.parsed_motifs:
+            m = nucleotides.motif_conformation(nt, spacers, pams, side):
+            if m:
+                temp_seqs.append(nt)
+                temp_targets.append(m[0])
+                temp_pams.append(m[1])
+    seqs = temp_seqs
     
     # Remove targets whose %GC is outside the chosen bounds
-    # hard-coded PAM length at 3
-    temp_nts = []
-    for i in range(len(nts)):
-        if (args.target_gc[0] <= scores.gc_score(temp_targets) <= args.target_gc[1]):
-            temp_nts.append(nts[i])
-    seqs = temp_nts
-    #nts = [ nt for nt in nts if (target_gc[0] <= scores.gc_score(nt[:-3]) <= target_gc[1]) ]
+    temp_seqs = []
+    for i in range(len(seqs)):
+        if (args.target_gc[0] <= scores.gc_score(temp_targets[i]) <= args.target_gc[1]):
+            temp_seqs.append(nts[i])
+    seqs = temp_seqs
     
-    # Add all targets for this feature to the targets list
     return seqs
 
 def get_targets(args, contigs, features):
@@ -802,7 +829,7 @@ def get_targets(args, contigs, features):
                             # hard-coded PAM length at 3
                             temp_nts = []
                             for i in range(len(nts)):
-                                if (args.target_gc[0] <= scores.gc_score(temp_targets) <= args.target_gc[1]):
+                                if (args.target_gc[0] <= scores.gc_score(temp_targets[i]) <= args.target_gc[1]):
                                     temp_nts.append(nts[i])
                             nts = temp_nts
                             #nts = [ nt for nt in nts if (target_gc[0] <= scores.gc_score(nt[:-3]) <= target_gc[1]) ]

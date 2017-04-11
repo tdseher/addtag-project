@@ -127,8 +127,9 @@ def filter_polyt(sequences, max_allowed=4):
     return list(filter(lambda x: 'T'*(max_allowed+1) not in x, sequences))
 
 # So far for DNA only
-def build_regex_pattern(iupac_sequence, max_substitutions=0, max_insertions=0, max_deletions=0, max_errors=0):
-    """Build a regular expression pattern for the nucleotide search, taking IUPAC
+def build_regex_pattern(iupac_sequence, max_substitutions=0, max_insertions=0, max_deletions=0, max_errors=0, capture=True):
+    """
+    Build a regular expression pattern for the nucleotide search, taking IUPAC
     ambiguities into account.
     """
     # Format the fuzzy matching restrictions
@@ -181,7 +182,10 @@ def build_regex_pattern(iupac_sequence, max_substitutions=0, max_insertions=0, m
         'N': '[ACGT]',
     }
     sequence = ''.join(map(lambda x: iupac[x], iupac_sequence))
-    pattern = '(' + sequence + ')' + fuzzy
+    if capture:
+        pattern = '(' + sequence + ')' + fuzzy
+    else:
+        pattern = '(?:' + sequence + ')' + fuzzy
     print('Built regex string: {!r}'.format(pattern), file=sys.stderr)
     return pattern
 
@@ -376,27 +380,90 @@ def split_target_sequence2(seq, pams):
         l = max(map(len, pams))
         return seq[:-l], seq[-l:]
 
-def split_target_sequence(seq, pams, force=False):
+def split_target_sequence(seq, pams, force=False, side='>'):
     """
     Searches for all PAMs in sequence, and splits it accordingly.
-    Assumes PAM at 3' end. Returns the longest matched PAM sequence.
+    Side specifies where to expect the PAM.
+    Returns the longest matched PAM sequence.
     Returns: gRNA, PAM
     """
-    # Build a regex to only match strings with PAM sites specified in args.pams
-    re_pattern = '|'.join(map(lambda x: build_regex_pattern(x)+'$', pams))
-    
+    # Build a regex to only match strings with PAM sites specified in args.parsed_motifs
     # by default, regex finds the longest pattern
-    m = regex.search(re_pattern, seq, flags=regex.ENHANCEMATCH|regex.IGNORECASE)
-    if m:
-        # gRNA, PAM
-        return seq[:m.start()], seq[m.start():]
-    elif force:
-        # Force finding the PAM...
-        #return seq, ''
-        l = max(map(len, pams))
-        return seq[:-l], seq[-l:]
+    if (side == '>'): # SPACER>PAM
+        re_pattern = '|'.join(map(lambda x: build_regex_pattern(x)+'$', pams))
+        m = regex.search(re_pattern, seq, flags=regex.ENHANCEMATCH|regex.IGNORECASE)
+        if m:
+            return seq[:m.start()], seq[m.start():] # gRNA, PAM
+        elif force: # Force finding the PAM
+            l = max(map(len, pams))
+            return seq[:-l], seq[-l:] # gRNA, PAM
+        else:
+            return None
+        
+    elif (side == '<'): # PAM<SPACER
+        re_pattern = '|'.join(map(lambda x: '^'+build_regex_pattern(x), pams))
+        m = regex.search(re_pattern, seq, flags=regex.ENHANCEMATCH|regex.IGNORECASE)
+        if m:
+            return seq[:m.end()], seq[m.end():] # gRNA, PAM
+        elif force: # Force finding the PAM
+            l = max(map(len, pams))
+            return seq[:l], seq[l:] # gRNA, PAM
+        else:
+            return None
+    
     else:
         return None
+
+def motif_search(sequence, spacers, pams, side):
+    """
+    Return list of all (gRNA, PAM) found within sequence
+    """
+    spacer_pattern = '(' + '|'.join([build_regex_pattern(x, capture=False) for x in spacers]) + ')'
+    pam_pattern = '(' + '|'.join([build_regex_pattern(x, capture=False) for x in pams]) + ')'
+    if (side == '>'): # SPACER>PAM
+        re_pattern = spacer_pattern + pam_pattern
+        m = regex.findall(re_pattern, sequence, flags=regex.ENHANCEMATCH|regex.IGNORECASE, overlapped=True)
+        if m:
+            return m # [(gRNA-1, PAM-11), (gRNA-2, PAM-2), ..., (gRNA-N, PAM-N)]
+        else:
+            return None
+    elif (side == '<'): # PAM<SPACER
+        re_pattern = pam_pattern + spacer_pattern
+        m = regex.findall(re_pattern, sequence, flags=regex.ENHANCEMATCH|regex.IGNORECASE, overlapped=True)
+        if m: # reverse order from (PAM, gRNA) --to-> (gRNA, PAM)
+            return [ x[::-1] for x in m ] # [(gRNA-1, PAM-11), (gRNA-2, PAM-2), ..., (gRNA-N, PAM-N)]
+        else:
+            return None
+
+def motif_conformation(sequence, spacers, pams, side):
+    """
+    Checks if the sequence matches at least one of the possible SPACER>PAM
+    combinations.
+    
+    Arguments:
+     sequence - A nucleotide sequence that may or may not match the SPACER>PAM motif
+      spacers - list of acceptable spacer motifs
+         pams - list of acceptable pam motifs
+         side - '>' or '<'
+    
+    Returns (gRNA, PAM) if valid, otherwise None
+    """
+    spacer_pattern = '(' + '|'.join([build_regex_pattern(x, capture=False) for x in spacers]) + ')'
+    pam_pattern = '(' + '|'.join([build_regex_pattern(x, capture=False) for x in pams]) + ')'
+    if (side == '>'): # SPACER>PAM
+        re_pattern = '^'+ spacer_pattern + pam_pattern + '$'
+        m = regex.match(re_pattern, sequence, flags=regex.ENHANCEMATCH|regex.IGNORECASE)
+        if m:
+            return m.groups() # (gRNA, PAM)
+        else:
+            return None
+    elif (side == '<'): # PAM<SPACER
+        re_pattern = '^'+ pam_pattern + spacer_pattern + '$'
+        m = regex.match(re_pattern, sequence, flags=regex.ENHANCEMATCH|regex.IGNORECASE)
+        if m:
+            return m.groups()[::-1] # (gRNA, PAM)
+        else:
+            return None
 
 def test():
     """Code to test the classes and functions in 'source/nucleotides.py'"""
