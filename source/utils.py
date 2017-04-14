@@ -41,7 +41,8 @@ def cigar_length(cigar):
     #  * For mRNA-to-genome alignment, an N operation represents an intron. For other types of alignments, the interpretation of N is not defined.
     #  * Sum of lengths of the M/I/S/=/X operations shall equal the length of SEQ.
     
-    m = regex.findall(r'(\d+)[MISP=X]', cigar)
+    #m = regex.findall(r'(\d+)[MISP=X]', cigar)
+    m = regex.findall(r'(\d+)[MDSP=X]', cigar)
     return sum(map(int, m))
 
 def sam_orientation(field):
@@ -241,8 +242,8 @@ def load_gff_file(filename, features, tag):
                 if ((len(sline) > 6) and (sline[2] == feature)):
                     m = regex.findall(tag + r'=([^;]*)', sline[8])
                     if m:
-                        #           gene     contig       start(bp)          end(bp)      strand
-                        annotations[m[0]] = (sline[0], int(sline[3])-1, int(sline[4])-1, sline[6])
+                        #           gene     contig       start(bp)          end(bp)    strand
+                        annotations[m[0]] = (sline[0], int(sline[3])-1, int(sline[4]), sline[6])
     
     print('GFF file parsed: {!r}'.format(filename), file=sys.stderr)
     return annotations
@@ -306,8 +307,8 @@ def generate_query(filename, sequences, sep=':'):
     # Create the query, converting list of sequences into a FASTA file
     with open(filename, 'w') as flo:
         for line in sequences:
-            feature, contig, start, end, seq = line
-            print(">" + sep.join(map(str, [feature, contig, start, end])), file=flo)
+            feature, contig, orientation, start, end, seq, side, spacer, pam = line
+            print(">" + sep.join(map(str, [feature, contig, orientation, start, end])), file=flo)
             print(seq, file=flo)
             #print('+')
             #print('9'*len(seq))

@@ -22,6 +22,7 @@ from . import hsuzhang
 from . import housden
 from . import morenomateos
 from . import doench
+from . import azimuth
 from . import bowtie2
 
 # Define meta variables
@@ -108,7 +109,8 @@ example:
 class Sequence(object):
     """Data structure defining a sequence"""
     
-    substitution_threshold = 4
+    #substitution_threshold = 4
+    substitution_threshold = 15 # There is a bug in the function that counts these errors
     insertion_threshold = 2
     deletion_threshold = 2
     error_threshold = 5
@@ -118,19 +120,24 @@ class Sequence(object):
     hsuzhang_threshold = 1.0
     linear_threshold = 80.0
     morenomateos_threshold = 1.0
+    azimuth_threshold = 1.0
     
-    def __init__(self, feature, contig_sequence, pams, contig=None, contig_start=None, contig_end=None, contig_orientation=None, feature_orientation=None):
+    def __init__(self, feature, contig_sequence, args, contig=None, contig_orientation='+', contig_start=None, contig_end=None, feature_orientation=None, contig_upstream='', contig_downstream=''):
         """Create a structure for holding individual sequence information"""
         self.feature = feature
         self.feature_orientation = feature_orientation
         
         self.contig_sequence = contig_sequence
-        self.contig_target, self.contig_pam = nucleotides.split_target_sequence(self.contig_sequence, pams, force=True)
+        self.contig_target, self.contig_pam = self.split_spacer_pam(self.contig_sequence, args)
+        self.contig_upstream = contig_upstream
+        self.contig_downstream = contig_downstream
+        
+        #self.contig_target, self.contig_pam = nucleotides.split_target_sequence(self.contig_sequence, pams, force=True)
         #self.disambiguated_sequences = disambiguate_iupac(self.contig_sequence, kind="dna") # need to apply pre-filters
         self.contig = contig
+        self.contig_orientation = contig_orientation
         self.contig_start = contig_start
         self.contig_end = contig_end
-        self.contig_orientation = contig_orientation
         
         # List to store alignments
         self.alignments = []
@@ -143,6 +150,8 @@ class Sequence(object):
         self.linear = 100 # assume perfect match (should NOT assume if ambiguities in reference)
         self.housden = housden.housden_score(self.contig_target)
         self.morenomateos = morenomateos.morenomateos_score(self.contig_target, self.contig_pam, upstream='', downstream='')
+        #self.azimuth = azimuth.azimuth_score(self.contig_target, self.contig_pam, upstream=self.contig_upstream, downstream=self.contig_downstream)
+        self.azimuth = 0
         
         # query x subject score
         self.off_target_doench2014 = None
@@ -150,35 +159,64 @@ class Sequence(object):
         self.off_target_hsuzhang = None
         self.off_target_linear = None
         self.off_target_morenomateos = None
+        self.off_target_azimuth = None
     
-    def add_alignment(self, aligned_sequence, pams, aligned_contig, aligned_start, aligned_end, aligned_orientation):
+    def split_spacer_pam(self, sequence, args):
+        r_spacer = None
+        r_pam = None
+        for i in range(len(args.parsed_motifs)):
+            spacers, pams, side = args.parsed_motifs[i]
+            compiled_regex = args.compiled_motifs[i]
+            m = nucleotides.motif_conformation2(sequence, side, compiled_regex)
+            if m:
+                r_spacer = m[0]
+                r_pam = m[1]
+                break
+            else:
+                if (side == '>'):
+                    l = max(map(len, pams))
+                    r_spacer = sequence[:-l]
+                    r_pam = sequence[-l:]
+                elif (side == '<'):
+                    l = max(map(len, pams))
+                    r_spacer = seq[:l]
+                    r_pam = seq[l:]
+        return r_spacer, r_pam
+    
+    def add_alignment(self, aligned_sequence, args, aligned_contig, aligned_start, aligned_end, aligned_orientation, aligned_upstream, aligned_downstream):
         """Add a genomic position to the list of alignments"""
-        aligned_target, aligned_pam = nucleotides.split_target_sequence(aligned_sequence, pams, force=True)
-        substitutions, insertions, deletions = nucleotides.count_errors(self.contig_sequence, aligned_sequence)
-        seq = (
-            aligned_sequence,
-            aligned_target,
-            aligned_pam,
-            aligned_contig,
-            aligned_start,
-            aligned_end,
-            aligned_orientation,
-            substitutions,
-            insertions,
-            deletions,
-            doench.on_target_score_2014(aligned_target, aligned_pam),
-            doench.on_target_score_2016(self.contig_target, aligned_target, aligned_pam),
-            hsuzhang.hsuzhang_score(self.contig_target, aligned_target, iupac=False),
-            scores.linear_score(self.contig_target, aligned_target),
-            housden.housden_score(aligned_target),
-            morenomateos.morenomateos_score(aligned_target, aligned_pam),
-            nucleotides.ridentities(self.contig_target, aligned_target),
-            scores.r_score(self.contig_target, aligned_target, 4),
-            scores.r_score(self.contig_target, aligned_target, 8),
-            scores.r_score(self.contig_target, aligned_target, 12),
-            scores.r_score(self.contig_target, aligned_target, 16),
-        )
-        self.alignments.append(seq)
+        aligned_target, aligned_pam = self.split_spacer_pam(aligned_sequence, args)
+        if ((aligned_target != None) and (aligned_pam != None)):
+            #aligned_target, aligned_pam = nucleotides.split_target_sequence(aligned_sequence, pams, force=True)
+            substitutions, insertions, deletions = nucleotides.count_errors(self.contig_sequence, aligned_sequence)
+            seq = (
+                aligned_sequence,
+                aligned_target,
+                aligned_pam,
+                aligned_contig,
+                aligned_start,
+                aligned_end,
+                aligned_orientation,
+                substitutions,
+                insertions,
+                deletions,
+                doench.on_target_score_2014(aligned_target, aligned_pam),
+                doench.on_target_score_2016(self.contig_target, aligned_target, aligned_pam),
+                hsuzhang.hsuzhang_score(self.contig_target, aligned_target, iupac=False),
+                scores.linear_score(self.contig_target, aligned_target),
+                housden.housden_score(aligned_target),
+                morenomateos.morenomateos_score(aligned_target, aligned_pam),
+                #azimuth.azimuth_score(aligned_target, aligned_pam, upstream=aligned_upstream, downstream=aligned_downstream),
+                0,
+                nucleotides.ridentities(self.contig_target, aligned_target),
+                scores.r_score(self.contig_target, aligned_target, 4),
+                scores.r_score(self.contig_target, aligned_target, 8),
+                scores.r_score(self.contig_target, aligned_target, 12),
+                scores.r_score(self.contig_target, aligned_target, 16),
+            )
+            self.alignments.append(seq)
+        else:
+            print('Cannot add alignment:', aligned_sequence, aligned_contig, aligned_start, aligned_end, aligned_orientation, file=sys.stderr)
     
     def score(self):
         """Calculate Guide scores for each algorithm"""
@@ -187,6 +225,7 @@ class Sequence(object):
         hsuzhang_list = []
         linear_list = []
         morenomateos_list = []
+        azimuth_list = []
         for a in self.alignments:
             if (a[3:6] != (self.contig, self.contig_start, self.contig_end)):
                 # lambda a, b: all([a[0]<=b[0], a[1]<=b[1], a[2]<b[2], sum(a)<=b[3]])
@@ -205,11 +244,14 @@ class Sequence(object):
                         linear_list.append(a[13])
                     if (a[15] >= self.morenomateos_threshold):
                         morenomateos_list.append(a[15])
+                    if (a[16] >= self.azimuth_threshold):
+                        azimuth_list.append(a[16])
         self.off_target_doench2014 = scores.off_target_score(doench2014_list, (self.doench2014,))
         self.off_target_doench2016 = scores.off_target_score(doench2016_list, (self.doench2016,))
         self.off_target_hsuzhang = scores.off_target_score(hsuzhang_list, (self.hsuzhang,))
         self.off_target_linear = scores.off_target_score(linear_list, (self.linear,))
         self.off_target_morenomateos = scores.off_target_score(morenomateos_list, (self.morenomateos,))
+        self.off_target_azimuth = scores.off_target_score(azimuth_list, (self.azimuth))
     
     def __repr__(self):
         """Return a string containing a printable representation of the Sequence object."""
@@ -241,7 +283,7 @@ class CustomHelpFormatter(argparse.HelpFormatter):
                     help += ' (default: %(default)s)'
         return help
 
-def load_sam_file_test(filename, pams, contigs, sep=':'):
+def load_sam_file_test(filename, args, contigs, sep=':'):
     """Read in SAM file.
     sep is the separator for the header. Positions are converted to 0-index
     Creates a list of Sequence objects
@@ -253,8 +295,14 @@ def load_sam_file_test(filename, pams, contigs, sep=':'):
             if not line.startswith('@'):
                 sline = line.rstrip().split("\t")
                 if (len(sline) > 5):
-                    feature, source_contig, source_start, source_end = sline[0].split(sep)
-                    source = (feature, source_contig, int(source_start), int(source_end))
+                    feature, source_contig, source_orientation, source_start, source_end = sline[0].split(sep)
+                    source_start = int(source_start)
+                    source_end = int(source_end)
+                    source = (feature, source_contig, source_orientation, source_start, source_end)
+                    source_upstream = contigs[source_contig][source_start-10:source_start]
+                    source_downstream = contigs[source_contig][source_end:source_end+10]
+                    if (source_orientation == '-'):
+                        source_upstream, source_downstream = nucleotides.rc(source_downstream), nucleotides.rc(source_upstream)
                     
                     # Get orientation
                     alignment_orientation = utils.sam_orientation(int(sline[1]))
@@ -266,9 +314,12 @@ def load_sam_file_test(filename, pams, contigs, sep=':'):
                     
                     # Reverse-complement if needed
                     alignment_sequence = contigs[alignment_contig][alignment_start:alignment_end]
+                    alignment_upstream = contigs[alignment_contig][alignment_start-10:alignment_start]
+                    alignment_downstream = contigs[alignment_contig][alignment_end:alignment_end+10]
                     actual_sequence = sline[9]
                     if (alignment_orientation == '-'):
                         alignment_sequence = nucleotides.rc(alignment_sequence)
+                        alignment_upstream, alignment_downstream = nucleotides.rc(alignment_downstream), nucleotides.rc(alignment_upstream)
                         actual_sequence = nucleotides.rc(actual_sequence)
                     
                     # if source not in alignments:
@@ -281,22 +332,33 @@ def load_sam_file_test(filename, pams, contigs, sep=':'):
                         feature,
                         actual_sequence,
                         # contigs[source_contig][int(source_start):int(source_end)], # contig_sequence
-                        pams, # ['NGG']
+                        args,
                         contig=source_contig,
+                        contig_orientation=source_orientation,
                         contig_start=int(source_start),
                         contig_end=int(source_end),
-                        contig_orientation=None,
-                        feature_orientation=None
+                        feature_orientation=None,
+                        contig_upstream=source_upstream,
+                        contig_downstream=source_downstream,
                     )
-                    
+                    dbg1=0
+                    try:
+                        dbg1 = len(alignments[source].alignments)
+                    except KeyError:
+                        pass
                     alignments.setdefault(source, s).add_alignment(
                         alignment_sequence, # aligned_sequence (as when matched with reference, thus may be revcomp of initial query)
-                        pams,
+                        args,
                         alignment_contig, # aligned_contig
                         alignment_start, # aligned_start
                         alignment_end, # aligned_end
-                        alignment_orientation # aligned_orientation (+/-)
+                        alignment_orientation, # aligned_orientation (+/-)
+                        alignment_upstream,
+                        alignment_downstream,
                     )
+                    dbg2 = len(alignments[source].alignments)
+                    if (dbg1 == dbg2):
+                        print("problem: ", source, file=sys.stderr)
     
     #return list(alignments.values()) # unsorted list
     return list(map(lambda x: alignments[x], sorted(alignments))) # sorted
@@ -353,7 +415,7 @@ def parse_arguments():
         help="Range of homology lengths acceptable for knock-out dDNAs, inclusive.")
     parser.add_argument("--excise_donor_lengths", nargs=2, metavar=('MIN', 'MAX'), type=int, default=[90, 100],
         help="Range of lengths acceptable for knock-out dDNAs, inclusive.")
-    parser.add_argument("--excise_insert_lengths", nargs=2, metavar=("MIN", "MAX"), type=int, default=[0,7],
+    parser.add_argument("--excise_insert_lengths", nargs=2, metavar=("MIN", "MAX"), type=int, default=[0,5],
         help="Range for inserted DNA lengths, inclusive (mini-AddTag, mAT). If MIN < 0, then regions of dDNA homology (outside the feature) will be removed.")
     parser.add_argument("--revert_donor_lengths", nargs=2, metavar=('MIN', 'MAX'), type=int, default=[300, 600],
         help="Range of lengths acceptable for knock-in dDNAs.")
@@ -417,9 +479,13 @@ def parse_arguments():
     args = parser.parse_args()
     
     # Parse the motifs
+    # Compile regex for motifs
     args.parsed_motifs = []
+    args.compiled_motifs = []
     for motif in args.motifs:
-        args.parsed_motifs.append(parse_motif(motif))
+        spacers, pams, side = parse_motif(motif) # Parse the motif
+        args.parsed_motifs.append((spacers, pams, side)) # Add to args
+        args.compiled_motifs.append(nucleotides.compile_motif_regex(spacers, pams, side, anchored=False)) # Add to args
     
     # Return the parsed arguments
     return args
@@ -576,7 +642,7 @@ def generate_excise_donor(args, feature, contigs, revert_target):
     upstream = contigs[contig][start-args.excise_donor_homology[1]:start]
     
     # DNA 3' of feature is downstream
-    downstream = contigs[contig][end+1:end+1+args.excise_donor_homology[1]]
+    downstream = contigs[contig][end:end+args.excise_donor_homology[1]]
     
     # mini_addtags = itertools.something()
     # dDNAs = [upstream + x + downstream for x in itertools.something()]
@@ -586,22 +652,24 @@ def generate_excise_donor(args, feature, contigs, revert_target):
     
     # For each potential dDNA, evaluate how good it is
     for insert_length in range(args.excise_insert_lengths[0], args.excise_insert_lengths[1]+1):
-        if insert_length >= 0:
-            for mAT in nucleotides.kmers(insert_length):
-                # Add this candidate dDNA to the list of all candidate dDNAs
-                dDNAs.append(upstream + mAT + downstream)
-                
-                # Use code to generate targets for this revised region
-                # between [maximum 5' distance] upstream mAT downstream [maximum 3' distance]
-                targets.extend(get_targets(...))
-        else:
-            pass
+        # when insert_length = 0, then the kmers are [''] (single element, empty string)
+        for mAT in nucleotides.kmers(insert_length):
+            # Add this candidate dDNA to the list of all candidate dDNAs
+            dDNAs.append(upstream + mAT + downstream)
+            
+            # Use code to generate targets for this revised region
+            # between [maximum 5' distance] upstream mAT downstream [maximum 3' distance]
+            #targets.extend(get_targets(args, pff_contigs, pff_features))
+            
+            targets.extend(get_targets_temp(args, dDNAs))
     
-    # Write the targets to a FASTA file
-    query_file = utils.generate_query(os.path.join(args.folder, 'reversion-query.fasta'), targets)
+    return [(feature, orientation, start, end, filt_seq, side, filt_spacer, filt_pam) for orientation, start, end, filt_seq, side, filt_spacer, filt_pam in targets ]
     
-    # Use selected alignment program to find all potential off-targets in the genome
-    sam_file = align(query_file, index_file, args.folder, args.processors)
+#    # Write the targets to a FASTA file
+#    query_file = utils.generate_query(os.path.join(args.folder, 'reversion-query.fasta'), targets)
+#    
+#    # Use selected alignment program to find all potential off-targets in the genome
+#    sam_file = align(query_file, index_file, args.folder, args.processors)
     
     # Calculate scores for each target
     
@@ -680,6 +748,7 @@ def revert(revert_targets):
     revert_primers = make_primers()
 
 def target_filter(seq, args):
+#def new_target_filter(seq, side, spacer, pam, args):
     '''
     Filters the candidate gRNA sequence based on the following criteria:
      1) case: ignore, discard-lower, discard-upper (does not process invariant-lower/invariant-upper)
@@ -726,49 +795,83 @@ def target_filter(seq, args):
     temp_targets = []
     temp_pams = []
     for nt in seqs:
-        for spacers, pams, side in args.parsed_motifs:
-            m = nucleotides.motif_conformation(nt, spacers, pams, side):
+        for i in range(len(args.parsed_motifs)):
+        #for spacers, pams, side in args.parsed_motifs:
+            #m = nucleotides.motif_conformation(nt, spacers, pams, side)
+            spacers, pams, side = args.parsed_motifs[i]
+            compiled_regex = args.compiled_motifs[i]
+            m = nucleotides.motif_conformation2(nt, side, compiled_regex)
             if m:
                 temp_seqs.append(nt)
                 temp_targets.append(m[0])
                 temp_pams.append(m[1])
-    seqs = temp_seqs
+                #break # consider breaking here
+    #seqs = temp_seqs
     
     # Remove targets whose %GC is outside the chosen bounds
-    temp_seqs = []
-    for i in range(len(seqs)):
+    temp_seqs2 = []
+    temp_targets2 = []
+    temp_pams2 = []
+    for i in range(len(temp_seqs)):
         if (args.target_gc[0] <= scores.gc_score(temp_targets[i]) <= args.target_gc[1]):
-            temp_seqs.append(nts[i])
-    seqs = temp_seqs
+            temp_seqs2.append(temp_seqs[i])
+            temp_targets2.append(temp_targets[i])
+            temp_pams2.append(temp_pams[i])
+    #seqs = temp_seqs2
     
-    return seqs
+    # [(seq, spacer, pam), (seq, spacer, pam)]
+    rets = []
+    for i in range(len(temp_seqs2)):
+        rets.append((temp_seqs2[i], temp_targets2[i], temp_pams2[i]))
+    return rets
+
+def get_targets_temp(args, dDNAs):
+    targets = set()
+    for sequence in dDNAs:
+            for orientation in ['+', '-']:
+                if (orientation == '-'):
+                    sequence = nucleotides.rc(sequence)
+                
+                for i in range(len(args.parsed_motifs)):
+                    spacers, pams, side = args.parsed_motifs[i]
+                    compiled_regex = args.compiled_motifs[i]
+                    #matches = nucleotides.motif_search(sequence, spacers, pams, side)
+                    matches = nucleotides.motif_search2(sequence, side, compiled_regex)
+                    for seq, start, end, spacer, pam in matches:
+                        if (orientation == '-'):
+                            start, end = len(sequence) - end, len(sequence) - start
+                        filtered_targets = target_filter(seq, args)
+                        for filt_seq, filt_spacer, filt_pam in filtered_targets:
+                            targets.add((orientation, start, end, filt_seq, side, filt_spacer, filt_pam))
+    return sorted(targets) # becomes a list
 
 def get_targets(args, contigs, features):
-    ## Build a regex to only match strings with PAM sites specified in args.pams
-    ## Assumes PAM site is at 3' end
-    #re_pattern = '|'.join([ nucleotides.build_regex_pattern(p)+'$' for p in args.pams ])
-    ##re_pams = []
-    ##for p in pams:
-    ##    re_pams.append(nucleotides.build_regex_pattern(p) + '$')
-    ##re_pattern = '|'.join(re_pams)
-    re_flags = regex.ENHANCEMATCH | regex.IGNORECASE
-    #re_compiled = regex.compile(re_pattern, flags=re_flags)
+    """
+    Searches within the annotated features on all contigs for targets
+    that match the args.motifs criteria, then filters them.
     
+    Returns list of valid gRNA sites with the following format
+      [(feature, contig, start, end, seq, side, spacer, pam), ...]
+    """
     # Ideally, this code would procedurally write to the query file
     # as new sequences were being added, thus limiting the amount of memory
     # used to store sequences.
     
+    #compiled_motif_regexes = []
+    #for spacers, pams, side in args.parsed_motifs:
+    #    compiled_motif_regexes.append(nucleotides.compile_motif_regex(spacers, pams, side, anchored=False))
+    
     # Find unique gRNA sites within each feature
-    targets = []
+    targets = set()
     # Use a sliding window to make a list of queries
     for feature in features:
         
-        contig, start, end, strand = features[feature]
-        if (end == None):
-            end = len(contigs[contig])
+        feature_contig, feature_start, feature_end, feature_strand = features[feature]
+        if (feature_end == None):
+            feature_end = len(contigs[feature_contig])
         
         # Make sure the contig the feature is on is present in the FASTA
-        if contig in contigs:
+        if feature_contig in contigs:
             # print(feature, features[feature], file=sys.stderr)
             # Find a site within this feature that will serve as a unique gRNA
             
@@ -779,115 +882,32 @@ def get_targets(args, contigs, features):
             #  targets.extend...
             
             # Search both the '+' and '-' strands
-            for contig_seq in [contigs[contig], utils.rc(contigs[contig])]:
-                for pam in args.pams:
-                    #pam_seq = 'NGG'
-                    #pam_regex = '([ACGT]GG)'
-                    pam_length = len(pam)
-                    #pam_regex_compiled = regex.compile(pam_regex+'$', flags=re_flags
-                    
-                    # Problem: what if user wants lengths 17 & 20, but not 18 & 19?
-                    # solution...use that regex-stype motif command line argument
-                    for target_length in range(target_lengths[0], target_lengths[1]+1):
-                        for pos in range(start, end+1-target_length+pam_length, 1):
-                            nt = contig_seq[pos:pos+target_length]
-                            
-                            # Skip this sequence if the mask is on
-                            # and it has lower-case characters
-                            if (args.lower_case_mask):
-                                if regex.search('[a-z]', nt):
-                                    continue
-                            
-                            # Convert sequences to upper-case
-                            nt = nt.upper()
-                            
-                            # Disambiguate sequences if necessary
-                            if (args.ambiguities == 'discard'):
-                                if regex.search('[^ATCGatcg]', nt):
-                                    continue
-                                nts = [nt]
-                            elif (args.ambiguities == 'disambiguate'):
-                                nts = nucleotides.disambiguate_iupac(nt)
-                            
-                            # Remove targets with T{5,}
-                            nts = [ nt for nt in nts if ('T'*(args.max_consecutive_ts+1) not in nt) ]
-                            
-                            # Remove targets that do not end with intended PAM sites
-                            temp_nts = []
-                            temp_targets = []
-                            temp_pams = []
-                            for nt in nts:
-                                m = nucleotides.split_target_sequence(nt, args.pams)
-                                if m:
-                                    temp_nts.append(nt)
-                                    temp_targets.append(m[0])
-                                    temp_pams.append(m[1])
-                            nts = temp_nts
-                            #nts = [ nt for nt in nts if re_compiled.search(nt) ]
-                            
-                            # Remove targets whose %GC is outside the chosen bounds
-                            # hard-coded PAM length at 3
-                            temp_nts = []
-                            for i in range(len(nts)):
-                                if (args.target_gc[0] <= scores.gc_score(temp_targets[i]) <= args.target_gc[1]):
-                                    temp_nts.append(nts[i])
-                            nts = temp_nts
-                            #nts = [ nt for nt in nts if (target_gc[0] <= scores.gc_score(nt[:-3]) <= target_gc[1]) ]
-                            
-                            # Add all targets for this feature to the targets list
-                            #targets.extend(map(lambda x: (feature, contig,)+x, utils.sliding_window(contigs[contig], window=target_length, start=start, stop=end)))
-                            #targets.extend(map(lambda x: (feature, contig, pos, pos+target_length, x), nts))
-                            for nt in nts:
-                                targets.append((feature, contig, pos, pos+target_length, nt))
-    
-    return targets
-    
-    
-            # # Get all potential gRNAs from feature
-            # ts = nucleotides.SlidingWindow(contigs[contig], window=target_length+3, start=start, stop=end)
-            # 
-            # # Convert sequences to upper-case
-            # ts = [ (s, e, seq.upper()) for s, e, seq in ts ]
-            # 
-            # # Disambiguate sequences if necessary
-            # if (ambiguities == 'discard'):
-            #     ts = [ item for item in ts if not regex.search('[^ATCGatcg]', item[2]) ]
-            # 
-            # # This code takes way too much memory
-            # elif (ambiguities == 'disambiguate'):
-            #     #tts = []
-            #     #for s in ts:
-            #     #    for ds in utils.disambiguate_iupac(s[2]):
-            #     #        tts.append((s[0], s[1], ds))
-            #     #ts = tts
-            #     #ts = [ map(lambda x: (s, e, x), utils.disambiguate_iupac(seq)) for s, e, seq in ts ]
-            #     #ts = utils.flatten(ts)
-            #     ts = [(a[0], a[1], x) for a in ts for x in nucleotides.disambiguate_iupac(a[2])]
-            # 
-            # # Remove targets with T{5,}
-            # # ts = utils.filter_polyt(ts, args.max_consecutive_ts)
-            # ts = [ item for item in ts if ('T'*(max_consecutive_ts+1) not in item[2]) ]
-            # 
-            # # Remove targets that do not end with intended PAM sites
-            # ts = [ item for item in ts if re_compiled.search(item[2]) ]
-            # 
-            # # Remove targets whose %GC is outside the chosen bounds
-            # # hard-coded PAM length at 3
-            # ts = [ item for item in ts if (target_gc[0] <= scores.gc_score(item[2][:-3]) <= target_gc[1]) ]
-            # 
-            # # Add all targets for this feature to the targets list
-            # #targets.extend(map(lambda x: (feature, contig,)+x, utils.sliding_window(contigs[contig], window=target_length, start=start, stop=end)))
-            # targets.extend(map(lambda x: (feature, contig,)+x, ts))
-            # 
-            # #for target in utils.sliding_window(contigs[contig][start:end], target_length):
-            # #    Use regex (slow) to find all matches in the genome
-            # #    regex = utils.build_regex(target, max_substitutions=2)
-            # #    matches = utils.find_target_matches(regex, contigs, overlap=True)
-            # #    for m in matches:
-            # #        print(m)
-    
+            for orientation in ['+', '-']:
+                if (orientation == '+'):
+                    sequence = contigs[feature_contig][feature_start:feature_end]
+                else:
+                    sequence = nucleotides.rc(contigs[feature_contig][feature_start:feature_end])
+                
+                for i in range(len(args.parsed_motifs)):
+                #for spacers, pams, side in args.parsed_motifs:
+                    spacers, pams, side = args.parsed_motifs[i]
+                    compiled_regex = args.compiled_motifs[i]
+                    #matches = nucleotides.motif_search(sequence, spacers, pams, side)
+                    matches = nucleotides.motif_search2(sequence, side, compiled_regex)
+                    for seq, start, end, spacer, pam in matches:
+                        if (orientation == '+'):
+                            real_start = feature_start + start
+                            real_end = feature_start + end
+                        else:
+                            real_start = len(sequence) - end + feature_start
+                            real_end = len(sequence) - start + feature_start
+                        filtered_targets = target_filter(seq, args)
+                        for filt_seq, filt_spacer, filt_pam in filtered_targets:
+                            targets.add((feature, feature_contig, orientation, real_start, real_end, filt_seq, side, filt_spacer, filt_pam))
+    return sorted(targets) # becomes a list
 
-def index_reference(fasta, folder, processors):
+
+def index_reference(args):
     if (args.aligner == 'addtag'):
         index_file = fasta
     elif (args.aligner == 'blast+'):
@@ -897,14 +917,14 @@ def index_reference(fasta, folder, processors):
     elif (args.aligner == 'bowtie'):
         pass
     elif (args.aligner == 'bowtie2'):
-        index_file = bowtie2.index_reference(fasta, tempdir=folder, threads=processors)
+        index_file = bowtie2.index_reference(args.fasta, tempdir=args.folder, threads=args.processors)
     elif (args.aligner == 'bwa'):
         pass
     elif (args.aligner == 'cas-offinder'):
         pass
     return index_file
 
-def align(query_file, index_file, folder, processors):
+def align(query_file, index_file, args):
     if (args.aligner == 'addtag'):
         sam_file = None
     elif (args.aligner == 'blast+'):
@@ -914,7 +934,7 @@ def align(query_file, index_file, folder, processors):
     elif (args.aligner == 'bowtie'):
         pass
     elif (args.aligner == 'bowtie2'):
-        sam_file = bowtie2.align(query_file, index_file, folder=folder, threads=processors)
+        sam_file = bowtie2.align(query_file, index_file, folder=args.folder, threads=args.processors)
     elif (args.aligner == 'bwa'):
         pass
     elif (args.aligner == 'cas-offinder'):
@@ -965,16 +985,16 @@ def main():
         targets = get_targets(args, contigs, features)
         
         # Index the reference FASTA
-        index_file = index_reference(args.fasta, args.folder, args.processors)
+        index_file = index_reference(args)
         
         # Write the query list to FASTA
         query_file = utils.generate_query(os.path.join(args.folder, 'excision-query.fasta'), targets)
         
         # Use selected alignment program to find all matches in the genome
-        sam_file = align(query_file, index_file, args.folder, args.processors)
+        sam_file = align(query_file, index_file, args)
         
         # Open the SAM file
-        alignments = load_sam_file_test(os.path.join(args.folder, 'excision-query.sam'), args.pams, contigs)
+        alignments = load_sam_file_test(os.path.join(args.folder, 'excision-query.sam'), args, contigs)
         for s in alignments:
             print(s)
             for a in s.alignments:
@@ -1004,7 +1024,7 @@ def test(args):
     # Test SAM file parsing
     print("=== SAM ===")
     try:
-        alignments = load_sam_file_test(os.path.join(args.folder, 'excision-query.sam'), args.pams, contigs)
+        alignments = load_sam_file_test(os.path.join(args.folder, 'excision-query.sam'), args, contigs)
         for s in alignments:
             print(s)
             for a in s.alignments:

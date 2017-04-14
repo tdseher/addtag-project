@@ -357,6 +357,8 @@ def disambiguate_iupac(iupac_sequence, kind="dna"):
 
 def count_errors(seq1, seq2):
     """Counts number of substitutions, insertions, and deletions"""
+    # There is a bug in this function that makes it inaccurate. I will need
+    # to replace it with a custom solution
     m = regex.match('(?:'+seq1+'){e}', seq2, flags=regex.ENHANCEMATCH|regex.IGNORECASE)
     # substitutions, insertions, deletions
     return m.fuzzy_counts
@@ -414,26 +416,94 @@ def split_target_sequence(seq, pams, force=False, side='>'):
     else:
         return None
 
-def motif_search(sequence, spacers, pams, side):
+def compile_motif_regex(spacers, pams, side, anchored=False):
     """
-    Return list of all (gRNA, PAM) found within sequence
+    Returns compiled regex
     """
     spacer_pattern = '(' + '|'.join([build_regex_pattern(x, capture=False) for x in spacers]) + ')'
     pam_pattern = '(' + '|'.join([build_regex_pattern(x, capture=False) for x in pams]) + ')'
     if (side == '>'): # SPACER>PAM
-        re_pattern = spacer_pattern + pam_pattern
-        m = regex.findall(re_pattern, sequence, flags=regex.ENHANCEMATCH|regex.IGNORECASE, overlapped=True)
-        if m:
-            return m # [(gRNA-1, PAM-11), (gRNA-2, PAM-2), ..., (gRNA-N, PAM-N)]
+        if anchored:
+            re_pattern = '^'+ spacer_pattern + pam_pattern + '$'
         else:
-            return None
+            re_pattern = spacer_pattern + pam_pattern
+    elif (side == '<'): # PAM<SPACER
+        if anchored:
+            re_pattern = '^'+ pam_pattern + spacer_pattern + '$'
+        else:
+            re_pattern = pam_pattern + spacer_pattern
+    c = regex.compile(re_pattern, flags=regex.ENHANCEMATCH|regex.IGNORECASE)
+    return c
+
+def motif_search2(sequence, side, compiled_regex):
+    """
+    Return list of all (target, start, end, spacer, PAM) found within sequence
+    """
+    
+    return_matches = []
+    
+    matches = compiled_regex.finditer(sequence, overlapped=True)
+    
+    if (side == '>'): # SPACER>PAM
+        for m in matches:
+            seq = m.group()
+            start, end = m.span()
+            spacer, pam = m.groups()
+            return_matches.append((seq, start, end, spacer, pam))
+    
+    elif (side == '<'): # PAM<SPACER
+        for m in matches:
+            seq = m.group()
+            start, end = m.span()
+            spacer, pam = m.groups()[::-1] # reverse the order
+            return_matches.append((seq, start, end, spacer, pam))
+    
+    return return_matches
+
+def motif_search(sequence, spacers, pams, side):
+    """
+    Return list of all (target, start, end, spacer, PAM) found within sequence
+    """
+    spacer_pattern = '(' + '|'.join([build_regex_pattern(x, capture=False) for x in spacers]) + ')'
+    pam_pattern = '(' + '|'.join([build_regex_pattern(x, capture=False) for x in pams]) + ')'
+    
+    return_matches = []
+    
+    if (side == '>'): # SPACER>PAM
+        re_pattern = spacer_pattern + pam_pattern
+        matches = regex.finditer(re_pattern, sequence, flags=regex.ENHANCEMATCH|regex.IGNORECASE, overlapped=True)
+        for m in matches:
+            seq = m.group()
+            start, end = m.span()
+            spacer, pam = m.groups()
+            return_matches.append((seq, start, end, spacer, pam))
+    
     elif (side == '<'): # PAM<SPACER
         re_pattern = pam_pattern + spacer_pattern
-        m = regex.findall(re_pattern, sequence, flags=regex.ENHANCEMATCH|regex.IGNORECASE, overlapped=True)
-        if m: # reverse order from (PAM, gRNA) --to-> (gRNA, PAM)
-            return [ x[::-1] for x in m ] # [(gRNA-1, PAM-11), (gRNA-2, PAM-2), ..., (gRNA-N, PAM-N)]
-        else:
-            return None
+        matches = regex.finditer(re_pattern, sequence, flags=regex.ENHANCEMATCH|regex.IGNORECASE, overlapped=True)
+        for m in matches:
+            seq = m.group()
+            start, end = m.span()
+            spacer, pam = m.groups()[::-1] # reverse the order
+            return_matches.append((seq, start, end, spacer, pam))
+    
+    return return_matches
+
+def motif_conformation2(sequence, side, compiled_regex):
+    """
+    Checks if the sequence matches at least one of the possible SPACER>PAM
+    combinations.
+    
+    Returns (gRNA, PAM) if valid, otherwise None
+    """
+    m = compiled_regex.match(sequence)
+    if m:
+        if (side == '>'): # SPACER>PAM
+            return m.groups() # (gRNA, PAM)
+        elif (side == '<'): # PAM<SPACER
+            return m.groups()[::-1] # (gRNA, PAM)
+    else:
+        return None
 
 def motif_conformation(sequence, spacers, pams, side):
     """
