@@ -11,8 +11,8 @@ and creating unique synthetic gRNA sites.
 import sys
 
 # Raise a useful error if utilizing an incompatible version of Python
-if (sys.version_info < (3, 5, 2)):
-    raise Exception("AddTag requires Python >= 3.5.2. You are running with " + ".".join(map(str, sys.version_info[:3])) + ".")
+if (sys.version_info < (3, 5, 1)):
+    raise Exception("AddTag requires Python >= 3.5.1. You are running with " + ".".join(map(str, sys.version_info[:3])) + ".")
 
 # Import source code
 import source
