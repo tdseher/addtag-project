@@ -50,6 +50,13 @@ def rc(seq, kind="dna"):
         raise ValueError("'" + str(kind) + "' is an invalid argument for rc()")
     return seq.translate(complements)[::-1]
 
+def ngg():
+    '''
+    Generator that returns NGG
+    '''
+    for m in ['A', 'C', 'G', 'T']:
+        yield m + 'GG'
+
 def kmers(k, y=''):
     '''
     Generator for recursive definition of k-mers in string form.
@@ -59,8 +66,8 @@ def kmers(k, y=''):
     if k==0:
         yield y
     else:
-        for m in ['A','C','G','T']:
-            yield from kmer(k-1, m+y)
+        for m in ['A', 'C', 'G', 'T']:
+            yield from kmers(k-1, m+y)
 
 def lcs(string1, string2):
     """Find the longest common substring between two strings"""
