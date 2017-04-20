@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
 """AddTag Copyright (c) 2016 Thaddeus D. Seher & Aaron Hernday"""
 
@@ -37,6 +38,29 @@ description:
   Program for identifying unique endogenous gRNA sites 
   and creating unique synthetic gRNA sites.
   
+  AddTag can produce single or dual gRNA targeting 5' exon or essential protein
+  domains. Excision (knock-out) and reversion (knock-in).
+  
+  It is important to note that although the on- and off-target scores are
+  provided for other nucleases (SaCas9, Cpf1, etc), the algorithms used
+  were trained on SpCas9. Therefore, the scores provided likely do not
+  reflect the behavior and specificity of nucleases other than SpCas9.
+  AddTag can still be used to design guides for these nucleases based on
+  complementarity and enzyme-dependent PAM sites, but the efficacy and
+  specificity of these guides are unpredictable in this version.
+  
+  Diagram of DNA-RNA hybridization and nuclease catalyzed by Cas9.
+  sgRNA = crRNA+linker+tracrRNA = gRNA = spacer+scaffold
+                                    ┌───tracrRNA────┐            ┐
+                          cut┐    3'╤╤╤╤╗            ╔╤╤╗ ┐      │
+         ┌──╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥ ╥╥╥┐      ╚╦╦╦╦╦╦╦╦╦╦╦╦╝  ╢ ├linker│
+         │5'╩╩╩╩╩╩╩╩╩╩╩╩╩╩╩╩╩═╩╩╩╪╧╧╧╧╧╧╧╩╩╩╩╩╩╩╩╩╩╩╩╧╧╧╝ ┘      │
+         │  └──────spacer───────┘│└─────scaffold─────────────────┘
+         │  └────────────────────│─crRNA────────────┘
+  3'╥╥╥╥╥┘                cut┐   └╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥5'
+  5'╨╨╨╨╨───┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴ ┴┴┴─╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨3' genome
+            └──────target───────┘ └─┴─PAM
+
   Copyright (c) 2017 {__author__}.
   All rights reserved.
 
@@ -46,12 +70,66 @@ version:
   commits {__commits__}
   date    {__date__}
 
-proteins:
+protein:
   The Cas9 or Cpf1 protein you use should be engineered specifically for your
   organism. It should be codon-optomized, and if using eukarya, contain an
-  appropriate nuclear localization sequence.
-  
-  Cas9 family nucleases
+  appropriate nuclear localization sequence. Cas9 from different species bind
+  to different PAM sequences, which is useful when no suitable PAM sequence is
+  present within your gene of interest. Additionally, the different Cas9s gene
+  sequences can have huge length differences. Remember that each Cas9 is only
+  compatible with the tracrRNA and crRNA (or synthetic gRNA) derived from the
+  same species.
+
+glossary:
+  dDNA        Donor DNA. The DNA that is knocked-in using endogenous cellular
+              homologous recombination machinery.
+  HDR         Homology-Directed Repair, a DNA repair mechanism that uses a
+              template to repair nicks or double-stranded breaks.
+  PAM         The Protospacer Adjacent Motif is a short nucleotide sequence that
+              serves as a binding signal for Cas9, and its presence is a strict
+              requirement for Cas9-mediated DNA cleavage. Must be at 3' end for
+              Cas9, and 5' end for Cpf1. The PAM sequence is on the genomic DNA,
+              not the gRNA.
+  spacer      The ~20 nt element that is homologous to the region of your
+              feature of interest, and will direct Cas9 nuclease activity.
+              The portion of the crRNA (or sgRNA) that is complementary to the
+              genomic DNA target sequence ~20 nt.
+  target      The ~20 nt genomic sequence that precedes the PAM sequence.
+  protospacer Short genomic DNA sequences ~20 nt of foreign DNA separated by a
+              short palindromic repeat and kept like a record against future
+              encounters.
+  pre-crRNA   CRISPR array of protospacers is transcribed into pre-crRNA.
+  crRNA       pre-crRNA is processed (cut up) to produce a set of crRNAs.
+              CRISPR-targeting RNA that contains both the ~20 base spacer
+              element and additional nucleotides which are complementary to
+              the tracrRNA. crRNA is variable.
+  tracrRNA    Hybridizes to the crRNA and binds to the CAS9 protein activating
+              the complex to creating double-stranded breaks at specific sites
+              within genomic sequence.
+              Trans-activating crRNA (which serves as the Cas9 nuclease-
+              recruiting sequence?) that has sequence complementary to the
+              palindromic repeat. When the tracrRNA hybridizes to the short
+              palindromic repeat, it triggers processing by the bacterial
+              double-stranded RNA-specific ribonuclease, RNase III. Any crRNA
+              and the tracrRNA can then both bind to the Cas9 nuclease, which
+              then becomes activated and specific to the DNA sequence
+              complimentary to the crRNA. tracrRNA is invariable, and is
+              specific to each Cas9 protein.
+  gRNA        guide RNA, spacer + scaffold
+              A synthetic fusion of the endogenous bacterial crRNA and tracrRNA
+              sequences. Provides both targeting specificity and
+              scaffolding/binding ability for Cas9 nuclease. Does not exist in
+              nature. Also referred to as sgRNA.
+  sgRNA       Synthetic guide RNA, or single guide RNA (synonymous with 'gRNA').
+              Combines the tracrRNA and crRNA, which are separate molecules in
+              the native CRISPR/Cas9 system in S. pyogenes, into a single RNA
+              construct, simplifying the components needed to use CRISPR/Cas9
+              for genome editing (for plasmid or IVT expression).
+              A linker loop sequence is included between the two.
+  scaffold    The sequence within the gRNA that is responsible for Cas9 binding.
+              Does not include the 20 nt spacer/targeting sequence that is used
+              to guide Cas9 to target DNA.
+  Cas9        Cas9 family nucleases
   dCas9       Catalytically "dead" Cas9 protein
   FokI-dCas9  dCas9 fused with the dimerization-dependent FokI nuclease domain:
               creates a dimeric RNA-guided FokI-dCas9 nuclease (RFN)
@@ -81,25 +159,29 @@ proteins:
               D10A or H840A mutation). Paired nickases can be directed by two
               gRNAs targeted to neighbouring sites to create offset nicks that
               can induce indel mutations.
-  
- Cpf1 family nucleases
+  Cpf1        Cpf1 family nucleases
 
 motifs:
   Below are common SPACER>PAM arrangements.
-             Motif        Protein  Origin system
-       N{{17,20}}>NGG       Cas9     Streptococcus Pyogenes
-          N{{20}}>NGG       Cas9     Streptococcus Pyogenes
-  G{{,2}}N{{19,20}}>NGG       Cas9?    ???
-          N{{20}}>NGA       Cas9     Streptococcus pyogenes mutant VQR
-          N{{20}}>NAG       Cas9?    ???
-          N{{20}}>NGCG      Cas9     Streptococcus pyogenes mutant VRER
-          N{{20}}>NNAGAA    Cas9     Streptococcus thermophilus
-          N{{20}}>NGGNG     Cas9     Streptococcus thermophilus
-          N{{21}}>NNGRRT    Cas9     Staphylococcus aureus
-          N{{20}}>NNNNGMTT  Cas9     Neisseria meningitidis
-          N{{20}}>NNNNACA   Cas9     Campylobacter jejuni
-           TTTN<N{{20,23}}  Cpf1     Acidaminococcus/Lachnospiraceae
-            TTN<N{{20,23}}  Cpf1     Francisella novicida (putative)
+       5'-Motif-3'        Protein  Origin system                   Citation
+       N{{17,20}}>NGG       SpCas9   Streptococcus pyogenes (Sp)     ?
+          N{{20}}>NGG       SpCas9   Streptococcus pyogenes          ?
+          N{{20}}>NGA       SpCas9   Streptococcus pyogenes VQR      ?
+          N{{20}}>NAG       SpCas9   Streptococcus pyogenes          ?
+          N{{20}}>NRG       SpCas9   Streptococcus pyogenes          ?
+          N{{20}}>NGCG      SpCas9   Streptococcus pyogenes VRER     ?
+  G{{,2}}N{{19,20}}>NGG       ??Cas9   ?                               ?
+         N{{20?}}>NNAGAAW   StCas9   Streptococcus thermophilus (St) Cong et al., 2013
+          N{{20}}>NNAGAA    StCas9   Streptococcus thermophilus      ?
+          N{{20}}>NGGNG     StCas9   Streptococcus thermophilus      ?
+          N{{21}}>NNGRRT    SaCas9   Staphylococcus aureus (Sa)      Ran et al., 2015
+         N{{20?}}>NGRRT     SaCas9   Staphylococcus aureus           ?
+         N{{20?}}>NGRRN     SaCas9   Staphylococcus aureus           ?
+          N{{20}}>NNNNGMTT  NmCas9   Neisseria meningitidis (Nm)     Hou et al., 2013
+          N{{20}}>NNNNACA   CjCas9   Campylobacter jejuni (Cj)       ?
+         N{{20?}}>NAAAAC    TdCas9   Treponema denticola (Td)        ?
+           TTTN<N{{20,23}}  Cpf1     Acidaminococcus/Lachnospiraceae ?
+            TTN<N{{20,23}}  Cpf1     Francisella novicida (putative) ?
 """.format(**locals())
 __epilog__ = """\
 example:
@@ -384,8 +466,15 @@ def parse_arguments():
     required_group.add_argument("--folder", required=True, metavar="FOLDER",
         type=str, help="Path of folder to store generated files")
     
+    # Special version action optional argument
+    parser.add_argument("-v", "--version", action='version', version='{__program__} {__version__}'.format(**globals()))
+    
     # Add optional arguments
-    parser.add_argument("--test", action="store_true", help="Perform tests only")
+    #parser.add_argument("--feature_homolog_regex", metavar="REGEX", type=str, default=None, help="regular expression with capturing group containing invariant feature. Example: '(.*)_[AB]' will treat features C2_10010C_A and C2_10010C_B as homologs")
+    # okay idea, but needs more thought before implementation
+    parser.add_argument("--feature_homologs", metavar="*.homologs", type=str, default=None,
+        help="Path to text file containing homologous features on the same \
+            line, separated by TAB characters")
     #parser.add_argument("--pams", metavar="SEQ", nargs="+", type=str,
     #    default=["NGG"], help="Constrain finding only targets with these PAM sites")
     #parser.add_argument("--target_lengths", nargs=2, metavar=('MIN', 'MAX'),
@@ -400,11 +489,14 @@ def parse_arguments():
         shell does not interpret STDIN/STDOUT redirection.")
     parser.add_argument("--tag", metavar='TAG', type=str, default='ID',
         help="GFF tag with feature names. Examples: 'ID', 'Name', 'Parent', or 'locus_tag'")
-    #parser.add_argument("--feature_homolog_regex", metavar="REGEX", type=str, default=None, help="regular expression with capturing group containing invariant feature. Example: '(.*)_[AB]' will treat features C2_10010C_A and C2_10010C_B as homologs")
-    # okay idea, but needs more thought before implementation
-    parser.add_argument("--feature_homologs", metavar="*.homologs", type=str, default=None,
-        help="Path to text file containing homologous features on the same \
-            line, separated by TAB characters")
+    parser.add_argument("--ambiguities", type=str, choices=["discard", "disambiguate", "keep"], default="discard",
+        help="How generated gRNAs should treat ambiguous bases: \
+        discard - no gRNAs will be created where the FASTA has an ambiguous base; \
+        disambiguate - gRNAs containing ambiguous bases will be converted to a set of non-ambiguous gRNAs; \
+        keep - gRNAs can have ambiguous bases")
+    parser.add_argument("--case", type=str, default="ignore",
+        choices=["ignore", "discard-lower", "discard-upper", "invariant-lower", "invariant-upper"],
+        help="Restrict generation of gRNAs based on case of nucleotides in input FASTA")
     #parser.add_argument("--min_contig_edge_distance", metavar="N", type=int, default=500,
     #    help="Minimum distance from contig edge a site can be found")
     parser.add_argument("--features", metavar="FEATURE", type=str, nargs="+", default=["gene"],
@@ -415,14 +507,20 @@ def parse_arguments():
         help="Range of homology lengths acceptable for knock-out dDNAs, inclusive.")
     parser.add_argument("--excise_donor_lengths", nargs=2, metavar=('MIN', 'MAX'), type=int, default=[90, 100],
         help="Range of lengths acceptable for knock-out dDNAs, inclusive.")
-    parser.add_argument("--excise_insert_lengths", nargs=2, metavar=("MIN", "MAX"), type=int, default=[0,5],
+    parser.add_argument("--excise_insert_lengths", nargs=2, metavar=("MIN", "MAX"), type=int, default=[0,3],
         help="Range for inserted DNA lengths, inclusive (mini-AddTag, mAT). If MIN < 0, then regions of dDNA homology (outside the feature) will be removed.")
-    parser.add_argument("--revert_donor_lengths", nargs=2, metavar=('MIN', 'MAX'), type=int, default=[300, 600],
-        help="Range of lengths acceptable for knock-in dDNAs.")
-    parser.add_argument("--min_feature_edge_distance", metavar="MIN", type=int, default=23,
-        help="The minimum distance a gRNA site can be from the edge of the \
-             feature. If negative, the maximum distance a gRNA site can be \
-             outside the feature.")
+    parser.add_argument("--excise_feature_edge_distance", metavar="N", type=int, default=0,
+        help="If positive, gRNAs won't target any nucleotides within this distance \
+             from the edge of the feature. If negative, gRNAs will target nucleotides \
+             this distance outside the feature.")
+    parser.add_argument("--excise_upstream_feature_trim", nargs=2, metavar=('MIN', 'MAX'),
+        type=int, default=[0, 20], help="Between MIN and MAX number of nucleotides \
+        upstream of the feature will be considered for knock-out when designing \
+        donor DNA.")
+    parser.add_argument("--excise_downstream_feature_trim", nargs=2, metavar=("MIN", "MAX"),
+        type=int, default=[0, 5], help="Between MIN and MAX number of nucleotides \
+        downstream of the feature will be considered for knock-out when designing \
+        donor DNA.")
     #parser.add_argument("--min_donor_insertions", metavar="N", type=int, default=2,
     #    help="The uniqueness of final donor DNA compared to the rest of the genome")
     #parser.add_argument("--min_donor_deletions", metavar="N", type=int, default=2,
@@ -431,6 +529,8 @@ def parse_arguments():
     #    help="The uniqueness of final donor DNA compared to the rest of the genome")
     #parser.add_argument("--min_donor_errors", metavar="N", type=int, default=3,
     #    help="The uniqueness of final donor DNA compared to the rest of the genome")
+    parser.add_argument("--revert_donor_lengths", nargs=2, metavar=('MIN', 'MAX'), type=int, default=[300, 600],
+        help="Range of lengths acceptable for knock-in dDNAs.")
     parser.add_argument("--min_donor_distance", metavar="N", type=int, default=36,
         help="The minimum distance in bp a difference can exist from the edge of donor DNA") # homology with genome
     parser.add_argument("--max_consecutive_ts", metavar="N", type=int, default=4,
@@ -438,14 +538,7 @@ def parse_arguments():
     # program currently will only search 'both' strands
     #parser.add_argument("--strands", type=str, choices=["+", "-", "both"], default="both",
     #    help="Strands to search for gRNAs")
-    parser.add_argument("--ambiguities", type=str, choices=["discard", "disambiguate", "keep"], default="discard",
-        help="How generated gRNAs should treat ambiguous bases: \
-        discard - no gRNAs will be created where the FASTA has an ambiguous base; \
-        disambiguate - gRNAs containing ambiguous bases will be converted to a set of non-ambiguous gRNAs; \
-        keep - gRNAs can have ambiguous bases")
-    parser.add_argument("--case", type=str, default="ignore",
-        choices=["ignore", "discard-lower", "discard-upper", "invariant-lower", "invariant-upper"],
-        help="Restrict generation of gRNAs based on case of nucleotides in input FASTA")
+    
     # Add command line arguments for the additional hard constraints:
     #  Only report potential targets that have no off targets with mismatches within 8, 12, N nt from 3' end
     parser.add_argument("--processors", metavar="N", type=int, default=(os.cpu_count() or 1),
@@ -470,10 +563,7 @@ def parse_arguments():
         help="Path to the 'blastn' executable")
     parser.add_argument("--blat_path", type=str, default="blat",
         help="Path to the 'blat' executable")
-    
-    
-    # Special version action
-    parser.add_argument("-v", "--version", action='version', version='{__program__} {__version__}'.format(**globals()))
+    parser.add_argument("--test", action="store_true", help="Perform tests only")
     
     # Parse the arguments
     args = parser.parse_args()
@@ -624,46 +714,80 @@ def generate_revert_target(args, feature):
     """
     pass
 
-def generate_excise_donor(args, feature, contigs, revert_target):
+def generate_excise_donor(args, features, contigs):
     """
     Creates the DNA oligo with the structure:
     [upstream homology][unique gRNA][downstream homology]
     that excises the target feature
     """
+    final_targets = []
+    final_dDNAs = []
     
     # Generate the full set of potential dDNAs
-    
-    # First, get the homology blocks up- and down-stream of the feature
-    contig, start, end, strand = feature
-    # start & end are 0-based indices, inclusive
-    
-    # assumes start < end
-    # DNA 5' of feature is upstream
-    upstream = contigs[contig][start-args.excise_donor_homology[1]:start]
-    
-    # DNA 3' of feature is downstream
-    downstream = contigs[contig][end:end+args.excise_donor_homology[1]]
-    
-    # mini_addtags = itertools.something()
-    # dDNAs = [upstream + x + downstream for x in itertools.something()]
-    
-    dDNAs = []
-    targets = []
-    
-    # For each potential dDNA, evaluate how good it is
-    for insert_length in range(args.excise_insert_lengths[0], args.excise_insert_lengths[1]+1):
-        # when insert_length = 0, then the kmers are [''] (single element, empty string)
-        for mAT in nucleotides.kmers(insert_length):
-            # Add this candidate dDNA to the list of all candidate dDNAs
-            dDNAs.append(upstream + mAT + downstream)
+    for feature in features:
+        # First, get the homology blocks up- and down-stream of the feature
+        contig, start, end, strand = features[feature]
+        # start & end are 0-based indices, inclusive
+        
+        # assumes start < end
+        # DNA 5' of feature is upstream
+        upstream = contigs[contig][start-args.excise_donor_homology[1]:start] # This is the max homology length
+        
+        # DNA 3' of feature is downstream
+        downstream = contigs[contig][end:end+args.excise_donor_homology[1]] # Max homology length
+        
+        # mini_addtags = itertools.something()
+        # dDNAs = [upstream + x + downstream for x in itertools.something()]
+        
+        #dDNAs = []
+        all_targets = {}
+        #targets = set()
+        
+        # For each potential dDNA, evaluate how good it is
+        for insert_length in range(args.excise_insert_lengths[0], args.excise_insert_lengths[1]+1):
+            # when insert_length = 0, then the kmers are [''] (single element, empty string)
+            for mAT in nucleotides.kmers(insert_length):
+                # Add this candidate dDNA to the list of all candidate dDNAs
+                dDNA = upstream + mAT + downstream
+                #dDNAs.append(dDNA)
+                new_targets = get_targets_temp(args, dDNA)
+                
+                for t in new_targets:
+                    if t in all_targets:
+                        if (len(dDNA) < len(all_targets[t])):
+                            all_targets[t] = dDNA
+                    else:
+                        all_targets[t] = dDNA
             
-            # Use code to generate targets for this revised region
-            # between [maximum 5' distance] upstream mAT downstream [maximum 3' distance]
-            #targets.extend(get_targets(args, pff_contigs, pff_features))
+        for t in all_targets:
+            # Each entry should be:
+            # (feature, contig, orientation, start, end, seq, side, spacer, pam)
+            dDNA = all_targets[t]
+            entry = tuple([feature, dDNA] + list(t))
             
-            targets.extend(get_targets_temp(args, dDNAs))
+            if (entry not in final_targets):
+                final_targets.append(entry)
+                final_dDNAs.append(dDNA)
     
-    return [(feature, orientation, start, end, filt_seq, side, filt_spacer, filt_pam) for orientation, start, end, filt_seq, side, filt_spacer, filt_pam in targets ]
+    return final_targets, final_dDNAs
+    #    # For each potential dDNA, evaluate how good it is
+    #    for insert_length in range(args.excise_insert_lengths[0], args.excise_insert_lengths[1]+1):
+    #        # when insert_length = 0, then the kmers are [''] (single element, empty string)
+    #        print(' ', insert_length, file=sys.stderr, end='', flush=True)
+    #        for mAT in nucleotides.kmers(insert_length):
+    #            # Add this candidate dDNA to the list of all candidate dDNAs
+    #            dDNAs.append(upstream + mAT + downstream)
+    #            
+    #            # Use code to generate targets for this revised region
+    #            # between [maximum 5' distance] upstream mAT downstream [maximum 3' distance]
+    #            #targets.extend(get_targets(args, pff_contigs, pff_features))
+    #            
+    #            targets.extend(get_targets_temp(args, dDNAs))
+    #    print('', file=sys.stderr)
+    #    for t in targets:
+    #        print(t)
+    
+    #return [(feature, seq_i, orientation, start, end, filt_seq, side, filt_spacer, filt_pam) for seq_i, orientation, start, end, filt_seq, side, filt_spacer, filt_pam in targets ]
     
 #    # Write the targets to a FASTA file
 #    query_file = utils.generate_query(os.path.join(args.folder, 'reversion-query.fasta'), targets)
@@ -825,24 +949,25 @@ def target_filter(seq, args):
         rets.append((temp_seqs2[i], temp_targets2[i], temp_pams2[i]))
     return rets
 
-def get_targets_temp(args, dDNAs):
+def get_targets_temp(args, sequence):
     targets = set()
-    for sequence in dDNAs:
-            for orientation in ['+', '-']:
+    #for seq_i, sequence in enumerate(dDNAs):
+    for orientation in ['+', '-']:
+        if (orientation == '-'):
+            sequence = nucleotides.rc(sequence)
+        
+        for i in range(len(args.parsed_motifs)):
+            spacers, pams, side = args.parsed_motifs[i]
+            compiled_regex = args.compiled_motifs[i]
+            #matches = nucleotides.motif_search(sequence, spacers, pams, side)
+            matches = nucleotides.motif_search2(sequence, side, compiled_regex)
+            for seq, start, end, spacer, pam in matches:
                 if (orientation == '-'):
-                    sequence = nucleotides.rc(sequence)
-                
-                for i in range(len(args.parsed_motifs)):
-                    spacers, pams, side = args.parsed_motifs[i]
-                    compiled_regex = args.compiled_motifs[i]
-                    #matches = nucleotides.motif_search(sequence, spacers, pams, side)
-                    matches = nucleotides.motif_search2(sequence, side, compiled_regex)
-                    for seq, start, end, spacer, pam in matches:
-                        if (orientation == '-'):
-                            start, end = len(sequence) - end, len(sequence) - start
-                        filtered_targets = target_filter(seq, args)
-                        for filt_seq, filt_spacer, filt_pam in filtered_targets:
-                            targets.add((orientation, start, end, filt_seq, side, filt_spacer, filt_pam))
+                    start, end = len(sequence) - end, len(sequence) - start
+                filtered_targets = target_filter(seq, args)
+                for filt_seq, filt_spacer, filt_pam in filtered_targets:
+                    #targets.add((seq_i, orientation, start, end, filt_seq, side, filt_spacer, filt_pam))
+                    targets.add((orientation, start, end, filt_seq, side, filt_spacer, filt_pam))
     return sorted(targets) # becomes a list
 
 def get_targets(args, contigs, features):
@@ -1005,6 +1130,12 @@ def main():
         #    pass
         #elif (args.case == "invariant-upper"):
         #    pass
+        
+        revert_targets, excise_donors = generate_excise_donor(args, features, contigs)
+        
+        revert_query_file = utils.generate_query(os.path.join(args.folder, 'reversion-query.fasta'), revert_targets)
+        #excise_dDNA_file = utils.generate_query(os.path.join(args.folder, 'excision-dDNAs.fasta'), excise_donors)
+        
 
 def test(args):
     """Code to test the classes and functions in 'source/__init__.py'"""
