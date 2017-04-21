@@ -1,4 +1,4 @@
-# CRISPR AddTag README #
+# CRISPR/Cas9 AddTag README #
 
 Program for identifying unique endogenous gRNA sites and creating unique synthetic gRNA sites.
 
