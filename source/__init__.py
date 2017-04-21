@@ -50,17 +50,18 @@ description:
   specificity of these guides are unpredictable in this version.
   
   Diagram of DNA-RNA hybridization and nuclease catalyzed by Cas9.
-  sgRNA = crRNA+linker+tracrRNA = gRNA = spacer+scaffold
-                                    ┌───tracrRNA────┐            ┐
-                          cut┐    3'╤╤╤╤╗            ╔╤╤╗ ┐      │
-         ┌──╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥ ╥╥╥┐      ╚╦╦╦╦╦╦╦╦╦╦╦╦╝  ╢ ├linker│
-         │5'╩╩╩╩╩╩╩╩╩╩╩╩╩╩╩╩╩═╩╩╩╪╧╧╧╧╧╧╧╩╩╩╩╩╩╩╩╩╩╩╩╧╧╧╝ ┘      │
-         │  └──────spacer───────┘│└─────scaffold─────────────────┘
-         │  └────────────────────│─crRNA────────────┘
+  (sgRNA = crRNA + linker + tracrRNA) = (gRNA = spacer + scaffold)
+                               gRNA ┌────────────────────────┐
+                              sgRNA ┌───tracrRNA────┐┌linker┐│
+                          cut┐    3'╤╤╤╤╗            ╔╤╤╗   ││
+         ┌──╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥ ╥╥╥┐      ╚╦╦╦╦╦╦╦╦╦╦╦╦╝  ╢   ││
+         │5'╩╩╩╩╩╩╩╩╩╩╩╩╩╩╩╩╩═╩╩╩╪╧╧╧╧╧╧╧╩╩╩╩╩╩╩╩╩╩╩╩╧╧╧╝   ││
+         │  └────────────────────│──────crRNA───────┘└──────┘│
+         │  └──────spacer───────┘│└──────────scaffold────────┘
   3'╥╥╥╥╥┘                cut┐   └╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥5'
   5'╨╨╨╨╨───┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴ ┴┴┴─╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨3' genome
             └──────target───────┘ └─┴─PAM
-
+  
   Copyright (c) 2017 {__author__}.
   All rights reserved.
 
@@ -182,6 +183,34 @@ motifs:
          N{{20?}}>NAAAAC    TdCas9   Treponema denticola (Td)        ?
            TTTN<N{{20,23}}  Cpf1     Acidaminococcus/Lachnospiraceae ?
             TTN<N{{20,23}}  Cpf1     Francisella novicida (putative) ?
+
+outputs:
+  STDOUT                            Abbreviated program status
+  STDERR                            Errors
+  folder/                           Folder holding generated files
+  folder/log.txt                    Log of important program operations
+  folder/aligner-index/*            Index of input FASTA created by aligner
+  folder/excision-query.fasta       FASTA file of candidate knock-out spacers
+  folder/excision-query.sam         SAM file for alignment of candidate spacers
+  folder/excision-query.err         STDOUT/STDERR from alignment
+  folder/excision-spacers.fasta     Spacer sequences with scores
+  folder/excision-constructs.fasta  Construct sequences to be synthesized
+  folder/excision-dDNAs.fasta       dDNA sequences to be synthesized for
+                                    knock-out
+  folder/reversion-query.fasta      FASTA file of candidate knock-in spacers
+  folder/reversion-query.sam        SAM file for alignment of candidate spacers
+  folder/reversion-query.err        STDOUT/STDERR from alignment
+  folder/reversion-spacers.fasta    Spacer sequences with scores
+  folder/reversion-constructs.fasta Construct sequences to be synthesized
+  folder/reversion-dDNAs.fasta      dDNA sequences to be synthesized for
+                                    knock-in
+  folder/reversion-primers.fasta    Primers for amplifying knock-in dDNAs
+  folder/protection-dDNAs.fasta     wt dDNAs of off-target sites to prevent
+                                    mutations at off-target Cas9 binding sites
+                                    (contains edit distance in header s/i/d)
+  folder/protection-primers.fasta   Primers for amplifying protection dDNAs
+  folder/primers.fasta              Primers to check for KO/KI (contains
+                                    expected amplicon sizes in header)
 """.format(**locals())
 __epilog__ = """\
 example:
@@ -232,8 +261,7 @@ class Sequence(object):
         self.linear = 100 # assume perfect match (should NOT assume if ambiguities in reference)
         self.housden = housden.housden_score(self.contig_target)
         self.morenomateos = morenomateos.morenomateos_score(self.contig_target, self.contig_pam, upstream='', downstream='')
-        #self.azimuth = azimuth.azimuth_score(self.contig_target, self.contig_pam, upstream=self.contig_upstream, downstream=self.contig_downstream)
-        self.azimuth = 0
+        self.azimuth = 0 #azimuth.azimuth_score(self.contig_target, self.contig_pam, upstream=self.contig_upstream, downstream=self.contig_downstream)
         
         # query x subject score
         self.off_target_doench2014 = None
@@ -288,8 +316,7 @@ class Sequence(object):
                 scores.linear_score(self.contig_target, aligned_target),
                 housden.housden_score(aligned_target),
                 morenomateos.morenomateos_score(aligned_target, aligned_pam),
-                #azimuth.azimuth_score(aligned_target, aligned_pam, upstream=aligned_upstream, downstream=aligned_downstream),
-                0,
+                0, #azimuth.azimuth_score(aligned_target, aligned_pam, upstream=aligned_upstream, downstream=aligned_downstream),
                 nucleotides.ridentities(self.contig_target, aligned_target),
                 scores.r_score(self.contig_target, aligned_target, 4),
                 scores.r_score(self.contig_target, aligned_target, 8),
@@ -333,14 +360,17 @@ class Sequence(object):
         self.off_target_hsuzhang = scores.off_target_score(hsuzhang_list, (self.hsuzhang,))
         self.off_target_linear = scores.off_target_score(linear_list, (self.linear,))
         self.off_target_morenomateos = scores.off_target_score(morenomateos_list, (self.morenomateos,))
-        self.off_target_azimuth = scores.off_target_score(azimuth_list, (self.azimuth))
+        self.off_target_azimuth = 0 #scores.off_target_score(azimuth_list, (self.azimuth))
     
     def __repr__(self):
         """Return a string containing a printable representation of the Sequence object."""
-        return 'Sequence(feature=' + self.feature + ', ' + \
-            self.contig + ':' + str(self.contig_start) + ':' + \
-            str(self.contig_end) + ', ' + self.contig_target + '|' + \
-            self.contig_pam + ', alignments=' + str(len(self.alignments)) + ')'
+        return 'Sequence(feature=' + self.feature + \
+            ', ' + self.contig + \
+            ':' + str(self.contig_start) + ':' + str(self.contig_end) + \
+            ', ' + self.contig_target + '|' + self.contig_pam + \
+            ', azimuth=' + str(round(self.azimuth, 2)) + \
+            ', off-target=' + str(round(self.off_target_hsuzhang, 2)) + \
+            ', alignments=' + str(len(self.alignments)) + ')'
 
 class CustomHelpFormatter(argparse.HelpFormatter):
     """Help message formatter which retains any formatting in descriptions
@@ -487,6 +517,15 @@ def parse_arguments():
         5' to 3'. '>' points toward PAM. IUPAC ambiguities accepted. '{a,b}' \
         are quantifiers. Be sure to enclose motif parameters in quotes so your \
         shell does not interpret STDIN/STDOUT redirection.")
+    # Need to decide if construct inputs should be TSV, or FASTA
+    # And whether or not there should be an upstream parameter separate from
+    # a downstream one. or if they are the same, then what?
+    parser.add_argument("--constructs", metavar="*.fasta", nargs="+", type=str,
+        default=[], help="The first sequence will be prepended, and the second \
+        sequence will be appended to the generated spacer sequences to form \
+        the construct sequences. It is useful to put the gRNA promotor as the \
+        first sequence, and the scaffold sequence and terminator as the \
+        second. Specify one FASTA file for each motif.")
     parser.add_argument("--tag", metavar='TAG', type=str, default='ID',
         help="GFF tag with feature names. Examples: 'ID', 'Name', 'Parent', or 'locus_tag'")
     parser.add_argument("--ambiguities", type=str, choices=["discard", "disambiguate", "keep"], default="discard",
@@ -500,9 +539,9 @@ def parse_arguments():
     #parser.add_argument("--min_contig_edge_distance", metavar="N", type=int, default=500,
     #    help="Minimum distance from contig edge a site can be found")
     parser.add_argument("--features", metavar="FEATURE", type=str, nargs="+", default=["gene"],
-        help="Features to design gRNA sites against. Must exist in GFF file. Examples: 'CDS', 'gene', 'mRNA', 'exon'")
+        help="Features to design gRNAs against. Must exist in GFF file. Examples: 'CDS', 'gene', 'mRNA', 'exon'")
     parser.add_argument("--target_gc", nargs=2, metavar=('MIN', 'MAX'), type=int, default=[25, 75],
-        help="Generated gRNAs must have %%GC content between these values (excluding PAM motif)")
+        help="Generated gRNA spacers must have %%GC content between these values (excludes PAM motif)")
     parser.add_argument("--excise_donor_homology", nargs=2, metavar=("MIN", "MAX"), type=int, default=[40,80],
         help="Range of homology lengths acceptable for knock-out dDNAs, inclusive.")
     parser.add_argument("--excise_donor_lengths", nargs=2, metavar=('MIN', 'MAX'), type=int, default=[90, 100],
@@ -1072,24 +1111,6 @@ def main():
     # Obtain command line arguments and parse them
     args = parse_arguments()
     
-    # outputs:
-    #  folder/                            folder holding output
-    #  folder/log.txt                     log
-    #  folder/bowtie2-index/*             bowtie2 index for input FASTA
-    #  folder/excision-query.fasta             FASTA file of all candidate gRNAs
-    #  folder/excision-query.sam               SAM file for alignment of candidate gRNAs
-    #  folder/excision-query.err               STDOUT/STDERR from alignment
-    #  folder/excision-gRNAs.fasta        sequences to be synthesized/amplified/transcribed (header contains scores)
-    #  folder/excision-dDNAs.fasta        sequences to be synthesized (paired with reversion-gRNAs)
-    #  folder/reversion-query.fasta
-    #  folder/reversion-query.sam
-    #  folder/reversion-query.err
-    #  folder/reversion-gRNAs.fasta       sequences to be synthesized/amplified/transcribed (paired with excision-dDNAs)
-    #  folder/reversion-dDNAs.fasta       sequence to be amplified
-    #  folder/reversion-primers.fasta     primers for amplifying reversion dDNAs
-    #  folder/off-target-dDNAs.fasta      wt dDNAs to prevent mutations at off-target Cas9 binding sites (contains edit distance in header s/i/d)
-    #  folder/primers.fasta               primers to check for KO/KI (contains expected amplicon sizes in header)
-    
     if args.test:
         # Perform test code
         test(args)
@@ -1120,6 +1141,20 @@ def main():
         
         # Open the SAM file
         alignments = load_sam_file_test(os.path.join(args.folder, 'excision-query.sam'), args, contigs)
+        
+        # Calculate off-target/guide scores for each algorithm
+        for s in alignments:
+            s.score()
+        
+        # make list of all sequences to calculate Azimuth score on
+        queries = []
+        for s in alignments:
+            queries.append((s.contig_target, s.contig_pam, s.contig_upstream, s.contig_downstream))
+        azimuth_scores = azimuth.batch_azimuth_score(queries)
+        for i, s in enumerate(alignments):
+            s.azimuth = azimuth_scores[i]
+        
+        # Print the sequences
         for s in alignments:
             print(s)
             for a in s.alignments:
