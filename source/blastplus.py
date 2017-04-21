@@ -15,6 +15,10 @@ import regex
 # import AddTag-specific packages
 from . import utils
 
+# Requires BLAST+ >= 2.6.0
+#  because it has SAM format output
+#  $ blastn -query query.fasta -subject subject.fasta -outfmt 17 > output.sam
+
 def align(outfile, queryfile, subjectfile):
     """Aligns sequences using BLAST+"""
     return None
