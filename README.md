@@ -18,6 +18,9 @@ All generated sequences can be designed as either strand-specific or strand-agno
 
  * Python >= 3.5.1 ([source](https://www.python.org/downloads/), [binaries](https://www.python.org/downloads/), [documentation](https://docs.python.org/3/))
     - regex module ([source](https://bitbucket.org/mrabarnett/mrab-regex), [whls](https://pypi.python.org/pypi/regex), [documentation](https://pypi.python.org/pypi/regex))
+    
+    note: The easy way to install this is through pip.
+     > $ pip3 install regex
  * 3.0.0 > Python >= 2.7.10 ([source](https://www.python.org/downloads/), [binaries](https://www.python.org/downloads/), [documentation](https://docs.python.org/2/))
     - Azimuth module ([source](https://github.com/MicrosoftResearch/Azimuth), [documentation](https://www.microsoft.com/en-us/research/project/azimuth/))
     
@@ -42,6 +45,7 @@ All generated sequences can be designed as either strand-specific or strand-agno
  * The Cas9 protein you use should be engineered specifically for your organism. It should be codon-optomized, and if using eukarya, contain an appropriate nuclear localization sequence.
 
 ### References ###
+ * [Nguyen, Quail, & Hernday (2017)](http://dx.doi.org/10.1128/mSphereDirect.00149-17) for AddTag concept.
  * [Moreno-Mateos et al (2015)](http://dx.doi.org/10.1038/nmeth.3543) for scoring algorithm
  * [Lin et al (2014)](http://dx.doi.org/10.1093/nar/gku402) The GC content of Cas9 target may affects binding specificity; gRNA may bind off-target if it has insertions/deletions (RNA-bulge/DNA-bulge) relative to multiple genome locations.
  * [Fu et al (2014)](http://dx.doi.org/10.1038/nbt.2808) Using a shorter gRNAs (17-19 nt) can greatly improve specificity by reducing off-target binding
