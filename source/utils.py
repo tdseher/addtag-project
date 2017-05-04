@@ -302,17 +302,102 @@ def load_git_version():
         version = 'missing'
     return version
 
-def generate_query(filename, sequences, sep=':'):
-    """Creates a FASTA file"""
+def load_homologs(filename, sep="\t"):
+    """
+    parses homolog file
+    """
+    homologs = {}
+    with open(filename, 'r') as flo:
+        for line in flo:
+            sline = line.split(sep)
+            for h1 in sline[1:]:
+                for h2 in sline[1:]:
+                    if (h1 != h2):
+                        homologs.setdefault(h1, set([h2])).add(h2)
+    return homologs
+
+
+def generate_excision_spacers(filename, sequences, sep=':'):
+    """
+    Creates a FASTA file
+    >feature:contig:orientation:start..end motif=STR azimuth=N off-target=N alignments=N
+    """
+    with open(filename, 'w') as flo:
+        for s in sequences:
+            #feature, contig, orientation, start, end, seq, motif, azimuth, off_target, alignments = line
+            print(">" + s.feature + sep + s.contig + sep + s.contig_orientation + \
+                sep + str(s.contig_start) + '..' + str(s.contig_end) + \
+                ' motif=' + s.contig_motif + \
+                ' on-target=' + str(round(s.azimuth,2)) + \
+                ' off-target=' + str(round(s.off_target_hsuzhang,2)) + \
+                ' alignments=' + str(len(s.alignments)), file=flo)
+            print(s.contig_sequence, file=flo)
+    print('Excision spacers FASTA generated: {!r}'.format(filename), file=sys.stderr)
+    return filename
+
+def generate_reversion_spacers(filename, sequences, sep=':'):
+    """
+    Creates a FASTA file
+    >id:orientation:start..end:feature:contig motif=STR azimuth=N off-target=N alignments=N
+    """
+    with open(filename, 'w') as flo:
+        for s in sequences:
+            #feature, contig, orientation, start, end, seq, motif, azimuth, off_target, alignments = line
+            #dDNA_id, feature, contig, orientation, start, end, seq, side, spacer, pam = line
+            print(">" + s.dDNA_id + sep + s.contig_orientation + \
+                sep + str(s.contig_start) + '..' + str(s.contig_end) + \
+                sep + s.feature + sep + s.contig + \
+                ' motif=' + s.contig_motif + \
+                ' on-target=' + str(round(s.azimuth,2)) + \
+                ' off-target=' + str(round(s.off_target_hsuzhang,2)) + \
+                ' alignments=' + str(len(s.alignments)), file=flo)
+            print(s.contig_sequence, file=flo)
+    print('Excision spacers FASTA generated: {!r}'.format(filename), file=sys.stderr)
+    return filename
+
+def generate_excision_query(filename, sequences, sep=':'):
+    """
+    Creates a FASTA file
+    >feature:contig:orientation:start..end
+    """
     # Create the query, converting list of sequences into a FASTA file
     with open(filename, 'w') as flo:
         for line in sequences:
             feature, contig, orientation, start, end, seq, side, spacer, pam = line
-            print(">" + sep.join(map(str, [feature, contig, orientation, start, end])), file=flo)
+            #print(">" + sep.join(map(str, [feature, contig, orientation, start, end])), file=flo)
+            print(">" + feature + sep + contig + sep + orientation + sep + str(start) + '..' + str(end), file=flo)
             print(seq, file=flo)
             #print('+')
             #print('9'*len(seq))
-    print('Query FASTA generated: {!r}'.format(filename), file=sys.stderr)
+    print('Excision query FASTA generated: {!r}'.format(filename), file=sys.stderr)
+    return filename
+
+def generate_reversion_query(filename, sequences, sep=':'):
+    """
+    Creates a FASTA file
+    >id:orientation:start..end:feature:contig
+    """
+    with open(filename, 'w') as flo:
+        for line in sequences:
+            #rev_entry = tuple(["dDNA-"+str(i), feature, contig] + (orientation, start, end, filt_seq, side, filt_spacer, filt_pam))
+            dDNA_id, feature, contig, orientation, start, end, seq, side, spacer, pam = line
+            print(">" + dDNA_id + sep + orientation + sep + str(start) + '..' + str(end) + sep + feature + sep + contig, file=flo)
+            print(seq, file=flo)
+    print('Reversion query FASTA generated: {!r}'.format(filename), file=sys.stderr)
+    return filename
+
+def generate_donor(filename, sequences, sep=':'):
+    """
+    Creates a FASTA file
+    >id feature:contig:orientation:start1..end1:mAT:start2..end2
+    """
+    with open(filename, 'w') as flo:
+        for line in sequences:
+            #don_entry = tuple(["dDNA-"+str(i), feature, contig, '+', start1, start2, end1, end2, dDNA])
+            dDNA_id, feature, contig, orientation, start1, end1, mAT, start2, end2, seq = line
+            print(">" + dDNA_id + ' ' + feature + sep + contig + sep + orientation + sep + str(start1) + '..' + str(end1) + sep + mAT + sep + str(start2) + sep + str(end2), file=flo)
+            print(seq, file=flo)
+    print('dDNA FASTA generated: {!r}'.format(filename), file=sys.stderr)
     return filename
 
 def test():
