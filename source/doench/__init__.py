@@ -16,7 +16,6 @@ import regex
 # Import included AddTag-specific modules
 # Some fancy code for running this script as stand-alone
 if (__name__ == "__main__"):
-    import sys
     # Relative path for package to import
     PACKAGE_PARENT = '..'
     # Obtain path of currently-running file
