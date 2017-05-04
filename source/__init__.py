@@ -49,18 +49,43 @@ description:
   complementarity and enzyme-dependent PAM sites, but the efficacy and
   specificity of these guides are unpredictable in this version.
   
-  Diagram of DNA-RNA hybridization and nuclease catalyzed by Cas9.
-  (sgRNA = crRNA + linker + tracrRNA) = (gRNA = spacer + scaffold)
-                               gRNA ┌────────────────────────┐
-                              sgRNA ┌───tracrRNA────┐┌linker┐│
-                          cut┐    3'╤╤╤╤╗            ╔╤╤╗   ││
-         ┌──╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥ ╥╥╥┐      ╚╦╦╦╦╦╦╦╦╦╦╦╦╝  ╢   ││
-         │5'╩╩╩╩╩╩╩╩╩╩╩╩╩╩╩╩╩═╩╩╩╪╧╧╧╧╧╧╧╩╩╩╩╩╩╩╩╩╩╩╩╧╧╧╝   ││
-         │  └────────────────────│──────crRNA───────┘└──────┘│
-         │  └──────spacer───────┘│└──────────scaffold────────┘
-  3'╥╥╥╥╥┘                cut┐   └╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥5'
-  5'╨╨╨╨╨───┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴ ┴┴┴─╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨3' genome
-            └──────target───────┘ └─┴─PAM
+  Diagram of DNA-RNA hybridization and nuclease catalyzed by Cas9:
+    (sgRNA = crRNA + linker + tracrRNA) = (gRNA = spacer + scaffold)
+                                 gRNA ┌────────────────────────┐
+                                sgRNA ┌───tracrRNA────┐┌linker┐│
+                            cut┐    3'╤╤╤╤╗            ╔╤╤╗   ││
+           ┌──╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥ ╥╥╥┐      ╚╦╦╦╦╦╦╦╦╦╦╦╦╝  ╢   ││
+           │5'╩╩╩╩╩╩╩╩╩╩╩╩╩╩╩╩╩═╩╩╩╪╧╧╧╧╧╧╧╩╩╩╩╩╩╩╩╩╩╩╩╧╧╧╝   ││
+           │  └────────────────────│──────crRNA───────┘└──────┘│
+           │  └──────spacer───────┘│└──────────scaffold────────┘
+    3'╥╥╥╥╥┘                cut┐   └╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥5'
+    5'╨╨╨╨╨───┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴ ┴┴┴─╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨3' genome
+              └──────target───────┘ └─┴PAM
+  
+  Diagram of genome labels for excision:
+                us_feature_trim┐           ┌ds_feature_trim
+   ─genome┐┌──ex_us_homology─┐┌┴┐┌feature┐┌┴┐┌─ex_ds_homology──┐┌genome─
+   ╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥
+   ╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨
+                           ex_target┴─┘
+  
+  Diagram of excision dDNA labels:
+              ┌──ex_us_homology─┐┌insert┐┌─ex_ds_homology──┐
+              ╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥
+              ╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨
+              └──────────────ex_donor_length───────────────┘
+  
+  Diagram of genome labels for reversion:
+  ─genome┐┌────re_us_homology───┐┌insert┐┌───re_ds_homology────┐┌genome─
+  ╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥
+  ╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨
+                              └──re_target─┘
+  
+  Diagram of reversion dDNA labels:
+       ┌────re_us_homology───┐   ┌feature┐   ┌───re_ds_homology────┐
+       ╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥
+       ╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨
+       └──────────────────────re_donor_length──────────────────────┘
   
   Copyright (c) 2017 {__author__}.
   All rights reserved.
@@ -228,7 +253,7 @@ class Sequence(object):
     
     doench2014_threshold = 1.0
     doench2016_threshold = 1.0
-    hsuzhang_threshold = 1.0
+    hsuzhang_threshold = 0.1
     linear_threshold = 80.0
     morenomateos_threshold = 1.0
     azimuth_threshold = 1.0
@@ -239,7 +264,7 @@ class Sequence(object):
         self.feature_orientation = feature_orientation
         
         self.contig_sequence = contig_sequence
-        self.contig_target, self.contig_pam = self.split_spacer_pam(self.contig_sequence, args)
+        self.contig_target, self.contig_pam, self.contig_motif = self.split_spacer_pam(self.contig_sequence, args)
         self.contig_upstream = contig_upstream
         self.contig_downstream = contig_downstream
         
@@ -274,6 +299,7 @@ class Sequence(object):
     def split_spacer_pam(self, sequence, args):
         r_spacer = None
         r_pam = None
+        r_motif = None
         for i in range(len(args.parsed_motifs)):
             spacers, pams, side = args.parsed_motifs[i]
             compiled_regex = args.compiled_motifs[i]
@@ -281,21 +307,24 @@ class Sequence(object):
             if m:
                 r_spacer = m[0]
                 r_pam = m[1]
+                r_motif = args.motifs[i]
                 break
             else:
                 if (side == '>'):
                     l = max(map(len, pams))
                     r_spacer = sequence[:-l]
                     r_pam = sequence[-l:]
+                    r_motif = args.motifs[i]
                 elif (side == '<'):
                     l = max(map(len, pams))
                     r_spacer = seq[:l]
                     r_pam = seq[l:]
-        return r_spacer, r_pam
+                    r_motif = args.motifs[i]
+        return r_spacer, r_pam, r_motif
     
     def add_alignment(self, aligned_sequence, args, aligned_contig, aligned_start, aligned_end, aligned_orientation, aligned_upstream, aligned_downstream):
         """Add a genomic position to the list of alignments"""
-        aligned_target, aligned_pam = self.split_spacer_pam(aligned_sequence, args)
+        aligned_target, aligned_pam, aligned_motif = self.split_spacer_pam(aligned_sequence, args)
         if ((aligned_target != None) and (aligned_pam != None)):
             #aligned_target, aligned_pam = nucleotides.split_target_sequence(aligned_sequence, pams, force=True)
             substitutions, insertions, deletions = nucleotides.count_errors(self.contig_sequence, aligned_sequence)
@@ -366,8 +395,9 @@ class Sequence(object):
         """Return a string containing a printable representation of the Sequence object."""
         return 'Sequence(feature=' + self.feature + \
             ', ' + self.contig + \
-            ':' + str(self.contig_start) + ':' + str(self.contig_end) + \
+            ':' + str(self.contig_start) + '..' + str(self.contig_end) + \
             ', ' + self.contig_target + '|' + self.contig_pam + \
+            ', motif=' + self.motif + \
             ', azimuth=' + str(round(self.azimuth, 2)) + \
             ', off-target=' + str(round(self.off_target_hsuzhang, 2)) + \
             ', alignments=' + str(len(self.alignments)) + ')'
@@ -406,8 +436,10 @@ def load_sam_file_test(filename, args, contigs, sep=':'):
         for line in flo:
             if not line.startswith('@'):
                 sline = line.rstrip().split("\t")
-                if (len(sline) > 5):
-                    feature, source_contig, source_orientation, source_start, source_end = sline[0].split(sep)
+                if ((len(sline) > 5) and (sline[2] != '*')):
+                    # >feature:contig:orientation:start..end
+                    feature, source_contig, source_orientation, source_start_end = sline[0].split(sep)
+                    source_start, source_end = source_start_end.split('..')
                     source_start = int(source_start)
                     source_end = int(source_end)
                     source = (feature, source_contig, source_orientation, source_start, source_end)
@@ -453,11 +485,12 @@ def load_sam_file_test(filename, args, contigs, sep=':'):
                         contig_upstream=source_upstream,
                         contig_downstream=source_downstream,
                     )
-                    dbg1=0
-                    try:
-                        dbg1 = len(alignments[source].alignments)
-                    except KeyError:
-                        pass
+                    
+                    #dbg1=0
+                    #try:
+                    #    dbg1 = len(alignments[source].alignments)
+                    #except KeyError:
+                    #    pass
                     alignments.setdefault(source, s).add_alignment(
                         alignment_sequence, # aligned_sequence (as when matched with reference, thus may be revcomp of initial query)
                         args,
@@ -468,11 +501,108 @@ def load_sam_file_test(filename, args, contigs, sep=':'):
                         alignment_upstream,
                         alignment_downstream,
                     )
-                    dbg2 = len(alignments[source].alignments)
-                    if (dbg1 == dbg2):
-                        print("problem: ", source, file=sys.stderr)
+                    #dbg2 = len(alignments[source].alignments)
+                    #if (dbg1 == dbg2):
+                    #    print("problem: ", source, file=sys.stderr)
     
     #return list(alignments.values()) # unsorted list
+    return list(map(lambda x: alignments[x], sorted(alignments))) # sorted
+
+def load_reversion_sam_file_test(filename, args, contigs, donors, sep=':'):
+    """Read in SAM file.
+    sep is the separator for the header. Positions are converted to 0-index
+    Creates a list of Sequence objects
+    """
+    
+    dDNA_dict = {}
+    for line in donors:
+        #don_entry = tuple(["dDNA-"+str(i), feature, contig, '+', start1, start2, end1, end2, dDNA])
+        dDNA_id, feature, contig, orientation, start1, end1, mAT, start2, end2, seq = line
+        dDNA_dict[dDNA_id] = line
+    
+    alignments = {}
+    with open(filename, 'r') as flo:
+        for line in flo:
+            if not line.startswith('@'):
+                sline = line.rstrip().split("\t")
+                if ((len(sline) > 5) and (sline[2] != '*')):
+                    # >id:orientation:start..end:feature:contig
+                    dDNA_id, dDNA_orientation, dDNA_start_end, feature, source_contig = sline[0].split(sep)
+                    dDNA_start, dDNA_end = dDNA_start_end.split('..')
+                    dDNA_start = int(dDNA_start)
+                    dDNA_end = int(dDNA_end)
+                    dDNA = (feature, dDNA_id, dDNA_orientation, dDNA_start, dDNA_end)
+                    
+                    dDNA_list = dDNA_dict[dDNA_id]
+                    source_contig = dDNA_list[2]
+                    source_orientation = dDNA_orientation
+                    source_start = dDNA_list[4]
+                    source_end = dDNA_list[8]
+                    
+                    # >feature:contig:orientation:start..end
+                    #feature, source_contig, source_orientation, source_start_end = sline[0].split(sep)
+                    #source_start, source_end = source_start_end.split('..')
+                    #source_start = int(source_start)
+                    #source_end = int(source_end)
+                    #source = (feature, source_contig, source_orientation, source_start, source_end)
+                    source_upstream = contigs[source_contig][source_start-10:source_start]
+                    source_downstream = contigs[source_contig][source_end:source_end+10]
+                    dDNA_upstream = source_upstream + dDNA_list[9][:dDNA_start]
+                    dDNA_downstream = dDNA_list[9][dDNA_end:] + source_downstream
+                    if (source_orientation == '-'):
+                        source_upstream, source_downstream = nucleotides.rc(source_downstream), nucleotides.rc(source_upstream)
+                        dDNA_upstream, dDNA_downstream = nucleotides.rc(dDNA_downstream), nucleotides.rc(dDNA_upstream)
+                    
+                    # Get orientation
+                    alignment_orientation = utils.sam_orientation(int(sline[1]))
+                    
+                    # Get alignment position
+                    alignment_contig = sline[2]
+                    alignment_start = int(sline[3])-1
+                    alignment_end = int(sline[3])-1+utils.cigar_length(sline[5])
+                    
+                    # Reverse-complement if needed
+                    alignment_sequence = contigs[alignment_contig][alignment_start:alignment_end]
+                    alignment_upstream = contigs[alignment_contig][alignment_start-10:alignment_start]
+                    alignment_downstream = contigs[alignment_contig][alignment_end:alignment_end+10]
+                    actual_sequence = sline[9]
+                    if (alignment_orientation == '-'):
+                        alignment_sequence = nucleotides.rc(alignment_sequence)
+                        alignment_upstream, alignment_downstream = nucleotides.rc(alignment_downstream), nucleotides.rc(alignment_upstream)
+                        actual_sequence = nucleotides.rc(actual_sequence)
+                    
+                    # if source not in alignments:
+                    #    alignments[source] = s
+                    # alignments[sournce].add_alignment(...)
+                    
+                    # Assuming creating an instance of Sequence() is cheaper
+                    # than traversing alignments dict()
+                    s = Sequence(
+                        feature,
+                        actual_sequence,
+                        # contigs[source_contig][int(source_start):int(source_end)], # contig_sequence
+                        args,
+                        contig=dDNA_id, #source_contig,
+                        contig_orientation=dDNA_orientation, #source_orientation,
+                        contig_start=dDNA_start, #int(source_start),
+                        contig_end=dDNA_end, #int(source_end),
+                        feature_orientation=None,
+                        contig_upstream=dDNA_upstream, #source_upstream,
+                        contig_downstream=dDNA_downstream, #source_downstream,
+                    )
+                    #s.dDNA_id = dDNA_id
+                    
+                    alignments.setdefault(dDNA, s).add_alignment(
+                        alignment_sequence, # aligned_sequence (as when matched with reference, thus may be revcomp of initial query)
+                        args,
+                        alignment_contig, # aligned_contig
+                        alignment_start, # aligned_start
+                        alignment_end, # aligned_end
+                        alignment_orientation, # aligned_orientation (+/-)
+                        alignment_upstream,
+                        alignment_downstream,
+                    )
+    
     return list(map(lambda x: alignments[x], sorted(alignments))) # sorted
 
 def parse_arguments():
@@ -542,7 +672,9 @@ def parse_arguments():
         help="Features to design gRNAs against. Must exist in GFF file. Examples: 'CDS', 'gene', 'mRNA', 'exon'")
     parser.add_argument("--target_gc", nargs=2, metavar=('MIN', 'MAX'), type=int, default=[25, 75],
         help="Generated gRNA spacers must have %%GC content between these values (excludes PAM motif)")
-    parser.add_argument("--excise_donor_homology", nargs=2, metavar=("MIN", "MAX"), type=int, default=[40,80],
+    parser.add_argument("--excise_upstream_homology", nargs=2, metavar=("MIN", "MAX"), type=int, default=[40,60],
+        help="Range of homology lengths acceptable for knock-out dDNAs, inclusive.")
+    parser.add_argument("--excise_downstream_homology", nargs=2, metavar=("MIN", "MAX"), type=int, default=[40,60],
         help="Range of homology lengths acceptable for knock-out dDNAs, inclusive.")
     parser.add_argument("--excise_donor_lengths", nargs=2, metavar=('MIN', 'MAX'), type=int, default=[90, 100],
         help="Range of lengths acceptable for knock-out dDNAs, inclusive.")
@@ -553,11 +685,11 @@ def parse_arguments():
              from the edge of the feature. If negative, gRNAs will target nucleotides \
              this distance outside the feature.")
     parser.add_argument("--excise_upstream_feature_trim", nargs=2, metavar=('MIN', 'MAX'),
-        type=int, default=[0, 20], help="Between MIN and MAX number of nucleotides \
+        type=int, default=[0, 6], help="Between MIN and MAX number of nucleotides \
         upstream of the feature will be considered for knock-out when designing \
         donor DNA.")
     parser.add_argument("--excise_downstream_feature_trim", nargs=2, metavar=("MIN", "MAX"),
-        type=int, default=[0, 5], help="Between MIN and MAX number of nucleotides \
+        type=int, default=[0, 6], help="Between MIN and MAX number of nucleotides \
         downstream of the feature will be considered for knock-out when designing \
         donor DNA.")
     #parser.add_argument("--min_donor_insertions", metavar="N", type=int, default=2,
@@ -770,10 +902,10 @@ def generate_excise_donor(args, features, contigs):
         
         # assumes start < end
         # DNA 5' of feature is upstream
-        upstream = contigs[contig][start-args.excise_donor_homology[1]:start] # This is the max homology length
+        #upstream = contigs[contig][start-args.excise_donor_homology[1]:start] # This is the max homology length
         
         # DNA 3' of feature is downstream
-        downstream = contigs[contig][end:end+args.excise_donor_homology[1]] # Max homology length
+        #downstream = contigs[contig][end:end+args.excise_donor_homology[1]] # Max homology length
         
         # mini_addtags = itertools.something()
         # dDNAs = [upstream + x + downstream for x in itertools.something()]
@@ -781,32 +913,51 @@ def generate_excise_donor(args, features, contigs):
         #dDNAs = []
         all_targets = {}
         #targets = set()
+        my_contig = contigs[contig]
         
         # For each potential dDNA, evaluate how good it is
-        for insert_length in range(args.excise_insert_lengths[0], args.excise_insert_lengths[1]+1):
-            # when insert_length = 0, then the kmers are [''] (single element, empty string)
-            for mAT in nucleotides.kmers(insert_length):
-                # Add this candidate dDNA to the list of all candidate dDNAs
-                dDNA = upstream + mAT + downstream
-                #dDNAs.append(dDNA)
-                new_targets = get_targets_temp(args, dDNA)
-                
-                for t in new_targets:
-                    if t in all_targets:
-                        if (len(dDNA) < len(all_targets[t])):
-                            all_targets[t] = dDNA
-                    else:
-                        all_targets[t] = dDNA
-            
-        for t in all_targets:
+        for us_trim in range(args.excise_upstream_feature_trim[0], args.excise_upstream_feature_trim[1]+1):
+            for ds_trim in range(args.excise_downstream_feature_trim[0], args.excise_downstream_feature_trim[1]+1):
+                for us_hom in range(args.excise_upstream_homology[0], args.excise_upstream_homology[1]+1):
+                    for ds_hom in range(args.excise_downstream_homology[0], args.excise_downstream_homology[1]+1):
+                        for insert_length in range(args.excise_insert_lengths[0], args.excise_insert_lengths[1]+1):
+                            if (args.excise_donor_lengths[0] <= us_hom+insert_length+ds_hom <= args.excise_donor_lengths[1]):
+                                start1, end1 = start-us_hom-us_trim, start-us_trim
+                                start2, end2 = end+ds_trim, end+ds_hom+ds_trim
+                                upstream = my_contig[start1:end1]
+                                downstream = my_contig[start2:end2]
+                                #upstream = contigs[contig][start - args.excise_donor_homology[1]:start]
+                                #downstream = contigs[contig][end:end + args.excise_donor_homology[1]]
+                                
+                                # when insert_length = 0, then the kmers are [''] (single element, empty string)
+                                for mAT in nucleotides.kmers(insert_length):
+                                    # Add this candidate dDNA to the list of all candidate dDNAs
+                                    dDNA = upstream + mAT + downstream
+                                    
+                                    #if (args.excise_donor_lengths[0] <= len(dDNA) <= args.excise_donor_lengths[1]):
+                                    #dDNAs.append(dDNA)
+                                    new_targets = get_targets_temp(args, dDNA)
+                                    
+                                    for t in new_targets:
+                                        if t in all_targets:
+                                            if (len(dDNA) < len(all_targets[t][0])):
+                                                all_targets[t] = (dDNA, start1, end1, mAT, start2, end2)
+                                        else:
+                                            all_targets[t] = (dDNA, start1, end1, mAT, start2, end2)
+        
+        for i, t in enumerate(all_targets):
             # Each entry should be:
             # (feature, contig, orientation, start, end, seq, side, spacer, pam)
-            dDNA = all_targets[t]
-            entry = tuple([feature, dDNA] + list(t))
+            dDNA, start1, end1, mAT, start2, end2 = all_targets[t]
+            rev_entry = tuple(["dDNA-"+str(i), feature, contig] + list(t))
+            don_entry = tuple(["dDNA-"+str(i), feature, contig, '+', start1, end1, mAT, start2, end2, dDNA])
             
-            if (entry not in final_targets):
-                final_targets.append(entry)
-                final_dDNAs.append(dDNA)
+            # This non-redundancy code is REALLY REALLY REALLY slow
+            #if (entry not in final_targets):
+            #    final_targets.append(rev_entry)
+            #    final_dDNAs.append(don_entry)
+            final_targets.append(rev_entry)
+            final_dDNAs.append(don_entry)
     
     return final_targets, final_dDNAs
     #    # For each potential dDNA, evaluate how good it is
@@ -1115,6 +1266,9 @@ def main():
         # Perform test code
         test(args)
     else:
+        # Get timestamp
+        start = time.time()
+        
         # Create the project directory if it doesn't exist
         os.makedirs(args.folder, exist_ok=True)
         
@@ -1134,31 +1288,34 @@ def main():
         index_file = index_reference(args)
         
         # Write the query list to FASTA
-        query_file = utils.generate_query(os.path.join(args.folder, 'excision-query.fasta'), targets)
+        query_file = utils.generate_excision_query(os.path.join(args.folder, 'excision-query.fasta'), targets)
         
         # Use selected alignment program to find all matches in the genome
-        sam_file = align(query_file, index_file, args)
+        ex_sam_file = align(query_file, index_file, args)
         
         # Open the SAM file
-        alignments = load_sam_file_test(os.path.join(args.folder, 'excision-query.sam'), args, contigs)
+        ex_alignments = load_sam_file_test(os.path.join(args.folder, 'excision-query.sam'), args, contigs)
         
         # Calculate off-target/guide scores for each algorithm
-        for s in alignments:
+        for s in ex_alignments:
             s.score()
         
         # make list of all sequences to calculate Azimuth score on
         queries = []
-        for s in alignments:
+        for s in ex_alignments:
             queries.append((s.contig_target, s.contig_pam, s.contig_upstream, s.contig_downstream))
         azimuth_scores = azimuth.batch_azimuth_score(queries)
-        for i, s in enumerate(alignments):
+        for i, s in enumerate(ex_alignments):
             s.azimuth = azimuth_scores[i]
         
+        # Generate the FASTA with the final scores
+        excision_spacers_file = utils.generate_excision_spacers(os.path.join(args.folder, 'excision-spacers.fasta'), ex_alignments, sep=':')
+        
         # Print the sequences
-        for s in alignments:
-            print(s)
-            for a in s.alignments:
-                print('  ', a)
+        #for s in alignments:
+        #    print(s)
+        #    for a in s.alignments:
+        #        print('  ', a)
         
         # Discard potential gRNAs that have mismatches with their target site
         #if (args.case == "invariant-lower"):
@@ -1168,9 +1325,41 @@ def main():
         
         revert_targets, excise_donors = generate_excise_donor(args, features, contigs)
         
-        revert_query_file = utils.generate_query(os.path.join(args.folder, 'reversion-query.fasta'), revert_targets)
-        #excise_dDNA_file = utils.generate_query(os.path.join(args.folder, 'excision-dDNAs.fasta'), excise_donors)
+        revert_query_file = utils.generate_reversion_query(os.path.join(args.folder, 'reversion-query.fasta'), revert_targets)
+        excise_dDNA_file = utils.generate_donor(os.path.join(args.folder, 'excision-dDNAs.fasta'), excise_donors)
         
+        
+        
+        
+        
+        # Use selected alignment program to find all matches in the genome
+        re_sam_file = align(revert_query_file, index_file, args)
+        
+        # Open the SAM file
+        re_alignments = load_reversion_sam_file_test(os.path.join(args.folder, 'reversion-query.sam'), args, contigs, excise_donors)
+        
+        # Calculate off-target/guide scores for each algorithm
+        for s in re_alignments:
+            s.score()
+        
+        # make list of all sequences to calculate Azimuth score on
+        queries = []
+        for s in re_alignments:
+            queries.append((s.contig_target, s.contig_pam, s.contig_upstream, s.contig_downstream))
+        azimuth_scores = azimuth.batch_azimuth_score(queries)
+        for i, s in enumerate(re_alignments):
+            s.azimuth = azimuth_scores[i]
+        
+        # Generate the FASTA with the final scores
+        reversion_spacers_file = utils.generate_excision_spacers(os.path.join(args.folder, 'reversion-spacers.fasta'), re_alignments, sep=':')
+        
+        
+        
+        
+        
+        
+        # Print time taken for program to complete
+        print('Runtime: {}s'.format(time.time()-start), file=sys.stderr)
 
 def test(args):
     """Code to test the classes and functions in 'source/__init__.py'"""
