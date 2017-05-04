@@ -90,7 +90,8 @@ def ridentities(seq1, seq2):
       11
     """
     identities = 0
-    for i in range(-1,-len(seq1)-1, -1):
+    min_len = min(len(seq1), len(seq2))
+    for i in range(-1,-min_len-1, -1):
         if (seq1[i] != seq2[i]):
             break
         else:
@@ -109,7 +110,8 @@ def lidentities(seq1, seq2):
       8
     """
     identities = 0
-    for i in range(len(seq1)):
+    min_len = min(len(seq1), len(seq2))
+    for i in range(min_len):
         if (seq1[i] != seq2[i]):
             break
         else:
