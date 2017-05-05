@@ -101,7 +101,7 @@ protein:
   organism. It should be codon-optomized, and if using eukarya, contain an
   appropriate nuclear localization sequence. Cas9 from different species bind
   to different PAM sequences, which is useful when no suitable PAM sequence is
-  present within your gene of interest. Additionally, the different Cas9s gene
+  present within your gene of interest. Additionally, the different Cas9 gene
   sequences can have huge length differences. Remember that each Cas9 is only
   compatible with the tracrRNA and crRNA (or synthetic gRNA) derived from the
   same species.
@@ -251,12 +251,15 @@ class Sequence(object):
     deletion_threshold = 2
     error_threshold = 5
     
-    doench2014_threshold = 1.0
-    doench2016_threshold = 1.0
-    hsuzhang_threshold = 0.1
-    linear_threshold = 80.0
-    morenomateos_threshold = 1.0
-    azimuth_threshold = 1.0
+    score_thresholds = {
+        'doench2014': 1.0,
+        'doench2016': 1.0,
+        'hsuzhang': 0.1,
+        'linear': 80.0,
+        'housden': -3.0,
+        'morenomateos': 1.0,
+        'azimuth': 1.0,
+    }
     
     def __init__(self, feature, contig_sequence, args, contig=None, contig_orientation='+', contig_start=None, contig_end=None, feature_orientation=None, contig_upstream='', contig_downstream=''):
         """Create a structure for holding individual sequence information"""
@@ -289,12 +292,23 @@ class Sequence(object):
         self.azimuth = 0 #azimuth.azimuth_score(self.contig_target, self.contig_pam, upstream=self.contig_upstream, downstream=self.contig_downstream)
         
         # query x subject score
-        self.off_target_doench2014 = None
-        self.off_target_doench2016 = None
-        self.off_target_hsuzhang = None
-        self.off_target_linear = None
-        self.off_target_morenomateos = None
-        self.off_target_azimuth = None
+        self.off_targets = {
+            'doench2014': None,
+            'doench2016': None,
+            'hsuzhang': None,
+            'linear': None,
+            'housden': None,
+            'morenomateos': None,
+            'azimuth': None,
+        }
+        
+        #self.off_target_doench2014 = None
+        #self.off_target_doench2016 = None
+        #self.off_target_hsuzhang = None
+        #self.off_target_linear = None
+        #self.off_target_housden = None
+        #self.off_target_morenomateos = None
+        #self.off_target_azimuth = None
     
     def split_spacer_pam(self, sequence, args):
         r_spacer = None
@@ -356,40 +370,148 @@ class Sequence(object):
         else:
             print('Cannot add alignment:', aligned_sequence, aligned_contig, aligned_start, aligned_end, aligned_orientation, file=sys.stderr)
     
-    def score(self):
+    def get_features(self, features, contig, start, end):
+        the_features = []
+        for feature in features:
+            f_contig, f_start, f_end, f_strand = features[feature]
+            if (contig == f_contig):
+                if (self.overlap_coverage(start, end, f_start, f_end) > 0):
+                    the_features.append(feature)
+        
+        return the_features
+    
+    def overlap_distance(self, start1, end1, start2, end2):
+        coverage = self.overlap_coverage(start1, end1, start2, end2)
+        if (coverage > 0):
+            return -coverage
+        else:
+            #return min(abs(start2-end1), abs(start1-end2))
+            return max(start2-end1, start1-end2)
+            # 1 ..........
+            # 2              XXXXXX
+            
+            # 1          ........
+            # 2 XXXXXX
+    
+    def overlap_coverage(self, start1, end1, start2, end2):
+        coverage = 0
+        
+        if (start2 <= start1 <= end1 <= end2):
+            # 1      .............
+            # 2   XXXXXXXXXXXXXXXXXX
+            coverage = abs(end1 - start1) + 1
+        elif (start1 <= start2 <= end2 <= end1):
+            # 1      .....................
+            # 2            XXXXXXXXXX
+            coverage = abs(end2 - start2) + 1
+        elif (start1 <= start2 <= end1 <= end2):
+            # 1      ........
+            # 2        XXXXXXXX
+            coverage = abs(end1 - start2) + 1
+        elif (start2 <= start1 <= end2 <= end1):
+            # 1      .............
+            # 2  XXXXXXXXXX
+            coverage = abs(end2 - start1) + 1
+            
+        return coverage
+    
+    def overlap_percent_coverage(self, start1, end1, start2, end2):
+        coverage = self.overlap_coverage(start1, end1, start2, end2)
+        return float(coverage) / max(abs(end1 - start1), abs(end2 - start2))
+    
+    def percent_full_length_coverage(self, start1, end1, len1, start2, end2, len2):
+        coverage = self.overlap_coverage(start1, end1, start2, end2)
+        return float(coverage) / max(len1, len2)
+    
+    def score(self, args, homologs, features):
         """Calculate Guide scores for each algorithm"""
-        doench2014_list = []
-        doench2016_list = []
-        hsuzhang_list = []
-        linear_list = []
-        morenomateos_list = []
-        azimuth_list = []
+        calculations = [
+            'doench2014',
+            'doench2016',
+            'hsuzhang',
+            'linear',
+            'housden',
+            'morenomateos',
+            #'azimuth'
+        ]
+        on_targets = {}
+        off_targets = {}
+        for calculation in calculations:
+            on_targets[calculation] = []
+            off_targets[calculation] = []
+        # on_targets = {
+        #     'doench2014': [self.doench2014],
+        #     'doench2016': [self.doench2016],
+        #     'hsuzhang': [self.hsuzhang],
+        #     'linear': [self.linear],
+        #     'housden': [self.housden],
+        #     'morenomateos': [self.morenomateos],
+        #     'azimuth': [self.azimuth],
+        # }
+        
+        on_target_features = set([self.feature])
+        if homologs:
+            on_target_features.update(homologs.get(self.feature, set()))
+        #print(self.feature, on_target_features, file=sys.stderr)
+        
         for a in self.alignments:
-            if (a[3:6] != (self.contig, self.contig_start, self.contig_end)):
+            a_features = self.get_features(features, a[3], a[4], a[5]) # contig, start, end
+            
+            # If the divergence is reasonable
+            if ((a[7] <= self.substitution_threshold) and
+                (a[8] <= self.insertion_threshold) and
+                (a[9] <= self.deletion_threshold) and 
+                (sum(a[7:10]) <= self.error_threshold)
+            ):
+                for i, calculation in enumerate(calculations):
+                    c_score = a[10+i]
+                    if (c_score >= self.score_thresholds[calculation]):
+                        # if alignment is NOT a target:
+                        if ((a_features == None) or (len(on_target_features.intersection(a_features)) == 0)):
+                            off_targets[calculation].append(c_score)
+                        # if alignment is a target
+                        else:
+                            on_targets[calculation].append(c_score)
+                    #else:
+                    #    on_targets[calculation].append(0)
+            #if (a[3:6] != (self.contig, self.contig_start, self.contig_end)):
                 # lambda a, b: all([a[0]<=b[0], a[1]<=b[1], a[2]<b[2], sum(a)<=b[3]])
-                if ((a[7] <= self.substitution_threshold) and
-                    (a[8] <= self.insertion_threshold) and
-                    (a[9] <= self.deletion_threshold) and 
-                    (sum(a[7:10]) <= self.error_threshold)
-                ):
-                    if (a[10] >= self.doench2014_threshold):
-                        doench2014_list.append(a[10])
-                    if (a[11] >= self.doench2016_threshold):
-                        doench2016_list.append(a[11])
-                    if (a[12] >= self.hsuzhang_threshold):
-                        hsuzhang_list.append(a[12])
-                    if (a[13] >= self.linear_threshold):
-                        linear_list.append(a[13])
-                    if (a[15] >= self.morenomateos_threshold):
-                        morenomateos_list.append(a[15])
-                    if (a[16] >= self.azimuth_threshold):
-                        azimuth_list.append(a[16])
-        self.off_target_doench2014 = scores.off_target_score(doench2014_list, (self.doench2014,))
-        self.off_target_doench2016 = scores.off_target_score(doench2016_list, (self.doench2016,))
-        self.off_target_hsuzhang = scores.off_target_score(hsuzhang_list, (self.hsuzhang,))
-        self.off_target_linear = scores.off_target_score(linear_list, (self.linear,))
-        self.off_target_morenomateos = scores.off_target_score(morenomateos_list, (self.morenomateos,))
-        self.off_target_azimuth = 0 #scores.off_target_score(azimuth_list, (self.azimuth))
+                    # if (a[10] >= self.doench2014_threshold):
+                    #     doench2014_list.append(a[10])
+                    # if (a[11] >= self.doench2016_threshold):
+                    #     doench2016_list.append(a[11])
+                    # if (a[12] >= self.hsuzhang_threshold):
+                    #     hsuzhang_list.append(a[12])
+                    # if (a[13] >= self.linear_threshold):
+                    #     linear_list.append(a[13])
+                    # if (a[15] >= self.morenomateos_threshold):
+                    #     morenomateos_list.append(a[15])
+                    # if (a[16] >= self.azimuth_threshold):
+                    #     azimuth_list.append(a[16])
+        # self.off_target_doench2014 = scores.off_target_score(doench2014_list, (self.doench2014,))
+        # self.off_target_doench2016 = scores.off_target_score(doench2016_list, (self.doench2016,))
+        # self.off_target_hsuzhang = scores.off_target_score(hsuzhang_list, (self.hsuzhang,))
+        # self.off_target_linear = scores.off_target_score(linear_list, (self.linear,))
+        # self.off_target_morenomateos = scores.off_target_score(morenomateos_list, (self.morenomateos,))
+        # self.off_target_azimuth = 0 #scores.off_target_score(azimuth_list, (self.azimuth))
+        
+        for calculation in calculations:
+            try:
+                self.off_targets[calculation] = scores.off_target_score(off_targets[calculation], on_targets[calculation])
+            except ZeroDivisionError:
+                self.off_targets[calculation] = 0.0
+        # try:
+        #     self.off_target_doench2014 = scores.off_target_score(off_targets['doench2014'], on_targets['doench2014'])
+        #     self.off_target_doench2016 = scores.off_target_score(off_targets['doench2016'], on_targets['doench2016'])
+        #     self.off_target_hsuzhang = scores.off_target_score(off_targets['hsuzhang'], on_targets['hsuzhang'])
+        #     self.off_target_linear = scores.off_target_score(off_targets['linear'], on_targets['linear'])
+        #     self.off_target_housden = scores.off_target_score(off_targets['housden'], on_targets['housden'])
+        #     self.off_target_morenomateos = scores.off_target_score(off_targets['morenomateos'], on_targets['morenomateos'])
+        #     self.off_target_azimuth = 0 #scores.off_target_score(off_targets['azimuth'], on_targets['azimuth'])
+        # except ZeroDivisionError:
+        #     print(self, file=sys.stderr)
+        #     for i in calculations:
+        #         print(i, off_targets[i], on_targets[i], file=sys.stderr)
     
     def __repr__(self):
         """Return a string containing a printable representation of the Sequence object."""
@@ -397,9 +519,9 @@ class Sequence(object):
             ', ' + self.contig + \
             ':' + str(self.contig_start) + '..' + str(self.contig_end) + \
             ', ' + self.contig_target + '|' + self.contig_pam + \
-            ', motif=' + self.motif + \
+            ', motif=' + self.contig_motif + \
             ', azimuth=' + str(round(self.azimuth, 2)) + \
-            ', off-target=' + str(round(self.off_target_hsuzhang, 2)) + \
+            ', off-target=' + str(round(self.off_targets['hsuzhang'], 2)) + \
             ', alignments=' + str(len(self.alignments)) + ')'
 
 class CustomHelpFormatter(argparse.HelpFormatter):
@@ -1278,6 +1400,12 @@ def main():
         # Open and parse the GFF file specified on the command line
         features = utils.load_gff_file(args.gff, args.features, args.tag)
         
+        # Make index of homologs
+        if args.feature_homologs:
+            homologs = utils.load_homologs(args.feature_homologs)
+        else:
+            homologs = None
+        
         # Merge features?
         #features = merge_features(features)
         
@@ -1298,7 +1426,7 @@ def main():
         
         # Calculate off-target/guide scores for each algorithm
         for s in ex_alignments:
-            s.score()
+            s.score(args, homologs, features)
         
         # make list of all sequences to calculate Azimuth score on
         queries = []
@@ -1340,7 +1468,7 @@ def main():
         
         # Calculate off-target/guide scores for each algorithm
         for s in re_alignments:
-            s.score()
+            s.score(args, homologs, features)
         
         # make list of all sequences to calculate Azimuth score on
         queries = []

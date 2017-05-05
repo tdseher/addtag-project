@@ -304,18 +304,26 @@ def load_git_version():
 
 def load_homologs(filename, sep="\t"):
     """
-    parses homolog file
+    Parse homolog file.
+    Arguments
+     - filename
+     - column separator (optional)
+    Returns
+     - dictionary of homolog groups
     """
     homologs = {}
     with open(filename, 'r') as flo:
         for line in flo:
-            sline = line.split(sep)
+            sline = line.rstrip().split(sep)
             for h1 in sline[1:]:
                 for h2 in sline[1:]:
                     if (h1 != h2):
-                        homologs.setdefault(h1, set([h2])).add(h2)
+                        homologs.setdefault(h1, set()).add(h2)
+    #print("homologs:", file=sys.stderr)
+    #for h in homologs:
+    #    print(' ', h, homologs[h], file=sys.stderr)
+    print('Homologs file parsed: {!r}'.format(filename), file=sys.stderr)
     return homologs
-
 
 def generate_excision_spacers(filename, sequences, sep=':'):
     """
@@ -328,8 +336,8 @@ def generate_excision_spacers(filename, sequences, sep=':'):
             print(">" + s.feature + sep + s.contig + sep + s.contig_orientation + \
                 sep + str(s.contig_start) + '..' + str(s.contig_end) + \
                 ' motif=' + s.contig_motif + \
-                ' on-target=' + str(round(s.azimuth,2)) + \
-                ' off-target=' + str(round(s.off_target_hsuzhang,2)) + \
+                ' on-target=' + str(round(s.azimuth, 2)) + \
+                ' off-target=' + str(round(s.off_targets['hsuzhang'], 2)) + \
                 ' alignments=' + str(len(s.alignments)), file=flo)
             print(s.contig_sequence, file=flo)
     print('Excision spacers FASTA generated: {!r}'.format(filename), file=sys.stderr)
