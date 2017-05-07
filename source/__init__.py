@@ -1482,7 +1482,11 @@ def main():
         reversion_spacers_file = utils.generate_excision_spacers(os.path.join(args.folder, 'reversion-spacers.fasta'), re_alignments, sep=':')
         
         
-        
+        # Print the sequences
+        for s in re_alignments:
+            print(s)
+            for a in s.alignments:
+                print('  ', a)
         
         
         

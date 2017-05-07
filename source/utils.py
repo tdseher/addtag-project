@@ -302,23 +302,77 @@ def load_git_version():
         version = 'missing'
     return version
 
-def load_homologs(filename, sep="\t"):
+def merge_sets(sets):
+    """
+    Merge sets into non-overlapping groups.
+    """
+    groups = []
+    pending_sets = sets[:]
+    while (len(pending_sets) > 0):
+        current, *rest = pending_sets
+        current = set(current)
+        
+        # keep looping through the rest as long as the current set
+        # is being updated
+        previous_length = -1
+        while (previous_length < len(current)):
+            previous_length = len(current)
+    
+            rest2 = []
+            # Loop through the remaining sets
+            for r in rest:
+                # If the remaining set overlaps with the current one, then
+                # update the current one
+                if (len(current.intersection(set(r))) > 0):
+                    current.update(set(r))
+                # Otherwise, add the non-overlapping sets to rest
+                else:
+                    rest2.append(r)     
+            rest = rest2
+    
+        groups.append(current)
+        pending_sets = rest
+    
+    return groups
+
+def load_homologs(filename, sep="\t", headers=True):
     """
     Parse homolog file.
     Arguments
      - filename
-     - column separator (optional)
+     - column separator ("\t" by default)
+     - row headers (True by default)
     Returns
      - dictionary of homolog groups
     """
-    homologs = {}
+    # homologs = {}
+    # with open(filename, 'r') as flo:
+    #     for line in flo:
+    #         sline = line.rstrip().split(sep)
+    #         if headers:
+    #             row = sline[1:]
+    #         else:
+    #             row = sline
+    #         for h1 in row:
+    #             for h2 in row:
+    #                 if (h1 != h2):
+    #                     homologs.setdefault(h1, set()).add(h2)
+    
+    sets = []
     with open(filename, 'r') as flo:
         for line in flo:
             sline = line.rstrip().split(sep)
-            for h1 in sline[1:]:
-                for h2 in sline[1:]:
-                    if (h1 != h2):
-                        homologs.setdefault(h1, set()).add(h2)
+            if headers:
+                sets.append(set(sline[1:]))
+            else:
+                sets.append(set(sline))
+    
+    groups = merge_sets(sets)
+    homologs = {}
+    for group in groups:
+        for g in group:
+            homologs[g] = group
+    
     #print("homologs:", file=sys.stderr)
     #for h in homologs:
     #    print(' ', h, homologs[h], file=sys.stderr)
