@@ -2,7 +2,7 @@
 
 """AddTag Copyright (c) 2016 Thaddeus D. Seher & Aaron Hernday"""
 
-# source/bowtie2.py
+# source/aligners/bowtie2.py
 
 # List general Python imports
 import sys
@@ -13,7 +13,25 @@ import subprocess
 import regex
 
 # import AddTag-specific packages
-from . import utils
+from .. import utils
+
+if (__name__ == "__main__"):
+    from aligner import Aligner
+else:
+    from .aligner import Aligner
+
+class Bowtie2(PairedSequenceAlgorithm):
+    def __init__(self):
+        super().__init__("Bowtie 2", "Langmead & Salzberg", 2012,
+            citation="Langmead & Salzberg. Fast gapped-read alignment with Bowtie 2. Nature Methods 9, 357-359 (2012)"
+        )
+    
+    def index(self, genome_fasta, *args, **kwargs):
+        pass
+    
+    def align(self, index, output, *args, **kwargs):
+        pass
+
 
 def align(query, index, threads=(os.cpu_count() or 1), folder=os.getcwd(), options=None):
     """Aligns sequences using Bowtie 2
@@ -179,7 +197,7 @@ def cleanup():
     '''remove all files generated'''
     pass
 
-def test():
+def old_test():
     """Code to test the classes and functions in 'source/bowtie2.py'"""
     
     print("=== index_reference ===")
@@ -201,7 +219,13 @@ def test():
     
     print("=== align ===")
     sam = align('temp_ca_alignment', sequences, ref)
-    
+
+def test():
+    """Code to test the alignment"""
+    print("=== Bowtie 2 ===")
+    C = Bowtie2()
+    C.index('')
+    C.align('', '')
 
 if (__name__ == '__main__'):
     test()

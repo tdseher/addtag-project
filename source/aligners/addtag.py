@@ -2,7 +2,7 @@
 
 """AddTag Copyright (c) 2016 Thaddeus D. Seher & Aaron Hernday"""
 
-# source/nucleotides.py
+# source/aligners/addtag.py
 
 # List general Python imports
 import sys
@@ -11,8 +11,8 @@ import sys
 import regex
 
 # import AddTag-specific packages
-from . import utils
-from . import nucleotides
+from .. import utils
+from .. import nucleotides
 
 def find_target_matches(compiled_regex, contigs, overlap=False):
     '''

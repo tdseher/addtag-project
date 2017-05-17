@@ -2,7 +2,7 @@
 
 """AddTag Copyright (c) 2016 Thaddeus D. Seher & Aaron Hernday"""
 
-# source/cctop.py
+# source/aligners/cctop.py
 
 # List general Python imports
 import sys

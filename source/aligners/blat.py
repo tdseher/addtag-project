@@ -2,7 +2,7 @@
 
 """AddTag Copyright (c) 2016 Thaddeus D. Seher & Aaron Hernday"""
 
-# source/blat.py
+# source/aligners/blat.py
 
 # List general Python imports
 import sys
@@ -13,7 +13,7 @@ import subprocess
 import regex
 
 # import AddTag-specific packages
-from . import utils
+from .. import utils
 
 def align(outfile, queryfile, subjectfile):
     """Aligns sequences using BLAT"""

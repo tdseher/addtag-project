@@ -2,7 +2,7 @@
 
 """AddTag Copyright (c) 2016 Thaddeus D. Seher & Aaron Hernday"""
 
-# source/blastplus.py
+# source/aligners/blastplus.py
 
 # List general Python imports
 import sys
@@ -13,7 +13,7 @@ import subprocess
 import regex
 
 # import AddTag-specific packages
-from . import utils
+from .. import utils
 
 # Requires BLAST+ >= 2.6.0
 #  because it has SAM format output

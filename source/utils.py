@@ -390,8 +390,8 @@ def generate_excision_spacers(filename, sequences, sep=':'):
             print(">" + s.feature + sep + s.contig + sep + s.contig_orientation + \
                 sep + str(s.contig_start) + '..' + str(s.contig_end) + \
                 ' motif=' + s.contig_motif + \
-                ' on-target=' + str(round(s.azimuth, 2)) + \
-                ' off-target=' + str(round(s.off_targets['hsuzhang'], 2)) + \
+                ' on-target=' + str(round(s.score['Azimuth'], 2)) + \
+                ' off-target=' + str(round(s.off_targets['Hsu-Zhang'], 2)) + \
                 ' alignments=' + str(len(s.alignments)), file=flo)
             print(s.contig_sequence, file=flo)
     print('Excision spacers FASTA generated: {!r}'.format(filename), file=sys.stderr)
@@ -410,8 +410,8 @@ def generate_reversion_spacers(filename, sequences, sep=':'):
                 sep + str(s.contig_start) + '..' + str(s.contig_end) + \
                 sep + s.feature + sep + s.contig + \
                 ' motif=' + s.contig_motif + \
-                ' on-target=' + str(round(s.azimuth,2)) + \
-                ' off-target=' + str(round(s.off_target_hsuzhang,2)) + \
+                ' on-target=' + str(round(s.score['Azimuth'], 2)) + \
+                ' off-target=' + str(round(s.off_targets['Hsu-Zhang'], 2)) + \
                 ' alignments=' + str(len(s.alignments)), file=flo)
             print(s.contig_sequence, file=flo)
     print('Excision spacers FASTA generated: {!r}'.format(filename), file=sys.stderr)

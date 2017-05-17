@@ -19,12 +19,9 @@ import regex
 from . import utils
 from . import nucleotides
 from . import scores
-from . import hsuzhang
-from . import housden
-from . import morenomateos
-from . import doench
-from . import azimuth
-from . import bowtie2
+from . import algorithms
+
+from .aligners import bowtie2
 
 # Define meta variables
 __author__ = "Thaddeus D. Seher (@tdseher) & Aaron Hernday"
@@ -251,16 +248,6 @@ class Sequence(object):
     deletion_threshold = 2
     error_threshold = 5
     
-    score_thresholds = {
-        'doench2014': 1.0,
-        'doench2016': 1.0,
-        'hsuzhang': 0.1,
-        'linear': 80.0,
-        'housden': -3.0,
-        'morenomateos': 1.0,
-        'azimuth': 1.0,
-    }
-    
     def __init__(self, feature, contig_sequence, args, contig=None, contig_orientation='+', contig_start=None, contig_end=None, feature_orientation=None, contig_upstream='', contig_downstream=''):
         """Create a structure for holding individual sequence information"""
         self.feature = feature
@@ -281,34 +268,31 @@ class Sequence(object):
         # List to store alignments
         self.alignments = []
         
-        # query sequence only
-        self.gc = scores.gc_score(self.contig_target)
-        self.doench2014 = doench.on_target_score_2014(self.contig_target, self.contig_pam, upstream='', downstream='')
-        self.doench2016 = 100 # assume perfect match (should NOT assume if ambiguities in reference)
-        self.hsuzhang = 100 # assume perfect match (should NOT assume if ambiguities in reference)
-        self.linear = 100 # assume perfect match (should NOT assume if ambiguities in reference)
-        self.housden = housden.housden_score(self.contig_target)
-        self.morenomateos = morenomateos.morenomateos_score(self.contig_target, self.contig_pam, upstream='', downstream='')
-        self.azimuth = 0 #azimuth.azimuth_score(self.contig_target, self.contig_pam, upstream=self.contig_upstream, downstream=self.contig_downstream)
+        # Scores for this sequence only (not PairedSequenceAlgorithm)
+        self.score = {}
+        self.calculate_default_scores()
         
-        # query x subject score
-        self.off_targets = {
-            'doench2014': None,
-            'doench2016': None,
-            'hsuzhang': None,
-            'linear': None,
-            'housden': None,
-            'morenomateos': None,
-            'azimuth': None,
-        }
-        
-        #self.off_target_doench2014 = None
-        #self.off_target_doench2016 = None
-        #self.off_target_hsuzhang = None
-        #self.off_target_linear = None
-        #self.off_target_housden = None
-        #self.off_target_morenomateos = None
-        #self.off_target_azimuth = None
+        self.off_targets = {}
+    
+    def calculate_default_scores(self):
+        """Populate this scores for this Sequence"""
+        #parent = (self.sequence, self.target, self.pam, self.upstream, self.downstream)
+        parent = (self.contig_sequence, self.contig_target, self.contig_pam, self.contig_upstream, self.contig_downstream)
+        for C in algorithms.single_algorithms:
+            if (C.default != None):
+                self.score[C.name] = C.default
+            else:
+                self.score[C.name] = C.calculate(parent)
+        for C in algorithms.paired_algorithms:
+            if (C.default != None):
+                self.score[C.name] = C.default
+            else:
+                self.score[C.name] = 0.0
+    
+    def calculate_alignment_scores(self):
+        parent = (self.contig_sequence, self.contig_target, self.contig_pam, self.contig_upstream, self.contig_downstream)
+        for a in self.alignments:
+            a.calculate_scores(parent)
     
     def split_spacer_pam(self, sequence, args):
         r_spacer = None
@@ -337,6 +321,29 @@ class Sequence(object):
         return r_spacer, r_pam, r_motif
     
     def add_alignment(self, aligned_sequence, args, aligned_contig, aligned_start, aligned_end, aligned_orientation, aligned_upstream, aligned_downstream):
+        """Add a genomic position to the list of alignments"""
+        #parent = (self.sequence, self.target, self.pam, self.upstream, self.downstream)
+        parent = (self.contig_sequence, self.contig_target, self.contig_pam, self.contig_upstream, self.contig_downstream)
+        aligned_target, aligned_pam, aligned_motif = self.split_spacer_pam(aligned_sequence, args)
+        if ((aligned_target != None) and (aligned_pam != None)):
+            a = Alignment(
+                aligned_sequence,
+                aligned_target,
+                aligned_pam,
+                aligned_motif,
+                aligned_contig,
+                aligned_start,
+                aligned_end,
+                aligned_orientation,
+                upstream=aligned_upstream,
+                downstream=aligned_downstream
+            )
+            a.calculate_scores(parent)
+            self.alignments.append(a)
+        else:
+            print('Cannot add alignment:', aligned_sequence, aligned_contig, aligned_start, aligned_end, aligned_orientation, file=sys.stderr)
+        
+    def old_add_alignment(self, aligned_sequence, args, aligned_contig, aligned_start, aligned_end, aligned_orientation, aligned_upstream, aligned_downstream):
         """Add a genomic position to the list of alignments"""
         aligned_target, aligned_pam, aligned_motif = self.split_spacer_pam(aligned_sequence, args)
         if ((aligned_target != None) and (aligned_pam != None)):
@@ -423,7 +430,61 @@ class Sequence(object):
         coverage = self.overlap_coverage(start1, end1, start2, end2)
         return float(coverage) / max(len1, len2)
     
-    def score(self, args, homologs, features):
+    def score_off_targets(self, args, homologs, features):
+        """
+        Calculate Guide Score (off-target score) for all single/paired
+        algorithms with the 'off_target=True' attribute.
+        """
+        calculators = []
+        
+        for C in algorithms.single_algorithms:
+            if C.off_target:
+                calculators.append(C)
+        for C in algorithms.paired_algorithms:
+            if C.off_target:
+                calculators.append(C)
+        #for C in algorithms.batched_single_algorithms:
+        #    if C.off_target:
+        #        calculators.append(C)
+        
+        on_targets = {}
+        off_targets = {}
+        for C in calculators:
+            on_targets[C.name] = []
+            off_targets[C.name] = []
+        
+        on_target_features = set([self.feature])
+        if homologs:
+            on_target_features.update(homologs.get(self.feature, set()))
+        
+        for a in self.alignments:
+            #a_features = self.get_features(features, a[3], a[4], a[5]) # contig, start, end
+            a_features = self.get_features(features, a.contig, a.start, a.end) # contig, start, end
+            
+            # If the divergence is reasonable
+            if ((a.score['substitutions'] <= self.substitution_threshold) and
+                (a.score['insertions'] <= self.insertion_threshold) and
+                (a.score['deletions'] <= self.deletion_threshold) and 
+                (a.score['errors'] <= self.error_threshold)
+            ):
+                for i, C in enumerate(calculators):
+                    #c_score = a[10+i]
+                    c_score = a.score[C.name]
+                    if (C.minimum <= c_score <= C.maximum):
+                        # if alignment is NOT a target:
+                        if ((a_features == None) or (len(on_target_features.intersection(a_features)) == 0)):
+                            off_targets[C.name].append(c_score)
+                        # if alignment is a target
+                        else:
+                            on_targets[C.name].append(c_score)
+        
+        for C in calculators:
+            try:
+                self.off_targets[C.name] = scores.off_target_score(off_targets[C.name], on_targets[C.name])
+            except ZeroDivisionError:
+                self.off_targets[C.name] = 0.0 # This happens if the reversion-gRNA targets the excision-dDNA
+        
+    def old_score(self, args, homologs, features):
         """Calculate Guide scores for each algorithm"""
         calculations = [
             'doench2014',
@@ -520,9 +581,62 @@ class Sequence(object):
             ':' + str(self.contig_start) + '..' + str(self.contig_end) + \
             ', ' + self.contig_target + '|' + self.contig_pam + \
             ', motif=' + self.contig_motif + \
-            ', azimuth=' + str(round(self.azimuth, 2)) + \
-            ', off-target=' + str(round(self.off_targets['hsuzhang'], 2)) + \
-            ', alignments=' + str(len(self.alignments)) + ')'
+            ', alignments=' + str(len(self.alignments)) + \
+            ', ' + ', '.join([x + '=' + str(round(self.score[x], 2)) for x in self.score]) + \
+            ', ' + ', '.join(['OT: ' + x + '=' + str(round(self.off_targets[x], 2)) for x in self.off_targets]) + \
+            ')'
+            #', azimuth=' + str(round(self.azimuth, 2)) + \
+            #', off-target=' + str(round(self.off_targets['hsuzhang'], 2)) + \
+            
+
+class Alignment():
+    """Class primarily representing a SAM alignment"""
+    def __init__(self, sequence, target, pam, motif, contig, start, end, orientation, upstream='', downstream=''):
+        # Most attributes derived from SAM output
+        self.sequence = sequence
+        self.target = target
+        self.pam = pam
+        self.motif = motif
+        self.contig = contig
+        self.start = start
+        self.end = end
+        self.orientation = orientation
+        
+        self.upstream = upstream
+        self.downstream = downstream
+        
+        # Variable to hold the scores
+        self.score = {}
+        
+        # Haven't yet added:
+        #  lidentities, ridentities, r_score, bae, chari, oof, proxgc, want, xu
+        #self.ridentities = nucleotides.ridentities(self.contig_target, aligned_target)
+        #self.r_scores = {}
+        #for i in [4, 8, 12, 16]:
+        #    self.r_scores[i] = scores.r_score(self.contig_target, aligned_target, i)
+    
+    def calculate_scores(self, parent):
+        # parent = (sequence, target, pam, upstream, downstream)
+        this = (self.sequence, self.target, self.pam, self.upstream, self.downstream)
+        for C in algorithms.single_algorithms:
+            self.score[C.name] = C.calculate(this)
+        for C in algorithms.paired_algorithms:
+            self.score[C.name] = C.calculate(parent, this)
+        
+        # Since the distance algorithms aren't working correctly, temporarily
+        # hard code these to 0
+        self.score['substitutions'] = 0
+        self.score['insertions'] = 0
+        self.score['deletions'] = 0
+        self.score['errors'] = 0
+    
+    def get_upstream_sequence(self, length, contigs):
+        """Returns upstream sequence"""
+        return ''
+    
+    def get_downstream_sequence(self, length, contigs):
+        """Returns downstream sequence"""
+        return ''
 
 class CustomHelpFormatter(argparse.HelpFormatter):
     """Help message formatter which retains any formatting in descriptions
@@ -1426,15 +1540,16 @@ def main():
         
         # Calculate off-target/guide scores for each algorithm
         for s in ex_alignments:
-            s.score(args, homologs, features)
+            s.score_off_targets(args, homologs, features)
         
         # make list of all sequences to calculate Azimuth score on
         queries = []
         for s in ex_alignments:
-            queries.append((s.contig_target, s.contig_pam, s.contig_upstream, s.contig_downstream))
-        azimuth_scores = azimuth.batch_azimuth_score(queries)
-        for i, s in enumerate(ex_alignments):
-            s.azimuth = azimuth_scores[i]
+            queries.append((s.contig_sequence, s.contig_target, s.contig_pam, s.contig_upstream, s.contig_downstream))
+        for C in algorithms.batched_single_algorithms:
+            batch_scores = C.calculate(queries)
+            for i, s in enumerate(ex_alignments):
+                s.score[C.name] = batch_scores[i]
         
         # Generate the FASTA with the final scores
         excision_spacers_file = utils.generate_excision_spacers(os.path.join(args.folder, 'excision-spacers.fasta'), ex_alignments, sep=':')
@@ -1468,15 +1583,19 @@ def main():
         
         # Calculate off-target/guide scores for each algorithm
         for s in re_alignments:
-            s.score(args, homologs, features)
+            s.score_off_targets(args, homologs, features)
         
         # make list of all sequences to calculate Azimuth score on
         queries = []
         for s in re_alignments:
-            queries.append((s.contig_target, s.contig_pam, s.contig_upstream, s.contig_downstream))
-        azimuth_scores = azimuth.batch_azimuth_score(queries)
-        for i, s in enumerate(re_alignments):
-            s.azimuth = azimuth_scores[i]
+            queries.append((s.contig_sequence, s.contig_target, s.contig_pam, s.contig_upstream, s.contig_downstream))
+        for C in algorithms.batched_single_algorithms:
+            batch_scores = C.calculate(queries)
+            for i, s in enumerate(re_alignments):
+                s.score[C.name] = batch_scores[i]
+        
+        
+        
         
         # Generate the FASTA with the final scores
         reversion_spacers_file = utils.generate_excision_spacers(os.path.join(args.folder, 'reversion-spacers.fasta'), re_alignments, sep=':')

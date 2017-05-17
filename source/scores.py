@@ -13,40 +13,6 @@ import regex
 # import AddTag-specific packages
 from . import nucleotides
 
-class Score():
-    """
-    General class that should be subclassed when adding a new score
-    """
-    def __init__(self):
-        """
-        Create a new instance of the Score class
-        """
-        self.name = 'name'
-        self.citation = 'AddTag (2017)'
-        self.include_in_off_target_score_calculation = True
-        
-        # Only include this score in 'off-target-score' calculation when this
-        # score is between these values
-        self.threshold = (1, 100)
-        
-    
-    def calculate(self, sequence):
-        """
-        Algorithm to calculate score based on input sequence
-        """
-        return 0.0
-
-class HsuZhang(Score):
-    """
-    """
-    def __init__(self):
-        self.name = 'HsuZhang'
-        self.citation = 'Hsu et al (XXXX)'
-        self.include_in_off_target_score_calculation = False
-        self.threshold = (0.1, 100)
-    def calculate(self, sequence):
-        pass
-
 def linear_score(seq1, seq2):
     """Scores lower if substitutions near 3' end of the sequence
     Should be gRNA only, with no PAM

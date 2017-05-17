@@ -2,10 +2,12 @@
 
 """AddTag Copyright (c) 2016 Thaddeus D. Seher & Aaron Hernday"""
 
-# source/azimuth/azimuth.py
+# source/algorithms/azimuth_wrapper.py
 
+# Import standard packages
 import sys
 
+# Import non-standard packages
 import azimuth.model_comparison
 import numpy as np
 
