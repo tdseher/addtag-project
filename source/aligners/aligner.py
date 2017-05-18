@@ -13,15 +13,17 @@ class Aligner(object): # Name of the subclass
         author,
         year,
         citation=None,
+        output='sam',
     ):
         """
         Specify general information regarding this new instance of the 
         Aligner class.
         """
-        self.name = name             # Unique name for the algorithm (str). No other Aligner objects should have this name.
-        self.author = author         # Author of the algorithm (str)
-        self.year = year             # Year algorithm published (int)
-        self.citation = citation     # Citation (None, str)
+        self.name = name         # Unique name for the algorithm (str). No other Aligner objects should have this name.
+        self.author = author     # Author of the algorithm (str)
+        self.year = year         # Year algorithm published (int)
+        self.citation = citation # Citation (None, str)
+        self.output = output     # Designate the output format the alignment will be in, so AddTag can select the correct parser
         
     def index(self):
         pass

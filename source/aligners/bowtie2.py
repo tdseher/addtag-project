@@ -20,7 +20,7 @@ if (__name__ == "__main__"):
 else:
     from .aligner import Aligner
 
-class Bowtie2(PairedSequenceAlgorithm):
+class Bowtie2(Aligner):
     def __init__(self):
         super().__init__("Bowtie 2", "Langmead & Salzberg", 2012,
             citation="Langmead & Salzberg. Fast gapped-read alignment with Bowtie 2. Nature Methods 9, 357-359 (2012)"

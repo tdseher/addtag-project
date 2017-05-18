@@ -583,13 +583,13 @@ class Sequence(object):
             ', motif=' + self.contig_motif + \
             ', alignments=' + str(len(self.alignments)) + \
             ', ' + ', '.join([x + '=' + str(round(self.score[x], 2)) for x in self.score]) + \
-            ', ' + ', '.join(['OT: ' + x + '=' + str(round(self.off_targets[x], 2)) for x in self.off_targets]) + \
+            ', ' + ', '.join(['OT:' + x + '=' + str(round(self.off_targets[x], 2)) for x in self.off_targets]) + \
             ')'
             #', azimuth=' + str(round(self.azimuth, 2)) + \
             #', off-target=' + str(round(self.off_targets['hsuzhang'], 2)) + \
             
 
-class Alignment():
+class Alignment(object):
     """Class primarily representing a SAM alignment"""
     def __init__(self, sequence, target, pam, motif, contig, start, end, orientation, upstream='', downstream=''):
         # Most attributes derived from SAM output
@@ -637,6 +637,23 @@ class Alignment():
     def get_downstream_sequence(self, length, contigs):
         """Returns downstream sequence"""
         return ''
+    
+    def __repr__(self):
+        return 'Alignment(' + \
+            self.contig + ':' + self.orientation + ':' + str(self.start) + '..' + str(self.end) + \
+            ', ' + self.target + '|' + self.pam + \
+            ', motif=' + self.motif + \
+            ', ' + ', '.join([x + '=' + str(round(self.score[x], 2)) for x in self.score]) + \
+            ')'
+
+class excision_dDNA(object):
+    def __init__(self, contig, segment1, segment2, insert):
+        self.contig = contig,
+        self.segment1 = segment1 # (start1, end1)
+        self.segment2 = segment2 # (start2, end2)
+        self.insert = insert
+    # >dDNA-0 C2_10210C_B:Ca22chr2B_C_albicans_SC5314:+:2096471..2096521:CCA:2097397:2097444
+    
 
 class CustomHelpFormatter(argparse.HelpFormatter):
     """Help message formatter which retains any formatting in descriptions
@@ -908,11 +925,11 @@ def parse_arguments():
         help="Features to design gRNAs against. Must exist in GFF file. Examples: 'CDS', 'gene', 'mRNA', 'exon'")
     parser.add_argument("--target_gc", nargs=2, metavar=('MIN', 'MAX'), type=int, default=[25, 75],
         help="Generated gRNA spacers must have %%GC content between these values (excludes PAM motif)")
-    parser.add_argument("--excise_upstream_homology", nargs=2, metavar=("MIN", "MAX"), type=int, default=[40,60],
+    parser.add_argument("--excise_upstream_homology", nargs=2, metavar=("MIN", "MAX"), type=int, default=[50,50],
         help="Range of homology lengths acceptable for knock-out dDNAs, inclusive.")
-    parser.add_argument("--excise_downstream_homology", nargs=2, metavar=("MIN", "MAX"), type=int, default=[40,60],
+    parser.add_argument("--excise_downstream_homology", nargs=2, metavar=("MIN", "MAX"), type=int, default=[47,50],
         help="Range of homology lengths acceptable for knock-out dDNAs, inclusive.")
-    parser.add_argument("--excise_donor_lengths", nargs=2, metavar=('MIN', 'MAX'), type=int, default=[90, 100],
+    parser.add_argument("--excise_donor_lengths", nargs=2, metavar=('MIN', 'MAX'), type=int, default=[100, 100],
         help="Range of lengths acceptable for knock-out dDNAs, inclusive.")
     parser.add_argument("--excise_insert_lengths", nargs=2, metavar=("MIN", "MAX"), type=int, default=[0,3],
         help="Range for inserted DNA lengths, inclusive (mini-AddTag, mAT). If MIN < 0, then regions of dDNA homology (outside the feature) will be removed.")
@@ -921,11 +938,11 @@ def parse_arguments():
              from the edge of the feature. If negative, gRNAs will target nucleotides \
              this distance outside the feature.")
     parser.add_argument("--excise_upstream_feature_trim", nargs=2, metavar=('MIN', 'MAX'),
-        type=int, default=[0, 6], help="Between MIN and MAX number of nucleotides \
+        type=int, default=[0, 0], help="Between MIN and MAX number of nucleotides \
         upstream of the feature will be considered for knock-out when designing \
         donor DNA.")
     parser.add_argument("--excise_downstream_feature_trim", nargs=2, metavar=("MIN", "MAX"),
-        type=int, default=[0, 6], help="Between MIN and MAX number of nucleotides \
+        type=int, default=[0, 0], help="Between MIN and MAX number of nucleotides \
         downstream of the feature will be considered for knock-out when designing \
         donor DNA.")
     #parser.add_argument("--min_donor_insertions", metavar="N", type=int, default=2,

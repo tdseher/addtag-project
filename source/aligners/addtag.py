@@ -6,6 +6,7 @@
 
 # List general Python imports
 import sys
+import os
 
 # import non-standard package
 import regex
