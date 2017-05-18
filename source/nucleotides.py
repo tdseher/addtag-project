@@ -195,7 +195,7 @@ def build_regex_pattern(iupac_sequence, max_substitutions=0, max_insertions=0, m
         pattern = '(' + sequence + ')' + fuzzy
     else:
         pattern = '(?:' + sequence + ')' + fuzzy
-    print('Built regex string: {!r}'.format(pattern), file=sys.stderr)
+    print('Built regex string: {!r}'.format(pattern))
     return pattern
 
 # So far for DNA only
@@ -262,7 +262,7 @@ def build_regex(iupac_sequence, case_sensitive=False, max_substitutions=0, max_i
     }
     sequence = ''.join(map(lambda x: iupac[x], iupac_sequence))
     pattern = '(' + sequence + ')' + fuzzy
-    print('Compiled regex: {!r}'.format(pattern), file=sys.stderr)
+    print('Compiled regex: {!r}'.format(pattern))
     compiled_regex = regex.compile(pattern, flags=myflags)
     return compiled_regex
 

@@ -758,6 +758,7 @@ def load_sam_file_test(filename, args, contigs, sep=':'):
                     #if (dbg1 == dbg2):
                     #    print("problem: ", source, file=sys.stderr)
     
+    print('SAM file parsed: {!r}'.format(filename))
     #return list(alignments.values()) # unsorted list
     return list(map(lambda x: alignments[x], sorted(alignments))) # sorted
 
@@ -856,6 +857,7 @@ def load_reversion_sam_file_test(filename, args, contigs, donors, sep=':'):
                         alignment_downstream,
                     )
     
+    print('SAM file parsed: {!r}'.format(filename))
     return list(map(lambda x: alignments[x], sorted(alignments))) # sorted
 
 def parse_arguments():
@@ -1522,6 +1524,9 @@ def main():
         # Get timestamp
         start = time.time()
         
+        # Echo the command line parameters to STDOUT
+        print(args)
+        
         # Create the project directory if it doesn't exist
         os.makedirs(args.folder, exist_ok=True)
         
@@ -1627,12 +1632,12 @@ def main():
         
         
         # Print time taken for program to complete
-        print('Runtime: {}s'.format(time.time()-start), file=sys.stderr)
+        print('Runtime: {}s'.format(time.time()-start))
 
 def test(args):
     """Code to test the classes and functions in 'source/__init__.py'"""
     # Echo the command line parameters
-    print(args, file=sys.stderr)
+    print(args)
     
     sys.exit()
     
@@ -1707,4 +1712,4 @@ def test(args):
     print(doench.on_target_score_2016(gRNAa, gRNAd, pam))
     
     # Print time taken for program to complete
-    print('Runtime: {}s'.format(time.time()-start), file=sys.stderr)
+    print('Runtime: {}s'.format(time.time()-start))

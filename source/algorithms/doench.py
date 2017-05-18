@@ -5,6 +5,7 @@
 # source/algorithms/doench.py
 
 # Import standard packages
+import sys
 import os
 import math
 import fractions
@@ -13,12 +14,20 @@ import fractions
 import regex
 import subprocess
 
+# Treat modules in PACKAGE_PARENT as in working directory
 if (__name__ == "__main__"):
+    # Relative path for package to import
+    PACKAGE_PARENT = '..'
+    # Obtain path of currently-running file
+    SCRIPT_DIR = os.path.dirname(os.path.realpath(os.path.join(os.getcwd(), os.path.expanduser(__file__))))
+    # Convert to absolute path, and add to the PYTHONPATH
+    sys.path.append(os.path.normpath(os.path.join(SCRIPT_DIR, PACKAGE_PARENT)))
+    
     from algorithm import SingleSequenceAlgorithm, PairedSequenceAlgorithm, BatchedSingleSequenceAlgorithm
-    from nucleotides import rc # to change
+    from nucleotides import rc
 else:
     from .algorithm import SingleSequenceAlgorithm, PairedSequenceAlgorithm, BatchedSingleSequenceAlgorithm
-    from .nucleotides import rc # to change
+    from ..nucleotides import rc
 
 class Doench2014(SingleSequenceAlgorithm):
     def __init__(self):
@@ -383,27 +392,27 @@ def test():
     
     print("=== Doench2014 ===")
     C = Doench2014()
-    print(C.calculate(a)) # 
-    print(C.calculate(b)) # 
-    print(C.calculate(c)) # 
-    print(C.calculate(d)) # 
-    print(C.calculate(e)) # 
-    print(C.calculate(f)) # 
+    print(C.calculate(a)) # 49.18420140306892
+    print(C.calculate(b)) # 16.668179672077244
+    print(C.calculate(c)) # 32.30335056113513
+    print(C.calculate(d)) # 43.173287661422385
+    print(C.calculate(e)) # 62.564461061593754
+    print(C.calculate(f)) # 22.59673843434246
     
     print("=== Doench2016 ===")
     C = Doench2016()
-    print(C.calculate(a, a)) # 
-    print(C.calculate(a, b)) # 
-    print(C.calculate(a, c)) # 
-    print(C.calculate(a, d)) # 
-    print(C.calculate(a, e)) # 
-    print(C.calculate(a, f)) # 
+    print(C.calculate(a, a)) # 100.0
+    print(C.calculate(a, b)) # 0.0
+    print(C.calculate(a, c)) # 0.0
+    print(C.calculate(a, d)) # 0.008843903254636097
+    print(C.calculate(a, e)) # 21.482277090941643
+    print(C.calculate(a, f)) # 42.8571429
     
     print("=== Azimuth ===")
     C = Azimuth()
-    print(C.calculate([g]))
-    print(C.calculate([h]))
-    print(C.calculate([g, h, i]))
+    print(C.calculate([g])) # [0.0]
+    print(C.calculate([h])) # [0.0]
+    print(C.calculate([g, h, i])) # [0.0, 0.0, 68.10224199640001]
 
 if (__name__ == "__main__"):
     test()

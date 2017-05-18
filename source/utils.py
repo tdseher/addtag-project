@@ -160,7 +160,7 @@ def load_fasta_file(filename):
         if (name != None):
             contigs[name] = seq
     
-    print('FASTA file parsed: {!r}'.format(filename), file=sys.stderr)
+    print('FASTA file parsed: {!r}'.format(filename))
     return contigs
 
 def load_gff_file(filename, features, tag):
@@ -245,7 +245,7 @@ def load_gff_file(filename, features, tag):
                         #           gene     contig       start(bp)          end(bp)    strand
                         annotations[m[0]] = (sline[0], int(sline[3])-1, int(sline[4]), sline[6])
     
-    print('GFF file parsed: {!r}'.format(filename), file=sys.stderr)
+    print('GFF file parsed: {!r}'.format(filename))
     return annotations
 
 def load_git_date():
@@ -376,7 +376,7 @@ def load_homologs(filename, sep="\t", headers=True):
     #print("homologs:", file=sys.stderr)
     #for h in homologs:
     #    print(' ', h, homologs[h], file=sys.stderr)
-    print('Homologs file parsed: {!r}'.format(filename), file=sys.stderr)
+    print('Homologs file parsed: {!r}'.format(filename))
     return homologs
 
 def generate_excision_spacers(filename, sequences, sep=':'):
@@ -394,7 +394,7 @@ def generate_excision_spacers(filename, sequences, sep=':'):
                 ' off-target=' + str(round(s.off_targets['Hsu-Zhang'], 2)) + \
                 ' alignments=' + str(len(s.alignments)), file=flo)
             print(s.contig_sequence, file=flo)
-    print('Excision spacers FASTA generated: {!r}'.format(filename), file=sys.stderr)
+    print('Excision spacers FASTA generated: {!r}'.format(filename))
     return filename
 
 def generate_reversion_spacers(filename, sequences, sep=':'):
@@ -414,7 +414,7 @@ def generate_reversion_spacers(filename, sequences, sep=':'):
                 ' off-target=' + str(round(s.off_targets['Hsu-Zhang'], 2)) + \
                 ' alignments=' + str(len(s.alignments)), file=flo)
             print(s.contig_sequence, file=flo)
-    print('Excision spacers FASTA generated: {!r}'.format(filename), file=sys.stderr)
+    print('Reversion spacers FASTA generated: {!r}'.format(filename))
     return filename
 
 def generate_excision_query(filename, sequences, sep=':'):
@@ -431,7 +431,7 @@ def generate_excision_query(filename, sequences, sep=':'):
             print(seq, file=flo)
             #print('+')
             #print('9'*len(seq))
-    print('Excision query FASTA generated: {!r}'.format(filename), file=sys.stderr)
+    print('Excision query FASTA generated: {!r}'.format(filename))
     return filename
 
 def generate_reversion_query(filename, sequences, sep=':'):
@@ -445,7 +445,7 @@ def generate_reversion_query(filename, sequences, sep=':'):
             dDNA_id, feature, contig, orientation, start, end, seq, side, spacer, pam = line
             print(">" + dDNA_id + sep + orientation + sep + str(start) + '..' + str(end) + sep + feature + sep + contig, file=flo)
             print(seq, file=flo)
-    print('Reversion query FASTA generated: {!r}'.format(filename), file=sys.stderr)
+    print('Reversion query FASTA generated: {!r}'.format(filename))
     return filename
 
 def generate_donor(filename, sequences, sep=':'):
@@ -459,7 +459,7 @@ def generate_donor(filename, sequences, sep=':'):
             dDNA_id, feature, contig, orientation, start1, end1, mAT, start2, end2, seq = line
             print(">" + dDNA_id + ' ' + feature + sep + contig + sep + orientation + sep + str(start1) + '..' + str(end1) + sep + mAT + sep + str(start2) + sep + str(end2), file=flo)
             print(seq, file=flo)
-    print('dDNA FASTA generated: {!r}'.format(filename), file=sys.stderr)
+    print('dDNA FASTA generated: {!r}'.format(filename))
     return filename
 
 def test():
