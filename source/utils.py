@@ -262,8 +262,8 @@ def load_git_date():
                 m = regex.search(' (\d{10,}) ([-+]?\d{4})\tcommit', line) # only works for ints
                 if m:
                     secs, off = m.groups()
-                    # Convert to GMT time
-                    seconds.append(int(secs) + int(off[:-2])*60*60)
+                    # seconds.append(int(secs) + int(off[:-2])*60*60) # Convert to GMT time
+                    seconds.append(int(secs)) # Don't convert time, as it will display in the correct local time
         date = str(datetime.datetime.fromtimestamp(seconds[-1]))
     except FileNotFoundError:
         date = 'missing'
