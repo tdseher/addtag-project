@@ -21,6 +21,7 @@ All generated sequences can be designed as either strand-specific or strand-agno
     
     note: The easy way to install this is through pip.
      > $ pip3 install regex
+
  * 3.0.0 > Python >= 2.7.10 ([source](https://www.python.org/downloads/), [binaries](https://www.python.org/downloads/), [documentation](https://docs.python.org/2/))
     - Azimuth module ([source](https://github.com/MicrosoftResearch/Azimuth), [documentation](https://www.microsoft.com/en-us/research/project/azimuth/))
     
