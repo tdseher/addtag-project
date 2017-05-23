@@ -35,6 +35,20 @@ All generated sequences can be designed as either strand-specific or strand-agno
     - BWA ([source](https://github.com/lh3/bwa), [documentation](http://bio-bwa.sourceforge.net/bwa.shtml))
     - Cas-OFFinder ([source](https://github.com/snugel/cas-offinder), [binaries](https://sourceforge.net/projects/cas-offinder/files/Binaries/), [documentation](http://www.rgenome.net/cas-offinder/portable))
 
+### Scoring algorithms ###
+Scoring algorithms have been broken down into two general types.
+ * Scores that compare a potential spacer to a model
+ * Scores that compare a potential spacer to a target
+
+Adding a new scoring algorithm is as simple as subclassing the above type, and adding it to a '*.py' file in the 'source/algorithms' subdirectory. AddTag will automatically calculate the score on every generated spacer.
+
+We welcome any pull requests to widen the repertoire of scoring algorithms available to AddTag. The easiest way to get started is to copy and modify one of the provided subclasses.
+
+### Alignment programs ###
+AddTag comes with wrappers for several alignment programs. Depending on your experimental design and computing system, you may decide to use an aligner with no included wrapper. To implement your own, create a subclass of Aligner, and put it in a '*.py' file in the 'source/aligners' subdirectory. AddTag will automatically make that aligner available for you.
+
+Let us know what you did, so we can make the code you wrote available to all AddTag users.
+
 ### Who do I talk to? ###
 
  * Aaron Hernday (PI leading the project)
@@ -46,13 +60,13 @@ All generated sequences can be designed as either strand-specific or strand-agno
 
 ### References ###
  * [Nguyen, Quail, & Hernday (2017)](http://dx.doi.org/10.1128/mSphereDirect.00149-17) for AddTag concept.
- * [Moreno-Mateos et al (2015)](http://dx.doi.org/10.1038/nmeth.3543) for scoring algorithm
- * [Lin et al (2014)](http://dx.doi.org/10.1093/nar/gku402) The GC content of Cas9 target may affects binding specificity; gRNA may bind off-target if it has insertions/deletions (RNA-bulge/DNA-bulge) relative to multiple genome locations.
- * [Fu et al (2014)](http://dx.doi.org/10.1038/nbt.2808) Using a shorter gRNAs (17-19 nt) can greatly improve specificity by reducing off-target binding
- * [Vyas et al (2015)](http://dx.doi.org/10.1126/sciadv.1500248) Anecdotally, gRNA may target sites less efficiently if they have differences within 12 nt of the PAM.
- * [Braglia et al (2005)](http://dx.doi.org/10.1074/jbc.M412238200) sequences containing consecutive Ts may cause polymerase termination
- * [Ryan et al (2014)](http://dx.doi.org/10.7554/eLife.03703) indicates that 50 bp flanking homology is sufficient to drive homologous recombination "donor" DNA knock-in.
- * [Doench et al (2014)](http://dx.doi.org/10.1038/nbt.3026) for scoring algorithm
- * [Doench et al (2016)](http://dx.doi.org/10.1038/nbt.3437) for scoring algorithm
- * [Hsu et al (2013)](http://dx.doi.org/10.1038/nbt.2647) for scoring algorithm
- * [Haeussler et al (2016)](http://dx.doi.org/10.1186/s13059-016-1012-2) CRISPOR paper for implementation of certain scoring algorithms
+ * [Moreno-Mateos, et al (2015)](http://dx.doi.org/10.1038/nmeth.3543) for scoring algorithm
+ * [Lin, et al (2014)](http://dx.doi.org/10.1093/nar/gku402) The GC content of Cas9 target may affects binding specificity; gRNA may bind off-target if it has insertions/deletions (RNA-bulge/DNA-bulge) relative to multiple genome locations.
+ * [Fu, et al (2014)](http://dx.doi.org/10.1038/nbt.2808) Using a shorter gRNAs (17-19 nt) can greatly improve specificity by reducing off-target binding
+ * [Vyas, et al (2015)](http://dx.doi.org/10.1126/sciadv.1500248) Anecdotally, gRNA may target sites less efficiently if they have differences within 12 nt of the PAM.
+ * [Braglia, et al (2005)](http://dx.doi.org/10.1074/jbc.M412238200) sequences containing consecutive Ts may cause polymerase termination
+ * [Ryan, et al (2014)](http://dx.doi.org/10.7554/eLife.03703) indicates that 50 bp flanking homology is sufficient to drive homologous recombination "donor" DNA knock-in.
+ * [Doench, et al (2014)](http://dx.doi.org/10.1038/nbt.3026) for scoring algorithm
+ * [Doench, et al (2016)](http://dx.doi.org/10.1038/nbt.3437) for scoring algorithm
+ * [Hsu, et al (2013)](http://dx.doi.org/10.1038/nbt.2647) for scoring algorithm
+ * [Haeussler, et al (2016)](http://dx.doi.org/10.1186/s13059-016-1012-2) CRISPOR paper for implementation of certain scoring algorithms
