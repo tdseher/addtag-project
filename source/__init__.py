@@ -242,12 +242,6 @@ example:
 class Sequence(object):
     """Data structure defining a sequence"""
     
-    #substitution_threshold = 4
-    substitution_threshold = 15 # There is a bug in the function that counts these errors
-    insertion_threshold = 2
-    deletion_threshold = 2
-    error_threshold = 5
-    
     def __init__(self, feature, contig_sequence, args, contig=None, contig_orientation='+', contig_start=None, contig_end=None, feature_orientation=None, contig_upstream='', contig_downstream=''):
         """Create a structure for holding individual sequence information"""
         self.feature = feature
@@ -436,6 +430,7 @@ class Sequence(object):
         algorithms with the 'off_target=True' attribute.
         """
         calculators = []
+        calculators_dict = {}
         
         for C in algorithms.single_algorithms:
             if C.off_target:
@@ -443,6 +438,7 @@ class Sequence(object):
         for C in algorithms.paired_algorithms:
             if C.off_target:
                 calculators.append(C)
+            calculators_dict[C.name] = C
         #for C in algorithms.batched_single_algorithms:
         #    if C.off_target:
         #        calculators.append(C)
@@ -461,11 +457,11 @@ class Sequence(object):
             #a_features = self.get_features(features, a[3], a[4], a[5]) # contig, start, end
             a_features = self.get_features(features, a.contig, a.start, a.end) # contig, start, end
             
-            # If the divergence is reasonable
-            if ((a.score['substitutions'] <= self.substitution_threshold) and
-                (a.score['insertions'] <= self.insertion_threshold) and
-                (a.score['deletions'] <= self.deletion_threshold) and 
-                (a.score['errors'] <= self.error_threshold)
+            # Only include alignments in off-target scoring if the divergence is reasonable
+            if ((calculators_dict['Substitutions'].minimum <= a.score['Substitutions'] <= calculators_dict['Substitutions'].maximum) and
+                (calculators_dict['Insertions'].minimum <= a.score['Insertions'] <= calculators_dict['Insertions'].maximum) and
+                (calculators_dict['Deletions'].minimum <= a.score['Deletions'] <= calculators_dict['Deletions'].maximum) and 
+                (calculators_dict['Errors'].minimum <= a.score['Errors'] <= calculators_dict['Errors'].maximum)
             ):
                 for i, C in enumerate(calculators):
                     #c_score = a[10+i]
@@ -576,15 +572,15 @@ class Sequence(object):
     
     def __repr__(self):
         """Return a string containing a printable representation of the Sequence object."""
-        return 'Sequence(feature=' + self.feature + \
-            ', ' + self.contig + \
-            ':' + str(self.contig_start) + '..' + str(self.contig_end) + \
-            ', ' + self.contig_target + '|' + self.contig_pam + \
-            ', motif=' + self.contig_motif + \
-            ', alignments=' + str(len(self.alignments)) + \
-            ', ' + ', '.join([x + '=' + str(round(self.score[x], 2)) for x in self.score]) + \
-            ', ' + ', '.join(['OT:' + x + '=' + str(round(self.off_targets[x], 2)) for x in self.off_targets]) + \
-            ')'
+        return 'Sequence(' + ' '.join([
+            'feature=' + self.feature,
+            self.contig + ':' + self.contig_orientation + ':' + str(self.contig_start) + '..' + str(self.contig_end),
+            self.contig_target + '|' + self.contig_pam,
+            'motif=' + self.contig_motif,
+            'alignments=' + str(len(self.alignments))] +
+            [x + '=' + str(round(self.score[x], 2)) for x in self.score] + 
+            ['OT:' + x + '=' + str(round(self.off_targets[x], 2)) for x in self.off_targets]
+            ) + ')'
             #', azimuth=' + str(round(self.azimuth, 2)) + \
             #', off-target=' + str(round(self.off_targets['hsuzhang'], 2)) + \
             
@@ -625,10 +621,10 @@ class Alignment(object):
         
         # Since the distance algorithms aren't working correctly, temporarily
         # hard code these to 0
-        self.score['substitutions'] = 0
-        self.score['insertions'] = 0
-        self.score['deletions'] = 0
-        self.score['errors'] = 0
+        #self.score['substitutions'] = 0
+        #self.score['insertions'] = 0
+        #self.score['deletions'] = 0
+        #self.score['errors'] = 0
     
     def get_upstream_sequence(self, length, contigs):
         """Returns upstream sequence"""
@@ -640,20 +636,434 @@ class Alignment(object):
     
     def __repr__(self):
         return 'Alignment(' + \
-            self.contig + ':' + self.orientation + ':' + str(self.start) + '..' + str(self.end) + \
-            ', ' + self.target + '|' + self.pam + \
-            ', motif=' + self.motif + \
-            ', ' + ', '.join([x + '=' + str(round(self.score[x], 2)) for x in self.score]) + \
-            ')'
+            ' '.join([
+            self.contig + ':' + self.orientation + ':' + str(self.start) + '..' + str(self.end),
+            self.target + '|' + self.pam,
+            'motif=' + self.motif] +
+            [x + '=' + str(round(self.score[x], 2)) for x in self.score]
+            ) + ')'
 
-class excision_dDNA(object):
-    def __init__(self, contig, segment1, segment2, insert):
-        self.contig = contig,
-        self.segment1 = segment1 # (start1, end1)
-        self.segment2 = segment2 # (start2, end2)
-        self.insert = insert
-    # >dDNA-0 C2_10210C_B:Ca22chr2B_C_albicans_SC5314:+:2096471..2096521:CCA:2097397:2097444
+class Excision_dDNA(object):
+    sequences = {} # Dict to hold all sequences and their index
     
+    @classmethod
+    def generate_fasta(cls, filename, sep=':'):
+        """
+        Creates a FASTA file
+        >id feature:contig:orientation:start1..end1:mAT:start2..end2 ...
+        """
+        with open(filename, 'w') as flo:
+            for sequence, obj in cls.sequences.items():
+                #don_entry = tuple(["dDNA-"+str(i), feature, contig, '+', start1, start2, end1, end2, dDNA])
+                print(' '.join(['>'+obj.name, 'spacers='+str(len(obj.spacers))] + [obj.format_location(x, sep) for x in obj.locations]), file=flo)
+                print(sequence, file=flo)
+        print('Excision dDNA FASTA generated: {!r}'.format(filename))
+        return filename
+    
+    def format_location(self, location, sep=':'):
+        feature, contig, orientation, segment1, mAT, segment2 = location
+        return sep.join([feature, contig, orientation, '..'.join(map(str, segment1)), mAT, '..'.join(map(str, segment2))])
+    
+    def __init__(self, feature, contig, orientation, segment1, insert, segment2, sequence, spacer):
+        # List of all genomic locations and features this dDNA corresponds to
+        location = (feature, contig, orientation, segment1, insert, segment2)
+        self.locations = set()
+        
+        #self.contig = contig, # The name of the contig (not the sequence)
+        #self.orientation = orientation
+        #self.segment1 = segment1 # (start1, end1)
+        #self.insert = insert
+        #self.segment2 = segment2 # (start2, end2)
+        self.sequence = sequence
+        
+        # List to hold all spacer objects that map to this dDNA
+        self.spacers = set()
+        
+        # Get the index number
+        self.index = len(self.sequences)
+        self.name = 'dDNA-' + str(self.index)
+        
+        # Add this to the non-redundant list of excision dDNAs if it doesn't already exist
+        # otherwise, add this locus to the pre-existing one
+        the_dDNA = self.sequences.setdefault(self.sequence, self)
+        the_dDNA.spacers.add(spacer)
+        the_dDNA.locations.add(location)
+        
+    # >dDNA-0 C2_10210C_B:Ca22chr2B_C_albicans_SC5314:+:2096471..2096521:CCA:2097397:2097444
+    def build_sequence(self, contig_sequence, orientation, segment1, segment2, insert):
+        """Takes substrings of contig to generate the sequence"""
+        sequence = contig_sequence[segment1[0]:segment1[1]] + insert + contig_sequence[segment2[0]:segment2[1]]
+        if (orientation == '-'):
+            print("dDNA", self.index, "has '-' orientation", file=sys.stderr)
+        else:
+            pass
+        return sequence
+    
+    def __repr__(self):
+        return self.__class__.__name__ + '(' + ' '.join([
+            'dDNA-'+str(self.index),
+            self.contig + ':' + self.orientation + ':' +
+            str(self.segment1[0]) + '..' + str(self.segment1[1]) + ':' +
+            self.insert + ':' + str(self.segment2[0]) + '..' + str(self.segment2[1]),
+            'features=' + ','.join(self.features) or 'None',
+            'spacers=' + str(len(self.spacers))
+            ]) + ')'
+    
+    def dump(self, output='fasta'):
+        if (output == 'fasta'):
+            header = ''.join(map(str, [
+                '>dDNA-', self.index, ' ',
+                self.contig, ':', self.orientation, ':',
+                self.segment1[0], '..', self.segment1[1], ':',
+                self.insert, ':',
+                self.segment2[0], '..', self.segment2[1], ' ',
+                'features=', ','.join(self.features)
+            ]))
+            return header + '\n' + self.sequence
+        
+class ExcisionTarget(object):
+    sequences = {} # key = nucleotide sequence, value = ExcisionTarget object
+    indices = {} # key = exTarget-102, value = ExcisionTarget object
+    
+    @classmethod
+    def load_sam(cls, filename, args, contigs, sep=':'):
+        """
+        Read in SAM file.
+        sep is the separator for the header. Positions are converted to 0-index
+        Creates a list of Sequence objects
+        """
+        with open(filename, 'r') as flo:
+            for line in flo:
+                if not line.startswith('@'):
+                    sline = line.rstrip().split("\t")
+                    if ((len(sline) > 5) and (sline[2] != '*')):
+                        target = ExcisionTarget.indices[sline[0]] # key=exTarget-519
+                        
+                        # Get orientation
+                        alignment_orientation = utils.sam_orientation(int(sline[1]))
+                        
+                        # Get alignment position
+                        alignment_contig = sline[2]
+                        alignment_start = int(sline[3])-1
+                        alignment_end = int(sline[3])-1+utils.cigar_length(sline[5])
+                        
+                        # Reverse-complement if needed
+                        alignment_contig_sequence = contigs[alignment_contig]
+                        alignment_sequence = alignment_contig_sequence[alignment_start:alignment_end]
+                        alignment_upstream = alignment_contig_sequence[alignment_start-10:alignment_start]
+                        alignment_downstream = alignment_contig_sequence[alignment_end:alignment_end+10]
+                        actual_sequence = sline[9]
+                        if (alignment_orientation == '-'):
+                            alignment_sequence = nucleotides.rc(alignment_sequence)
+                            alignment_upstream, alignment_downstream = nucleotides.rc(alignment_downstream), nucleotides.rc(alignment_upstream)
+                            actual_sequence = nucleotides.rc(actual_sequence)
+                        
+                        target.add_alignment(
+                            args,
+                            alignment_sequence, # aligned_sequence (as when matched with reference, thus may be revcomp of initial query)
+                            alignment_contig, # aligned_contig
+                            alignment_start, # aligned_start
+                            alignment_end, # aligned_end
+                            alignment_orientation, # aligned_orientation (+/-)
+                            alignment_upstream,
+                            alignment_downstream,
+                        )
+        
+        print('Excision SAM file parsed: {!r}'.format(filename))
+    
+    @classmethod
+    def generate_query_fasta(cls, filename, sep=':'):
+        """
+        Creates a FASTA file (That becomes header for SAM file)
+        >exTarget-id feature:contig:orientation:start..end ...
+        """
+        with open(filename, 'w') as flo:
+            for sequence, obj in cls.sequences.items():
+                #for location in obj.locations:
+                #    print(' '.join(['>'+obj.format_location(location), obj.name]), file=flo)
+                #    print(sequence, file=flo)
+                print(' '.join(['>'+obj.name] + [obj.format_location(x, sep) for x in obj.locations]), file=flo)
+                print(sequence, file=flo)
+                
+        print('Excision query FASTA generated: {!r}'.format(filename))
+        return filename
+    
+    @classmethod
+    def generate_spacers_fasta(cls, filename, sep=':'):
+        """
+        Creates a FASTA file
+        >exTarget-id motif=STR locations=N alignments=N on-target=N off-target=N
+        """
+        with open(filename, 'w') as flo:
+            for sequence, obj in cls.sequences.items():
+                print(' '.join([
+                    '>' + obj.name,
+                    'motif=' + obj.motif,
+                    'locations=' + str(len(obj.locations)),
+                    'alignments=' + str(len(obj.alignments)),
+                    'on-target=' + str(round(obj.score['Azimuth'], 2)),
+                    'off-target=' + str(round(obj.off_targets['Hsu-Zhang'], 2)),
+                ]), file=flo)
+                print(sequence, file=flo)
+        print('Excision spacers FASTA generated: {!r}'.format(filename))
+        return filename
+    
+    def format_location(self, location, sep=':'):
+        feature, contig, orientation, start, end, upstream, downstream = location
+        return sep.join([feature, contig, orientation, '..'.join([str(start), str(end)])])
+    
+    def __init__(self, feature, contig, orientation, start, end, upstream, downstream, sequence, side, spacer, pam, motif):
+        location = (feature, contig, orientation, start, end, upstream, downstream)
+        self.locations = set()
+        
+        #self.feature = feature
+        #self.contig = contig
+        #self.orientation = orientation
+        #self.start = start
+        #self.end = end
+        
+        self.sequence = sequence
+        self.side = side
+        self.spacer = spacer
+        self.pam = pam
+        self.motif = motif
+        
+        # List to store alignments
+        self.alignments = []
+        
+        # Get the index number
+        self.index = len(self.sequences)
+        self.name = 'exTarget-' + str(self.index)
+        
+        the_target = self.sequences.setdefault(self.sequence, self)
+        the_target.locations.add(location)
+        self.indices.setdefault(the_target.name, the_target)
+        
+        # Scores for this sequence only (not PairedSequenceAlgorithm)
+        self.score = {}
+        self.off_targets = {}
+        if (len(self.locations) > 0):
+            self.calculate_default_scores()
+    
+    def overlap_coverage(self, start1, end1, start2, end2):
+        coverage = 0
+        
+        if (start2 <= start1 <= end1 <= end2):
+            # 1      .............
+            # 2   XXXXXXXXXXXXXXXXXX
+            coverage = abs(end1 - start1) + 1
+        elif (start1 <= start2 <= end2 <= end1):
+            # 1      .....................
+            # 2            XXXXXXXXXX
+            coverage = abs(end2 - start2) + 1
+        elif (start1 <= start2 <= end1 <= end2):
+            # 1      ........
+            # 2        XXXXXXXX
+            coverage = abs(end1 - start2) + 1
+        elif (start2 <= start1 <= end2 <= end1):
+            # 1      .............
+            # 2  XXXXXXXXXX
+            coverage = abs(end2 - start1) + 1
+            
+        return coverage
+    
+    def calculate_default_scores(self):
+        """Populate this scores for this Sequence"""
+        loc = next(iter(self.locations)) # Pull an arbitrary location record
+        #parent = (self.sequence, self.target, self.pam, self.upstream, self.downstream)
+        parent = (self.sequence, self.spacer, self.pam, loc[5], loc[6])
+        for C in algorithms.single_algorithms:
+            if (C.default != None):
+                self.score[C.name] = C.default
+            else:
+                self.score[C.name] = C.calculate(parent)
+        for C in algorithms.paired_algorithms:
+            if (C.default != None):
+                self.score[C.name] = C.default
+            else:
+                self.score[C.name] = 0.0
+    
+    def add_alignment(self, args, aligned_sequence, aligned_contig, aligned_start, aligned_end, aligned_orientation, aligned_upstream, aligned_downstream):
+        """Add a genomic position to the list of alignments"""
+        loc = next(iter(self.locations)) # Pull an arbitrary location record
+        #parent = (self.sequence, self.target, self.pam, self.upstream, self.downstream)
+        parent = (self.sequence, self.spacer, self.pam, loc[5], loc[6])
+        aligned_target, aligned_pam, aligned_motif = self.split_spacer_pam(aligned_sequence, args)
+        if ((aligned_target != None) and (aligned_pam != None)):
+            a = Alignment(
+                aligned_sequence,
+                aligned_target,
+                aligned_pam,
+                aligned_motif,
+                aligned_contig,
+                aligned_start,
+                aligned_end,
+                aligned_orientation,
+                upstream=aligned_upstream,
+                downstream=aligned_downstream
+            )
+            a.calculate_scores(parent)
+            self.alignments.append(a)
+        else:
+            print('Cannot add alignment:', aligned_sequence, aligned_contig, aligned_start, aligned_end, aligned_orientation, file=sys.stderr)
+    
+    def split_spacer_pam(self, sequence, args):
+        r_spacer = None
+        r_pam = None
+        r_motif = None
+        for i in range(len(args.parsed_motifs)):
+            spacers, pams, side = args.parsed_motifs[i]
+            compiled_regex = args.compiled_motifs[i]
+            m = nucleotides.motif_conformation2(sequence, side, compiled_regex)
+            if m:
+                r_spacer = m[0]
+                r_pam = m[1]
+                r_motif = args.motifs[i]
+                break
+            else:
+                if (side == '>'):
+                    l = max(map(len, pams))
+                    r_spacer = sequence[:-l]
+                    r_pam = sequence[-l:]
+                    r_motif = args.motifs[i]
+                elif (side == '<'):
+                    l = max(map(len, pams))
+                    r_spacer = seq[:l]
+                    r_pam = seq[l:]
+                    r_motif = args.motifs[i]
+        return r_spacer, r_pam, r_motif
+    
+    def get_features(self, features, contig, start, end):
+        the_features = []
+        for feature in features:
+            f_contig, f_start, f_end, f_strand = features[feature]
+            if (contig == f_contig):
+                if (self.overlap_coverage(start, end, f_start, f_end) > 0):
+                    the_features.append(feature)
+        
+        return the_features
+    
+    def score_off_targets(self, args, homologs, features):
+        """
+        Calculate Guide Score (off-target score) for all single/paired
+        algorithms with the 'off_target=True' attribute.
+        """
+        calculators = []
+        calculators_dict = {}
+        
+        for C in algorithms.single_algorithms:
+            if C.off_target:
+                calculators.append(C)
+        for C in algorithms.paired_algorithms:
+            if C.off_target:
+                calculators.append(C)
+            calculators_dict[C.name] = C
+        #for C in algorithms.batched_single_algorithms:
+        #    if C.off_target:
+        #        calculators.append(C)
+        
+        on_targets = {}
+        off_targets = {}
+        for C in calculators:
+            on_targets[C.name] = []
+            off_targets[C.name] = []
+        
+        on_target_features = set([x[0] for x in self.locations])
+        #on_target_features = set([self.feature])
+        if homologs:
+            for f in list(on_target_features):
+                on_target_features.update(homologs.get(f, set()))
+        
+        for a in self.alignments:
+            #a_features = self.get_features(features, a[3], a[4], a[5]) # contig, start, end
+            a_features = self.get_features(features, a.contig, a.start, a.end) # contig, start, end
+            
+            # Only include alignments in off-target scoring if the divergence is reasonable
+            if ((calculators_dict['Substitutions'].minimum <= a.score['Substitutions'] <= calculators_dict['Substitutions'].maximum) and
+                (calculators_dict['Insertions'].minimum <= a.score['Insertions'] <= calculators_dict['Insertions'].maximum) and
+                (calculators_dict['Deletions'].minimum <= a.score['Deletions'] <= calculators_dict['Deletions'].maximum) and 
+                (calculators_dict['Errors'].minimum <= a.score['Errors'] <= calculators_dict['Errors'].maximum)
+            ):
+                for i, C in enumerate(calculators):
+                    #c_score = a[10+i]
+                    c_score = a.score[C.name]
+                    if (C.minimum <= c_score <= C.maximum):
+                        # if alignment is NOT a target:
+                        if ((a_features == None) or (len(on_target_features.intersection(a_features)) == 0)):
+                            off_targets[C.name].append(c_score)
+                        # if alignment is a target
+                        else:
+                            on_targets[C.name].append(c_score)
+        
+        for C in calculators:
+            try:
+                self.off_targets[C.name] = scores.off_target_score(off_targets[C.name], on_targets[C.name])
+            except ZeroDivisionError:
+                self.off_targets[C.name] = 0.0 # This happens if the reversion-gRNA targets the excision-dDNA
+    
+    def __repr__(self):
+        """Return a string containing a printable representation of the Sequence object."""
+        return 'ExcisionTarget(' + ' '.join([
+            self.name,
+            self.spacer + '|' + self.pam,
+            'motif=' + self.motif,
+            'locations=' + str(len(self.locations)),
+            'alignments=' + str(len(self.alignments))] +
+            [x + '=' + str(round(self.score[x], 2)) for x in self.score] + 
+            ['OT:' + x + '=' + str(round(self.off_targets[x], 2)) for x in self.off_targets]
+            ) + ')'
+
+class ReversionTarget(object):
+    sequences = {} # Non-redundant dict. # key = SEQUENCE+PAM
+    indices = {}
+    
+    @classmethod
+    def generate_fasta(cls, filename, sep=':'):
+        """
+        Creates a FASTA file (That becomes header for SAM file)
+        >dDNA-175:+:70..90     C2_10210C_B:Ca22chr2B_C_albicans_SC5314
+        >id:orientation:start..end:feature1,feature2,feature3
+        
+        >id:orientation:start..end:feature:contig
+        """
+        with open(filename, 'w') as flo:
+            for sequence, obj in cls.sequences.items():
+                #print(':'.join(['>'+obj.contig, obj.orientation, '..'.join([str(obj.start), str(obj.end)]), ','.join(obj.features)]), file=flo)
+                print(' '.join(['>'+obj.name] + [obj.format_location(x, sep) for x in obj.locations]), file=flo)
+                print(sequence, file=flo)
+        print('Reversion query FASTA generated: {!r}'.format(filename))
+        return filename
+    
+    def format_location(self, location, sep=':'):
+        features, contig, orientation, start, end = location
+        return sep.join([features, contig, orientation, '..'.join([str(start), str(end)])])
+    
+    def __init__(self, features, contig, orientation, start, end, sequence, side, spacer, pam, motif):
+        location = (features, contig, orientation, start, end)
+        self.locations = set()
+        #self.features = set()
+        
+        # dDNA position
+        #self.contig = contig
+        #self.orientation = orientation
+        #self.start = start
+        #self.end = end
+        
+        self.sequence = sequence
+        self.side = side
+        self.spacer = spacer
+        self.pam = pam
+        self.motif = motif
+        
+        # Get the index number
+        self.index = len(self.sequences)
+        self.name = 'reTarget-' + str(self.index)
+        
+        the_target = self.sequences.setdefault(self.sequence, self)
+        the_target.locations.add(location)
+        #the_target.features.add(feature)
+        self.indices.setdefault(self.name, the_target)
+        
 
 class CustomHelpFormatter(argparse.HelpFormatter):
     """Help message formatter which retains any formatting in descriptions
@@ -678,8 +1088,9 @@ class CustomHelpFormatter(argparse.HelpFormatter):
                     help += ' (default: %(default)s)'
         return help
 
-def load_sam_file_test(filename, args, contigs, sep=':'):
-    """Read in SAM file.
+def load_excision_sam_file(filename, args, contigs, sep=':'):
+    """
+    Read in SAM file.
     sep is the separator for the header. Positions are converted to 0-index
     Creates a list of Sequence objects
     """
@@ -762,7 +1173,7 @@ def load_sam_file_test(filename, args, contigs, sep=':'):
     #return list(alignments.values()) # unsorted list
     return list(map(lambda x: alignments[x], sorted(alignments))) # sorted
 
-def load_reversion_sam_file_test(filename, args, contigs, donors, sep=':'):
+def load_reversion_sam_file(filename, args, contigs, donors, sep=':'):
     """Read in SAM file.
     sep is the separator for the header. Positions are converted to 0-index
     Creates a list of Sequence objects
@@ -1127,19 +1538,6 @@ def parse_motif(motif):
 # Why use Cpf1 over Cas9?
 #  see https://benchling.com/pub/cpf1
 
-# Template 1
-def generate_excise_target(args, feature):
-    """Finds the gRNA sequence to cut within the specified places
-    on the feature. May target either the + or - strand.
-    """
-    pass
-
-def generate_revert_target(args, feature):
-    """Creates the gRNA sequence that targets the excise donor DNA oligo.
-    May target either the + or - strand.
-    """
-    pass
-
 def generate_excise_donor(args, features, contigs):
     """
     Creates the DNA oligo with the structure:
@@ -1165,10 +1563,10 @@ def generate_excise_donor(args, features, contigs):
         # mini_addtags = itertools.something()
         # dDNAs = [upstream + x + downstream for x in itertools.something()]
         
-        #dDNAs = []
-        all_targets = {}
+#        all_targets = {}
         #targets = set()
         my_contig = contigs[contig]
+        orientation = '+'
         
         # For each potential dDNA, evaluate how good it is
         for us_trim in range(args.excise_upstream_feature_trim[0], args.excise_upstream_feature_trim[1]+1):
@@ -1191,28 +1589,51 @@ def generate_excise_donor(args, features, contigs):
                                     
                                     #if (args.excise_donor_lengths[0] <= len(dDNA) <= args.excise_donor_lengths[1]):
                                     #dDNAs.append(dDNA)
-                                    new_targets = get_targets_temp(args, dDNA)
+                                    new_targets = get_targets_temp(args, dDNA) # [(orientation, start, end, filt_seq, side, filt_spacer, filt_pam), ...]
                                     
                                     for t in new_targets:
-                                        if t in all_targets:
-                                            if (len(dDNA) < len(all_targets[t][0])):
-                                                all_targets[t] = (dDNA, start1, end1, mAT, start2, end2)
-                                        else:
-                                            all_targets[t] = (dDNA, start1, end1, mAT, start2, end2)
+                                        Excision_dDNA(feature, contig, orientation, (start1, end1), mAT, (start2, end2), dDNA, t)
+                                    
+#                                    for t in new_targets:
+#                                        if t in all_targets:
+#                                            if (len(dDNA) < len(all_targets[t][0])):
+#                                                all_targets[t] = (dDNA, start1, end1, mAT, start2, end2)
+#                                        else:
+#                                            all_targets[t] = (dDNA, start1, end1, mAT, start2, end2)
+#        
+#        for i, t in enumerate(all_targets):
+#            # Each entry should be:
+#            # (feature, contig, orientation, start, end, seq, side, spacer, pam)
+#            dDNA, start1, end1, mAT, start2, end2 = all_targets[t]
+#            rev_entry = tuple(["dDNA-"+str(i), feature, contig] + list(t))
+#            don_entry = tuple(["dDNA-"+str(i), feature, contig, '+', start1, end1, mAT, start2, end2, dDNA])
+#            
+#            # This non-redundancy code is REALLY REALLY REALLY slow
+#            #if (entry not in final_targets):
+#            #    final_targets.append(rev_entry)
+#            #    final_dDNAs.append(don_entry)
+#            final_targets.append(rev_entry)
+#            final_dDNAs.append(don_entry)
+    
+    for dDNA, obj in Excision_dDNA.sequences.items():
         
-        for i, t in enumerate(all_targets):
-            # Each entry should be:
-            # (feature, contig, orientation, start, end, seq, side, spacer, pam)
-            dDNA, start1, end1, mAT, start2, end2 = all_targets[t]
-            rev_entry = tuple(["dDNA-"+str(i), feature, contig] + list(t))
-            don_entry = tuple(["dDNA-"+str(i), feature, contig, '+', start1, end1, mAT, start2, end2, dDNA])
-            
-            # This non-redundancy code is REALLY REALLY REALLY slow
-            #if (entry not in final_targets):
-            #    final_targets.append(rev_entry)
-            #    final_dDNAs.append(don_entry)
-            final_targets.append(rev_entry)
-            final_dDNAs.append(don_entry)
+        loc = next(iter(obj.locations)) # Pull an arbitrary location record
+        #obj_features = str(obj.features)
+        #obj_contigs = str([x[1] for x in obj.locations])
+        #obj_orientations = str([x[2] for x in obj.locations])
+        obj_feature = loc[0]
+        obj_contig = loc[1]
+        obj_orientation = loc[2]
+        obj_start1, obj_end1 = loc[3]
+        obj_insert = loc[4]
+        obj_start2, obj_end2 = loc[5]
+        
+        obj_features = ','.join([x[0] for x in list(obj.locations)])
+        
+        for t in obj.spacers: # [(orientation, start, end, filt_seq, side, filt_spacer, filt_pam), ...]
+            final_targets.append(tuple([obj.name, obj_feature, obj_contig] + list(t)))
+            ReversionTarget(obj_features, obj.name, t[0], t[1], t[2], t[3], t[4], t[5], t[6], None)
+        final_dDNAs.append((obj.name, obj_feature, obj_contig, obj_orientation, obj_start1, obj_end1, obj_insert, obj_start2, obj_end2, dDNA))
     
     return final_targets, final_dDNAs
     #    # For each potential dDNA, evaluate how good it is
@@ -1241,80 +1662,10 @@ def generate_excise_donor(args, features, contigs):
 #    sam_file = align(query_file, index_file, args.folder, args.processors)
     
     # Calculate scores for each target
-    
-
-def generate_revert_donor(args, feature):
-    """Use template DNA sequence to create oligo that will be used for fixing
-    the DSB
-    """
-    # Optionally provide a list of restriction enzyme targeting sites
-    # on either side for easier cloning
-    pass
-
-def format_output():
-    # output should take the following format
-    # contig    gRNA-start-pos   gRNA-end-pos    gRNA-strand   features    gRNA-sequence    PAM     on-target-score    off-target-score
-    pass
 
 def merge_features(features):
-    """Combine overlapping features?
-    """
+    """Combine overlapping features?"""
     return features
-
-def process(args):
-    # The Cas9 cuts 3-4bp upstream of the PAM sequence:
-    #  ======= gRNA ==== === PAM
-    #  CGATGCATCGACTTTAC CGA AGG
-    #                   ^ Cut
-    
-    features = []
-    for f in features:
-        # identify_pam_positions()
-        et = generate_excise_target(args, f)
-        rt = generate_revert_target(args, f)
-        
-        ed = generate_excise_donor(args, f, rt)
-        rd = generate_revert_donor(args, f)
-    
-    # Cut site can be anywhere within target feature
-    # genome          ACGGATTAGAGAGAGGCCTCCTCCCGGAT-GAATGGAAGACTAAACGGTAGATATAAG
-    # feature         -------|ORF->                                <-ORF|-------
-    # PAM                                              PAM         PAM
-    # excise target                         CCCGGAT^GAATGG
-    # excise genome   ACGGATTAGAGAGAGGCCTCCTCCCGGAT^GAATGGAAGACTAAACGGTAGATATAAG
-    # excise donor    ACGGATT-----------------------------------AAACGGTAGATATAAG
-    # revert target      GATT-----------------------------------AAACGG
-    # revert donor     CGGATTAGAGAGAGGCCTCCTCCCGGAT-GAATGGAAGACTAAACGGTAGATATA
-    
-    pass
-
-# Template 2
-def find_candidate_targets(args):
-    pass
-
-def align_targets():
-    pass
-
-def find_targets():
-    pass
-
-def make_primers():
-    pass
-
-def make_donors():
-    pass
-
-def excise():
-    candidate_targets = find_targets()
-    
-    excise_primers = make_primers()
-    
-    excise_donors, revert_targets = make_donors()
-
-def revert(revert_targets):
-    revert_donors = make_donors()
-    
-    revert_primers = make_primers()
 
 def target_filter(seq, args):
 #def new_target_filter(seq, side, spacer, pam, args):
@@ -1474,8 +1825,11 @@ def get_targets(args, contigs, features):
                         filtered_targets = target_filter(seq, args)
                         for filt_seq, filt_spacer, filt_pam in filtered_targets:
                             targets.add((feature, feature_contig, orientation, real_start, real_end, filt_seq, side, filt_spacer, filt_pam))
+                            #targets.add(Target(feature, feature_contig, orientation, real_start, real_end, filt_seq, side, filt_spacer, filt_pam, args.motifs[i]))
+                            t_upstream = sequence[start-10:start]
+                            t_downstream = sequence[end:end+10]
+                            ExcisionTarget(feature, feature_contig, orientation, real_start, real_end, t_upstream, t_downstream, filt_seq, side, filt_spacer, filt_pam, args.motifs[i])
     return sorted(targets) # becomes a list
-
 
 def index_reference(args):
     if (args.aligner == 'addtag'):
@@ -1552,32 +1906,71 @@ def main():
         index_file = index_reference(args)
         
         # Write the query list to FASTA
-        query_file = utils.generate_excision_query(os.path.join(args.folder, 'excision-query.fasta'), targets)
+        #query_file = utils.generate_excision_query(os.path.join(args.folder, 'excision-query.fasta'), targets)
+        query_file = ExcisionTarget.generate_query_fasta(os.path.join(args.folder, 'excision-query.fasta'))
         
         # Use selected alignment program to find all matches in the genome
+        #ex_sam_file = align(query_file, index_file, args)
         ex_sam_file = align(query_file, index_file, args)
         
+        print("ExcisionTarget before SAM parsing")
+        for et_seq, et_obj in ExcisionTarget.sequences.items():
+            print(et_obj)
+        
         # Open the SAM file
-        ex_alignments = load_sam_file_test(os.path.join(args.folder, 'excision-query.sam'), args, contigs)
+        #ex_alignments = load_excision_sam_file(os.path.join(args.folder, 'excision-query.sam'), args, contigs)
+        ExcisionTarget.load_sam(os.path.join(args.folder, 'excision-query.sam'), args, contigs)
         
         # Calculate off-target/guide scores for each algorithm
-        for s in ex_alignments:
-            s.score_off_targets(args, homologs, features)
+        print("ExcisionTarget after SAM parsing and off-target scoring")
+        for et_seq, et_obj in ExcisionTarget.sequences.items():
+            et_obj.score_off_targets(args, homologs, features)
+            print(et_obj)
+            for a in et_obj.alignments:
+                print('  ', a)
+        
+        # Calculate off-target/guide scores for each algorithm
+        #for s in ex_alignments:
+        #    s.score_off_targets(args, homologs, features)
         
         # make list of all sequences to calculate Azimuth score on
+        #queries = []
+        #for s in ex_alignments:
+        #    queries.append((s.contig_sequence, s.contig_target, s.contig_pam, s.contig_upstream, s.contig_downstream))
+        #for C in algorithms.batched_single_algorithms:
+        #    batch_scores = C.calculate(queries)
+        #    for i, s in enumerate(ex_alignments):
+        #        s.score[C.name] = batch_scores[i]
+        
+        # Batch calculate with new ExcisionTarget class
+        et_sorted = sorted(ExcisionTarget.indices.keys(), key=lambda x: int(x.split('-')[1]))
         queries = []
-        for s in ex_alignments:
-            queries.append((s.contig_sequence, s.contig_target, s.contig_pam, s.contig_upstream, s.contig_downstream))
+        for i, et_index in enumerate(et_sorted):
+            et_obj = ExcisionTarget.indices[et_index]
+            loc = next(iter(et_obj.locations)) # Pull an arbitrary location record
+            parent = (et_obj.sequence, et_obj.spacer, et_obj.pam, loc[5], loc[6]) # upstream, downstream
+            queries.append(parent)
         for C in algorithms.batched_single_algorithms:
             batch_scores = C.calculate(queries)
-            for i, s in enumerate(ex_alignments):
-                s.score[C.name] = batch_scores[i]
+            for i, et_index in enumerate(et_sorted):
+                et_obj = ExcisionTarget.indices[et_index]
+                et_obj.score[C.name] = batch_scores[i]
+        #print('len(queries) =', len(queries))
+        #print('len(ExcisionTarget.indices) =', len(ExcisionTarget.indices))
+        #print('len(ExcisionTarget.sequences) =', len(ExcisionTarget.sequences))
+        
+        print("ExcisionTarget after Azimuth calculation")
+        for et_seq, et_obj in ExcisionTarget.sequences.items():
+            print(et_obj)
+        
         
         # Generate the FASTA with the final scores
-        excision_spacers_file = utils.generate_excision_spacers(os.path.join(args.folder, 'excision-spacers.fasta'), ex_alignments, sep=':')
+        #excision_spacers_file = utils.generate_excision_spacers(os.path.join(args.folder, 'excision-spacers.fasta'), ex_alignments, sep=':')
+        excision_spacers_file = ExcisionTarget.generate_spacers_fasta(os.path.join(args.folder, 'excision-spacers.fasta'))
         
         # Print the sequences
-        #for s in alignments:
+        #print('Excision sequences')
+        #for s in ex_alignments:
         #    print(s)
         #    for a in s.alignments:
         #        print('  ', a)
@@ -1591,17 +1984,17 @@ def main():
         revert_targets, excise_donors = generate_excise_donor(args, features, contigs)
         
         revert_query_file = utils.generate_reversion_query(os.path.join(args.folder, 'reversion-query.fasta'), revert_targets)
-        excise_dDNA_file = utils.generate_donor(os.path.join(args.folder, 'excision-dDNAs.fasta'), excise_donors)
+        #excise_dDNA_file = utils.generate_donor(os.path.join(args.folder, 'excision-dDNAs.fasta'), excise_donors)
         
-        
-        
+        Excision_dDNA.generate_fasta(os.path.join(args.folder, 'excision-dDNAs.fasta'))
+        ReversionTarget.generate_fasta(os.path.join(args.folder, 'reversion-query2.fasta'))
         
         
         # Use selected alignment program to find all matches in the genome
         re_sam_file = align(revert_query_file, index_file, args)
         
         # Open the SAM file
-        re_alignments = load_reversion_sam_file_test(os.path.join(args.folder, 'reversion-query.sam'), args, contigs, excise_donors)
+        re_alignments = load_reversion_sam_file(os.path.join(args.folder, 'reversion-query.sam'), args, contigs, excise_donors)
         
         # Calculate off-target/guide scores for each algorithm
         for s in re_alignments:
@@ -1624,6 +2017,7 @@ def main():
         
         
         # Print the sequences
+        print('Reversion sequences')
         for s in re_alignments:
             print(s)
             for a in s.alignments:
@@ -1639,7 +2033,7 @@ def test(args):
     # Echo the command line parameters
     print(args)
     
-    sys.exit()
+    sys.exit(10)
     
     # Get timestamp
     start = time.time()
@@ -1652,7 +2046,7 @@ def test(args):
     # Test SAM file parsing
     print("=== SAM ===")
     try:
-        alignments = load_sam_file_test(os.path.join(args.folder, 'excision-query.sam'), args, contigs)
+        alignments = load_excision_sam_file(os.path.join(args.folder, 'excision-query.sam'), args, contigs)
         for s in alignments:
             print(s)
             for a in s.alignments:

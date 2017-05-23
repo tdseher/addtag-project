@@ -15,7 +15,6 @@ from .algorithm import Algorithm, SingleSequenceAlgorithm, PairedSequenceAlgorit
 exclusions = [
     '__init__.py',
     'nucleotides.py',
-    'distance.py',
     'azimuth_wrapper.py',
     'bae.py',
     'chari.py',
@@ -36,8 +35,12 @@ for C in SingleSequenceAlgorithm.__subclasses__():
 
 # Create an instance of each PairedSequenceAlgorithm subclass, and add to this list
 paired_algorithms = []
+#paired_algorithms_dict = {}
 for C in PairedSequenceAlgorithm.__subclasses__():
     paired_algorithms.append(C())
+    #obj = C()
+    #paired_algorithms.append(obj)
+    #paired_algorithms_dict[obj.name] = obj
 
 # Create an instance of each SingleSequenceAlgorithm subclass, and add to this list
 batched_single_algorithms = []
