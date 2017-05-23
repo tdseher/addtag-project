@@ -37,6 +37,7 @@ All generated sequences can be designed as either strand-specific or strand-agno
 
 ### Scoring algorithms ###
 Scoring algorithms have been broken down into two general types.
+
  * Scores that compare a potential spacer to a model
  * Scores that compare a potential spacer to a target
 
