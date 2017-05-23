@@ -148,7 +148,7 @@ def load_scores(file_path, sep="\t"):
 
 # Load scores from the data files when this module is imported
 try:
-    SCORES = load_scores(os.path.join(os.path.dirname(__file__), 'hsu_scores.txt'))
+    SCORES = load_scores(os.path.join(os.path.dirname(__file__), 'hsuzhang_scores.txt'))
 except FileNotFoundError:
     raise Exception("Could not find file with Hsu scores")
 
