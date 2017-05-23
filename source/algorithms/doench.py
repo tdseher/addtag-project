@@ -31,7 +31,7 @@ else:
 
 class Doench2014(SingleSequenceAlgorithm):
     def __init__(self):
-        super().__init__("Doench 2014", "Doench, et al", 2014,
+        super().__init__("Doench-2014", "Doench, et al", 2014,
             citation="Doench, et al. Rational design of highly active sgRNAs for CRISPR-Cas9–mediated gene inactivation. Nature Biotechnology 32, 1262–1267 (2014)",
             off_target=True,
             prefilter=False,
