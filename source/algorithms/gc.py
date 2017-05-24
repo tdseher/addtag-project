@@ -13,7 +13,7 @@ class GC(SingleSequenceAlgorithm):
     def __init__(self):
         super().__init__("GC", "Seher", 2017,
             citation="AddTag",
-            off_target=True,
+            off_target=False,
             prefilter=True,
             postfilter=False,
             minimum=10.0,
