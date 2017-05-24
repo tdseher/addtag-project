@@ -635,7 +635,7 @@ class Alignment(object):
         return ''
     
     def __repr__(self):
-        return 'Alignment(' + \
+        return self.__class__.__name__ + '(' + \
             ' '.join([
             self.contig + ':' + self.orientation + ':' + str(self.start) + '..' + str(self.end),
             self.target + '|' + self.pam,
@@ -721,7 +721,8 @@ class Excision_dDNA(object):
             ]))
             return header + '\n' + self.sequence
         
-class ExcisionTarget(object):
+class Target(object):
+    prefix = 'Target'
     sequences = {} # key = nucleotide sequence, value = ExcisionTarget object
     indices = {} # key = exTarget-102, value = ExcisionTarget object
     
@@ -737,7 +738,7 @@ class ExcisionTarget(object):
                 if not line.startswith('@'):
                     sline = line.rstrip().split("\t")
                     if ((len(sline) > 5) and (sline[2] != '*')):
-                        target = ExcisionTarget.indices[sline[0]] # key=exTarget-519
+                        target = cls.indices[sline[0]] # key=exTarget-519
                         
                         # Get orientation
                         alignment_orientation = utils.sam_orientation(int(sline[1]))
@@ -769,7 +770,7 @@ class ExcisionTarget(object):
                             alignment_downstream,
                         )
         
-        print('Excision SAM file parsed: {!r}'.format(filename))
+        print(cls.__name__ + ' SAM file parsed: {!r}'.format(filename))
     
     @classmethod
     def generate_query_fasta(cls, filename, sep=':'):
@@ -785,7 +786,7 @@ class ExcisionTarget(object):
                 print(' '.join(['>'+obj.name] + [obj.format_location(x, sep) for x in obj.locations]), file=flo)
                 print(sequence, file=flo)
                 
-        print('Excision query FASTA generated: {!r}'.format(filename))
+        print(cls.__name__ + ' query FASTA generated: {!r}'.format(filename))
         return filename
     
     @classmethod
@@ -805,7 +806,7 @@ class ExcisionTarget(object):
                     'off-target=' + str(round(obj.off_targets['Hsu-Zhang'], 2)),
                 ]), file=flo)
                 print(sequence, file=flo)
-        print('Excision spacers FASTA generated: {!r}'.format(filename))
+        print(cls.__name__ + ' spacers FASTA generated: {!r}'.format(filename))
         return filename
     
     def format_location(self, location, sep=':'):
@@ -815,12 +816,6 @@ class ExcisionTarget(object):
     def __init__(self, feature, contig, orientation, start, end, upstream, downstream, sequence, side, spacer, pam, motif):
         location = (feature, contig, orientation, start, end, upstream, downstream)
         self.locations = set()
-        
-        #self.feature = feature
-        #self.contig = contig
-        #self.orientation = orientation
-        #self.start = start
-        #self.end = end
         
         self.sequence = sequence
         self.side = side
@@ -833,7 +828,7 @@ class ExcisionTarget(object):
         
         # Get the index number
         self.index = len(self.sequences)
-        self.name = 'exTarget-' + str(self.index)
+        self.name = self.prefix + '-' + str(self.index)
         
         the_target = self.sequences.setdefault(self.sequence, self)
         the_target.locations.add(location)
@@ -943,6 +938,30 @@ class ExcisionTarget(object):
         
         return the_features
     
+    @classmethod
+    def score_batch(cls):
+        """Performs BatchedSingleSequenceAlgorithm calculations on all sequences"""
+        # Get immutable list of dict keys
+        t_sorted = sorted(cls.indices.keys(), key=lambda x: int(x.split('-')[1]))
+        
+        # Make list to populate with values to pass into the calculate() methods
+        queries = []
+        for i, t_index in enumerate(t_sorted):
+            t_obj = cls.indices[t_index]
+            loc = next(iter(t_obj.locations)) # Pull an arbitrary location record
+            parent = (t_obj.sequence, t_obj.spacer, t_obj.pam, loc[5], loc[6]) # upstream, downstream
+            queries.append(parent)
+        
+        # Loop through the Algorithms
+        for C in algorithms.batched_single_algorithms:
+            # Calculate
+            batch_scores = C.calculate(queries)
+            
+            # Assign the score to the appropriate Target
+            for i, t_index in enumerate(t_sorted):
+                t_obj = cls.indices[t_index]
+                t_obj.score[C.name] = batch_scores[i]
+    
     def score_off_targets(self, args, homologs, features):
         """
         Calculate Guide Score (off-target score) for all single/paired
@@ -1003,7 +1022,7 @@ class ExcisionTarget(object):
     
     def __repr__(self):
         """Return a string containing a printable representation of the Sequence object."""
-        return 'ExcisionTarget(' + ' '.join([
+        return self.__class__.__name__ + '(' + ' '.join([
             self.name,
             self.spacer + '|' + self.pam,
             'motif=' + self.motif,
@@ -1013,57 +1032,165 @@ class ExcisionTarget(object):
             ['OT:' + x + '=' + str(round(self.off_targets[x], 2)) for x in self.off_targets]
             ) + ')'
 
-class ReversionTarget(object):
-    sequences = {} # Non-redundant dict. # key = SEQUENCE+PAM
-    indices = {}
-    
-    @classmethod
-    def generate_fasta(cls, filename, sep=':'):
-        """
-        Creates a FASTA file (That becomes header for SAM file)
-        >dDNA-175:+:70..90     C2_10210C_B:Ca22chr2B_C_albicans_SC5314
-        >id:orientation:start..end:feature1,feature2,feature3
-        
-        >id:orientation:start..end:feature:contig
-        """
-        with open(filename, 'w') as flo:
-            for sequence, obj in cls.sequences.items():
-                #print(':'.join(['>'+obj.contig, obj.orientation, '..'.join([str(obj.start), str(obj.end)]), ','.join(obj.features)]), file=flo)
-                print(' '.join(['>'+obj.name] + [obj.format_location(x, sep) for x in obj.locations]), file=flo)
-                print(sequence, file=flo)
-        print('Reversion query FASTA generated: {!r}'.format(filename))
-        return filename
-    
-    def format_location(self, location, sep=':'):
-        features, contig, orientation, start, end = location
-        return sep.join([features, contig, orientation, '..'.join([str(start), str(end)])])
-    
-    def __init__(self, features, contig, orientation, start, end, sequence, side, spacer, pam, motif):
-        location = (features, contig, orientation, start, end)
-        self.locations = set()
-        #self.features = set()
-        
-        # dDNA position
-        #self.contig = contig
-        #self.orientation = orientation
-        #self.start = start
-        #self.end = end
-        
-        self.sequence = sequence
-        self.side = side
-        self.spacer = spacer
-        self.pam = pam
-        self.motif = motif
-        
-        # Get the index number
-        self.index = len(self.sequences)
-        self.name = 'reTarget-' + str(self.index)
-        
-        the_target = self.sequences.setdefault(self.sequence, self)
-        the_target.locations.add(location)
-        #the_target.features.add(feature)
-        self.indices.setdefault(self.name, the_target)
-        
+class ExcisionTarget(Target):
+    prefix = 'exTarget'
+    # Non-redundant dicts
+    sequences = {} # key = nucleotide sequence, value = ExcisionTarget object
+    indices = {} # key = exTarget-102, value = ExcisionTarget object
+
+class ReversionTarget(Target):
+    prefix = 'reTarget'
+    # Non-redundant dicts
+    sequences = {} # key = nucleotide sequence, value = ReversionTarget object
+    indices = {} # key = reTarget-234, value = ReversionTarget object
+
+# class ReversionTarget(object):
+#     sequences = {} # Non-redundant dict. # key = SEQUENCE+PAM
+#     indices = {}
+#     
+#     @classmethod
+#     def load_sam(cls, filename, args, contigs, sep=':'):
+#         """
+#         Read in SAM file.
+#         sep is the separator for the header. Positions are converted to 0-index
+#         Creates a list of Sequence objects
+#         """
+#         with open(filename, 'r') as flo:
+#             for line in flo:
+#                 if not line.startswith('@'):
+#                     sline = line.rstrip().split("\t")
+#                     if ((len(sline) > 5) and (sline[2] != '*')):
+#                         target = cls.indices[sline[0]] # key=reTarget-519
+#                         
+#                         # Get orientation
+#                         alignment_orientation = utils.sam_orientation(int(sline[1]))
+#                         
+#                         # Get alignment position
+#                         alignment_contig = sline[2]
+#                         alignment_start = int(sline[3])-1
+#                         alignment_end = int(sline[3])-1+utils.cigar_length(sline[5])
+#                         
+#                         # Reverse-complement if needed
+#                         alignment_contig_sequence = contigs[alignment_contig]
+#                         alignment_sequence = alignment_contig_sequence[alignment_start:alignment_end]
+#                         alignment_upstream = alignment_contig_sequence[alignment_start-10:alignment_start]
+#                         alignment_downstream = alignment_contig_sequence[alignment_end:alignment_end+10]
+#                         actual_sequence = sline[9]
+#                         if (alignment_orientation == '-'):
+#                             alignment_sequence = nucleotides.rc(alignment_sequence)
+#                             alignment_upstream, alignment_downstream = nucleotides.rc(alignment_downstream), nucleotides.rc(alignment_upstream)
+#                             actual_sequence = nucleotides.rc(actual_sequence)
+#                         
+#                         target.add_alignment(
+#                             args,
+#                             alignment_sequence, # aligned_sequence (as when matched with reference, thus may be revcomp of initial query)
+#                             alignment_contig, # aligned_contig
+#                             alignment_start, # aligned_start
+#                             alignment_end, # aligned_end
+#                             alignment_orientation, # aligned_orientation (+/-)
+#                             alignment_upstream,
+#                             alignment_downstream,
+#                         )
+#         
+#         print('Reversion SAM file parsed: {!r}'.format(filename))
+#     
+#     @classmethod
+#     def generate_query_fasta(cls, filename, sep=':'):
+#         """
+#         Creates a FASTA file (That becomes header for SAM file)
+#         >dDNA-175:+:70..90     C2_10210C_B:Ca22chr2B_C_albicans_SC5314
+#         >id:orientation:start..end:feature1,feature2,feature3
+#         
+#         >id:orientation:start..end:feature:contig
+#         """
+#         with open(filename, 'w') as flo:
+#             for sequence, obj in cls.sequences.items():
+#                 #print(':'.join(['>'+obj.contig, obj.orientation, '..'.join([str(obj.start), str(obj.end)]), ','.join(obj.features)]), file=flo)
+#                 print(' '.join(['>'+obj.name] + [obj.format_location(x, sep) for x in obj.locations]), file=flo)
+#                 print(sequence, file=flo)
+#         print('Reversion query FASTA generated: {!r}'.format(filename))
+#         return filename
+#     
+#     def format_location(self, location, sep=':'):
+#         features, contig, orientation, start, end = location
+#         return sep.join([features, contig, orientation, '..'.join([str(start), str(end)])])
+#     
+#     def __init__(self, features, contig, orientation, start, end, upstream, downstream, sequence, side, spacer, pam, motif):
+#         location = (features, contig, orientation, start, end, upstream, downstream)
+#         self.locations = set()
+#         
+#         self.sequence = sequence
+#         self.side = side
+#         self.spacer = spacer
+#         self.pam = pam
+#         self.motif = motif
+#         
+#         # List to store alignments
+#         self.alignments = []
+#         
+#         # Get the index number
+#         self.index = len(self.sequences)
+#         self.name = 'reTarget-' + str(self.index)
+#         
+#         the_target = self.sequences.setdefault(self.sequence, self)
+#         the_target.locations.add(location)
+#         self.indices.setdefault(the_target.name, the_target)
+#         
+#         # Scores for this sequence only (not PairedSequenceAlgorithm)
+#         self.score = {}
+#         self.off_targets = {}
+#         if (len(self.locations) > 0):
+#             self.calculate_default_scores()
+#     
+#     def add_alignment(self, args, aligned_sequence, aligned_contig, aligned_start, aligned_end, aligned_orientation, aligned_upstream, aligned_downstream):
+#         """Add a genomic position to the list of alignments"""
+#         loc = next(iter(self.locations)) # Pull an arbitrary location record
+#         #parent = (self.sequence, self.target, self.pam, self.upstream, self.downstream)
+#         parent = (self.sequence, self.spacer, self.pam, loc[5], loc[6])
+#         aligned_target, aligned_pam, aligned_motif = self.split_spacer_pam(aligned_sequence, args)
+#         if ((aligned_target != None) and (aligned_pam != None)):
+#             a = Alignment(
+#                 aligned_sequence,
+#                 aligned_target,
+#                 aligned_pam,
+#                 aligned_motif,
+#                 aligned_contig,
+#                 aligned_start,
+#                 aligned_end,
+#                 aligned_orientation,
+#                 upstream=aligned_upstream,
+#                 downstream=aligned_downstream
+#             )
+#             a.calculate_scores(parent)
+#             self.alignments.append(a)
+#         else:
+#             print('Cannot add alignment:', aligned_sequence, aligned_contig, aligned_start, aligned_end, aligned_orientation, file=sys.stderr)
+#     
+#     def split_spacer_pam(self, sequence, args):
+#         r_spacer = None
+#         r_pam = None
+#         r_motif = None
+#         for i in range(len(args.parsed_motifs)):
+#             spacers, pams, side = args.parsed_motifs[i]
+#             compiled_regex = args.compiled_motifs[i]
+#             m = nucleotides.motif_conformation2(sequence, side, compiled_regex)
+#             if m:
+#                 r_spacer = m[0]
+#                 r_pam = m[1]
+#                 r_motif = args.motifs[i]
+#                 break
+#             else:
+#                 if (side == '>'):
+#                     l = max(map(len, pams))
+#                     r_spacer = sequence[:-l]
+#                     r_pam = sequence[-l:]
+#                     r_motif = args.motifs[i]
+#                 elif (side == '<'):
+#                     l = max(map(len, pams))
+#                     r_spacer = seq[:l]
+#                     r_pam = seq[l:]
+#                     r_motif = args.motifs[i]
+#         return r_spacer, r_pam, r_motif
 
 class CustomHelpFormatter(argparse.HelpFormatter):
     """Help message formatter which retains any formatting in descriptions
@@ -1544,8 +1671,8 @@ def generate_excise_donor(args, features, contigs):
     [upstream homology][unique gRNA][downstream homology]
     that excises the target feature
     """
-    final_targets = []
-    final_dDNAs = []
+    #final_targets = []
+    #final_dDNAs = []
     
     # Generate the full set of potential dDNAs
     for feature in features:
@@ -1631,11 +1758,12 @@ def generate_excise_donor(args, features, contigs):
         obj_features = ','.join([x[0] for x in list(obj.locations)])
         
         for t in obj.spacers: # [(orientation, start, end, filt_seq, side, filt_spacer, filt_pam), ...]
-            final_targets.append(tuple([obj.name, obj_feature, obj_contig] + list(t)))
-            ReversionTarget(obj_features, obj.name, t[0], t[1], t[2], t[3], t[4], t[5], t[6], None)
-        final_dDNAs.append((obj.name, obj_feature, obj_contig, obj_orientation, obj_start1, obj_end1, obj_insert, obj_start2, obj_end2, dDNA))
+            #final_targets.append(tuple([obj.name, obj_feature, obj_contig] + list(t)))
+            # t = (orientation, start, end, t_upstream, t_downstream, filt_seq, side, filt_spacer, filt_pam, args.motifs[i])
+            ReversionTarget(obj_features, obj.name, t[0], t[1], t[2], t[3], t[4], t[5], t[6], t[7], t[8], t[9])
+        #final_dDNAs.append((obj.name, obj_feature, obj_contig, obj_orientation, obj_start1, obj_end1, obj_insert, obj_start2, obj_end2, dDNA))
     
-    return final_targets, final_dDNAs
+    #return final_targets, final_dDNAs
     #    # For each potential dDNA, evaluate how good it is
     #    for insert_length in range(args.excise_insert_lengths[0], args.excise_insert_lengths[1]+1):
     #        # when insert_length = 0, then the kmers are [''] (single element, empty string)
@@ -1762,8 +1890,10 @@ def get_targets_temp(args, sequence):
                     start, end = len(sequence) - end, len(sequence) - start
                 filtered_targets = target_filter(seq, args)
                 for filt_seq, filt_spacer, filt_pam in filtered_targets:
-                    #targets.add((seq_i, orientation, start, end, filt_seq, side, filt_spacer, filt_pam))
-                    targets.add((orientation, start, end, filt_seq, side, filt_spacer, filt_pam))
+                    t_upstream = sequence[start-10:start]
+                    t_downstream = sequence[end:end+10]
+                    
+                    targets.add((orientation, start, end, t_upstream, t_downstream, filt_seq, side, filt_spacer, filt_pam, args.motifs[i]))
     return sorted(targets) # becomes a list
 
 def get_targets(args, contigs, features):
@@ -1783,7 +1913,7 @@ def get_targets(args, contigs, features):
     #    compiled_motif_regexes.append(nucleotides.compile_motif_regex(spacers, pams, side, anchored=False))
     
     # Find unique gRNA sites within each feature
-    targets = set()
+#    targets = set()
     # Use a sliding window to make a list of queries
     for feature in features:
         
@@ -1824,12 +1954,12 @@ def get_targets(args, contigs, features):
                             real_end = len(sequence) - start + feature_start
                         filtered_targets = target_filter(seq, args)
                         for filt_seq, filt_spacer, filt_pam in filtered_targets:
-                            targets.add((feature, feature_contig, orientation, real_start, real_end, filt_seq, side, filt_spacer, filt_pam))
+#                            targets.add((feature, feature_contig, orientation, real_start, real_end, filt_seq, side, filt_spacer, filt_pam))
                             #targets.add(Target(feature, feature_contig, orientation, real_start, real_end, filt_seq, side, filt_spacer, filt_pam, args.motifs[i]))
                             t_upstream = sequence[start-10:start]
                             t_downstream = sequence[end:end+10]
                             ExcisionTarget(feature, feature_contig, orientation, real_start, real_end, t_upstream, t_downstream, filt_seq, side, filt_spacer, filt_pam, args.motifs[i])
-    return sorted(targets) # becomes a list
+#    return sorted(targets) # becomes a list
 
 def index_reference(args):
     if (args.aligner == 'addtag'):
@@ -1900,18 +2030,19 @@ def main():
         #features = merge_features(features)
         
         # Generate the query list: [(feature, contig, start, end, sequence), ...]
-        targets = get_targets(args, contigs, features)
+#        targets = get_targets(args, contigs, features)
+        get_targets(args, contigs, features)
         
         # Index the reference FASTA
         index_file = index_reference(args)
         
         # Write the query list to FASTA
         #query_file = utils.generate_excision_query(os.path.join(args.folder, 'excision-query.fasta'), targets)
-        query_file = ExcisionTarget.generate_query_fasta(os.path.join(args.folder, 'excision-query.fasta'))
+        ex_query_file = ExcisionTarget.generate_query_fasta(os.path.join(args.folder, 'excision-query.fasta'))
         
         # Use selected alignment program to find all matches in the genome
         #ex_sam_file = align(query_file, index_file, args)
-        ex_sam_file = align(query_file, index_file, args)
+        ex_sam_file = align(ex_query_file, index_file, args)
         
         print("ExcisionTarget before SAM parsing")
         for et_seq, et_obj in ExcisionTarget.sequences.items():
@@ -1943,26 +2074,26 @@ def main():
         #        s.score[C.name] = batch_scores[i]
         
         # Batch calculate with new ExcisionTarget class
-        et_sorted = sorted(ExcisionTarget.indices.keys(), key=lambda x: int(x.split('-')[1]))
-        queries = []
-        for i, et_index in enumerate(et_sorted):
-            et_obj = ExcisionTarget.indices[et_index]
-            loc = next(iter(et_obj.locations)) # Pull an arbitrary location record
-            parent = (et_obj.sequence, et_obj.spacer, et_obj.pam, loc[5], loc[6]) # upstream, downstream
-            queries.append(parent)
-        for C in algorithms.batched_single_algorithms:
-            batch_scores = C.calculate(queries)
-            for i, et_index in enumerate(et_sorted):
-                et_obj = ExcisionTarget.indices[et_index]
-                et_obj.score[C.name] = batch_scores[i]
-        #print('len(queries) =', len(queries))
-        #print('len(ExcisionTarget.indices) =', len(ExcisionTarget.indices))
-        #print('len(ExcisionTarget.sequences) =', len(ExcisionTarget.sequences))
+        # et_sorted = sorted(ExcisionTarget.indices.keys(), key=lambda x: int(x.split('-')[1]))
+        # queries = []
+        # for i, et_index in enumerate(et_sorted):
+        #     et_obj = ExcisionTarget.indices[et_index]
+        #     loc = next(iter(et_obj.locations)) # Pull an arbitrary location record
+        #     parent = (et_obj.sequence, et_obj.spacer, et_obj.pam, loc[5], loc[6]) # upstream, downstream
+        #     queries.append(parent)
+        # for C in algorithms.batched_single_algorithms:
+        #     batch_scores = C.calculate(queries)
+        #     for i, et_index in enumerate(et_sorted):
+        #         et_obj = ExcisionTarget.indices[et_index]
+        #         et_obj.score[C.name] = batch_scores[i]
+        # #print('len(queries) =', len(queries))
+        # #print('len(ExcisionTarget.indices) =', len(ExcisionTarget.indices))
+        # #print('len(ExcisionTarget.sequences) =', len(ExcisionTarget.sequences))
+        ExcisionTarget.score_batch()
         
         print("ExcisionTarget after Azimuth calculation")
         for et_seq, et_obj in ExcisionTarget.sequences.items():
             print(et_obj)
-        
         
         # Generate the FASTA with the final scores
         #excision_spacers_file = utils.generate_excision_spacers(os.path.join(args.folder, 'excision-spacers.fasta'), ex_alignments, sep=':')
@@ -1981,47 +2112,66 @@ def main():
         #elif (args.case == "invariant-upper"):
         #    pass
         
-        revert_targets, excise_donors = generate_excise_donor(args, features, contigs)
-        
-        revert_query_file = utils.generate_reversion_query(os.path.join(args.folder, 'reversion-query.fasta'), revert_targets)
+        #revert_targets, excise_donors = generate_excise_donor(args, features, contigs)
+        #revert_query_file = utils.generate_reversion_query(os.path.join(args.folder, 'reversion-query.fasta'), revert_targets)
         #excise_dDNA_file = utils.generate_donor(os.path.join(args.folder, 'excision-dDNAs.fasta'), excise_donors)
         
+        generate_excise_donor(args, features, contigs)
         Excision_dDNA.generate_fasta(os.path.join(args.folder, 'excision-dDNAs.fasta'))
-        ReversionTarget.generate_fasta(os.path.join(args.folder, 'reversion-query2.fasta'))
+        re_query_file = ReversionTarget.generate_query_fasta(os.path.join(args.folder, 'reversion-query.fasta'))
         
         
         # Use selected alignment program to find all matches in the genome
-        re_sam_file = align(revert_query_file, index_file, args)
+        re_sam_file = align(re_query_file, index_file, args)
         
         # Open the SAM file
-        re_alignments = load_reversion_sam_file(os.path.join(args.folder, 'reversion-query.sam'), args, contigs, excise_donors)
+        #re_alignments = load_reversion_sam_file(os.path.join(args.folder, 'reversion-query.sam'), args, contigs, excise_donors)
+        ReversionTarget.load_sam(os.path.join(args.folder, 'reversion-query.sam'), args, contigs)
         
         # Calculate off-target/guide scores for each algorithm
-        for s in re_alignments:
-            s.score_off_targets(args, homologs, features)
+        print("ReversionTarget after SAM parsing and off-target scoring")
+        for re_seq, re_obj in ReversionTarget.sequences.items():
+            re_obj.score_off_targets(args, homologs, features)
+            print(re_obj)
+            for a in re_obj.alignments:
+                print('  ', a)
         
-        # make list of all sequences to calculate Azimuth score on
-        queries = []
-        for s in re_alignments:
-            queries.append((s.contig_sequence, s.contig_target, s.contig_pam, s.contig_upstream, s.contig_downstream))
-        for C in algorithms.batched_single_algorithms:
-            batch_scores = C.calculate(queries)
-            for i, s in enumerate(re_alignments):
-                s.score[C.name] = batch_scores[i]
+        # Batch calculate with new ReversionTarget class
+        ReversionTarget.score_batch()
+        
+        print("ReversionTarget after Azimuth calculation")
+        for rt_seq, rt_obj in ReversionTarget.sequences.items():
+            print(rt_obj)
+        
+        # Generate the FASTA with the final scores
+        reversion_spacers_file = ReversionTarget.generate_spacers_fasta(os.path.join(args.folder, 'reversion-spacers.fasta'))
+        
+        # Calculate off-target/guide scores for each algorithm
+#        for s in re_alignments:
+#            s.score_off_targets(args, homologs, features)
+        
+#        # make list of all sequences to calculate Azimuth score on
+#        queries = []
+#        for s in re_alignments:
+#            queries.append((s.contig_sequence, s.contig_target, s.contig_pam, s.contig_upstream, s.contig_downstream))
+#        for C in algorithms.batched_single_algorithms:
+#            batch_scores = C.calculate(queries)
+#            for i, s in enumerate(re_alignments):
+#                s.score[C.name] = batch_scores[i]
         
         
         
         
         # Generate the FASTA with the final scores
-        reversion_spacers_file = utils.generate_excision_spacers(os.path.join(args.folder, 'reversion-spacers.fasta'), re_alignments, sep=':')
+#        reversion_spacers_file = utils.generate_excision_spacers(os.path.join(args.folder, 'reversion-spacers.fasta'), re_alignments, sep=':')
         
         
-        # Print the sequences
-        print('Reversion sequences')
-        for s in re_alignments:
-            print(s)
-            for a in s.alignments:
-                print('  ', a)
+#        # Print the sequences
+#        print('Reversion sequences')
+#        for s in re_alignments:
+#            print(s)
+#            for a in s.alignments:
+#                print('  ', a)
         
         
         
