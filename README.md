@@ -1,6 +1,6 @@
 # CRISPR/Cas9 AddTag README #
 
-Program for identifying unique endogenous gRNA sites and creating unique synthetic gRNA sites.
+Program for identifying exclusive endogenous gRNA sites and creating unique synthetic gRNA sites.
 
 ### Description ###
 
@@ -36,11 +36,32 @@ All generated sequences can be designed as either strand-specific or strand-agno
     - BWA ([source](https://github.com/lh3/bwa), [documentation](http://bio-bwa.sourceforge.net/bwa.shtml))
     - Cas-OFFinder ([source](https://github.com/snugel/cas-offinder), [binaries](https://sourceforge.net/projects/cas-offinder/files/Binaries/), [documentation](http://www.rgenome.net/cas-offinder/portable))
 
+### Program usage ###
+You can download the latest version of AddTag over HTTPS using git with the following command (replacing 'username' with your BitBucket account name).
+ > $ git clone https://username@bitbucket.org/tdseher/addtag-project.git
+
+This will ask you for your Atlassian password associated with the 'username'.
+
+Or you can download AddTag over SSH using a 'publickey'.
+ > $ git clone git@bitbucket.org:tdseher/addtag-project.git
+
+Either of these options will download the AddTag into a folder called 'addtag-project' in your current working directory. Go ahead and change the working directory into it.
+ > $ cd addtag-project/
+
+The following commands assume the current working directory is the AddTag folder 'addtag-project'. Make sure the 'addtag' program is executable.
+ > $ chmod +x addtag
+
+To view the program usage, you may run AddTag with the '--help' flag. This will print out command line parameter descriptions and examples.
+ > $ ./addtag --help
+
+Additionally, you may view the included man page.
+ > $ man ./addtag.1
+
 ### Scoring algorithms ###
 Scoring algorithms have been broken down into two general types.
 
- * Scores that compare a potential spacer to a model
- * Scores that compare a potential spacer to a target
+ * Scores that compare a potential spacer to a model (Azimuth, Chari, Doench-2014, GC, Housden, Moreno-Mateos, Wang)
+ * Scores that compare a potential spacer to a target (CFD, Distance, Hsu-Zhang, Linear)
 
 Adding a new scoring algorithm is as simple as subclassing the above type, and adding it to a '*.py' file in the 'source/algorithms' subdirectory. AddTag will automatically calculate the score on every generated spacer.
 
@@ -49,7 +70,7 @@ We welcome any pull requests to widen the repertoire of scoring algorithms avail
 ### Alignment programs ###
 AddTag comes with wrappers for several alignment programs. Depending on your experimental design and computing system, you may decide to use an aligner with no included wrapper. To implement your own, create a subclass of Aligner, and put it in a '*.py' file in the 'source/aligners' subdirectory. AddTag will automatically make that aligner available for you.
 
-Let us know what you did, so we can make the code you wrote available to all AddTag users.
+Share your code with us so we can make it available to all AddTag users.
 
 ### Who do I talk to? ###
 
