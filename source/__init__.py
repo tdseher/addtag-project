@@ -239,352 +239,6 @@ example:
  $ python3 {__program__} --fasta genome.fasta --gff genome.gff --folder addtag-output
 """.format(**locals())
 
-class Sequence(object):
-    """Data structure defining a sequence"""
-    
-    def __init__(self, feature, contig_sequence, args, contig=None, contig_orientation='+', contig_start=None, contig_end=None, feature_orientation=None, contig_upstream='', contig_downstream=''):
-        """Create a structure for holding individual sequence information"""
-        self.feature = feature
-        self.feature_orientation = feature_orientation
-        
-        self.contig_sequence = contig_sequence
-        self.contig_target, self.contig_pam, self.contig_motif = self.split_spacer_pam(self.contig_sequence, args)
-        self.contig_upstream = contig_upstream
-        self.contig_downstream = contig_downstream
-        
-        #self.contig_target, self.contig_pam = nucleotides.split_target_sequence(self.contig_sequence, pams, force=True)
-        #self.disambiguated_sequences = disambiguate_iupac(self.contig_sequence, kind="dna") # need to apply pre-filters
-        self.contig = contig
-        self.contig_orientation = contig_orientation
-        self.contig_start = contig_start
-        self.contig_end = contig_end
-        
-        # List to store alignments
-        self.alignments = []
-        
-        # Scores for this sequence only (not PairedSequenceAlgorithm)
-        self.score = {}
-        self.calculate_default_scores()
-        
-        self.off_targets = {}
-    
-    def calculate_default_scores(self):
-        """Populate this scores for this Sequence"""
-        #parent = (self.sequence, self.target, self.pam, self.upstream, self.downstream)
-        parent = (self.contig_sequence, self.contig_target, self.contig_pam, self.contig_upstream, self.contig_downstream)
-        for C in algorithms.single_algorithms:
-            if (C.default != None):
-                self.score[C.name] = C.default
-            else:
-                self.score[C.name] = C.calculate(parent)
-        for C in algorithms.paired_algorithms:
-            if (C.default != None):
-                self.score[C.name] = C.default
-            else:
-                self.score[C.name] = 0.0
-    
-    #def calculate_alignment_scores(self):
-    #    parent = (self.contig_sequence, self.contig_target, self.contig_pam, self.contig_upstream, self.contig_downstream)
-    #    for a in self.alignments:
-    #        a.calculate_scores(parent)
-    
-    def split_spacer_pam(self, sequence, args):
-        r_spacer = None
-        r_pam = None
-        r_motif = None
-        for i in range(len(args.parsed_motifs)):
-            spacers, pams, side = args.parsed_motifs[i]
-            compiled_regex = args.compiled_motifs[i]
-            m = nucleotides.motif_conformation2(sequence, side, compiled_regex)
-            if m:
-                r_spacer = m[0]
-                r_pam = m[1]
-                r_motif = args.motifs[i]
-                break
-            else:
-                if (side == '>'):
-                    l = max(map(len, pams))
-                    r_spacer = sequence[:-l]
-                    r_pam = sequence[-l:]
-                    r_motif = args.motifs[i]
-                elif (side == '<'):
-                    l = max(map(len, pams))
-                    r_spacer = seq[:l]
-                    r_pam = seq[l:]
-                    r_motif = args.motifs[i]
-        return r_spacer, r_pam, r_motif
-    
-    def add_alignment(self, aligned_sequence, args, aligned_contig, aligned_start, aligned_end, aligned_orientation, aligned_upstream, aligned_downstream):
-        """Add a genomic position to the list of alignments"""
-        #parent = (self.sequence, self.target, self.pam, self.upstream, self.downstream)
-        parent = (self.contig_sequence, self.contig_target, self.contig_pam, self.contig_upstream, self.contig_downstream)
-        aligned_target, aligned_pam, aligned_motif = self.split_spacer_pam(aligned_sequence, args)
-        if ((aligned_target != None) and (aligned_pam != None)):
-            a = Alignment(
-                aligned_sequence,
-                aligned_target,
-                aligned_pam,
-                aligned_motif,
-                aligned_contig,
-                aligned_start,
-                aligned_end,
-                aligned_orientation,
-                upstream=aligned_upstream,
-                downstream=aligned_downstream
-            )
-            a.calculate_scores(parent)
-            self.alignments.append(a)
-        else:
-            print('Cannot add alignment:', aligned_sequence, aligned_contig, aligned_start, aligned_end, aligned_orientation, file=sys.stderr)
-        
-    def old_add_alignment(self, aligned_sequence, args, aligned_contig, aligned_start, aligned_end, aligned_orientation, aligned_upstream, aligned_downstream):
-        """Add a genomic position to the list of alignments"""
-        aligned_target, aligned_pam, aligned_motif = self.split_spacer_pam(aligned_sequence, args)
-        if ((aligned_target != None) and (aligned_pam != None)):
-            #aligned_target, aligned_pam = nucleotides.split_target_sequence(aligned_sequence, pams, force=True)
-            substitutions, insertions, deletions = nucleotides.count_errors(self.contig_sequence, aligned_sequence)
-            seq = (
-                aligned_sequence,
-                aligned_target,
-                aligned_pam,
-                aligned_contig,
-                aligned_start,
-                aligned_end,
-                aligned_orientation,
-                substitutions,
-                insertions,
-                deletions,
-                doench.on_target_score_2014(aligned_target, aligned_pam),
-                doench.on_target_score_2016(self.contig_target, aligned_target, aligned_pam),
-                hsuzhang.hsuzhang_score(self.contig_target, aligned_target, iupac=False),
-                scores.linear_score(self.contig_target, aligned_target),
-                housden.housden_score(aligned_target),
-                morenomateos.morenomateos_score(aligned_target, aligned_pam),
-                0, #azimuth.azimuth_score(aligned_target, aligned_pam, upstream=aligned_upstream, downstream=aligned_downstream),
-                nucleotides.ridentities(self.contig_target, aligned_target),
-                scores.r_score(self.contig_target, aligned_target, 4),
-                scores.r_score(self.contig_target, aligned_target, 8),
-                scores.r_score(self.contig_target, aligned_target, 12),
-                scores.r_score(self.contig_target, aligned_target, 16),
-            )
-            self.alignments.append(seq)
-        else:
-            print('Cannot add alignment:', aligned_sequence, aligned_contig, aligned_start, aligned_end, aligned_orientation, file=sys.stderr)
-    
-    def get_features(self, features, contig, start, end):
-        the_features = []
-        for feature in features:
-            f_contig, f_start, f_end, f_strand = features[feature]
-            if (contig == f_contig):
-                if (self.overlap_coverage(start, end, f_start, f_end) > 0):
-                    the_features.append(feature)
-        
-        return the_features
-    
-    def overlap_distance(self, start1, end1, start2, end2):
-        coverage = self.overlap_coverage(start1, end1, start2, end2)
-        if (coverage > 0):
-            return -coverage
-        else:
-            #return min(abs(start2-end1), abs(start1-end2))
-            return max(start2-end1, start1-end2)
-            # 1 ..........
-            # 2              XXXXXX
-            
-            # 1          ........
-            # 2 XXXXXX
-    
-    def overlap_coverage(self, start1, end1, start2, end2):
-        coverage = 0
-        
-        if (start2 <= start1 <= end1 <= end2):
-            # 1      .............
-            # 2   XXXXXXXXXXXXXXXXXX
-            coverage = abs(end1 - start1) + 1
-        elif (start1 <= start2 <= end2 <= end1):
-            # 1      .....................
-            # 2            XXXXXXXXXX
-            coverage = abs(end2 - start2) + 1
-        elif (start1 <= start2 <= end1 <= end2):
-            # 1      ........
-            # 2        XXXXXXXX
-            coverage = abs(end1 - start2) + 1
-        elif (start2 <= start1 <= end2 <= end1):
-            # 1      .............
-            # 2  XXXXXXXXXX
-            coverage = abs(end2 - start1) + 1
-            
-        return coverage
-    
-    def overlap_percent_coverage(self, start1, end1, start2, end2):
-        coverage = self.overlap_coverage(start1, end1, start2, end2)
-        return float(coverage) / max(abs(end1 - start1), abs(end2 - start2))
-    
-    def percent_full_length_coverage(self, start1, end1, len1, start2, end2, len2):
-        coverage = self.overlap_coverage(start1, end1, start2, end2)
-        return float(coverage) / max(len1, len2)
-    
-    def score_off_targets(self, args, homologs, features):
-        """
-        Calculate Guide Score (off-target score) for all single/paired
-        algorithms with the 'off_target=True' attribute.
-        """
-        calculators = []
-        calculators_dict = {}
-        
-        for C in algorithms.single_algorithms:
-            if C.off_target:
-                calculators.append(C)
-        for C in algorithms.paired_algorithms:
-            if C.off_target:
-                calculators.append(C)
-            calculators_dict[C.name] = C
-        #for C in algorithms.batched_single_algorithms:
-        #    if C.off_target:
-        #        calculators.append(C)
-        
-        on_targets = {}
-        off_targets = {}
-        for C in calculators:
-            on_targets[C.name] = []
-            off_targets[C.name] = []
-        
-        on_target_features = set([self.feature])
-        if homologs:
-            on_target_features.update(homologs.get(self.feature, set()))
-        
-        for a in self.alignments:
-            #a_features = self.get_features(features, a[3], a[4], a[5]) # contig, start, end
-            a_features = self.get_features(features, a.contig, a.start, a.end) # contig, start, end
-            
-            # Only include alignments in off-target scoring if the divergence is reasonable
-            if ((calculators_dict['Substitutions'].minimum <= a.score['Substitutions'] <= calculators_dict['Substitutions'].maximum) and
-                (calculators_dict['Insertions'].minimum <= a.score['Insertions'] <= calculators_dict['Insertions'].maximum) and
-                (calculators_dict['Deletions'].minimum <= a.score['Deletions'] <= calculators_dict['Deletions'].maximum) and 
-                (calculators_dict['Errors'].minimum <= a.score['Errors'] <= calculators_dict['Errors'].maximum)
-            ):
-                for i, C in enumerate(calculators):
-                    #c_score = a[10+i]
-                    c_score = a.score[C.name]
-                    if (C.minimum <= c_score <= C.maximum):
-                        # if alignment is NOT a target:
-                        if ((a_features == None) or (len(on_target_features.intersection(a_features)) == 0)):
-                            off_targets[C.name].append(c_score)
-                        # if alignment is a target
-                        else:
-                            on_targets[C.name].append(c_score)
-        
-        for C in calculators:
-            try:
-                self.off_targets[C.name] = scores.off_target_score(off_targets[C.name], on_targets[C.name])
-            except ZeroDivisionError:
-                self.off_targets[C.name] = 0.0 # This happens if the reversion-gRNA targets the excision-dDNA
-        
-    def old_score(self, args, homologs, features):
-        """Calculate Guide scores for each algorithm"""
-        calculations = [
-            'doench2014',
-            'doench2016',
-            'hsuzhang',
-            'linear',
-            'housden',
-            'morenomateos',
-            #'azimuth'
-        ]
-        on_targets = {}
-        off_targets = {}
-        for calculation in calculations:
-            on_targets[calculation] = []
-            off_targets[calculation] = []
-        # on_targets = {
-        #     'doench2014': [self.doench2014],
-        #     'doench2016': [self.doench2016],
-        #     'hsuzhang': [self.hsuzhang],
-        #     'linear': [self.linear],
-        #     'housden': [self.housden],
-        #     'morenomateos': [self.morenomateos],
-        #     'azimuth': [self.azimuth],
-        # }
-        
-        on_target_features = set([self.feature])
-        if homologs:
-            on_target_features.update(homologs.get(self.feature, set()))
-        #print(self.feature, on_target_features, file=sys.stderr)
-        
-        for a in self.alignments:
-            a_features = self.get_features(features, a[3], a[4], a[5]) # contig, start, end
-            
-            # If the divergence is reasonable
-            if ((a[7] <= self.substitution_threshold) and
-                (a[8] <= self.insertion_threshold) and
-                (a[9] <= self.deletion_threshold) and 
-                (sum(a[7:10]) <= self.error_threshold)
-            ):
-                for i, calculation in enumerate(calculations):
-                    c_score = a[10+i]
-                    if (c_score >= self.score_thresholds[calculation]):
-                        # if alignment is NOT a target:
-                        if ((a_features == None) or (len(on_target_features.intersection(a_features)) == 0)):
-                            off_targets[calculation].append(c_score)
-                        # if alignment is a target
-                        else:
-                            on_targets[calculation].append(c_score)
-                    #else:
-                    #    on_targets[calculation].append(0)
-            #if (a[3:6] != (self.contig, self.contig_start, self.contig_end)):
-                # lambda a, b: all([a[0]<=b[0], a[1]<=b[1], a[2]<b[2], sum(a)<=b[3]])
-                    # if (a[10] >= self.doench2014_threshold):
-                    #     doench2014_list.append(a[10])
-                    # if (a[11] >= self.doench2016_threshold):
-                    #     doench2016_list.append(a[11])
-                    # if (a[12] >= self.hsuzhang_threshold):
-                    #     hsuzhang_list.append(a[12])
-                    # if (a[13] >= self.linear_threshold):
-                    #     linear_list.append(a[13])
-                    # if (a[15] >= self.morenomateos_threshold):
-                    #     morenomateos_list.append(a[15])
-                    # if (a[16] >= self.azimuth_threshold):
-                    #     azimuth_list.append(a[16])
-        # self.off_target_doench2014 = scores.off_target_score(doench2014_list, (self.doench2014,))
-        # self.off_target_doench2016 = scores.off_target_score(doench2016_list, (self.doench2016,))
-        # self.off_target_hsuzhang = scores.off_target_score(hsuzhang_list, (self.hsuzhang,))
-        # self.off_target_linear = scores.off_target_score(linear_list, (self.linear,))
-        # self.off_target_morenomateos = scores.off_target_score(morenomateos_list, (self.morenomateos,))
-        # self.off_target_azimuth = 0 #scores.off_target_score(azimuth_list, (self.azimuth))
-        
-        for calculation in calculations:
-            try:
-                self.off_targets[calculation] = scores.off_target_score(off_targets[calculation], on_targets[calculation])
-            except ZeroDivisionError:
-                self.off_targets[calculation] = 0.0
-        # try:
-        #     self.off_target_doench2014 = scores.off_target_score(off_targets['doench2014'], on_targets['doench2014'])
-        #     self.off_target_doench2016 = scores.off_target_score(off_targets['doench2016'], on_targets['doench2016'])
-        #     self.off_target_hsuzhang = scores.off_target_score(off_targets['hsuzhang'], on_targets['hsuzhang'])
-        #     self.off_target_linear = scores.off_target_score(off_targets['linear'], on_targets['linear'])
-        #     self.off_target_housden = scores.off_target_score(off_targets['housden'], on_targets['housden'])
-        #     self.off_target_morenomateos = scores.off_target_score(off_targets['morenomateos'], on_targets['morenomateos'])
-        #     self.off_target_azimuth = 0 #scores.off_target_score(off_targets['azimuth'], on_targets['azimuth'])
-        # except ZeroDivisionError:
-        #     print(self, file=sys.stderr)
-        #     for i in calculations:
-        #         print(i, off_targets[i], on_targets[i], file=sys.stderr)
-    
-    def __repr__(self):
-        """Return a string containing a printable representation of the Sequence object."""
-        return 'Sequence(' + ' '.join([
-            'feature=' + self.feature,
-            self.contig + ':' + self.contig_orientation + ':' + str(self.contig_start) + '..' + str(self.contig_end),
-            self.contig_target + '|' + self.contig_pam,
-            'motif=' + self.contig_motif,
-            'alignments=' + str(len(self.alignments))] +
-            [x + '=' + str(round(self.score[x], 2)) for x in self.score] + 
-            ['OT:' + x + '=' + str(round(self.off_targets[x], 2)) for x in self.off_targets]
-            ) + ')'
-            #', azimuth=' + str(round(self.azimuth, 2)) + \
-            #', off-target=' + str(round(self.off_targets['hsuzhang'], 2)) + \
-            
-
 class Alignment(object):
     """Class primarily representing a SAM alignment"""
     def __init__(self, sequence, target, pam, motif, contig, start, end, orientation, upstream='', downstream=''):
@@ -735,6 +389,7 @@ class Excision_dDNA(object):
             return header + '\n' + self.sequence
         
 class Target(object):
+    """Data structure defining a gRNA Target"""
     prefix = 'Target'
     sequences = {} # key = nucleotide sequence, value = ExcisionTarget object
     indices = {} # key = exTarget-102, value = ExcisionTarget object
@@ -826,7 +481,7 @@ class Target(object):
     def generate_spacers_fasta(cls, filename, sep=':'):
         """
         Creates a FASTA file
-        >exTarget-id motif=STR locations=N alignments=N on-target=N off-target=N
+        >exTarget-id motif=STR locations=N alignments=N/N on-target=N off-target=N
         """
         with open(filename, 'w') as flo:
             for sequence, obj in cls.sequences.items():
@@ -834,7 +489,7 @@ class Target(object):
                     '>' + obj.name,
                     'motif=' + obj.motif,
                     'locations=' + str(len(obj.locations)),
-                    'alignments=' + str(len(obj.alignments)),
+                    'alignments=' + str(len([a for a in obj.alignments if a.prefilter])) + '/' + str(len(obj.alignments)),
                     'on-target=' + str(round(obj.score['Azimuth'], 2)),
                     'off-target=' + str(round(obj.off_targets['Hsu-Zhang'], 2)),
                 ]), file=flo)
@@ -847,6 +502,7 @@ class Target(object):
         return sep.join([feature, contig, orientation, '..'.join([str(start), str(end)])])
     
     def __init__(self, feature, contig, orientation, start, end, upstream, downstream, sequence, side, spacer, pam, motif):
+        """Create a structure for holding individual sequence information"""
         location = (feature, contig, orientation, start, end, upstream, downstream)
         self.locations = set()
         
@@ -872,6 +528,27 @@ class Target(object):
         self.off_targets = {}
         if (len(self.locations) > 0):
             self.calculate_default_scores()
+    
+#    def overlap_distance(self, start1, end1, start2, end2):
+#        coverage = self.overlap_coverage(start1, end1, start2, end2)
+#        if (coverage > 0):
+#            return -coverage
+#        else:
+#            #return min(abs(start2-end1), abs(start1-end2))
+#            return max(start2-end1, start1-end2)
+#            # 1 ..........
+#            # 2              XXXXXX
+#            
+#            # 1          ........
+#            # 2 XXXXXX
+    
+#    def overlap_percent_coverage(self, start1, end1, start2, end2):
+#        coverage = self.overlap_coverage(start1, end1, start2, end2)
+#        return float(coverage) / max(abs(end1 - start1), abs(end2 - start2))
+    
+#    def percent_full_length_coverage(self, start1, end1, len1, start2, end2, len2):
+#        coverage = self.overlap_coverage(start1, end1, start2, end2)
+#        return float(coverage) / max(len1, len2)
     
     def overlap_coverage(self, start1, end1, start2, end2):
         coverage = 0
@@ -1046,7 +723,7 @@ class Target(object):
                 self.off_targets[C.name] = 0.0 # This happens if the reversion-gRNA targets the excision-dDNA
     
     def __repr__(self):
-        """Return a string containing a printable representation of the Sequence object."""
+        """Return a string containing a printable representation of the Target object."""
         return self.__class__.__name__ + '(' + ' '.join([
             self.name,
             self.spacer + '|' + self.pam,
@@ -1143,189 +820,6 @@ class CustomHelpFormatter(argparse.HelpFormatter):
                 if action.option_strings or action.nargs in defaulting_nargs:
                     help += ' (default: %(default)s)'
         return help
-
-def load_excision_sam_file(filename, args, contigs, sep=':'):
-    """
-    Read in SAM file.
-    sep is the separator for the header. Positions are converted to 0-index
-    Creates a list of Sequence objects
-    """
-    
-    alignments = {}
-    with open(filename, 'r') as flo:
-        for line in flo:
-            if not line.startswith('@'):
-                sline = line.rstrip().split("\t")
-                if ((len(sline) > 5) and (sline[2] != '*')):
-                    # >feature:contig:orientation:start..end
-                    feature, source_contig, source_orientation, source_start_end = sline[0].split(sep)
-                    source_start, source_end = source_start_end.split('..')
-                    source_start = int(source_start)
-                    source_end = int(source_end)
-                    source = (feature, source_contig, source_orientation, source_start, source_end)
-                    source_upstream = contigs[source_contig][source_start-10:source_start]
-                    source_downstream = contigs[source_contig][source_end:source_end+10]
-                    if (source_orientation == '-'):
-                        source_upstream, source_downstream = nucleotides.rc(source_downstream), nucleotides.rc(source_upstream)
-                    
-                    # Get orientation
-                    alignment_orientation = utils.sam_orientation(int(sline[1]))
-                    
-                    # Get alignment position
-                    alignment_contig = sline[2]
-                    alignment_start = int(sline[3])-1
-                    alignment_end = int(sline[3])-1+utils.cigar_length(sline[5])
-                    
-                    # Reverse-complement if needed
-                    alignment_sequence = contigs[alignment_contig][alignment_start:alignment_end]
-                    alignment_upstream = contigs[alignment_contig][alignment_start-10:alignment_start]
-                    alignment_downstream = contigs[alignment_contig][alignment_end:alignment_end+10]
-                    actual_sequence = sline[9]
-                    if (alignment_orientation == '-'):
-                        alignment_sequence = nucleotides.rc(alignment_sequence)
-                        alignment_upstream, alignment_downstream = nucleotides.rc(alignment_downstream), nucleotides.rc(alignment_upstream)
-                        actual_sequence = nucleotides.rc(actual_sequence)
-                    
-                    # if source not in alignments:
-                    #    alignments[source] = s
-                    # alignments[sournce].add_alignment(...)
-                    
-                    # Assuming creating an instance of Sequence() is cheaper
-                    # than traversing alignments dict()
-                    s = Sequence(
-                        feature,
-                        actual_sequence,
-                        # contigs[source_contig][int(source_start):int(source_end)], # contig_sequence
-                        args,
-                        contig=source_contig,
-                        contig_orientation=source_orientation,
-                        contig_start=int(source_start),
-                        contig_end=int(source_end),
-                        feature_orientation=None,
-                        contig_upstream=source_upstream,
-                        contig_downstream=source_downstream,
-                    )
-                    
-                    #dbg1=0
-                    #try:
-                    #    dbg1 = len(alignments[source].alignments)
-                    #except KeyError:
-                    #    pass
-                    alignments.setdefault(source, s).add_alignment(
-                        alignment_sequence, # aligned_sequence (as when matched with reference, thus may be revcomp of initial query)
-                        args,
-                        alignment_contig, # aligned_contig
-                        alignment_start, # aligned_start
-                        alignment_end, # aligned_end
-                        alignment_orientation, # aligned_orientation (+/-)
-                        alignment_upstream,
-                        alignment_downstream,
-                    )
-                    #dbg2 = len(alignments[source].alignments)
-                    #if (dbg1 == dbg2):
-                    #    print("problem: ", source, file=sys.stderr)
-    
-    print('SAM file parsed: {!r}'.format(filename))
-    #return list(alignments.values()) # unsorted list
-    return list(map(lambda x: alignments[x], sorted(alignments))) # sorted
-
-def load_reversion_sam_file(filename, args, contigs, donors, sep=':'):
-    """Read in SAM file.
-    sep is the separator for the header. Positions are converted to 0-index
-    Creates a list of Sequence objects
-    """
-    
-    dDNA_dict = {}
-    for line in donors:
-        #don_entry = tuple(["dDNA-"+str(i), feature, contig, '+', start1, start2, end1, end2, dDNA])
-        dDNA_id, feature, contig, orientation, start1, end1, mAT, start2, end2, seq = line
-        dDNA_dict[dDNA_id] = line
-    
-    alignments = {}
-    with open(filename, 'r') as flo:
-        for line in flo:
-            if not line.startswith('@'):
-                sline = line.rstrip().split("\t")
-                if ((len(sline) > 5) and (sline[2] != '*')):
-                    # >id:orientation:start..end:feature:contig
-                    dDNA_id, dDNA_orientation, dDNA_start_end, feature, source_contig = sline[0].split(sep)
-                    dDNA_start, dDNA_end = dDNA_start_end.split('..')
-                    dDNA_start = int(dDNA_start)
-                    dDNA_end = int(dDNA_end)
-                    dDNA = (feature, dDNA_id, dDNA_orientation, dDNA_start, dDNA_end)
-                    
-                    dDNA_list = dDNA_dict[dDNA_id]
-                    source_contig = dDNA_list[2]
-                    source_orientation = dDNA_orientation
-                    source_start = dDNA_list[4]
-                    source_end = dDNA_list[8]
-                    
-                    # >feature:contig:orientation:start..end
-                    #feature, source_contig, source_orientation, source_start_end = sline[0].split(sep)
-                    #source_start, source_end = source_start_end.split('..')
-                    #source_start = int(source_start)
-                    #source_end = int(source_end)
-                    #source = (feature, source_contig, source_orientation, source_start, source_end)
-                    source_upstream = contigs[source_contig][source_start-10:source_start]
-                    source_downstream = contigs[source_contig][source_end:source_end+10]
-                    dDNA_upstream = source_upstream + dDNA_list[9][:dDNA_start]
-                    dDNA_downstream = dDNA_list[9][dDNA_end:] + source_downstream
-                    if (source_orientation == '-'):
-                        source_upstream, source_downstream = nucleotides.rc(source_downstream), nucleotides.rc(source_upstream)
-                        dDNA_upstream, dDNA_downstream = nucleotides.rc(dDNA_downstream), nucleotides.rc(dDNA_upstream)
-                    
-                    # Get orientation
-                    alignment_orientation = utils.sam_orientation(int(sline[1]))
-                    
-                    # Get alignment position
-                    alignment_contig = sline[2]
-                    alignment_start = int(sline[3])-1
-                    alignment_end = int(sline[3])-1+utils.cigar_length(sline[5])
-                    
-                    # Reverse-complement if needed
-                    alignment_sequence = contigs[alignment_contig][alignment_start:alignment_end]
-                    alignment_upstream = contigs[alignment_contig][alignment_start-10:alignment_start]
-                    alignment_downstream = contigs[alignment_contig][alignment_end:alignment_end+10]
-                    actual_sequence = sline[9]
-                    if (alignment_orientation == '-'):
-                        alignment_sequence = nucleotides.rc(alignment_sequence)
-                        alignment_upstream, alignment_downstream = nucleotides.rc(alignment_downstream), nucleotides.rc(alignment_upstream)
-                        actual_sequence = nucleotides.rc(actual_sequence)
-                    
-                    # if source not in alignments:
-                    #    alignments[source] = s
-                    # alignments[sournce].add_alignment(...)
-                    
-                    # Assuming creating an instance of Sequence() is cheaper
-                    # than traversing alignments dict()
-                    s = Sequence(
-                        feature,
-                        actual_sequence,
-                        # contigs[source_contig][int(source_start):int(source_end)], # contig_sequence
-                        args,
-                        contig=dDNA_id, #source_contig,
-                        contig_orientation=dDNA_orientation, #source_orientation,
-                        contig_start=dDNA_start, #int(source_start),
-                        contig_end=dDNA_end, #int(source_end),
-                        feature_orientation=None,
-                        contig_upstream=dDNA_upstream, #source_upstream,
-                        contig_downstream=dDNA_downstream, #source_downstream,
-                    )
-                    #s.dDNA_id = dDNA_id
-                    
-                    alignments.setdefault(dDNA, s).add_alignment(
-                        alignment_sequence, # aligned_sequence (as when matched with reference, thus may be revcomp of initial query)
-                        args,
-                        alignment_contig, # aligned_contig
-                        alignment_start, # aligned_start
-                        alignment_end, # aligned_end
-                        alignment_orientation, # aligned_orientation (+/-)
-                        alignment_upstream,
-                        alignment_downstream,
-                    )
-    
-    print('SAM file parsed: {!r}'.format(filename))
-    return list(map(lambda x: alignments[x], sorted(alignments))) # sorted
 
 def parse_arguments():
     # Create the argument parser
