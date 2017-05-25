@@ -310,8 +310,10 @@ class Alignment(object):
             [x + '=' + str(round(self.score[x], 2)) for x in self.score]
             ) + ')'
 
-class Excision_dDNA(object):
-    sequences = {} # Dict to hold all sequences and their index
+class Donor(object):
+    prefix = 'Donor'
+    sequences = {}
+    indices = {}
     
     @classmethod
     def generate_fasta(cls, filename, sep=':'):
@@ -348,7 +350,7 @@ class Excision_dDNA(object):
         
         # Get the index number
         self.index = len(self.sequences)
-        self.name = 'dDNA-' + str(self.index)
+        self.name = self.prefix + '-' + str(self.index)
         
         # Add this to the non-redundant list of excision dDNAs if it doesn't already exist
         # otherwise, add this locus to the pre-existing one
@@ -361,33 +363,101 @@ class Excision_dDNA(object):
         """Takes substrings of contig to generate the sequence"""
         sequence = contig_sequence[segment1[0]:segment1[1]] + insert + contig_sequence[segment2[0]:segment2[1]]
         if (orientation == '-'):
-            print("dDNA", self.index, "has '-' orientation", file=sys.stderr)
+            print(self.name, "has '-' orientation", file=sys.stderr)
         else:
             pass
         return sequence
     
     def __repr__(self):
         return self.__class__.__name__ + '(' + ' '.join([
-            'dDNA-'+str(self.index),
+            self.name,
             self.contig + ':' + self.orientation + ':' +
             str(self.segment1[0]) + '..' + str(self.segment1[1]) + ':' +
             self.insert + ':' + str(self.segment2[0]) + '..' + str(self.segment2[1]),
             'features=' + ','.join(self.features) or 'None',
             'spacers=' + str(len(self.spacers))
             ]) + ')'
+
+class ExcisionDonor(Donor):
+    prefix = 'exDonor'
+    sequences = {}
+    indices = {}
     
-    def dump(self, output='fasta'):
-        if (output == 'fasta'):
-            header = ''.join(map(str, [
-                '>dDNA-', self.index, ' ',
-                self.contig, ':', self.orientation, ':',
-                self.segment1[0], '..', self.segment1[1], ':',
-                self.insert, ':',
-                self.segment2[0], '..', self.segment2[1], ' ',
-                'features=', ','.join(self.features)
-            ]))
-            return header + '\n' + self.sequence
-        
+    @classmethod
+    def get_targets(cls, args, sequence):
+        targets = set()
+        #for seq_i, sequence in enumerate(dDNAs):
+        for orientation in ['+', '-']:
+            if (orientation == '-'):
+                sequence = nucleotides.rc(sequence)
+            
+            for i in range(len(args.parsed_motifs)):
+                spacers, pams, side = args.parsed_motifs[i]
+                compiled_regex = args.compiled_motifs[i]
+                #matches = nucleotides.motif_search(sequence, spacers, pams, side)
+                matches = nucleotides.motif_search2(sequence, side, compiled_regex)
+                for seq, start, end, spacer, pam in matches:
+                    if (orientation == '-'):
+                        start, end = len(sequence) - end, len(sequence) - start
+                    filtered_targets = target_filter(seq, args)
+                    for filt_seq, filt_spacer, filt_pam in filtered_targets:
+                        t_upstream = sequence[start-10:start]
+                        t_downstream = sequence[end:end+10]
+                        
+                        targets.add((orientation, start, end, t_upstream, t_downstream, filt_seq, side, filt_spacer, filt_pam, args.motifs[i]))
+        return sorted(targets) # becomes a list
+    
+    @classmethod
+    def generate_excise_donor(cls, args, features, contigs):
+        """
+        Creates the DNA oligo with the structure:
+        [upstream homology][unique gRNA][downstream homology]
+        that excises the target feature
+        """
+        # Generate the full set of potential dDNAs
+        for feature in features:
+            # First, get the homology blocks up- and down-stream of the feature
+            contig, start, end, strand = features[feature]
+            # start & end are 0-based indices, inclusive
+            
+            # assumes start < end
+            # DNA 5' of feature is upstream
+            # DNA 3' of feature is downstream
+            
+            my_contig = contigs[contig]
+            orientation = '+'
+            
+            # For each potential dDNA, evaluate how good it is
+            for us_trim in range(args.excise_upstream_feature_trim[0], args.excise_upstream_feature_trim[1]+1):
+                for ds_trim in range(args.excise_downstream_feature_trim[0], args.excise_downstream_feature_trim[1]+1):
+                    for us_hom in range(args.excise_upstream_homology[0], args.excise_upstream_homology[1]+1):
+                        for ds_hom in range(args.excise_downstream_homology[0], args.excise_downstream_homology[1]+1):
+                            for insert_length in range(args.excise_insert_lengths[0], args.excise_insert_lengths[1]+1):
+                                if (args.excise_donor_lengths[0] <= us_hom+insert_length+ds_hom <= args.excise_donor_lengths[1]):
+                                    start1, end1 = start-us_hom-us_trim, start-us_trim
+                                    start2, end2 = end+ds_trim, end+ds_hom+ds_trim
+                                    upstream = my_contig[start1:end1]
+                                    downstream = my_contig[start2:end2]
+                                    #upstream = contigs[contig][start - args.excise_donor_homology[1]:start]
+                                    #downstream = contigs[contig][end:end + args.excise_donor_homology[1]]
+                                    
+                                    # when insert_length = 0, then the kmers are [''] (single element, empty string)
+                                    for mAT in nucleotides.kmers(insert_length):
+                                        # Add this candidate dDNA to the list of all candidate dDNAs
+                                        dDNA = upstream + mAT + downstream
+                                        
+                                        #if (args.excise_donor_lengths[0] <= len(dDNA) <= args.excise_donor_lengths[1]):
+                                        #dDNAs.append(dDNA)
+                                        new_targets = cls.get_targets(args, dDNA) # [(orientation, start, end, filt_seq, side, filt_spacer, filt_pam), ...]
+                                        
+                                        for t in new_targets:
+                                            cls(feature, contig, orientation, (start1, end1), mAT, (start2, end2), dDNA, t)
+
+class ReversionDonor(Donor):
+    prefix = 'reDonor'
+    sequences = {}
+    indices = {}
+
 class Target(object):
     """Data structure defining a gRNA Target"""
     prefix = 'Target'
@@ -797,6 +867,17 @@ class ReversionTarget(Target):
     # Non-redundant dicts
     sequences = {} # key = nucleotide sequence, value = ReversionTarget object
     indices = {} # key = reTarget-234, value = ReversionTarget object
+    
+    @classmethod
+    def get_targets(cls):
+        for dDNA, obj in ExcisionDonor.sequences.items():
+            obj_features = ','.join([x[0] for x in list(obj.locations)])
+            
+            # Populate the ReversionTarget sequences indices dicts
+            for t in obj.spacers: # [(orientation, start, end, filt_seq, side, filt_spacer, filt_pam), ...]
+                #final_targets.append(tuple([obj.name, obj_feature, obj_contig] + list(t)))
+                # t = (orientation, start, end, t_upstream, t_downstream, filt_seq, side, filt_spacer, filt_pam, args.motifs[i])
+                ReversionTarget(obj_features, obj.name, t[0], t[1], t[2], t[3], t[4], t[5], t[6], t[7], t[8], t[9])
 
 class CustomHelpFormatter(argparse.HelpFormatter):
     """Help message formatter which retains any formatting in descriptions
@@ -1088,132 +1169,6 @@ def parse_motif(motif):
 # Why use Cpf1 over Cas9?
 #  see https://benchling.com/pub/cpf1
 
-def generate_excise_donor(args, features, contigs):
-    """
-    Creates the DNA oligo with the structure:
-    [upstream homology][unique gRNA][downstream homology]
-    that excises the target feature
-    """
-    #final_targets = []
-    #final_dDNAs = []
-    
-    # Generate the full set of potential dDNAs
-    for feature in features:
-        # First, get the homology blocks up- and down-stream of the feature
-        contig, start, end, strand = features[feature]
-        # start & end are 0-based indices, inclusive
-        
-        # assumes start < end
-        # DNA 5' of feature is upstream
-        #upstream = contigs[contig][start-args.excise_donor_homology[1]:start] # This is the max homology length
-        
-        # DNA 3' of feature is downstream
-        #downstream = contigs[contig][end:end+args.excise_donor_homology[1]] # Max homology length
-        
-        # mini_addtags = itertools.something()
-        # dDNAs = [upstream + x + downstream for x in itertools.something()]
-        
-#        all_targets = {}
-        #targets = set()
-        my_contig = contigs[contig]
-        orientation = '+'
-        
-        # For each potential dDNA, evaluate how good it is
-        for us_trim in range(args.excise_upstream_feature_trim[0], args.excise_upstream_feature_trim[1]+1):
-            for ds_trim in range(args.excise_downstream_feature_trim[0], args.excise_downstream_feature_trim[1]+1):
-                for us_hom in range(args.excise_upstream_homology[0], args.excise_upstream_homology[1]+1):
-                    for ds_hom in range(args.excise_downstream_homology[0], args.excise_downstream_homology[1]+1):
-                        for insert_length in range(args.excise_insert_lengths[0], args.excise_insert_lengths[1]+1):
-                            if (args.excise_donor_lengths[0] <= us_hom+insert_length+ds_hom <= args.excise_donor_lengths[1]):
-                                start1, end1 = start-us_hom-us_trim, start-us_trim
-                                start2, end2 = end+ds_trim, end+ds_hom+ds_trim
-                                upstream = my_contig[start1:end1]
-                                downstream = my_contig[start2:end2]
-                                #upstream = contigs[contig][start - args.excise_donor_homology[1]:start]
-                                #downstream = contigs[contig][end:end + args.excise_donor_homology[1]]
-                                
-                                # when insert_length = 0, then the kmers are [''] (single element, empty string)
-                                for mAT in nucleotides.kmers(insert_length):
-                                    # Add this candidate dDNA to the list of all candidate dDNAs
-                                    dDNA = upstream + mAT + downstream
-                                    
-                                    #if (args.excise_donor_lengths[0] <= len(dDNA) <= args.excise_donor_lengths[1]):
-                                    #dDNAs.append(dDNA)
-                                    new_targets = get_targets_temp(args, dDNA) # [(orientation, start, end, filt_seq, side, filt_spacer, filt_pam), ...]
-                                    
-                                    for t in new_targets:
-                                        Excision_dDNA(feature, contig, orientation, (start1, end1), mAT, (start2, end2), dDNA, t)
-                                    
-#                                    for t in new_targets:
-#                                        if t in all_targets:
-#                                            if (len(dDNA) < len(all_targets[t][0])):
-#                                                all_targets[t] = (dDNA, start1, end1, mAT, start2, end2)
-#                                        else:
-#                                            all_targets[t] = (dDNA, start1, end1, mAT, start2, end2)
-#        
-#        for i, t in enumerate(all_targets):
-#            # Each entry should be:
-#            # (feature, contig, orientation, start, end, seq, side, spacer, pam)
-#            dDNA, start1, end1, mAT, start2, end2 = all_targets[t]
-#            rev_entry = tuple(["dDNA-"+str(i), feature, contig] + list(t))
-#            don_entry = tuple(["dDNA-"+str(i), feature, contig, '+', start1, end1, mAT, start2, end2, dDNA])
-#            
-#            # This non-redundancy code is REALLY REALLY REALLY slow
-#            #if (entry not in final_targets):
-#            #    final_targets.append(rev_entry)
-#            #    final_dDNAs.append(don_entry)
-#            final_targets.append(rev_entry)
-#            final_dDNAs.append(don_entry)
-    
-    for dDNA, obj in Excision_dDNA.sequences.items():
-        
-        loc = next(iter(obj.locations)) # Pull an arbitrary location record
-        #obj_features = str(obj.features)
-        #obj_contigs = str([x[1] for x in obj.locations])
-        #obj_orientations = str([x[2] for x in obj.locations])
-        obj_feature = loc[0]
-        obj_contig = loc[1]
-        obj_orientation = loc[2]
-        obj_start1, obj_end1 = loc[3]
-        obj_insert = loc[4]
-        obj_start2, obj_end2 = loc[5]
-        
-        obj_features = ','.join([x[0] for x in list(obj.locations)])
-        
-        for t in obj.spacers: # [(orientation, start, end, filt_seq, side, filt_spacer, filt_pam), ...]
-            #final_targets.append(tuple([obj.name, obj_feature, obj_contig] + list(t)))
-            # t = (orientation, start, end, t_upstream, t_downstream, filt_seq, side, filt_spacer, filt_pam, args.motifs[i])
-            ReversionTarget(obj_features, obj.name, t[0], t[1], t[2], t[3], t[4], t[5], t[6], t[7], t[8], t[9])
-        #final_dDNAs.append((obj.name, obj_feature, obj_contig, obj_orientation, obj_start1, obj_end1, obj_insert, obj_start2, obj_end2, dDNA))
-    
-    #return final_targets, final_dDNAs
-    #    # For each potential dDNA, evaluate how good it is
-    #    for insert_length in range(args.excise_insert_lengths[0], args.excise_insert_lengths[1]+1):
-    #        # when insert_length = 0, then the kmers are [''] (single element, empty string)
-    #        print(' ', insert_length, file=sys.stderr, end='', flush=True)
-    #        for mAT in nucleotides.kmers(insert_length):
-    #            # Add this candidate dDNA to the list of all candidate dDNAs
-    #            dDNAs.append(upstream + mAT + downstream)
-    #            
-    #            # Use code to generate targets for this revised region
-    #            # between [maximum 5' distance] upstream mAT downstream [maximum 3' distance]
-    #            #targets.extend(get_targets(args, pff_contigs, pff_features))
-    #            
-    #            targets.extend(get_targets_temp(args, dDNAs))
-    #    print('', file=sys.stderr)
-    #    for t in targets:
-    #        print(t)
-    
-    #return [(feature, seq_i, orientation, start, end, filt_seq, side, filt_spacer, filt_pam) for seq_i, orientation, start, end, filt_seq, side, filt_spacer, filt_pam in targets ]
-    
-#    # Write the targets to a FASTA file
-#    query_file = utils.generate_query(os.path.join(args.folder, 'reversion-query.fasta'), targets)
-#    
-#    # Use selected alignment program to find all potential off-targets in the genome
-#    sam_file = align(query_file, index_file, args.folder, args.processors)
-    
-    # Calculate scores for each target
-
 def merge_features(features):
     """Combine overlapping features?"""
     return features
@@ -1295,29 +1250,6 @@ def target_filter(seq, args):
     for i in range(len(temp_seqs2)):
         rets.append((temp_seqs2[i], temp_targets2[i], temp_pams2[i]))
     return rets
-
-def get_targets_temp(args, sequence):
-    targets = set()
-    #for seq_i, sequence in enumerate(dDNAs):
-    for orientation in ['+', '-']:
-        if (orientation == '-'):
-            sequence = nucleotides.rc(sequence)
-        
-        for i in range(len(args.parsed_motifs)):
-            spacers, pams, side = args.parsed_motifs[i]
-            compiled_regex = args.compiled_motifs[i]
-            #matches = nucleotides.motif_search(sequence, spacers, pams, side)
-            matches = nucleotides.motif_search2(sequence, side, compiled_regex)
-            for seq, start, end, spacer, pam in matches:
-                if (orientation == '-'):
-                    start, end = len(sequence) - end, len(sequence) - start
-                filtered_targets = target_filter(seq, args)
-                for filt_seq, filt_spacer, filt_pam in filtered_targets:
-                    t_upstream = sequence[start-10:start]
-                    t_downstream = sequence[end:end+10]
-                    
-                    targets.add((orientation, start, end, t_upstream, t_downstream, filt_seq, side, filt_spacer, filt_pam, args.motifs[i]))
-    return sorted(targets) # becomes a list
 
 def index_reference(args):
     if (args.aligner == 'addtag'):
@@ -1431,8 +1363,9 @@ def main():
         #    pass
         
         # Generate all dDNAs and their associated reversion gRNA spacers
-        generate_excise_donor(args, features, contigs)
-        ex_dDNA_file = Excision_dDNA.generate_fasta(os.path.join(args.folder, 'excision-dDNAs.fasta'))
+        ExcisionDonor.generate_excise_donor(args, features, contigs)
+        ReversionTarget.get_targets()
+        ex_dDNA_file = ExcisionDonor.generate_fasta(os.path.join(args.folder, 'excision-dDNAs.fasta'))
         re_query_file = ReversionTarget.generate_query_fasta(os.path.join(args.folder, 'reversion-query.fasta'))
         
         # Use selected alignment program to find all matches in the genome
