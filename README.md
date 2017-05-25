@@ -19,18 +19,18 @@ All generated sequences can be designed as either strand-specific or strand-agno
  * Python >= 3.5.1 ([source](https://www.python.org/downloads/), [binaries](https://www.python.org/downloads/), [documentation](https://docs.python.org/3/))
     - regex module ([source](https://bitbucket.org/mrabarnett/mrab-regex), [whls](https://pypi.python.org/pypi/regex), [documentation](https://pypi.python.org/pypi/regex))
     
-    note: The easy way to install this is through pip.
-    ```sh
-    $ pip3 install regex
-    ```
+      note: The easy way to install this is through pip.
+      ```sh
+      $ pip3 install regex
+      ```
 
  * 3.0.0 > Python >= 2.7.10 ([source](https://www.python.org/downloads/), [binaries](https://www.python.org/downloads/), [documentation](https://docs.python.org/2/))
     - Azimuth module ([source](https://github.com/MicrosoftResearch/Azimuth), [documentation](https://www.microsoft.com/en-us/research/project/azimuth/))
     
-    note: requires specific versions of scipy, numpy, matplotlib, nose, scikit-learn, pandas, biopython, pyparsing, cycler, six, pytz, python-dateutil, functools32, subprocess32. The easiest way to install it and take care of all dependencies is to use pip.
-    ```sh
-    $ pip2.7 install git+https://github.com/MicrosoftResearch/Azimuth.git
-    ```
+      note: requires specific versions of scipy, numpy, matplotlib, nose, scikit-learn, pandas, biopython, pyparsing, cycler, six, pytz, python-dateutil, functools32, subprocess32. The easiest way to install it and take care of all dependencies is to use pip.
+      ```sh
+      $ pip2.7 install git+https://github.com/MicrosoftResearch/Azimuth.git
+      ```
 
  * For speed, we recommend at least one third-party pairwise nucleotide sequence alignment program.
     - BLAST+ ([source](ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST), [binaries](ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST), [documentation](https://www.ncbi.nlm.nih.gov/books/NBK279690/))
