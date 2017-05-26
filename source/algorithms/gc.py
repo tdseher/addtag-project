@@ -4,6 +4,7 @@
 
 # source/algorithms/gc.py
 
+# Import non-standard packages
 if (__name__ == "__main__"):
     from algorithm import SingleSequenceAlgorithm
 else:
@@ -16,8 +17,8 @@ class GC(SingleSequenceAlgorithm):
             off_target=False,
             prefilter=True,
             postfilter=False,
-            minimum=10.0,
-            maximum=90.0,
+            minimum=25.0,
+            maximum=75.0,
             default=None
         )
     
@@ -27,7 +28,9 @@ class GC(SingleSequenceAlgorithm):
         return self.score(target)
     
     def score(self, seq):
-        """Caclulates the %GC content for seq. IUPAC ambiguities okay."""
+        """
+        Caclulates the %GC content for seq. IUPAC ambiguities okay.
+        """
         iupac = {
             'a': ['a'],
             'c': ['c'],
@@ -77,6 +80,8 @@ def test():
     c = ('', 'AACATCACCTCTGGCTAACG', 'CGG', '', '')
     d = ('', 'ACCACCAACTCTAGCTGACG', 'CGG', '', '')
     e = ('',  'CCACCAACTCTAGCTGACG', 'CGG', '', '')
+    f = ('',                    'N', 'CGG', '', '')
+    g = ('',                    'H', 'CGG', '', '')
     
     print("=== GC ===")
     C = GC()
@@ -85,6 +90,8 @@ def test():
     print(C.calculate(c))
     print(C.calculate(d))
     print(C.calculate(e))
+    print(C.calculate(f))
+    print(C.calculate(g))
 
 if (__name__ == "__main__"):
     test()
