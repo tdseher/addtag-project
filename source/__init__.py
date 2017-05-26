@@ -364,6 +364,7 @@ class Donor(object):
         if spacer:
             the_dDNA.spacers.add(spacer)
         the_dDNA.locations.add(location)
+        self.indices.setdefault(the_dDNA.name, the_dDNA)
         
     # >dDNA-0 C2_10210C_B:Ca22chr2B_C_albicans_SC5314:+:2096471..2096521:CCA:2097397:2097444
 #    def build_sequence(self, contig_sequence, orientation, segment1, segment2, insert):
@@ -456,8 +457,62 @@ class ExcisionDonor(Donor):
                                         #dDNAs.append(dDNA)
                                         new_targets = cls.get_targets(args, dDNA) # [(orientation, start, end, filt_seq, side, filt_spacer, filt_pam), ...]
                                         
+                                        # The ReversionTarget must overlap the junction. These are valid cases:
+                                        # dDNA    uuuuuuuuuuuuiiiidddddddddddd
+                                        # valid      ----------
+                                        # valid             ---------
+                                        # valid                  ------
+                                        # invalid   ----------
+                                        # invalid                 -------
+                                        # dDNA    uuuuuuuuuuuudddddddddddd
+                                        # valid        --------
+                                        # valid              --------
+                                        
                                         for t in new_targets:
-                                            cls(feature, contig, orientation, dDNA, (start1, end1), mAT, (start2, end2), spacer=t)
+                                            # Target is a tuple: (orientation, start, end, upstream, downstream, sequence, side, spacer, pam, motif)
+                                            # If it is not one of the two failure states, then add it
+                                            if not ((t[2] < len(upstream)) or (t[1] >= len(upstream) + len(mAT))):
+                                                cls(feature, contig, orientation, dDNA, (start1, end1), mAT, (start2, end2), spacer=t)
+    
+    @classmethod
+    def generate_alignments(cls):
+        for ind, obj in cls.indices.items():
+            print(obj.name)
+            loc = next(iter(obj.locations)) # Pull an arbitrary location record
+            for segment in loc[3:]:
+                if isinstance(segment, str):
+                    length = len(segment)
+                else:
+                    length = segment[1] - segment[0]
+                print(cls.make_label(length, ''), end='')
+            print('')
+            print(obj.sequence)
+            for s in obj.spacers:
+                orientation = s[0]
+                start = s[1]
+                end = s[2]
+                spacer = s[7]
+                pam = s[8]
+                if (orientation == '+'):
+                    print(' '*start + spacer + pam)
+                else:
+                    print(' '*start + nucleotides.rc(spacer+pam))
+    
+    @staticmethod
+    def make_label(length, label):
+        if (length == 0):
+            return ''
+        if (length == 1):
+            return '|'
+        if (length > 1):
+            out = ['-'] * length
+            out[0] = '['
+            out[-1] = ']'
+            if (length >= len(label) + 4):
+                start = int(length/2 - len(label)/2)
+                for i, c in enumerate(label):
+                    out[start+i] = c
+            return ''.join(out)
 
 class ReversionDonor(Donor):
     prefix = 'reDonor'
@@ -1450,6 +1505,9 @@ def main():
         # Generate reversion dDNAs and write them to FASTA
         ReversionDonor.generate_donors(args, features, contigs)
         re_dDNA_file = ReversionDonor.generate_fasta(os.path.join(args.folder, 'reversion-dDNAs.fasta'))
+        
+        # Test code to generate alignments
+        ExcisionDonor.generate_alignments()
         
         # Print time taken for program to complete
         print('Runtime: {}s'.format(time.time()-start))
