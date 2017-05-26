@@ -326,16 +326,22 @@ class Donor(object):
                 #don_entry = tuple(["dDNA-"+str(i), feature, contig, '+', start1, start2, end1, end2, dDNA])
                 print(' '.join(['>'+obj.name, 'spacers='+str(len(obj.spacers))] + [obj.format_location(x, sep) for x in obj.locations]), file=flo)
                 print(sequence, file=flo)
-        print('Excision dDNA FASTA generated: {!r}'.format(filename))
+        print(cls.__name__ + ' dDNA FASTA generated: {!r}'.format(filename))
         return filename
     
     def format_location(self, location, sep=':'):
-        feature, contig, orientation, segment1, mAT, segment2 = location
-        return sep.join([feature, contig, orientation, '..'.join(map(str, segment1)), mAT, '..'.join(map(str, segment2))])
+        feature, contig, orientation, *segments = location
+        output_list = [feature, contig, orientation]
+        for x in segments:
+            if isinstance(x, str):
+                x = (x,)
+            output_list.append('..'.join(map(str, x)))
+        return sep.join(output_list)
     
-    def __init__(self, feature, contig, orientation, segment1, insert, segment2, sequence, spacer):
+    def __init__(self, feature, contig, orientation, sequence, *segments, spacer=None):
+    #def __init__(self, feature, contig, orientation, segment1, insert, segment2, sequence, spacer=None):
         # List of all genomic locations and features this dDNA corresponds to
-        location = (feature, contig, orientation, segment1, insert, segment2)
+        location = (feature, contig, orientation, *segments)
         self.locations = set()
         
         #self.contig = contig, # The name of the contig (not the sequence)
@@ -355,18 +361,19 @@ class Donor(object):
         # Add this to the non-redundant list of excision dDNAs if it doesn't already exist
         # otherwise, add this locus to the pre-existing one
         the_dDNA = self.sequences.setdefault(self.sequence, self)
-        the_dDNA.spacers.add(spacer)
+        if spacer:
+            the_dDNA.spacers.add(spacer)
         the_dDNA.locations.add(location)
         
     # >dDNA-0 C2_10210C_B:Ca22chr2B_C_albicans_SC5314:+:2096471..2096521:CCA:2097397:2097444
-    def build_sequence(self, contig_sequence, orientation, segment1, segment2, insert):
-        """Takes substrings of contig to generate the sequence"""
-        sequence = contig_sequence[segment1[0]:segment1[1]] + insert + contig_sequence[segment2[0]:segment2[1]]
-        if (orientation == '-'):
-            print(self.name, "has '-' orientation", file=sys.stderr)
-        else:
-            pass
-        return sequence
+#    def build_sequence(self, contig_sequence, orientation, segment1, segment2, insert):
+#        """Takes substrings of contig to generate the sequence"""
+#        sequence = contig_sequence[segment1[0]:segment1[1]] + insert + contig_sequence[segment2[0]:segment2[1]]
+#        if (orientation == '-'):
+#            print(self.name, "has '-' orientation", file=sys.stderr)
+#        else:
+#            pass
+#        return sequence
     
     def __repr__(self):
         return self.__class__.__name__ + '(' + ' '.join([
@@ -408,7 +415,7 @@ class ExcisionDonor(Donor):
         return sorted(targets) # becomes a list
     
     @classmethod
-    def generate_excise_donor(cls, args, features, contigs):
+    def generate_donors(cls, args, features, contigs):
         """
         Creates the DNA oligo with the structure:
         [upstream homology][unique gRNA][downstream homology]
@@ -416,9 +423,8 @@ class ExcisionDonor(Donor):
         """
         # Generate the full set of potential dDNAs
         for feature in features:
-            # First, get the homology blocks up- and down-stream of the feature
             contig, start, end, strand = features[feature]
-            # start & end are 0-based indices, inclusive
+            # start & end are 0-based indices, inclusive/exclusive
             
             # assumes start < end
             # DNA 5' of feature is upstream
@@ -451,12 +457,50 @@ class ExcisionDonor(Donor):
                                         new_targets = cls.get_targets(args, dDNA) # [(orientation, start, end, filt_seq, side, filt_spacer, filt_pam), ...]
                                         
                                         for t in new_targets:
-                                            cls(feature, contig, orientation, (start1, end1), mAT, (start2, end2), dDNA, t)
+                                            cls(feature, contig, orientation, dDNA, (start1, end1), mAT, (start2, end2), spacer=t)
 
 class ReversionDonor(Donor):
     prefix = 'reDonor'
     sequences = {}
     indices = {}
+    
+    @classmethod
+    def generate_donors(cls, args, features, contigs):
+        """
+        Creates the DNA oligo with the structure:
+        [upstream homology][original feature][downstream homology]
+        """
+        # There should be one ReversionDonor for each feature
+        for feature in features:
+            # First, get the homology blocks up- and down-stream of the feature
+            contig, start, end, strand = features[feature]
+            
+            feature_length = end - start
+            
+            my_contig = contigs[contig]
+            orientation = '+'
+            
+            for us_hom in range(args.revert_upstream_homology[0], args.revert_upstream_homology[1]+1):
+                for ds_hom in range(args.revert_downstream_homology[0], args.revert_downstream_homology[1]+1):
+                    if (args.revert_donor_lengths[0] <= us_hom+feature_length+ds_hom <= args.revert_donor_lengths[1]):
+                        # to implement:
+                        #   make revert_upstream_homology and revert_downstream_homology exclude the trim sequences
+                        if (strand == '+'):
+                            start1, end1 = start-us_hom, start
+                            start2, end2 = end, end+ds_hom
+                        else:
+                            start1, end1 = start-ds_hom, start
+                            start2, end2 = end, end+us_hom
+                        upstream = my_contig[start1:end1]
+                        downstream = my_contig[start2:end2]
+                        feature_sequence = my_contig[start:end]
+                        
+                        dDNA = upstream + feature_sequence + downstream
+                        #for re_seq, re_target in ReversionTarget.indices.items():
+                        #    if feature in [x[0] for x in re_target.locations]:
+                        #        cls(feature, contig, orientation, (start1, end1), '..'.join(map(str, [start, end])), (start2, end2), dDNA, re_target)
+                        #cls(feature, contig, orientation, (start1, end1), '..'.join(map(str, [start, end])), (start2, end2), dDNA, None)
+                        cls(feature, contig, orientation, dDNA, (start1, end2), spacer=None)
 
 class Target(object):
     """Data structure defining a gRNA Target"""
@@ -620,26 +664,32 @@ class Target(object):
 #        coverage = self.overlap_coverage(start1, end1, start2, end2)
 #        return float(coverage) / max(len1, len2)
     
-    def overlap_coverage(self, start1, end1, start2, end2):
+    def overlap_coverage(self, start1, end1, start2, end2, index_base=0):
         coverage = 0
         
+        # Expects 0-based, left-inclusive, right-exclusive indexing
         if (start2 <= start1 <= end1 <= end2):
             # 1      .............
             # 2   XXXXXXXXXXXXXXXXXX
-            coverage = abs(end1 - start1) + 1
+            coverage = abs(end1 - start1)
         elif (start1 <= start2 <= end2 <= end1):
             # 1      .....................
             # 2            XXXXXXXXXX
-            coverage = abs(end2 - start2) + 1
+            coverage = abs(end2 - start2)
         elif (start1 <= start2 <= end1 <= end2):
             # 1      ........
             # 2        XXXXXXXX
-            coverage = abs(end1 - start2) + 1
+            coverage = abs(end1 - start2)
         elif (start2 <= start1 <= end2 <= end1):
             # 1      .............
             # 2  XXXXXXXXXX
-            coverage = abs(end2 - start1) + 1
-            
+            coverage = abs(end2 - start1)
+        
+        # if 1-based, left-inclusive, right-inclusive indexing,
+        # then give +1 to coverage
+        if index_base == 1:
+            coverage += 1
+        
         return coverage
     
     def calculate_default_scores(self):
@@ -861,6 +911,7 @@ class ExcisionTarget(Target):
                                 t_upstream = sequence[start-10:start]
                                 t_downstream = sequence[end:end+10]
                                 cls(feature, feature_contig, orientation, real_start, real_end, t_upstream, t_downstream, filt_seq, side, filt_spacer, filt_pam, args.motifs[i])
+                                # Maybe add to ReversionDonor here
 
 class ReversionTarget(Target):
     prefix = 'reTarget'
@@ -997,7 +1048,11 @@ def parse_arguments():
     #    help="The uniqueness of final donor DNA compared to the rest of the genome")
     #parser.add_argument("--min_donor_errors", metavar="N", type=int, default=3,
     #    help="The uniqueness of final donor DNA compared to the rest of the genome")
-    parser.add_argument("--revert_donor_lengths", nargs=2, metavar=('MIN', 'MAX'), type=int, default=[300, 600],
+    parser.add_argument("--revert_upstream_homology", nargs=2, metavar=("MIN", "MAX"), type=int, default=[300,300],
+        help="Range of homology lengths acceptable for knock-in dDNAs, inclusive.")
+    parser.add_argument("--revert_downstream_homology", nargs=2, metavar=("MIN", "MAX"), type=int, default=[300,300],
+        help="Range of homology lengths acceptable for knock-in dDNAs, inclusive.")
+    parser.add_argument("--revert_donor_lengths", nargs=2, metavar=('MIN', 'MAX'), type=int, default=[0, 100000],
         help="Range of lengths acceptable for knock-in dDNAs.")
     parser.add_argument("--min_donor_distance", metavar="N", type=int, default=36,
         help="The minimum distance in bp a difference can exist from the edge of donor DNA") # homology with genome
@@ -1362,8 +1417,8 @@ def main():
         #elif (args.case == "invariant-upper"):
         #    pass
         
-        # Generate all dDNAs and their associated reversion gRNA spacers
-        ExcisionDonor.generate_excise_donor(args, features, contigs)
+        # Generate excision dDNAs and their associated reversion gRNA spacers
+        ExcisionDonor.generate_donors(args, features, contigs)
         ReversionTarget.get_targets()
         ex_dDNA_file = ExcisionDonor.generate_fasta(os.path.join(args.folder, 'excision-dDNAs.fasta'))
         re_query_file = ReversionTarget.generate_query_fasta(os.path.join(args.folder, 'reversion-query.fasta'))
@@ -1391,6 +1446,10 @@ def main():
         
         # Generate the FASTA with the final scores
         reversion_spacers_file = ReversionTarget.generate_spacers_fasta(os.path.join(args.folder, 'reversion-spacers.fasta'))
+        
+        # Generate reversion dDNAs and write them to FASTA
+        ReversionDonor.generate_donors(args, features, contigs)
+        re_dDNA_file = ReversionDonor.generate_fasta(os.path.join(args.folder, 'reversion-dDNAs.fasta'))
         
         # Print time taken for program to complete
         print('Runtime: {}s'.format(time.time()-start))
