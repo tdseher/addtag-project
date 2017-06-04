@@ -1,0 +1,47 @@
+# Scoring matrix of log-likelihood ratios with weights for
+# transitions/transversions, gap penalties, etc
+# query	subject	type	score
+# Matches
+A	A		1
+C	C		1
+G	G		1
+T	T		1
+# Transitions (Purines: A<->G, Pyrimidines: C<->T)
+A	G		-1
+G	A		-1
+C	T		-1
+T	C		-1
+# Transversions
+# Weak
+A	T		-1.2
+T	A		-1.2
+# Strong
+C	G		-1.2
+G	C		-1.2
+# Amino
+A	C		-1.2
+C	A		-1.2
+# Keto
+G	T		-1.2
+T	G		-1.2
+# Insertions
+-	A	open	-4
+-	C	open	-4
+-	G	open	-4
+-	T	open	-4
+-	A	extend	-2
+-	C	extend	-2
+-	G	extend	-2
+-	T	extend	-2
+# Deletions
+A	-	open	-4
+C	-	open	-4
+G	-	open	-4
+T	-	open	-4
+A	-	extend	-2
+C	-	extend	-2
+G	-	extend	-2
+T	-	extend	-2
+# Gaps should never be aligned to each other
+-	-	open	-4
+-	-	extend	-2
