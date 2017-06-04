@@ -106,6 +106,7 @@ protein:
 glossary:
   dDNA        Donor DNA. The DNA that is knocked-in using endogenous cellular
               homologous recombination machinery.
+  gDNA        Genomic DNA.
   HDR         Homology-Directed Repair, a DNA repair mechanism that uses a
               template to repair nicks or double-stranded breaks.
   PAM         The Protospacer Adjacent Motif is a short nucleotide sequence that
@@ -186,18 +187,24 @@ glossary:
 
 motifs:
   Below are common SPACER>PAM arrangements.
-       5'-Motif-3'        Protein  Origin system                   Citation
-       N{{17,20}}>NGG       SpCas9   Streptococcus pyogenes (Sp)     ?
-          N{{20}}>NGG       SpCas9   Streptococcus pyogenes          ?
-          N{{20}}>NGA       SpCas9   Streptococcus pyogenes VQR      ?
+       5'-Motif-3'        Protein  System                          Citation
+          N{{20}}>NGG       SpCas9   Streptococcus pyogenes (Sp)     ?
+       N{{17,20}}>NGG       SpCas9   Streptococcus pyogenes          ?
+          N{{20}}>NGA       SpCas9   Streptococcus pyogenes VQR      Kleinstiver, et al., 2015
+          N{{20}}>NGNG      SpCas9   Streptococcus pyogenes EQR      Kleinstiver, et al., 2015
+          N{{20}}>NGAG      SpCas9   Streptococcus pyogenes EQR      Kleinstiver, et al., 2015
+          N{{20}}>NGCG      SpCas9   Streptococcus pyogenes VRER     Kleinstiver, et al., 2015
+          N{{20}}>NAAG      SpCas9   Streptococcus pyogenes QQR1     Anders, et al., 2016
           N{{20}}>NAG       SpCas9   Streptococcus pyogenes          ?
           N{{20}}>NRG       SpCas9   Streptococcus pyogenes          ?
-          N{{20}}>NGCG      SpCas9   Streptococcus pyogenes VRER     ?
   G{{,2}}N{{19,20}}>NGG       ??Cas9   ?                               ?
+         RN{{19}}>NGG       Cas9p    Plants                          Ma, et al., 2015
+        RYN{{19}}>NGG       Cas9p    Plants                           + Ma & Liu, 2016
          N{{20?}}>NNAGAAW   StCas9   Streptococcus thermophilus (St) Cong et al., 2013
-          N{{20}}>NNAGAA    StCas9   Streptococcus thermophilus      ?
+       N{{20,23}}>NNAGAA    StCas9   Streptococcus thermophilus      Kleinstiver, et al., 2015
           N{{20}}>NGGNG     StCas9   Streptococcus thermophilus      ?
           N{{21}}>NNGRRT    SaCas9   Staphylococcus aureus (Sa)      Ran et al., 2015
+       N{{21,23}}>NNGRRT    SaCas9   Staphylococcus aureus           Kleinstiver, et al., 2015
          N{{20?}}>NGRRT     SaCas9   Staphylococcus aureus           ?
          N{{20?}}>NGRRN     SaCas9   Staphylococcus aureus           ?
           N{{20}}>NNNNGMTT  NmCas9   Neisseria meningitidis (Nm)     Hou et al., 2013
