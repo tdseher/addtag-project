@@ -21,7 +21,7 @@ class HsuZhang(PairedSequenceAlgorithm):
             citation="Hsu, et al. DNA targeting specificity of RNA-guided Cas9 nucleases. Nature Biotechnology 31, 827–832 (2013)",
             off_target=True,
             prefilter=False,
-            postfilter=True,
+            postfilter=False,
             minimum=0.1,
             maximum=100.0,
             default=100.0

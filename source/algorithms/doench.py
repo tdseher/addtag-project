@@ -35,7 +35,7 @@ class Doench2014(SingleSequenceAlgorithm):
             citation="Doench, et al. Rational design of highly active sgRNAs for CRISPR-Cas9–mediated gene inactivation. Nature Biotechnology 32, 1262–1267 (2014)",
             off_target=True,
             prefilter=False,
-            postfilter=True,
+            postfilter=False,
             minimum=1.0,
             maximum=100.0,
             default=None
@@ -121,7 +121,7 @@ class Doench2016(PairedSequenceAlgorithm):
             citation="Doench, Fusi, et al. Optimized sgRNA design to maximize activity and minimize off-target effects of CRISPR-Cas9. Nature Biotechnology 34, 184–191 (2016).",
             off_target=True,
             prefilter=False,
-            postfilter=True,
+            postfilter=False,
             minimum=1.0,
             maximum=100.0,
             default=100.0
@@ -232,7 +232,7 @@ class Azimuth(BatchedSingleSequenceAlgorithm):
             citation="Doench, Fusi, et al. Optimized sgRNA design to maximize activity and minimize off-target effects of CRISPR-Cas9. Nature Biotechnology 34, 184-191 (2016).",
             off_target=False,
             prefilter=False,
-            postfilter=True,
+            postfilter=False,
             minimum=1.0,
             maximum=100.0,
             default=None

@@ -15,7 +15,7 @@ class Linear(PairedSequenceAlgorithm):
             citation="AddTag",
             off_target=True,
             prefilter=False,
-            postfilter=True,
+            postfilter=False,
             minimum=80.0,
             maximum=100.0,
             default=100.0
