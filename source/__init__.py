@@ -248,6 +248,22 @@ example:
 
 class Alignment(object):
     """Class primarily representing a SAM alignment"""
+    __slots__ = [
+        'sequence',
+        'target',
+        'pam',
+        'motif',
+        'contig',
+        'start',
+        'end',
+        'orientation',
+        'upstream',
+        'downstream',
+        'postfilter',
+        'score',
+        'action',
+    ]
+    
     def __init__(self, sequence, target, pam, motif, contig, start, end, orientation, upstream='', downstream=''):
         # Most attributes derived from SAM output
         self.sequence = sequence
@@ -264,10 +280,11 @@ class Alignment(object):
         
         # Variable to hold whether or not this alignment should be included
         # in the off-target scoring
-        self.prefilter = None
+        self.postfilter = None
         
         # Variable to hold the scores
         self.score = {}
+        self.action = 'None'
         
         # Haven't yet added:
         #  lidentities, ridentities, r_score, bae, chari, oof, proxgc, want, xu
@@ -279,26 +296,26 @@ class Alignment(object):
     def calculate_scores(self, parent):
         # parent = (sequence, target, pam, upstream, downstream)
         this = (self.sequence, self.target, self.pam, self.upstream, self.downstream)
-        prefilter = []
+        postfilter = []
         for C in algorithms.single_algorithms:
             c_score = C.calculate(this)
             self.score[C.name] = c_score
-            if C.prefilter:
+            if C.postfilter:
                 if (C.minimum <= c_score <= C.maximum):
-                    prefilter.append(True)
+                    postfilter.append(True)
                 else:
-                    prefilter.append(False)
+                    postfilter.append(False)
         for C in algorithms.paired_algorithms:
             c_score = C.calculate(parent, this)
             self.score[C.name] = c_score
-            if C.prefilter:
+            if C.postfilter:
                 if (C.minimum <= c_score <= C.maximum):
-                    prefilter.append(True)
+                    postfilter.append(True)
                 else:
-                    prefilter.append(False)
+                    postfilter.append(False)
         
-        # If alignment meets all prefilter criteria, then set it as True
-        self.prefilter = all(prefilter) # all([]) returns True
+        # If alignment meets all postfilter criteria, then set it as True
+        self.postfilter = all(postfilter) # all([]) returns True
     
     def get_upstream_sequence(self, length, contigs):
         """Returns upstream sequence"""
@@ -312,8 +329,9 @@ class Alignment(object):
         return self.__class__.__name__ + '(' + ' '.join([
             self.target + '|' + self.pam,
             self.contig + ':' + self.orientation + ':' + str(self.start) + '..' + str(self.end),
+            'action=' + str(self.action),
             'motif=' + self.motif,
-            'prefilter=' + str(self.prefilter)] +
+            'postfilter=' + str(self.postfilter)] +
             [x + '=' + str(round(self.score[x], 2)) for x in self.score]
             ) + ')'
 
@@ -321,6 +339,13 @@ class Donor(object):
     prefix = 'Donor'
     sequences = {}
     indices = {}
+    
+    @classmethod
+    def get_contig_dict(cls):
+        contigs = {}
+        for sequence, obj in cls.sequences.items():
+            contigs[obj.name] = sequence
+        return contigs
     
     @classmethod
     def generate_fasta(cls, filename, sep=':'):
@@ -344,6 +369,9 @@ class Donor(object):
                 x = (x,)
             output_list.append('..'.join(map(str, x)))
         return sep.join(output_list)
+    
+    def get_features(self):
+        return sorted(set(x[0] for x in self.locations))
     
     def __init__(self, feature, contig, orientation, sequence, *segments, spacer=None):
     #def __init__(self, feature, contig, orientation, segment1, insert, segment2, sequence, spacer=None):
@@ -383,15 +411,15 @@ class Donor(object):
 #            pass
 #        return sequence
     
-    def __repr__(self):
-        return self.__class__.__name__ + '(' + ' '.join([
-            self.name,
-            self.contig + ':' + self.orientation + ':' +
-            str(self.segment1[0]) + '..' + str(self.segment1[1]) + ':' +
-            self.insert + ':' + str(self.segment2[0]) + '..' + str(self.segment2[1]),
-            'features=' + ','.join(self.features) or 'None',
-            'spacers=' + str(len(self.spacers))
-            ]) + ')'
+    #def __repr__(self):
+    #    return self.__class__.__name__ + '(' + ' '.join([
+    #        self.name,
+    #        self.contig + ':' + self.orientation + ':' +
+    #        str(self.segment1[0]) + '..' + str(self.segment1[1]) + ':' +
+    #        self.insert + ':' + str(self.segment2[0]) + '..' + str(self.segment2[1]),
+    #        'features=' + ','.join(self.features) or 'None',
+    #        'spacers=' + str(len(self.spacers))
+    #        ]) + ')'
 
 class ExcisionDonor(Donor):
     prefix = 'exDonor'
@@ -507,14 +535,15 @@ class ExcisionDonor(Donor):
     
     @staticmethod
     def make_label(length, label):
+        """Helper function for 'generate_alignments()'"""
         if (length == 0):
             return ''
         if (length == 1):
-            return '|'
+            return '╥'
         if (length > 1):
-            out = ['-'] * length
-            out[0] = '['
-            out[-1] = ']'
+            out = ['─'] * length
+            out[0] = '┌'
+            out[-1] = '┐'
             if (length >= len(label) + 4):
                 start = int(length/2 - len(label)/2)
                 for i, c in enumerate(label):
@@ -665,7 +694,7 @@ class Target(object):
                     '>' + obj.name,
                     'motif=' + obj.motif,
                     'locations=' + str(len(obj.locations)),
-                    'alignments=' + str(len([a for a in obj.alignments if a.prefilter])) + '/' + str(len(obj.alignments)),
+                    'alignments=' + str(len([a for a in obj.alignments if a.postfilter])) + '/' + str(len(obj.alignments)),
                     'on-target=' + str(round(obj.score['Azimuth'], 2)),
                     'off-target=' + str(round(obj.off_targets['Hsu-Zhang'], 2)),
                 ]), file=flo)
@@ -701,6 +730,10 @@ class Target(object):
         
         # Scores for this sequence only (not PairedSequenceAlgorithm)
         self.score = {}
+        
+        # We need an off-target score for each algorithm and each potential dDNA
+        # Thus it will be structured as a dict nested within a dict:
+        # self.off_targets = {'CFD': {'exDonor-0': 10.0, 'exDonor-1': 12.0}}
         self.off_targets = {}
         if (len(self.locations) > 0):
             self.calculate_default_scores()
@@ -830,6 +863,9 @@ class Target(object):
         
         return the_features
     
+    def get_contigs(self):
+        return sorted(set(x[1] for x in self.locations))
+    
     @classmethod
     def score_batch(cls):
         """Performs BatchedSingleSequenceAlgorithm calculations on all sequences"""
@@ -870,39 +906,205 @@ class Target(object):
                 calculators.append(C)
         
         # Make empty lists for scores
+        # It should have this format
+        #  dict[algorithm][genome/exDonor/reDonor] = [score1, score2, score3, ...]
+        # This is for keeping track of which scores should get the ratio multiplier
+        on_targets = {}
+        off_targets = {}
+        for C in calculators:
+            on_targets[C.name] = {'gDNA': [], 'dDNA': []}
+            off_targets[C.name] = {'gDNA': [], 'dDNA': []}
+        
+        # Get list of on-target features
+        on_target_features = set([x[0] for x in self.locations])
+        if isinstance(self, ReversionTarget):
+            on_target_features = set(utils.flatten([x.split(',') for x in on_target_features]))
+        
+        if homologs:
+            for f in list(on_target_features):
+                on_target_features.update(homologs.get(f, set()))
+        
+        print('on_target_features', on_target_features)
+        # Check each alignment
+        for a in self.alignments:
+            a_features = None
+            if a.postfilter:
+                if isinstance(self, ExcisionTarget):
+                    if a.contig.startswith('exDonor-'):
+                        a_features = ExcisionDonor.indices[a.contig].get_features()
+                        print('case exT-exD'.rjust(18), end=' ')
+                        
+                        for i, C in enumerate(calculators):
+                            c_score = a.score[C.name]
+                            if (C.minimum <= c_score <= C.maximum):
+                                if ((len(a_features) == 0) or (len(on_target_features.intersection(a_features)) == 0)):
+                                    # if alignment is NOT a target:
+                                    # And is also an exDonor, then we will ignore it
+                                    # As we are assuming mono-plex gRNA
+                                    a.action = 'skip'
+                                # If the features match, then this is an off-target
+                                else:
+                                    # Scale this by the ratio, as they are dDNA alignments
+                                    off_targets[C.name]['dDNA'].append(c_score)
+                                    a.action = 'off'
+                                    
+                    else: # This is a genomic contig and not a dDNA
+                        a_features = self.get_features(features, a.contig, a.start, a.end) # contig, start, end
+                        print('case exT-gDNA'.rjust(18), end=' ')
+                        
+                        for i, C in enumerate(calculators):
+                            c_score = a.score[C.name]
+                            if (C.minimum <= c_score <= C.maximum):
+                                # if alignment is NOT a target:
+                                if ((len(a_features) == 0) or (len(on_target_features.intersection(a_features)) == 0)):
+                                    off_targets[C.name]['gDNA'].append(c_score)
+                                    a.action = 'off'
+                                #if (len(on_target_features.intersection(a_features)) > 0):
+                                # if alignment is an intended target
+                                else:
+                                    on_targets[C.name]['gDNA'].append(c_score)
+                                    a.action = 'on'
+                
+                elif isinstance(self, ReversionTarget):
+                    if a.contig.startswith('exDonor-'):
+                        # reTarget vs exDonor:
+                        #   if multiplex:
+                        #     if exDonor == intended exDonor (for this feature), then on-target
+                        #     if exDonor is the same feature, but NOT intended, then ignore
+                        #     if exDonor is for another feature, then it is off-target
+                        #   if monoplex:
+                        #     if exDonor == intended exDonor (for this feature), then on-target
+                        #     if exDonor is the same feature, but NOT intended, then ignore
+                        #     if exDonor is for another feature, then ignore
+                        #a_features = ExcisionDonor.indices[a.contig].get_features()
+                        intended_contigs = self.get_contigs()
+                        print('case reT-exD'.rjust(18), end=' ')
+                        
+                        for i, C in enumerate(calculators):
+                            c_score = a.score[C.name]
+                            if (C.minimum <= c_score <= C.maximum):
+                                if a.contig in intended_contigs:
+                                    on_targets[C.name]['gDNA'].append(c_score)
+                                    a.action = 'on'
+                                else:
+                                    a.action = 'skip'
+                                
+                                #if ((len(a_features) == 0) or (len(on_target_features.intersection(a_features)) == 0)):
+                                #    pass # do nothing for monoplex
+                                #else:
+                                #    on_targets[C.name]['gDNA'].append(c_score)
+                    
+                    elif a.contig.startswith('reDonor-'):
+                        # reTarget vs reDonor:
+                        #   multiplex: these are all off-target (use ratio)
+                        #   monoplex: if reDonor has same feature as reTarget, then it is an off-target (use ratio)
+                        a_features = ReversionDonor.indices[a.contig].get_features()
+                        print('case reT-reD'.rjust(18), end=' ')
+                        
+                        for i, C in enumerate(calculators):
+                            c_score = a.score[C.name]
+                            if (C.minimum <= c_score <= C.maximum):
+                                if ((len(a_features) == 0) or (len(on_target_features.intersection(a_features)) == 0)):
+                                    a.action = 'skip'
+                                else:
+                                    # use ratio
+                                    off_targets[C.name]['dDNA'].append(c_score)
+                                    a.action = 'off'
+                    else:
+                        # reTarget vs genome: these are all off-target, regardless of the feature
+                        print('case reT-gDNA'.rjust(18), end=' ')
+                    
+                        for i, C in enumerate(calculators):
+                            c_score = a.score[C.name]
+                            if (C.minimum <= c_score <= C.maximum):
+                                off_targets[C.name]['gDNA'].append(c_score)
+                                a.action = 'off'
+            else:
+                print('failed post-filter', end=' ')
+            
+            print (a.action.rjust(4), a, a_features)
+        
+        for i, C in enumerate(calculators):
+            on_str = str(len(on_targets[C.name]['gDNA'])) + ' + (' + str(args.dDNA_gDNA_ratio)+')'+str(len(on_targets[C.name]['dDNA']))
+            off_str = str(len(off_targets[C.name]['gDNA'])) + ' + (' + str(args.dDNA_gDNA_ratio)+')'+str(len(off_targets[C.name]['dDNA']))
+            print(self.name, C.name, '('+on_str+')/(('+on_str+') + ('+off_str+'))')
+        
+        # Perform off-target calculations
+        for C in calculators:
+            try:
+                on_list = on_targets[C.name]['gDNA'] + args.dDNA_gDNA_ratio * on_targets[C.name]['dDNA']
+                off_list = off_targets[C.name]['gDNA'] + args.dDNA_gDNA_ratio * off_targets[C.name]['dDNA']
+                self.off_targets[C.name] = scores.off_target_score(off_list, on_list)
+            except ZeroDivisionError:
+                self.off_targets[C.name] = 0.0 # This should never happen
+    
+    def old_score_off_targets(self, args, homologs, features):
+        """
+        Calculate Guide Score (off-target score) for all single/paired
+        algorithms with the 'off_target=True' attribute.
+        """
+        # Get list of algorithms whose scores should be used for off-target
+        # calculations
+        calculators = []
+        for C in algorithms.single_algorithms:
+            if C.off_target:
+                calculators.append(C)
+        for C in algorithms.paired_algorithms:
+            if C.off_target:
+                calculators.append(C)
+
+        # Make empty lists for scores
         on_targets = {}
         off_targets = {}
         for C in calculators:
             on_targets[C.name] = []
             off_targets[C.name] = []
-        
+
         # Get list of on-target features
         on_target_features = set([x[0] for x in self.locations])
+        if isinstance(self, ReversionTarget):
+            on_target_features = set(utils.flatten([x.split(',') for x in on_target_features]))
+
         if homologs:
             for f in list(on_target_features):
                 on_target_features.update(homologs.get(f, set()))
-        
+
+        print('on_target_features', on_target_features)
         # Check each alignment
         for a in self.alignments:
-            a_features = self.get_features(features, a.contig, a.start, a.end) # contig, start, end
-            
-            if a.prefilter:
+            if a.contig.startswith('exDonor-'):
+                a_features = ExcisionDonor.indices[a.contig].get_features()
+                print('case E', end=' ')
+            elif a.contig.startswith('reDonor-'):
+                a_features = ReversionDonor.indices[a.contig].get_features()
+                print('case R', end=' ')
+            else:
+                a_features = self.get_features(features, a.contig, a.start, a.end) # contig, start, end
+                print('case D', end=' ')
+            print (a, a_features)
+            if a.postfilter:
                 for i, C in enumerate(calculators):
                     c_score = a.score[C.name]
                     if (C.minimum <= c_score <= C.maximum):
                         # if alignment is NOT a target:
-                        if ((a_features == None) or (len(on_target_features.intersection(a_features)) == 0)):
+                        if ((len(a_features) == 0) or (len(on_target_features.intersection(a_features)) == 0)):
                             off_targets[C.name].append(c_score)
                         # if alignment is a target
                         else:
                             on_targets[C.name].append(c_score)
-        
+
+        ##### Start Debug
+        for i, C in enumerate(calculators):
+            print(self.name, C.name, len(on_targets[C.name]), '/', len(off_targets[C.name]))
+        ##### End debug
+
         # Perform off-target calculations
         for C in calculators:
             try:
                 self.off_targets[C.name] = scores.off_target_score(off_targets[C.name], on_targets[C.name])
             except ZeroDivisionError:
                 self.off_targets[C.name] = 0.0 # This happens if the reversion-gRNA targets the excision-dDNA
+    
     
     def __repr__(self):
         """Return a string containing a printable representation of the Target object."""
@@ -911,7 +1113,7 @@ class Target(object):
             self.spacer + '|' + self.pam,
             'motif=' + self.motif,
             'locations=' + str(len(self.locations)),
-            'alignments=' + str(len([a for a in self.alignments if a.prefilter])) + '/' + str(len(self.alignments))] +
+            'alignments=' + str(len([a for a in self.alignments if a.postfilter])) + '/' + str(len(self.alignments))] +
             [x + '=' + str(round(self.score[x], 2)) for x in self.score] + 
             ['OT:' + x + '=' + str(round(self.off_targets[x], 2)) for x in self.off_targets]
             ) + ')'
@@ -984,7 +1186,8 @@ class ReversionTarget(Target):
     @classmethod
     def get_targets(cls):
         for dDNA, obj in ExcisionDonor.sequences.items():
-            obj_features = ','.join([x[0] for x in list(obj.locations)])
+            #obj_features = ','.join([x[0] for x in list(obj.locations)])
+            obj_features = ','.join(set([x[0] for x in obj.locations]))
             
             # Populate the ReversionTarget sequences indices dicts
             for t in obj.spacers: # [(orientation, start, end, filt_seq, side, filt_spacer, filt_pam), ...]
@@ -1080,6 +1283,8 @@ def parse_arguments():
     #    help="Minimum distance from contig edge a site can be found")
     parser.add_argument("--features", metavar="FEATURE", type=str, nargs="+", default=["gene"],
         help="Features to design gRNAs against. Must exist in GFF file. Examples: 'CDS', 'gene', 'mRNA', 'exon'")
+    parser.add_argument("--dDNA_gDNA_ratio", metavar="N", type=int, default=10,
+        help="Ratio of donor DNA to genomic DNA for calculating off-target scores")
     parser.add_argument("--target_gc", nargs=2, metavar=('MIN', 'MAX'), type=int, default=[25, 75],
         help="Generated gRNA spacers must have %%GC content between these values (excludes PAM motif)")
     parser.add_argument("--excise_upstream_homology", nargs=2, metavar=("MIN", "MAX"), type=int, default=[50,50],
@@ -1116,8 +1321,8 @@ def parse_arguments():
         help="Range of homology lengths acceptable for knock-in dDNAs, inclusive.")
     parser.add_argument("--revert_donor_lengths", nargs=2, metavar=('MIN', 'MAX'), type=int, default=[0, 100000],
         help="Range of lengths acceptable for knock-in dDNAs.")
-    parser.add_argument("--min_donor_distance", metavar="N", type=int, default=36,
-        help="The minimum distance in bp a difference can exist from the edge of donor DNA") # homology with genome
+#    parser.add_argument("--min_donor_distance", metavar="N", type=int, default=36,
+#        help="The minimum distance in bp a difference can exist from the edge of donor DNA") # homology with genome
     parser.add_argument("--max_consecutive_ts", metavar="N", type=int, default=4,
         help="The maximum number of Ts allowed in generated gRNA sequences")
     # program currently will only search 'both' strands
@@ -1312,6 +1517,12 @@ def target_filter(seq, args):
             return [] # Reject this sequence because it has upper-case characters
     # if (args.case == "ignore"), then do nothing
     
+    # Discard potential gRNAs that have mismatches with their target site
+    #if (args.case == "invariant-lower"):
+    #    pass
+    #elif (args.case == "invariant-upper"):
+    #    pass
+    
     # Convert sequences to upper-case so it can be evaluated by the scoring algorithms
     seq = seq.upper()
     
@@ -1330,6 +1541,28 @@ def target_filter(seq, args):
     
     # Remove targets with T{5,}
     seqs = [ nt for nt in seqs if ('T'*(args.max_consecutive_ts+1) not in nt) ]
+    
+#    # Apply all prefilters
+#    this = (sequence, target, pam, upstream, downstream)
+#    prefilter = []
+#    for C in algorithms.single_algorithms:
+#        c_score = C.calculate(this)
+#        if C.prefilter:
+#            if (C.minimum <= c_score <= C.maximum):
+#                prefilter.append(True)
+#            else:
+#                prefilter.append(False)
+#    # parent = (sequence, target, pam, upstream, downstream)
+#    #for C in algorithms.paired_algorithms:
+#    #    c_score = C.calculate(parent, this)
+#    #    if C.prefilter:
+#    #        if (C.minimum <= c_score <= C.maximum):
+#    #            prefilter.append(True)
+#    #        else:
+#    #            prefilter.append(False)
+#    
+#    # If alignment meets all prefilter criteria, then set it as True
+#    prefilter = all(prefilter) # all([]) returns True
     
     # Remove targets that do not confine to at least one of the defined
     # SPACER>PAM motifs.
@@ -1368,39 +1601,54 @@ def target_filter(seq, args):
         rets.append((temp_seqs2[i], temp_targets2[i], temp_pams2[i]))
     return rets
 
-def index_reference(args):
-    if (args.aligner == 'addtag'):
-        index_file = fasta
-    elif (args.aligner == 'blast+'):
-        pass
-    elif (args.aligner == 'blat'):
-        pass
-    elif (args.aligner == 'bowtie'):
-        pass
-    elif (args.aligner == 'bowtie2'):
-        index_file = bowtie2.index_reference(args.fasta, tempdir=args.folder, threads=args.processors)
-    elif (args.aligner == 'bwa'):
-        pass
-    elif (args.aligner == 'cas-offinder'):
-        pass
-    return index_file
+#def index_reference(args):
+#    if (args.aligner == 'addtag'):
+#        index_file = fasta
+#    elif (args.aligner == 'blast+'):
+#        pass
+#    elif (args.aligner == 'blat'):
+#        pass
+#    elif (args.aligner == 'bowtie'):
+#        pass
+#    elif (args.aligner == 'bowtie2'):
+#        index_file = bowtie2.index_reference(args.fasta, tempdir=args.folder, threads=args.processors)
+#    elif (args.aligner == 'bwa'):
+#        pass
+#    elif (args.aligner == 'cas-offinder'):
+#        pass
+#    return index_file
 
-def align(query_file, index_file, args):
-    if (args.aligner == 'addtag'):
-        sam_file = None
-    elif (args.aligner == 'blast+'):
-        pass
-    elif (args.aligner == 'blat'):
-        pass
-    elif (args.aligner == 'bowtie'):
-        pass
-    elif (args.aligner == 'bowtie2'):
-        sam_file = bowtie2.align(query_file, index_file, folder=args.folder, threads=args.processors)
-    elif (args.aligner == 'bwa'):
-        pass
-    elif (args.aligner == 'cas-offinder'):
-        pass
-    return sam_file
+#def align(query_file, index_file, args):
+#    if (args.aligner == 'addtag'):
+#        sam_file = None
+#    elif (args.aligner == 'blast+'):
+#        pass
+#    elif (args.aligner == 'blat'):
+#        pass
+#    elif (args.aligner == 'bowtie'):
+#        pass
+#    elif (args.aligner == 'bowtie2'):
+#        sam_file = bowtie2.align(query_file, index_file, folder=args.folder, threads=args.processors)
+#    elif (args.aligner == 'bwa'):
+#        pass
+#    elif (args.aligner == 'cas-offinder'):
+#        pass
+#    return sam_file
+
+#def new_index_reference(args):
+#    name = 'excision-reference'
+#    folder = os.path.join(args.folder, name)
+#    # Make the directory if it does not yet exist
+#    try:
+#        os.mkdir(folder)
+#    except FileExistsError:
+#        pass
+#    
+#    # Concatenate args.fasta with 'excision-dDNAs.fasta' to make a new reference
+#    ex_reference_file = utils.concatenate_files(os.path.join(folder, name+'.fasta'), args.fasta, ex_dDNA_file)
+#    
+#    index_file = bowtie2.index_reference(args.fasta, tempdir=args.folder, threads=args.processors)
+#    return index_file
 
 def main():
     """Function to run complete AddTag analysis"""
@@ -1439,21 +1687,37 @@ def main():
         # Search features within contigs for targets that match the motifs
         ExcisionTarget.get_targets(args, contigs, features)
         
-        # Index the reference FASTA
-        index_file = index_reference(args)
-        
         # Write the query list to FASTA
         ex_query_file = ExcisionTarget.generate_query_fasta(os.path.join(args.folder, 'excision-query.fasta'))
         
-        # Use selected alignment program to find all matches in the genome
-        ex_sam_file = align(ex_query_file, index_file, args)
+        # Generate excision dDNAs and their associated reversion gRNA spacers
+        ExcisionDonor.generate_donors(args, features, contigs)
+        ReversionTarget.get_targets()
+        ex_dDNA_file = ExcisionDonor.generate_fasta(os.path.join(args.folder, 'excision-dDNAs.fasta'))
+        re_query_file = ReversionTarget.generate_query_fasta(os.path.join(args.folder, 'reversion-query.fasta'))
         
-        print("ExcisionTarget before SAM parsing")
-        for et_seq, et_obj in ExcisionTarget.sequences.items():
-            print(et_obj)
+        # Generate reversion dDNAs and write them to FASTA
+        ReversionDonor.generate_donors(args, features, contigs)
+        re_dDNA_file = ReversionDonor.generate_fasta(os.path.join(args.folder, 'reversion-dDNAs.fasta'))
         
-        # Load the SAM file and add Alignments to ExcisionTarget sequences
-        ExcisionTarget.load_sam(os.path.join(args.folder, 'excision-query.sam'), args, contigs)
+        # Index args.fasta for alignment
+        #index_file = index_reference(args)
+        genome_index_file = bowtie2.index_reference(args.fasta, tempdir=args.folder, threads=args.processors)
+        ex_dDNA_index_file = bowtie2.index_reference(ex_dDNA_file, tempdir=args.folder, threads=args.processors)
+        re_dDNA_index_file = bowtie2.index_reference(re_dDNA_file, tempdir=args.folder, threads=args.processors)
+        
+        # Use selected alignment program to find all matches in the genome and dDNAs
+        #ex_genome_sam_file = align(ex_query_file, genome_index_file, args)
+        exq2gDNA_sam_file = bowtie2.align(os.path.join(args.folder, 'excision-query-2-gDNA.sam'), ex_query_file, genome_index_file, folder=args.folder, threads=args.processors)
+        exq2exdDNA_sam_file = bowtie2.align(os.path.join(args.folder, 'excision-query-2-excision-dDNA.sam'), ex_query_file, ex_dDNA_index_file, folder=args.folder, threads=args.processors)
+        
+        #print("ExcisionTarget before SAM parsing")
+        #for et_seq, et_obj in ExcisionTarget.sequences.items():
+        #    print(et_obj)
+        
+        # Load the SAM files and add Alignments to ExcisionTarget sequences
+        ExcisionTarget.load_sam(exq2gDNA_sam_file, args, contigs)
+        ExcisionTarget.load_sam(exq2exdDNA_sam_file, args, ExcisionDonor.get_contig_dict())
         
         # Calculate off-target/guide scores for each algorithm
         print("ExcisionTarget after SAM parsing and off-target scoring")
@@ -1473,23 +1737,16 @@ def main():
         # Generate the FASTA with the final scores
         excision_spacers_file = ExcisionTarget.generate_spacers_fasta(os.path.join(args.folder, 'excision-spacers.fasta'))
         
-        # Discard potential gRNAs that have mismatches with their target site
-        #if (args.case == "invariant-lower"):
-        #    pass
-        #elif (args.case == "invariant-upper"):
-        #    pass
+        # Use selected alignment program to find all matches in the genome and dDNAs
+        #re_sam_file = align(re_query_file, genome_index_file, args)
+        req2gDNA_sam_file = bowtie2.align(os.path.join(args.folder, 'reversion-query-2-gDNA.sam'), re_query_file, genome_index_file, folder=args.folder, threads=args.processors)
+        req2exdDNA_sam_file = bowtie2.align(os.path.join(args.folder, 'reversion-query-2-excision-dDNA.sam'), re_query_file, ex_dDNA_index_file, folder=args.folder, threads=args.processors)
+        req2redDNA_sam_file = bowtie2.align(os.path.join(args.folder, 'reversion-query-2-reversion-dDNA.sam'), re_query_file, re_dDNA_index_file, folder=args.folder, threads=args.processors)
         
-        # Generate excision dDNAs and their associated reversion gRNA spacers
-        ExcisionDonor.generate_donors(args, features, contigs)
-        ReversionTarget.get_targets()
-        ex_dDNA_file = ExcisionDonor.generate_fasta(os.path.join(args.folder, 'excision-dDNAs.fasta'))
-        re_query_file = ReversionTarget.generate_query_fasta(os.path.join(args.folder, 'reversion-query.fasta'))
-        
-        # Use selected alignment program to find all matches in the genome
-        re_sam_file = align(re_query_file, index_file, args)
-        
-        # Load the SAM file and add Alignments to ReversionTarget sequences
-        ReversionTarget.load_sam(os.path.join(args.folder, 'reversion-query.sam'), args, contigs)
+        # Load the SAM files and add Alignments to ReversionTarget sequences
+        ReversionTarget.load_sam(req2gDNA_sam_file, args, contigs)
+        ReversionTarget.load_sam(req2exdDNA_sam_file, args, ExcisionDonor.get_contig_dict())
+        ReversionTarget.load_sam(req2redDNA_sam_file, args, ReversionDonor.get_contig_dict())
         
         # Calculate off-target/guide scores for each algorithm
         print("ReversionTarget after SAM parsing and off-target scoring")
@@ -1508,10 +1765,6 @@ def main():
         
         # Generate the FASTA with the final scores
         reversion_spacers_file = ReversionTarget.generate_spacers_fasta(os.path.join(args.folder, 'reversion-spacers.fasta'))
-        
-        # Generate reversion dDNAs and write them to FASTA
-        ReversionDonor.generate_donors(args, features, contigs)
-        re_dDNA_file = ReversionDonor.generate_fasta(os.path.join(args.folder, 'reversion-dDNAs.fasta'))
         
         # Test code to generate alignments
         ExcisionDonor.generate_alignments()
@@ -1560,3 +1813,4 @@ def test(args):
     
     # Print time taken for program to complete
     print('Runtime: {}s'.format(time.time()-start))
+
