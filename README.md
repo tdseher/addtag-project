@@ -78,8 +78,8 @@ $ man ./addtag.1
 ### Scoring algorithms ###
 Scoring algorithms have been broken down into two general types.
 
- * Scores that compare a potential spacer to a model (Azimuth, Chari, Doench-2014, GC, Housden, Moreno-Mateos, Wang)
- * Scores that compare a potential spacer to a target (CFD, Distance, Hsu-Zhang, Linear)
+ * Scores that compare a potential spacer to a model trained on empirical data (Azimuth, Chari, Doench-2014, GC, Housden, Moreno-Mateos, Wang)
+ * Scores that compare a potential spacer to a target using a model (CFD, Distance, Hsu-Zhang, Linear)
 
 Adding a new scoring algorithm is as simple as subclassing the above type, and adding it to a `*.py` file in the `source/algorithms/` subdirectory. AddTag will automatically calculate the score on every generated spacer.
 
