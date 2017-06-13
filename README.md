@@ -21,7 +21,7 @@ All generated sequences can be designed as either strand-specific or strand-agno
       
       note: The easy way to install this is through pip.
       
-      ```sh
+      ```
       $ pip3 install regex
       ```
 
@@ -30,7 +30,7 @@ All generated sequences can be designed as either strand-specific or strand-agno
       
       note: requires specific versions of scipy, numpy, matplotlib, nose, scikit-learn, pandas, biopython, pyparsing, cycler, six, pytz, python-dateutil, functools32, subprocess32. The easiest way to install it and take care of all dependencies is to use pip.
       
-      ```sh
+      ```
       $ pip2.7 install git+https://github.com/MicrosoftResearch/Azimuth.git
       ```
 
