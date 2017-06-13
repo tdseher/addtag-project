@@ -80,7 +80,8 @@ def decode_sam_flags(field, kind='str'):
         return list_flags
 
 def load_fasta_file(filename):
-    """Load contig sequences from file into dict()
+    """
+    Load contig sequences from file into dict()
     Primary sequence headers must be unique
     Can open a *.gz compressed file
     """
@@ -118,7 +119,8 @@ def load_fasta_file(filename):
     return contigs
 
 def load_gff_file(filename, features, tag):
-    """Load General Feature Format (GFF) file into dict()
+    """
+    Load General Feature Format (GFF) file into dict()
     One line per feature, each containing 9 columns of data, plus optional
     track definition lines.
     
@@ -203,7 +205,10 @@ def load_gff_file(filename, features, tag):
     return annotations
 
 def load_git_date():
-    '''Returns the date of the most-recent git commit for the current head and master'''
+    '''
+    Returns the date of the most-recent git commit for the current head
+    and master.
+    '''
     # Repository versions stored in this file:
     #   .../addtag-project/.git/logs/regs/heads/master
     root = os.path.join(os.path.dirname(__file__), '..')
