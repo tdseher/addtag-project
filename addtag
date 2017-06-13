@@ -1,13 +1,10 @@
 #!/usr/bin/env python3
 
-"""AddTag Copyright (c) 2016 Thaddeus D. Seher & Aaron Hernday
-
-Program for identifying unique endogenous gRNA sites
-and creating unique synthetic gRNA sites.
-"""
+"""AddTag Copyright (c) 2016 Thaddeus D. Seher & Aaron Hernday"""
 
 # addtag
 
+# Import standard packages
 import sys
 
 # Raise a useful error if utilizing an incompatible version of Python
@@ -17,5 +14,6 @@ if (sys.version_info < (3, 5, 1)):
 # Import source code
 import source
 
+# Execute program
 if (__name__ == "__main__"):
     source.main()
