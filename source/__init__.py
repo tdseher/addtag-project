@@ -373,6 +373,9 @@ class Donor(object):
     def get_features(self):
         return sorted(set(x[0] for x in self.locations))
     
+    def get_location_features(self):
+        return sorted(set(x[0] for x in self.locations))
+    
     def __init__(self, feature, contig, orientation, sequence, *segments, spacer=None):
     #def __init__(self, feature, contig, orientation, segment1, insert, segment2, sequence, spacer=None):
         # List of all genomic locations and features this dDNA corresponds to
@@ -420,6 +423,13 @@ class Donor(object):
     #        'features=' + ','.join(self.features) or 'None',
     #        'spacers=' + str(len(self.spacers))
     #        ]) + ')'
+
+    def __repr__(self):
+        """Return a string containing a printable representation of the Target object."""
+        return self.__class__.__name__ + '(' + ' '.join(
+            [self.name, 'spacers='+str(len(self.spacers))] +
+            [self.format_location(x) for x in self.locations]
+            ) + ')'
 
 class ExcisionDonor(Donor):
     prefix = 'exDonor'
@@ -866,6 +876,9 @@ class Target(object):
     def get_contigs(self):
         return sorted(set(x[1] for x in self.locations))
     
+    def get_location_features(self):
+        return sorted(set(x[0] for x in self.locations))
+    
     @classmethod
     def score_batch(cls):
         """Performs BatchedSingleSequenceAlgorithm calculations on all sequences"""
@@ -1038,74 +1051,6 @@ class Target(object):
             except ZeroDivisionError:
                 self.off_targets[C.name] = 0.0 # This should never happen
     
-    def old_score_off_targets(self, args, homologs, features):
-        """
-        Calculate Guide Score (off-target score) for all single/paired
-        algorithms with the 'off_target=True' attribute.
-        """
-        # Get list of algorithms whose scores should be used for off-target
-        # calculations
-        calculators = []
-        for C in algorithms.single_algorithms:
-            if C.off_target:
-                calculators.append(C)
-        for C in algorithms.paired_algorithms:
-            if C.off_target:
-                calculators.append(C)
-
-        # Make empty lists for scores
-        on_targets = {}
-        off_targets = {}
-        for C in calculators:
-            on_targets[C.name] = []
-            off_targets[C.name] = []
-
-        # Get list of on-target features
-        on_target_features = set([x[0] for x in self.locations])
-        if isinstance(self, ReversionTarget):
-            on_target_features = set(utils.flatten([x.split(',') for x in on_target_features]))
-
-        if homologs:
-            for f in list(on_target_features):
-                on_target_features.update(homologs.get(f, set()))
-
-        print('on_target_features', on_target_features)
-        # Check each alignment
-        for a in self.alignments:
-            if a.contig.startswith('exDonor-'):
-                a_features = ExcisionDonor.indices[a.contig].get_features()
-                print('case E', end=' ')
-            elif a.contig.startswith('reDonor-'):
-                a_features = ReversionDonor.indices[a.contig].get_features()
-                print('case R', end=' ')
-            else:
-                a_features = self.get_features(features, a.contig, a.start, a.end) # contig, start, end
-                print('case D', end=' ')
-            print (a, a_features)
-            if a.postfilter:
-                for i, C in enumerate(calculators):
-                    c_score = a.score[C.name]
-                    if (C.minimum <= c_score <= C.maximum):
-                        # if alignment is NOT a target:
-                        if ((len(a_features) == 0) or (len(on_target_features.intersection(a_features)) == 0)):
-                            off_targets[C.name].append(c_score)
-                        # if alignment is a target
-                        else:
-                            on_targets[C.name].append(c_score)
-
-        ##### Start Debug
-        for i, C in enumerate(calculators):
-            print(self.name, C.name, len(on_targets[C.name]), '/', len(off_targets[C.name]))
-        ##### End debug
-
-        # Perform off-target calculations
-        for C in calculators:
-            try:
-                self.off_targets[C.name] = scores.off_target_score(off_targets[C.name], on_targets[C.name])
-            except ZeroDivisionError:
-                self.off_targets[C.name] = 0.0 # This happens if the reversion-gRNA targets the excision-dDNA
-    
-    
     def __repr__(self):
         """Return a string containing a printable representation of the Target object."""
         return self.__class__.__name__ + '(' + ' '.join([
@@ -1187,7 +1132,7 @@ class ReversionTarget(Target):
     def get_targets(cls):
         for dDNA, obj in ExcisionDonor.sequences.items():
             #obj_features = ','.join([x[0] for x in list(obj.locations)])
-            obj_features = ','.join(set([x[0] for x in obj.locations]))
+            obj_features = ','.join(sorted(set([x[0] for x in obj.locations])))
             
             # Populate the ReversionTarget sequences indices dicts
             for t in obj.spacers: # [(orientation, start, end, filt_seq, side, filt_spacer, filt_pam), ...]
@@ -1650,6 +1595,74 @@ def target_filter(seq, args):
 #    index_file = bowtie2.index_reference(args.fasta, tempdir=args.folder, threads=args.processors)
 #    return index_file
 
+def get_best(args, features, contigs):
+    """Function that returns the best spacers and dDNAs for each feature"""
+    #exd_dict = {}
+    red_dict = {}
+    ext_dict = {}
+    ret_dict = {}
+    
+    # Non-exclusively separate all instances into feature groups
+    for feature in features:
+        red_dict[feature] = []
+        for name, obj in ReversionDonor.indices.items():
+            if feature in obj.get_location_features():
+                red_dict[feature].append(obj)
+        
+        ext_dict[feature] = []
+        for name, obj in ExcisionTarget.indices.items():
+            if feature in obj.get_location_features():
+                ext_dict[feature].append(obj)
+        
+        ret_dict[feature] = set()
+        for name, obj in ReversionTarget.indices.items():
+            for c in obj.get_contigs():
+                if feature in ExcisionDonor.indices[c].get_location_features():
+                    ret_dict[feature].add(obj)
+    
+    # Find the best instances for homozygous ko/ki
+    for feature in sorted(features):
+        # Find the best ReversionTarget
+        on_target_sorted = sorted(ret_dict[feature], key=lambda x: x.score['Azimuth'], reverse=True)
+        ret_best = None
+        for i in range(len(on_target_sorted)):
+            if (on_target_sorted[i].off_targets['Hsu-Zhang'] >= 90):
+                ret_best = on_target_sorted[i]
+                break
+        #if not ret_best:
+        #    print(len(on_target_sorted))
+        #    for tmp in on_target_sorted:
+        #        print(' ', tmp)
+        #if not ret_best: # this could fail if there are no sites
+        #    off_target_sorted = sorted(ret_dict[feature], key=lambda x: x.score['Hsu-Zhang'], reverse=True)
+        #    ret_best = off_target_sorted[0]
+        
+        # Find the best ExcisionTarget
+        on_target_sorted = sorted(ext_dict[feature], key=lambda x: x.score['Azimuth'], reverse=True)
+        ext_best = None
+        for i in range(len(on_target_sorted)):
+            if (on_target_sorted[i].off_targets['Hsu-Zhang'] >= 95):
+                ext_best = on_target_sorted[i]
+                break
+        
+        # Find the ExcisionDonors that correspond with the best ReversionTarget
+        exd_best = []
+        if ret_best:
+            exd_best = [ExcisionDonor.indices[x] for x in ret_best.get_contigs()]
+        
+        # Find the ReversionDonor
+        red_best = red_dict[feature]
+        
+        print("")
+        print("  feature =", feature)
+        print("ko spacer =", ext_best)
+        for d in exd_best:
+            print("  ko dDNA =", d)
+        print("ki spacer =", ret_best)
+        for d in red_best:
+            print("  ki dDNA =", d)
+    
+
 def main():
     """Function to run complete AddTag analysis"""
     
@@ -1768,6 +1781,9 @@ def main():
         
         # Test code to generate alignments
         ExcisionDonor.generate_alignments()
+        
+        # Pick out the best ones and print them out
+        get_best(args, features, contigs)
         
         # Print time taken for program to complete
         print('Runtime: {}s'.format(time.time()-start))
