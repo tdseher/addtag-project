@@ -33,7 +33,8 @@ class Bowtie2(Aligner):
         pass
 
 def align(output_sam_file, input_query_file, index, threads=(os.cpu_count() or 1), folder=os.getcwd(), options=None):
-    """Aligns sequences using Bowtie 2
+    """
+    Aligns sequences using Bowtie 2
     
     Description of arguments:
       'name'    - the basename to give the generated files

@@ -53,6 +53,16 @@ class Algorithm(object): # Name of the subclass
         """
         return 0.0
     
+    def weight(self, *args, **kwargs):
+        """
+        Overload this method.
+        Returns a float, usually between 0.0 and 1.0
+        Argument: a score
+        Returns: amount of weight this score should have.
+        """
+        # By default, we want the score to be unweighted, we return 1.0
+        return 1.0
+    
     def __repr__(self):
         """
         Return the string representation of the Algorithm

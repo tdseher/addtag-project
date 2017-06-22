@@ -127,6 +127,10 @@ class Doench2016(PairedSequenceAlgorithm):
             default=100.0
         )
     
+    def weight(self, x):
+        """Severely penalize any score less than 50"""
+        return 1.0/(1+1.2**(40-x))
+    
     def calculate(self, intended, potential, *args, **kwargs):
         on_sequence, on_target, on_pam, on_upstream, on_downstream = intended
         off_sequence, off_target, off_pam, off_upstream, off_downstream = potential
@@ -237,6 +241,10 @@ class Azimuth(BatchedSingleSequenceAlgorithm):
             maximum=100.0,
             default=None
         )
+    
+    def weight(self, x):
+        """Penalize any score less than 60"""
+        return 1.0/(1+1.17**(50-x))
     
     def calculate(self, batch, *args, **kwargs):
         queries = []
@@ -380,15 +388,17 @@ except FileNotFoundError:
 def test():
     """Code to test the functions and classes"""
     
-    a = ('', 'CGATGGCTAGGATCGATTGA', 'TGG', '', '')
-    b = ('', 'RYMKWSACGTbDHVNACGTA', 'TGG', '', '')
-    c = ('',   'ATGSCTCGGATCGATTGA', 'AGG', '', '')
-    d = ('', 'GCGATGCGCAGCTAGGCCGG', 'CGG', '', '')
-    e = ('', 'CGAAGGCTCGGACCGATTGA', 'GGG', '', '')
-    f = ('', 'CGCTGGCTAGGATCGATTGA', 'AGG', '', '')
-    g = ('', 'AAAATTAACTATAGGTAAAG', 'TGG', '', '')
-    h = ('', 'AACATCAACTCTAGCTAACG', 'CGG', '', '')
-    i = ('', 'AACATCAACTCTACCTAACG', 'CGG', 'CCGA', 'AACA')
+    a = ('',   'CGATGGCTAGGATCGATTGA', 'TGG', '', '')
+    b = ('',   'RYMKWSACGTbDHVNACGTA', 'TGG', '', '')
+    c = ('',     'ATGSCTCGGATCGATTGA', 'AGG', '', '')
+    d = ('',   'GCGATGCGCAGCTAGGCCGG', 'CGG', '', '')
+    e = ('',   'CGAAGGCTCGGACCGATTGA', 'GGG', '', '')
+    f = ('',   'CGCTGGCTAGGATCGATTGA', 'AGG', '', '')
+    g = ('',   'AAAATTAACTATAGGTAAAG', 'TGG', '', '')
+    h = ('',   'AACATCAACTCTAGCTAACG', 'CGG', '', '')
+    i = ('',   'AACATCAACTCTACCTAACG', 'CGG', 'CCGA', 'AACA')
+    j = ('',   'GTTAGCGGTATGTATATGTG', 'TGG', 'GGGA', 'CTCA')
+    k = ('', 'CTCAACATGGTATGTATATGTG', 'TGG', 'TCGA', 'TTCA')
     
     print("=== Doench2014 ===")
     C = Doench2014()
@@ -407,6 +417,7 @@ def test():
     print(C.calculate(a, d)) # 0.008843903254636097
     print(C.calculate(a, e)) # 21.482277090941643
     print(C.calculate(a, f)) # 42.8571429
+    print(C.calculate(j, k)) # 12.26204765820043
     
     print("=== Azimuth ===")
     C = Azimuth()

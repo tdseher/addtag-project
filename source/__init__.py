@@ -9,7 +9,6 @@
 import sys
 import os
 import argparse
-import textwrap
 import time
 
 # Import non-standard packages
@@ -356,7 +355,7 @@ class Donor(object):
         with open(filename, 'w') as flo:
             for sequence, obj in cls.sequences.items():
                 #don_entry = tuple(["dDNA-"+str(i), feature, contig, '+', start1, start2, end1, end2, dDNA])
-                print(' '.join(['>'+obj.name, 'spacers='+str(len(obj.spacers))] + [obj.format_location(x, sep) for x in obj.locations]), file=flo)
+                print(' '.join(['>'+obj.name, 'spacers='+str(len(obj.spacers))] + sorted([obj.format_location(x, sep) for x in obj.locations])), file=flo)
                 print(sequence, file=flo)
         print(cls.__name__ + ' dDNA FASTA generated: {!r}'.format(filename))
         return filename
@@ -428,7 +427,7 @@ class Donor(object):
         """Return a string containing a printable representation of the Target object."""
         return self.__class__.__name__ + '(' + ' '.join(
             [self.name, 'spacers='+str(len(self.spacers))] +
-            [self.format_location(x) for x in self.locations]
+            [self.format_location(x) for x in sorted(self.locations)]
             ) + ')'
 
 class ExcisionDonor(Donor):
@@ -559,6 +558,20 @@ class ExcisionDonor(Donor):
                 for i, c in enumerate(label):
                     out[start+i] = c
             return ''.join(out)
+    
+    def get_trims(self, features):
+        """
+        Get the length of the upstream and downstream trims for each location
+        """
+        trims = []
+        for loc in self.locations:
+            contig, start, end, strand = features[loc[0]]
+            #mAT = loc[4]
+            left_trim = start - loc[3][1]
+            right_trim = loc[5][0] - end
+            #trims.append(len(loc[4]) + loc[5][0]-l[3][1])
+            trims.append((left_trim, right_trim))
+        return trims
 
 class ReversionDonor(Donor):
     prefix = 'reDonor'
@@ -686,7 +699,7 @@ class Target(object):
                 #for location in obj.locations:
                 #    print(' '.join(['>'+obj.format_location(location), obj.name]), file=flo)
                 #    print(sequence, file=flo)
-                print(' '.join(['>'+obj.name] + [obj.format_location(x, sep) for x in obj.locations]), file=flo)
+                print(' '.join(['>'+obj.name] + sorted([obj.format_location(x, sep) for x in obj.locations])), file=flo)
                 print(sequence, file=flo)
                 
         print(cls.__name__ + ' query FASTA generated: {!r}'.format(filename))
@@ -1139,6 +1152,9 @@ class ReversionTarget(Target):
                 #final_targets.append(tuple([obj.name, obj_feature, obj_contig] + list(t)))
                 # t = (orientation, start, end, t_upstream, t_downstream, filt_seq, side, filt_spacer, filt_pam, args.motifs[i])
                 ReversionTarget(obj_features, obj.name, t[0], t[1], t[2], t[3], t[4], t[5], t[6], t[7], t[8], t[9])
+    
+    def get_donors(self):
+        return [ExcisionDonor.indices[x] for x in self.get_contigs()]
 
 class CustomHelpFormatter(argparse.HelpFormatter):
     """Help message formatter which retains any formatting in descriptions
@@ -1595,8 +1611,128 @@ def target_filter(seq, args):
 #    index_file = bowtie2.index_reference(args.fasta, tempdir=args.folder, threads=args.processors)
 #    return index_file
 
-def get_best(args, features, contigs):
+def get_reTarget_homologs(features, homologs):
+    """Get ReversionTarget objects for each homologous feature group"""
+    ret_dict2 = {}
+    
+    if homologs:
+        groups = set()
+        for f in features:
+            #contig, start, end, strand = features[feature]
+            # Convert to tuple
+            groups.add(tuple(sorted(homologs[f])))
+        # groups = {('F1_A', 'F1_B'), ('F2_A', 'F2_B')} # A set of tuples
+        
+        for g in groups:
+            ret_dict2[g] = set()
+            # Get all ReversionTargets that have all feature of this group in its location information
+            
+            for name, obj in ReversionTarget.indices.items():
+                #obj_features = set(x[0] for x in obj.locations) # these are comma-separated
+                obj_features = set(utils.flatten(x[0].split(',') for x in obj.locations))
+                
+                if (len(obj_features.intersection(g)) == len(g)):
+                    ret_dict2[g].add(obj) # Store with the tuple form of the group as key
+            
+            #print('ret_dict2', len(g), g)
+            #for obj in sorted(ret_dict2[g], key=lambda x: int(x.name.split('-')[1])):
+            #    print(' ', obj)
+    
+    # key = ('F1_A', 'F1_B') # tuple of homologous features
+    # value = [ReversionTarget(), ReversionTarget(), ...] # list of ReversionTarget objects
+    return ret_dict2
+
+def get_reTarget_allele(features, homologs):
+    """Gets allele-specific ReversionTarget objects"""
+    pass
+
+def rank_donors(donor_list):
+    """Uses a heuristic to find the best Donor in the list"""
+    # If the best ReversionTarget has multiple locations, then
+    # choose the best ExcisionDonor location:
+    #    1) minimize the distance between x and y: w..x:mAT:y..z
+    #    2) minimize the length of mAT
+    #    3) report all ties (don't break ties)
+    
+    rank_list = []
+    for d in donor_list: # these should all be ExcisionDonor objects
+        gaps = []
+        for l in d.locations:
+            gaps.append(len(l[4]) + l[5][0]-l[3][1])
+        rank_list.append((min(gaps), d))
+    
+    return sorted(rank_list, key=lambda x: x[0]) # smallest insert size/gap length will be first
+
+def rank_targets(target_list):
+    """Uses a heuristic to find the best Target in the list"""
+    
+    # Hsu-Zhang off-target score should be >95
+    #   if Hsu-Zhange < 95, score should drop quickly
+    # Azimuth on-target score should be >60
+    #   if Azimuth < 60, score should drop quickly
+    # CFD off-target score should be >50
+    #   if CFD < 50, score should drop quickly
+    
+    #rank_azimuth = lambda x: 1/(1+1.17**(50-x))
+    #rank_hsuzhang = lambda x: 1/(1+1.8**(90-x))
+    #rank_cfd = lambda x: 1/(1+1.2**(40-x))
+    #rank = lambda x, y, z: rank_azimuth(x)*rank_hsuzhang(y)*rank_cfd(z)
+    
+    # Returns list of targets, sorted such that the one with the highest
+    # aggregate score is the 0th index
+    rank_list = []
+    for t in target_list:
+        #rank_list.append((rank(t.score['Azimuth'], t.off_targets['Hsu-Zhang'], t.off_targets['CFD']), t))
+        
+        rank = 1.0
+        for C in algorithms.single_algorithms + algorithms.paired_algorithms + algorithms.batched_single_algorithms:
+            if C.off_target:
+                rank *= C.weight(t.off_targets[C.name])
+            else:
+                rank *= C.weight(t.score[C.name])
+        rank_list.append((rank, t))
+    
+    #return sorted(target_list, key=lambda x: rank(x.score['Azimuth'], x.off_targets['Hsu-Zhang'], x.off_targets['CFD']), reverse=True)
+    return sorted(rank_list, key=lambda x: x[0], reverse=True)
+
+def get_best(args, features, homologs):
     """Function that returns the best spacers and dDNAs for each feature"""
+    
+    display_num = 5
+    
+    # Print best ReversionTargets calculated and their corresponding ExcisionDonors
+    ret_dict2 = get_reTarget_homologs(features, homologs)
+    for k in ret_dict2:
+        print(k, len(ret_dict2[k]))
+        # Print the top 5
+        for rank, obj in rank_targets(ret_dict2[k])[:display_num]:
+            print(' ',rank, obj)
+            # Get the ExcisionDonor objects for this ki-spacer, and rank them
+            rds = rank_donors(obj.get_donors())
+            # filter out all but the top-ranked ones
+            rds = [x for x in rds if (x[0] == rds[0][0])]
+            for gap, exd_obj in rds:
+                print(' ', ' ', gap, exd_obj.get_trims(features), exd_obj)
+    
+    # Print best ExcisionTargets (not necessarily homozygous) for each feature
+    # and the ReversionDonor
+    for feature in sorted(features):
+        print(feature)
+        et_list = []
+        for name, obj in ExcisionTarget.indices.items():
+            if feature in obj.get_location_features():
+                et_list.append(obj)
+        for rank, obj in rank_targets(et_list)[:display_num]:
+            print(' ', rank, obj)
+        
+        red_list = []
+        for name, obj in ReversionDonor.indices.items():
+            if feature in obj.get_location_features():
+                red_list.append(obj)
+        for obj in red_list:
+            print(' ', obj)
+
+def old_get_best(args, features, contigs):
     #exd_dict = {}
     red_dict = {}
     ext_dict = {}
@@ -1620,7 +1756,7 @@ def get_best(args, features, contigs):
                 if feature in ExcisionDonor.indices[c].get_location_features():
                     ret_dict[feature].add(obj)
     
-    # Find the best instances for homozygous ko/ki
+    # Find the best instances for ko/ki
     for feature in sorted(features):
         # Find the best ReversionTarget
         on_target_sorted = sorted(ret_dict[feature], key=lambda x: x.score['Azimuth'], reverse=True)
@@ -1783,7 +1919,7 @@ def main():
         ExcisionDonor.generate_alignments()
         
         # Pick out the best ones and print them out
-        get_best(args, features, contigs)
+        get_best(args, features, homologs)
         
         # Print time taken for program to complete
         print('Runtime: {}s'.format(time.time()-start))
