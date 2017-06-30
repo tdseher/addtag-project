@@ -265,24 +265,29 @@ class Azimuth(BatchedSingleSequenceAlgorithm):
         WRAPPER_PATH = os.path.join(SCRIPT_DIR, "azimuth_wrapper.py")
         # Should use args.python2_path
         
+        batch_size = 50000
+        
         o_scores = []
         line_count = 0
         if (len(queries) > 0):
-            command_list = ['python', WRAPPER_PATH] + queries
-            
-            #with open(error_file, 'w+') as flo:
-            #    cp = subprocess.run(command_list, shell=False, check=True, stdout=flo, stderr=subprocess.STDOUT)
-            cp = subprocess.run(command_list, shell=False, check=True, stdout=subprocess.PIPE)
-            output = cp.stdout.decode()
-        
-            for line in output.splitlines():
-                if not line.startswith('No model file specified'):
-                    while line_count in skips:
-                        o_scores.append(0.0)
+            for batch_start in range(0, len(queries), batch_size):
+                command_list = ['python', WRAPPER_PATH] + queries[batch_start:batch_start+batch_size]
+                
+                #with open(error_file, 'w+') as flo:
+                #    cp = subprocess.run(command_list, shell=False, check=True, stdout=flo, stderr=subprocess.STDOUT)
+                cp = subprocess.run(command_list, shell=False, check=True, stdout=subprocess.PIPE)
+                output = cp.stdout.decode()
+                
+                #print("batch", batch_start)
+                for line in output.splitlines():
+                    #print(line)
+                    if not line.startswith('No model file specified'):
+                        while line_count in skips:
+                            o_scores.append(0.0)
+                            line_count += 1
+                        i_seq, i_score = line.split(" ")
+                        o_scores.append(100*float(i_score))
                         line_count += 1
-                    i_seq, i_score = line.split(" ")
-                    o_scores.append(100*float(i_score))
-                    line_count += 1
         for i in range(len(batch)-line_count):
             o_scores.append(0.0)
         
