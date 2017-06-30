@@ -294,7 +294,7 @@ def merge_sets(sets):
     
     return groups
 
-def load_homologs(filename, sep="\t", headers=True):
+def load_homologs(filename, sep="\t"):
     """
     Parse homolog file.
     Arguments
@@ -317,14 +317,15 @@ def load_homologs(filename, sep="\t", headers=True):
     #                 if (h1 != h2):
     #                     homologs.setdefault(h1, set()).add(h2)
     
+    feature2gene = {}
+    
     sets = []
     with open(filename, 'r') as flo:
         for line in flo:
             sline = line.rstrip().split(sep)
-            if headers:
-                sets.append(set(sline[1:]))
-            else:
-                sets.append(set(sline))
+            sets.append(set(sline[1:]))
+            for f in sline[1:]:
+                feature2gene[f] = sline[0]
     
     groups = merge_sets(sets)
     homologs = {}
@@ -336,7 +337,7 @@ def load_homologs(filename, sep="\t", headers=True):
     #for h in homologs:
     #    print(' ', h, homologs[h], file=sys.stderr)
     print('Homologs file parsed: {!r}'.format(filename))
-    return homologs
+    return homologs, feature2gene
 
 def test():
     #print(load_git_version())

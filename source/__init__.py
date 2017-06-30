@@ -1826,9 +1826,9 @@ def main():
         
         # Make index of homologs
         if args.feature_homologs:
-            homologs = utils.load_homologs(args.feature_homologs)
+            homologs, feature2gene = utils.load_homologs(args.feature_homologs)
         else:
-            homologs = None
+            homologs, feature2gene = None, None
         
         # Merge features?
         #features = merge_features(features)
