@@ -11,9 +11,9 @@ import os
 import regex
 
 if (__name__ == "__main__"):
-    from algorithm import PairedSequenceAlgorithm
+    from algorithm import SingleSequenceAlgorithm, PairedSequenceAlgorithm
 else:
-    from .algorithm import PairedSequenceAlgorithm
+    from .algorithm import SingleSequenceAlgorithm, PairedSequenceAlgorithm
 
 class GlobalAlignment(object):
     __slots__ = [
@@ -31,6 +31,52 @@ class GlobalAlignment(object):
         'gap_opens',
     ]
     previous_alignment = None
+    
+    def score_extremes(self, scoring, gaps=False):
+        """
+        Returns the minimum and maximum bitscore possible,
+        ignoring potential gaps.
+        Assumes seq1 is the motif
+        """
+        iupac = [
+            'A', 'C', 'G', 'T',
+            'R', 'Y', 'M', 'K', 'W', 'S',
+            'B', 'D', 'H', 'V',
+            'N',
+        ] # note the lack of '-'
+        
+        minimums = []
+        maximums = []
+        
+        if gaps:
+            for a in range(len(self.align1)):
+                scores = []
+                if (self.align1[a] == '~'):
+                    for i in iupac:
+                        scores.append(scoring[('-', i, 'open')])
+                elif (self.align1[a] == '-'):
+                    for i in iupac:
+                        scores.append(scoring[('-', i, 'extend')])
+                elif (self.align2[a] == '~'):
+                    for i in iupac:
+                        scores.append(scoring[(i, '-', 'open')])
+                elif (self.align2[a] == '-'):
+                    for i in iupac:
+                        scores.append(scoring[(i, '-', 'extend')])
+                else:
+                    for i in iupac:
+                        scores.append(scoring[(self.align1[a], i)])
+                minimums.append(min(scores))
+                maximums.append(max(scores))
+        else:
+            for a in self.seq1:
+                scores = []
+                for i in iupac:
+                    scores.append(scoring[(a, i)])
+                minimums.append(min(scores))
+                maximums.append(max(scores))
+        
+        return sum(minimums), sum(maximums)
     
     @classmethod
     def align(cls, seq1, seq2, scoring):
@@ -234,6 +280,8 @@ class GlobalAlignment(object):
         'I='+str(self.insertions),
         'D='+str(self.deletions),
         'E='+str(self.errors),
+        'b='+str(self.bitscore),
+        # 'c='+str(self.cumulative_scores),
         ]) + ')'
     
     def zeros(self, shape):
@@ -243,8 +291,6 @@ class GlobalAlignment(object):
             for y in range(shape[1]):
                 retval[-1].append(0)
         return retval
-
-
 
 def build_score(match=1, transition=-1, transversion=-1.2, gap_open=-4, gap_extend=-2):
     characters = ['-', 'A', 'C', 'G', 'T']
@@ -468,6 +514,43 @@ class Errors(PairedSequenceAlgorithm):
         """"""
         return GlobalAlignment.align(seq1, seq2, SCORES).errors
 
+class PamIdentity(SingleSequenceAlgorithm):
+    def __init__(self):
+        """
+        Quantifies the similarity between the PAM motif and the actual PAM
+        of the target. Normalizes based on gapless minimum and maximum
+        possible bitscores.
+        """
+        super().__init__("PAM-Identity", "Seher", 2017,
+            citation="AddTag",
+            off_target=False,
+            prefilter=False, # Filter spacers before aligning
+            postfilter=True, # Filter alignments before calculating scores
+            minimum=75.0,
+            maximum=100.0,
+            default=None
+        )
+    
+    def calculate(self, potential, *args, **kwargs):
+        off_sequence, off_target, off_pam, off_upstream, off_downstream = potential
+        
+        return self.score(off_pam, kwargs['motif'])
+    
+    def score(self, pam, motif):
+        """"""
+        # Separate spacer and PAM motifs
+        if ('>' in motif):
+            spacer_motif, pam_motif = motif.split('>')
+        elif ('<' in motif):
+            pam_motif, spacer_motif = motif.split('<')
+        #else:
+        #    raise Exception()
+        
+        a = GlobalAlignment.align(pam_motif, pam, SCORES)
+        min_score, max_score = a.score_extremes(SCORES)
+        
+        return (a.bitscore - min_score)/(max_score - min_score)*100
+
 # Load scores from the data files when this module is imported
 try:
     SCORES = load_scores(os.path.join(os.path.dirname(__file__), 'distance_scores.txt'))
@@ -501,6 +584,98 @@ def test():
     C = Errors()
     print(C.calculate(a, b))
     print(C.calculate(a, c))
+    
+    print("=== PAM-Identity ===")
+    C = PamIdentity()
+    print(C.calculate(('', '', 'GGG', '', ''), motif='N{{20}}>NGG'))
+    print(C.calculate(('', '', 'GAG', '', ''), motif='N{{20}}>NGG'))
+    print(C.calculate(('', '', 'GAG', '', ''), motif='N{{20}}>NRG'))
+    print(C.calculate(('', '', 'CCACAAA', '', ''), motif='N{{20}}>NHRBMAW'))
+    print(C.calculate(('', '', 'ATGCCAT', '', ''), motif='N{{20}}>NHRBMAW'))
+    print(C.calculate(('', '', 'CGACAAA', '', ''), motif='N{{20}}>NHRBMAW'))
+    print(C.calculate(('', '', 'CGACAAC', '', ''), motif='N{{20}}>NHRBMAW'))
+    print(C.calculate(('', '', 'CCACAGA', '', ''), motif='N{{20}}>NHRBMAW'))
+    print(C.calculate(('', '', 'CCCCAAG', '', ''), motif='N{{20}}>NHRBMAW'))
+    
+    print("=== Test ===")
+    print(GlobalAlignment.align('GGG', 'GGG', SCORES))
+    print(GlobalAlignment.align('GGG', 'CCC', SCORES))
+    print(GlobalAlignment.align('NRG', 'AGG', SCORES))
+    print(GlobalAlignment.align('NRG', 'TCG', SCORES))
+    print(GlobalAlignment.align('NRG', 'NRG', SCORES))
+    print(GlobalAlignment.align('NRG', 'NNN', SCORES))
+    print(GlobalAlignment.align('NRG', 'RRR', SCORES))
+    print(GlobalAlignment.align('N', 'N', SCORES), 'N', 'N')
+    print(GlobalAlignment.align('N', 'A', SCORES), 'N', 'A') #-0.6
+    print(GlobalAlignment.align('N', 'B', SCORES), 'N', 'B')
+    print(GlobalAlignment.align('R', 'N', SCORES), 'R', 'N')
+    print(GlobalAlignment.align('R', 'R', SCORES), 'R', 'R')
+    print(GlobalAlignment.align('R', 'G', SCORES), 'R', 'G')
+    print(GlobalAlignment.align('R', 'T', SCORES), 'R', 'T')
+    
+    print('------')
+    a = GlobalAlignment.align('NARRG', 'TAAG', SCORES)
+    print(a.align1)
+    print(a.align2)
+    print(a.bitscore)
+    print(a.score_extremes(SCORES))
+    print(a.score_extremes(SCORES, gaps=True), 'gaps')
+    
+    print('------')
+    a = GlobalAlignment.align('NARG', 'TTAAG', SCORES)
+    print(a.align1)
+    print(a.align2)
+    print(a.bitscore)
+    print(a.score_extremes(SCORES))
+    print(a.score_extremes(SCORES, gaps=True), 'gaps')
+    
+    print('------')
+    a = GlobalAlignment.align('NGG', 'GGG', SCORES)
+    print(a.align1)
+    print(a.align2)
+    print(a.bitscore)
+    print(a.score_extremes(SCORES))
+    print(a.score_extremes(SCORES, gaps=True), 'gaps')
+    
+    print('------')
+    a = GlobalAlignment.align('NGG', 'ARG', SCORES)
+    print(a.align1)
+    print(a.align2)
+    print(a.bitscore)
+    print(a.score_extremes(SCORES))
+    print(a.score_extremes(SCORES, gaps=True), 'gaps')
+    
+    print('------')
+    a = GlobalAlignment.align('NRG', 'AGG', SCORES)
+    print(a.align1)
+    print(a.align2)
+    print(a.bitscore)
+    print(a.score_extremes(SCORES))
+    print(a.score_extremes(SCORES, gaps=True), 'gaps')
+    
+    print('------')
+    a = GlobalAlignment.align('NGG', 'ACG', SCORES)
+    print(a.align1)
+    print(a.align2)
+    print(a.bitscore)
+    print(a.score_extremes(SCORES))
+    print(a.score_extremes(SCORES, gaps=True), 'gaps')
+    
+    print('------')
+    a = GlobalAlignment.align('NHRBMAW', 'CCACAAA', SCORES)
+    print(a.align1)
+    print(a.align2)
+    print(a.bitscore)
+    print(a.score_extremes(SCORES))
+    print(a.score_extremes(SCORES, gaps=True), 'gaps')
+    
+    print('------')
+    a = GlobalAlignment.align('NHRBMAW', 'CGACAAA', SCORES)
+    print(a.align1)
+    print(a.align2)
+    print(a.bitscore)
+    print(a.score_extremes(SCORES))
+    print(a.score_extremes(SCORES, gaps=True), 'gaps')
 
 if (__name__ == "__main__"):
     test()
