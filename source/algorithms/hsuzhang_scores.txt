@@ -1,6 +1,8 @@
 # Off-target scores for Hsu et al (2013)
 # tab-delimited dump of http://crispr.mit.edu/about
 # MIT offtarget scoring, also known as Matrix "M"
+# 1 should be PAM-proximal (at 3' end)
+# 20 should be PAM-distal (at 5' end)
 # position	score
 1	0.0
 2	0.0

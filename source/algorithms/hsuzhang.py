@@ -35,7 +35,10 @@ class HsuZhang(PairedSequenceAlgorithm):
         on_sequence, on_target, on_pam, on_upstream, on_downstream = intended
         off_sequence, off_target, off_pam, off_upstream, off_downstream = potential
         
-        return self.score(on_target, off_target, kwargs)
+        if 'iupac' not in kwargs:
+            kwargs['iupac'] = False
+        
+        return self.score(on_target, off_target, iupac=kwargs['iupac'])
     
     def score(self, seq1, seq2, iupac=False):
         '''Calculate Hsu score between two oligonucleotide sequences.
