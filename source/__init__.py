@@ -297,7 +297,7 @@ class Alignment(object):
         this = (self.sequence, self.target, self.pam, self.upstream, self.downstream)
         postfilter = []
         for C in algorithms.single_algorithms:
-            c_score = C.calculate(this)
+            c_score = C.calculate(this, motif=self.motif)
             self.score[C.name] = c_score
             if C.postfilter:
                 if (C.minimum <= c_score <= C.maximum):
@@ -305,7 +305,7 @@ class Alignment(object):
                 else:
                     postfilter.append(False)
         for C in algorithms.paired_algorithms:
-            c_score = C.calculate(parent, this)
+            c_score = C.calculate(parent, this, motif=self.motif)
             self.score[C.name] = c_score
             if C.postfilter:
                 if (C.minimum <= c_score <= C.maximum):
@@ -819,7 +819,7 @@ class Target(object):
             if (C.default != None):
                 self.score[C.name] = C.default
             else:
-                self.score[C.name] = C.calculate(parent)
+                self.score[C.name] = C.calculate(parent, motif=self.motif)
         for C in algorithms.paired_algorithms:
             if (C.default != None):
                 self.score[C.name] = C.default
@@ -909,7 +909,7 @@ class Target(object):
         # Loop through the Algorithms
         for C in algorithms.batched_single_algorithms:
             # Calculate
-            batch_scores = C.calculate(queries)
+            batch_scores = C.calculate(queries) # motif=cls.motif
             
             # Assign the score to the appropriate Target
             for i, t_index in enumerate(t_sorted):
