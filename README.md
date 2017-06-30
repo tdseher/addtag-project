@@ -106,6 +106,7 @@ Share your code with us so we can make it available to all AddTag users.
  * [Fu, et al (2014)](http://dx.doi.org/10.1038/nbt.2808) Using a shorter gRNAs (17-19 nt) can greatly improve specificity by reducing off-target binding
  * [Vyas, et al (2015)](http://dx.doi.org/10.1126/sciadv.1500248) Anecdotally, gRNA may target sites less efficiently if they have differences within 12 nt of the PAM.
  * [Braglia, et al (2005)](http://dx.doi.org/10.1074/jbc.M412238200) sequences containing consecutive Ts may cause polymerase termination
+ * [Ronda, et al (2015)](http://dx.doi.org/10.1186/s12934-015-0288-3) 60 bp flanking homology is sufficient to drive HR in *Saccharomyces cerevisiae*.
  * [Ryan, et al (2014)](http://dx.doi.org/10.7554/eLife.03703) indicates that 50 bp flanking homology is sufficient to drive homologous recombination "donor" DNA knock-in.
  * [Doench, et al (2014)](http://dx.doi.org/10.1038/nbt.3026) for scoring algorithm
  * [Doench, et al (2016)](http://dx.doi.org/10.1038/nbt.3437) for scoring algorithm
