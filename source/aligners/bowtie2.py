@@ -54,7 +54,7 @@ def align(output_sam_file, input_query_file, index, threads=(os.cpu_count() or 1
         '-S': output_sam_file, #sam_file,
         '-x': index,
         '-U': input_query_file,
-        '-k': 20,   # specifies the maximum number of alignments per sequence to return
+        '-k': 25,   # specifies the maximum number of alignments per sequence to return
         '-N': 1,    # Sets the number of mismatches to allowed in a seed alignment
                     # during multiseed alignment. Can be set to 0 or 1. Setting
                     # this higher makes alignment slower (often much slower) but
@@ -62,7 +62,7 @@ def align(output_sam_file, input_query_file, index, threads=(os.cpu_count() or 1
         '-L': 10,   # Sets the length of the seed substrings to align during
                     # multiseed alignment. Smaller values make alignment slower
                     # but more sensitive.
-        '-D': 20,   # Up to <int> consecutive seed extension attempts can "fail"
+        '-D': 30,   # Up to <int> consecutive seed extension attempts can "fail"
                     # before Bowtie 2 moves on, using the alignments found so far.
                     # A seed extension "fails" if it does not yield a new best or
                     # a new second-best alignment. This limit is automatically
