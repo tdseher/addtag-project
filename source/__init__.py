@@ -152,6 +152,9 @@ glossary:
   scaffold    The sequence within the gRNA that is responsible for Cas9 binding.
               Does not include the 20 nt spacer/targeting sequence that is used
               to guide Cas9 to target DNA.
+  Cas         CRISPR-associated family of genes, which typically couple
+              a nuclease, helicase, or polymerase domain with a 
+              poly-nucleotide binding domain.
   Cas9        Cas9 family nucleases
   dCas9       Catalytically "dead" Cas9 protein
   FokI-dCas9  dCas9 fused with the dimerization-dependent FokI nuclease domain:
@@ -183,34 +186,57 @@ glossary:
               gRNAs targeted to neighbouring sites to create offset nicks that
               can induce indel mutations.
   Cpf1        Cpf1 family nucleases
-
+  
+  Streptococcus pyogenes (Sp)
+  Streptococcus thermophilus (St)
+  Streptococcus  mutans (Sm)
+  Staphylococcus aureus (Sa)
+  Neisseria meningitidis (Nm)
+  Campylobacter jejuni (Cj)
+  Treponema denticola (Td)
+  Brevibacillus laterosporus (Bl)
+  Pasteurella multocida (Pm)
+  Francisella novicida (Fn)
+  Escherichia coli (Ec)
+  
 motifs:
-  Below are common SPACER>PAM arrangements.
-       5'-Motif-3'        Protein  System                          Citation
-          N{{20}}>NGG       SpCas9   Streptococcus pyogenes (Sp)     ?
-       N{{17,20}}>NGG       SpCas9   Streptococcus pyogenes          ?
-          N{{20}}>NGA       SpCas9   Streptococcus pyogenes VQR      Kleinstiver, et al., 2015
-          N{{20}}>NGNG      SpCas9   Streptococcus pyogenes EQR      Kleinstiver, et al., 2015
-          N{{20}}>NGAG      SpCas9   Streptococcus pyogenes EQR      Kleinstiver, et al., 2015
-          N{{20}}>NGCG      SpCas9   Streptococcus pyogenes VRER     Kleinstiver, et al., 2015
-          N{{20}}>NAAG      SpCas9   Streptococcus pyogenes QQR1     Anders, et al., 2016
-          N{{20}}>NAG       SpCas9   Streptococcus pyogenes          ?
-          N{{20}}>NRG       SpCas9   Streptococcus pyogenes          ?
-  G{{,2}}N{{19,20}}>NGG       ??Cas9   ?                               ?
-         RN{{19}}>NGG       Cas9p    Plants                          Ma, et al., 2015
-        RYN{{19}}>NGG       Cas9p    Plants                           + Ma & Liu, 2016
-         N{{20?}}>NNAGAAW   StCas9   Streptococcus thermophilus (St) Cong et al., 2013
-       N{{20,23}}>NNAGAA    StCas9   Streptococcus thermophilus      Kleinstiver, et al., 2015
-          N{{20}}>NGGNG     StCas9   Streptococcus thermophilus      ?
-          N{{21}}>NNGRRT    SaCas9   Staphylococcus aureus (Sa)      Ran et al., 2015
-       N{{21,23}}>NNGRRT    SaCas9   Staphylococcus aureus           Kleinstiver, et al., 2015
-         N{{20?}}>NGRRT     SaCas9   Staphylococcus aureus           ?
-         N{{20?}}>NGRRN     SaCas9   Staphylococcus aureus           ?
-          N{{20}}>NNNNGMTT  NmCas9   Neisseria meningitidis (Nm)     Hou et al., 2013
-          N{{20}}>NNNNACA   CjCas9   Campylobacter jejuni (Cj)       ?
-         N{{20?}}>NAAAAC    TdCas9   Treponema denticola (Td)        ?
-           TTTN<N{{20,23}}  Cpf1     Acidaminococcus/Lachnospiraceae ?
-            TTN<N{{20,23}}  Cpf1     Francisella novicida (putative) ?
+  Below are common SPACER>PAM arrangements (* = putative):
+       5'-Motif-3'        Protein     System                          Citation
+          N{{20}}>NGG       SpCas9      Streptococcus pyogenes (Sp)     ?
+       N{{17,20}}>NGG       SpCas9      Streptococcus pyogenes          Fu, et al (2014)
+          N{{20}}>NGA       SpCas9 VQR  H. sapiens/E.coli               Kleinstiver, et al (2015a)
+          N{{20}}>NGNG      SpCas9 EQR  H. sapiens/E.coli               Kleinstiver, et al (2015a)
+          N{{20}}>NGAG      SpCas9 EQR  H. sapiens/E.coli               Kleinstiver, et al (2015a)
+          N{{20}}>NGCG      SpCas9 VRER H. sapiens/E.coli               Kleinstiver, et al (2015a)
+          N{{20}}>NAAG      SpCas9 QQR  Streptococcus pyogenes QQR1     Anders, et al (2016)
+          N{{20}}>NAG       SpCas9      H. sapiens; Cell-free           Hsu, et al (2013)
+          N{{20}}>NRG       SpCas9      H. sapiens; Cell-free           Hsu, et al (2013); Karvelis, et al (2015)
+         GN{{19}}>NRG       SpCas9      H. sapiens; Cell-free           Hsu, et al (2013)
+  G{{,2}}N{{19,20}}>NGG       Cas9p       Plants                          Ma & Liu (2016)
+         RN{{19}}>NGG       Cas9p       Plants                          Ma, et al (2015)
+        RYN{{19}}>NGG       Cas9p       Plants                           + Ma & Liu (2016)
+         N{{20?}}>NNAGAAW   StCas9      Streptococcus thermophilus (St) Horvath, et al (2008); Cong et al (2013)
+          N{{20}}>NNAAAAW   StCas9      Streptococcus thermophilus      Fonfara, et al (2013)
+       N{{20,23}}>NNAGAA    StCas9      H. sapiens/E.coli               Kleinstiver, et al (2015a)
+          N{{20}}>NGGNG     StCas9      Streptococcus thermophilus      Horvath, et al (2008)
+          N{{20}}>NHRBMAW   StCas9      Streptococcus thermophilus      Karvelis, et al (2015)
+          N{{20}}>NGGWG     StCas9      Saccharomyces cerevisiae        Xu, et al (2015)
+          N{{20}}>NGG       SmCas9      Streptococcus  mutans (Sm)      Fonfara, et al (2013)
+          N{{21}}>NNGRRT    SaCas9      Staphylococcus aureus (Sa)      Ran, et al (2015)
+       N{{21,23}}>NNGRRT    SaCas9      H. sapiens/E.coli               Kleinstiver, et al (2015a)
+       N{{21,23}}>NNNRRT    SaCas9 KKH  Staphylococcus aureus KKH       Kleinstiver, et al (2015b)
+          N{{20}}>NNNNGMTT  NmCas9      Neisseria meningitidis (Nm)     Hou, et al (2013)
+          N{{20}}>NNNNACA   CjCas9      Campylobacter jejuni (Cj)       Fonfara, et al (2013)
+         N{{20?}}>NAAAAC    TdCas9      Treponema denticola (Td)        Zhang (unpublished)
+       N{{18,21}}>NGGNCNDD  BlCas9      Brevibacillus laterosporus (Bl) Karvelis, et al (2015)
+          N{{20}}>NNNNCND   BlCas9      Brevibacillus laterosporus      Karvelis, et al (2015)
+          N{{20}}>NNNNCNDD  BlCas9      Brevibacillus laterosporus      Karvelis, et al (2015)
+          N{{20}}>GNNNCNNA  PmCas9      Pasteurella multocida (Pm)      Fonfara, et al (2013)
+          N{{20}}>NG        FnCas9      Francisella novicida (Fn) (*)   Fonfara, et al (2013)
+           TTTN<N{{20,23}}  Cpf1        Acidaminococcus/Lachnospiraceae ?
+            TTN<N{{20,23}}  FnCpf1      Francisella novicida (*)        ?
+             AW<GN{{31,32}} EcCas3      Escherichia coli (Ec) (*)       Swarts, et al (2012)
+            AWG<N{{32,33}}  EcCas3      Escherichia coli (*)            Swarts, et al (2012)
 
 outputs:
   STDOUT                            Abbreviated program status
