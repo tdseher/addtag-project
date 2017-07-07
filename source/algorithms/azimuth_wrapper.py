@@ -6,26 +6,44 @@
 
 # Import standard packages
 import sys
+import platform
 
 # Import non-standard packages
-import azimuth.model_comparison
-import numpy as np
+if (platform.system() == 'Darwin'): # 'Darwin', 'Linux', 'Windows', 'SunOs'
+    # Code to fix Mac OS X errors/warnings, especially when freezing/packing
+    
+    # Explicitly set Matplotlib rendering engine to 'Agg' because Darwin
+    # platforms have trouble selecting an appropriate one automatically
+    import matplotlib
+    matplotlib.use('Agg')
+    
+    # In Darwin platforms, Matplotlib has a negligible font error/warning
+    # that should be ignored. Importing 'azimuth.model_comparison' will
+    # trigger it, so it is wrapped in a 'catch_warnings()' context manager
+    # to suppress the warnings.
+    import warnings
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        import azimuth.model_comparison
+else:
+    import azimuth.model_comparison
+from numpy import array
 
 # Raise a useful error if utilizing an incompatible version of Python
 if ((sys.version_info < (2, 7, 10)) or (sys.version_info >= (3, 0, 0))):
     raise Exception("AddTag Azimuth wrapper requires 3.0.0 > Python >= 2.7.10. You are running with " + ".".join(map(str, sys.version_info[:3])) + ".")
 
 def test():
-    sequences = np.array(['ACAGCTGATCTCCAGATATGACCATGGGTT', 'CAGCTGATCTCCAGATATGACCATGGGTTT', 'CCAGAAGTTTGAGCCACAAACCCATGGTCA'])
-    amino_acid_cut_positions = np.array([2, 2, 4])
-    percent_peptides = np.array([0.18, 0.18, 0.35])
+    sequences = array(['ACAGCTGATCTCCAGATATGACCATGGGTT', 'CAGCTGATCTCCAGATATGACCATGGGTTT', 'CCAGAAGTTTGAGCCACAAACCCATGGTCA'])
+    amino_acid_cut_positions = array([2, 2, 4])
+    percent_peptides = array([0.18, 0.18, 0.35])
     predictions = azimuth.model_comparison.predict(sequences, amino_acid_cut_positions, percent_peptides)
     
     for i, prediction in enumerate(predictions):
         print sequences[i], prediction
     
     
-    azimuth.model_comparison.predict(np.array(['GGGAGGCTGCTTTACCCGCTGTGGGGGCGC']), np.array([-1]), np.array([-1]))
+    azimuth.model_comparison.predict(array(['GGGAGGCTGCTTTACCCGCTGTGGGGGCGC']), array([-1]), array([-1]))
     # No model file specified, using V3_model_nopos
     # array([ 0.58477438])
 
@@ -33,9 +51,9 @@ def main():
     # All nucleotides must have length of 30
     for arg in sys.argv[1:]:
         if (len(arg) != 30):
-            exit(1)
+            sys.exit(1)
     
-    sequences = np.array(sys.argv[1:])
+    sequences = array(sys.argv[1:])
     #amino_acid_cut_positions = np.array([-1]*len(sys.argv[1:]))
     #percent_peptides = np.array([-1]*len(sys.argv[1:]))
     # Help on function predict in module azimuth.model_comparison:
