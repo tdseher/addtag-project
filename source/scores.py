@@ -13,27 +13,6 @@ import regex
 # import AddTag-specific packages
 from . import nucleotides
 
-def linear_score(seq1, seq2):
-    """Scores lower if substitutions near 3' end of the sequence
-    Should be gRNA only, with no PAM
-      Scores >94 are good.
-    Insertions and deletions are strongly penalized (as they are not aligned)
-    Does not take ambiguities into account (yet)
-    """
-    shorter_seq_len, longer_seq_len = sorted([len(seq1), len(seq2)])
-    x = list(range(longer_seq_len))
-    x_sum = sum(x)
-    y = list(map(lambda i: i/x_sum, x))
-    score = 1
-    for i in range(longer_seq_len):
-        if (i < shorter_seq_len):
-            if (seq1[i] != seq2[i]):
-                score -= y[i]
-        else:
-            score -= y[i]
-    
-    return score*100
-
 def gc_score(seq):
     """Caclulates the %GC content for seq. IUPAC ambiguities okay."""
     iupac = {
