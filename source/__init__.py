@@ -117,6 +117,9 @@ glossary:
               feature of interest, and will direct Cas9 nuclease activity.
               The portion of the crRNA (or sgRNA) that is complementary to the
               genomic DNA target sequence ~20 nt.
+  scaffold    The sequence within the gRNA that is responsible for Cas9 binding.
+              Does not include the 20 nt spacer/targeting sequence that is used
+              to guide Cas9 to target DNA.
   target      The ~20 nt genomic sequence that precedes the PAM sequence.
   protospacer Short genomic DNA sequences ~20 nt of foreign DNA separated by a
               short palindromic repeat and kept like a record against future
@@ -138,25 +141,30 @@ glossary:
               then becomes activated and specific to the DNA sequence
               complimentary to the crRNA. tracrRNA is invariable, and is
               specific to each Cas9 protein.
-  gRNA        guide RNA, spacer + scaffold
-              A synthetic fusion of the endogenous bacterial crRNA and tracrRNA
-              sequences. Provides both targeting specificity and
-              scaffolding/binding ability for Cas9 nuclease. Does not exist in
-              nature. Also referred to as sgRNA.
+  gRNA        Guide RNA is a single molecule with two regions: the spacer and
+              the scaffold. It is a synthetic fusion of the endogenous bacterial
+              crRNA and tracrRNA sequences, and provides both targeting
+              specificity and scaffolding/binding ability for Cas9 nuclease.
+              Does not exist in nature. Also referred to as sgRNA.
   sgRNA       Synthetic guide RNA, or single guide RNA (synonymous with 'gRNA').
-              Combines the tracrRNA and crRNA, which are separate molecules in
-              the native CRISPR/Cas9 system in S. pyogenes, into a single RNA
-              construct, simplifying the components needed to use CRISPR/Cas9
-              for genome editing (for plasmid or IVT expression).
-              A linker loop sequence is included between the two.
-  scaffold    The sequence within the gRNA that is responsible for Cas9 binding.
-              Does not include the 20 nt spacer/targeting sequence that is used
-              to guide Cas9 to target DNA.
+              Combines the tracrRNA and crRNA, which are separate molecules,
+              into a single RNA construct, simplifying the components needed to
+              use CRISPR/Cas9 for genome editing (for plasmid or IVT
+              expression). A linker loop sequence is included between the two.
   Cas         CRISPR-associated family of genes, which typically couple
               a nuclease, helicase, or polymerase domain with a 
               poly-nucleotide binding domain.
-  Cas9        Cas9 family nucleases
-  dCas9       Catalytically "dead" Cas9 protein
+  Cas9        Cas9 family nucleases.
+  eCas9       Any engineered Cas9 variant. Usually non-synonymous substitutions
+              are placed at one or more residues predicted to interact with the
+              non-target DNA strand.
+                For instance, SpCas9-HF1 (high-fidelity variant 1) has alanine
+                substitutions at four residues in SpCas9, identified from
+                crystal structures, in order to disrupt non-specific contacts
+                with the phosphate backbone of the target DNA strand (which
+                interacts with the gRNA).
+  dCas9       Catalytically 'dead' Cas9 protein, that drive RNA-DNA
+              hybridization but fail to cleave the target DNA.
   FokI-dCas9  dCas9 fused with the dimerization-dependent FokI nuclease domain:
               creates a dimeric RNA-guided FokI-dCas9 nuclease (RFN)
               architecture requiring recognition of extended double-length
@@ -164,17 +172,6 @@ glossary:
               FokI to dCas9 can recognize two 20-nucleotide 'half-sites' in a
               'PAM-out' orientation separated by a 13-18 bp spacer and can
               efficiently cleave in this intervening region.
-  SpCas9      Cas9 from Streptococcus pyogenes
-  eCas9       Any engineered Cas9 variant
-  eSpCas9     SpCas9 variant bearing alanine substitutions at three positions
-              predicted to interact with the non-target DNA strand
-  NmCas9      Cas9 from Neisseria meningitidis
-  SaCas9      Cas9 from Staphylococcus aureus
-  SpCas9-HF1  Alanine substitutions introduced at four residues in SpCas9,
-              identified from previously published crystal structures, to
-              disrupt non-specific contacts with the phosphate backbone of the
-              target DNA strand (which interacts with the gRNA) to create
-              SpCas9-HF1 (high-fidelity variant 1).
   Cas9n       Engineered variants of Cas9 in which one of the two nuclease
               domains has been catalytically inactivated, which results in the
               nicking of only one DNA strand and leaving the other strand
@@ -185,19 +182,18 @@ glossary:
               D10A or H840A mutation). Paired nickases can be directed by two
               gRNAs targeted to neighbouring sites to create offset nicks that
               can induce indel mutations.
-  Cpf1        Cpf1 family nucleases
-  
-  Streptococcus pyogenes (Sp)
-  Streptococcus thermophilus (St)
-  Streptococcus  mutans (Sm)
-  Staphylococcus aureus (Sa)
-  Neisseria meningitidis (Nm)
-  Campylobacter jejuni (Cj)
-  Treponema denticola (Td)
-  Brevibacillus laterosporus (Bl)
-  Pasteurella multocida (Pm)
-  Francisella novicida (Fn)
-  Escherichia coli (Ec)
+  Cpf1        Cpf1 family nucleases.
+  Sp          Streptococcus pyogenes.
+  St          Streptococcus thermophilus.
+  Sm          Streptococcus mutans.
+  Sa          Staphylococcus aureus.
+  Nm          Neisseria meningitidis.
+  Cj          Campylobacter jejuni.
+  Td          Treponema denticola.
+  Bl          Brevibacillus laterosporus.
+  Pm          Pasteurella multocida.
+  Fn          Francisella novicida.
+  Ec          Escherichia coli.
   
 motifs:
   Below are common SPACER>PAM arrangements (* = putative):
