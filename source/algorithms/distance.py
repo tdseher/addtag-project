@@ -35,8 +35,9 @@ class GlobalAlignment(object):
     def score_extremes(self, scoring, gaps=False):
         """
         Returns the minimum and maximum bitscore possible,
-        ignoring potential gaps.
-        Assumes seq1 is the motif
+        either ignoring or including potential gaps.
+        This function assumes self.seq1 is the motif with IUPAC ambiguities.
+        'NGG' for the PAM, for instance.
         """
         iupac = [
             'A', 'C', 'G', 'T',
