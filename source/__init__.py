@@ -104,6 +104,7 @@ protein:
   same species.
 
 glossary:
+  RGN         RNA-guided nuclease, like Cas9, Cas3, and Cpf1.
   dDNA        Donor DNA. The DNA that is knocked-in using endogenous cellular
               homologous recombination machinery.
   gDNA        Genomic DNA.
