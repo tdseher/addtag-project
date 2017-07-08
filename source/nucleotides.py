@@ -7,9 +7,12 @@
 # List general Python imports
 import sys
 import difflib
+import logging
 
 # import non-standard package
 import regex
+
+logger = logging.getLogger(__name__)
 
 class SlidingWindow(object):
     """Iterator for a sliding window across a nucleotide sequence"""
@@ -195,7 +198,7 @@ def build_regex_pattern(iupac_sequence, max_substitutions=0, max_insertions=0, m
         pattern = '(' + sequence + ')' + fuzzy
     else:
         pattern = '(?:' + sequence + ')' + fuzzy
-    print('Built regex string: {!r}'.format(pattern))
+    logger.info('Built regex string: {!r}'.format(pattern))
     return pattern
 
 # So far for DNA only
@@ -262,7 +265,7 @@ def build_regex(iupac_sequence, case_sensitive=False, max_substitutions=0, max_i
     }
     sequence = ''.join(map(lambda x: iupac[x], iupac_sequence))
     pattern = '(' + sequence + ')' + fuzzy
-    print('Compiled regex: {!r}'.format(pattern))
+    logger.info('Compiled regex: {!r}'.format(pattern))
     compiled_regex = regex.compile(pattern, flags=myflags)
     return compiled_regex
 
@@ -381,7 +384,7 @@ def split_target_sequence2(seq, pams):
     # Build a regex to only match strings with PAM sites specified in args.pams
     re_pattern = '^(.*)(?:' + '|'.join(map(lambda x: build_regex_pattern(x), pams)) + ')$'
     #m = regex.match('^(.*)([ACGT]GG)$', nt)
-    print(re_pattern)
+    logger.info(re_pattern)
     m = regex.match(re_pattern, seq)
     if m:
         return m.group(1), m.group(2)

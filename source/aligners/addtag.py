@@ -7,6 +7,8 @@
 # List general Python imports
 import sys
 import os
+import logging
+logger = logging.getLogger(__name__)
 
 # import non-standard package
 import regex
@@ -46,7 +48,7 @@ def find_target_matches(compiled_regex, contigs, overlap=False):
             assert m.groups()[0] == rc(ref[ref_len-e:ref_len-s]) # m.groups()[0] should be what was matched...
             assert ref_len == rc_ref_len
             matches.append([contig, rc_ref_len-s, rc_ref_len-e, '-', rc_ref[s:e]])
-    print("Matching finished", file=sys.stderr)
+    logger.info("AddTag matching finished")
     
     return matches
 

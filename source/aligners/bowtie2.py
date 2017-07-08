@@ -8,6 +8,8 @@
 import sys
 import os
 import subprocess
+import logging
+logger = logging.getLogger(__name__)
 
 # import non-standard package
 import regex
@@ -115,11 +117,11 @@ def align(output_sam_file, input_query_file, index, threads=(os.cpu_count() or 1
     command_str = ' '.join(command_list)
     
     # Perform alignment
-    print('command: {!r}'.format(command_str))
+    logger.info('command: {!r}'.format(command_str))
     with open(error_file, 'w+') as flo:
         cp = subprocess.run(command_list, shell=False, check=True, stdout=flo, stderr=subprocess.STDOUT)
     
-    print('FASTA aligned: {!r}'.format(output_sam_file))
+    logger.info('FASTA aligned: {!r}'.format(output_sam_file))
     return output_sam_file
 
 def index_reference(fasta, tempdir=os.getcwd(), threads=(os.cpu_count() or 1), options=None, folder=None):
@@ -178,7 +180,7 @@ def index_reference(fasta, tempdir=os.getcwd(), threads=(os.cpu_count() or 1), o
     command_list = ['bowtie2-build'] + fixed_options + flat_options + [fasta, index_file]
     command_list = list(map(str, command_list))
     command_str = ' '.join(command_list)
-    print('command: {!r}'.format(command_str))
+    logger.info('command: {!r}'.format(command_str))
     with open(error_file, 'w+') as flo:
         cp = subprocess.run(command_list, shell=False, check=True, stdout=flo, stderr=subprocess.STDOUT)
     
@@ -188,8 +190,8 @@ def index_reference(fasta, tempdir=os.getcwd(), threads=(os.cpu_count() or 1), o
     #command_str = ' '.join(command_list)
     #cp = subprocess.run(command_str, shell=True, check=True) # works perfectly
     
-    print('FASTA file indexed: {!r}'.format(fasta))
-    print('Bowtie 2 index: {!r}'.format(index_file))
+    logger.info('FASTA file indexed: {!r}'.format(fasta))
+    logger.info('Bowtie 2 index: {!r}'.format(index_file))
     
     # Return path to indexed reference
     return index_file

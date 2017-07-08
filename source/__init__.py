@@ -10,6 +10,7 @@ import sys
 import os
 import argparse
 import time
+import logging
 
 # Import non-standard packages
 import regex
@@ -379,7 +380,7 @@ class Donor(object):
                 #don_entry = tuple(["dDNA-"+str(i), feature, contig, '+', start1, start2, end1, end2, dDNA])
                 print(' '.join(['>'+obj.name, 'spacers='+str(len(obj.spacers))] + sorted([obj.format_location(x, sep) for x in obj.locations])), file=flo)
                 print(sequence, file=flo)
-        print(cls.__name__ + ' dDNA FASTA generated: {!r}'.format(filename))
+        logging.info(cls.__name__ + ' dDNA FASTA generated: {!r}'.format(filename))
         return filename
     
     def format_location(self, location, sep=':'):
@@ -543,16 +544,17 @@ class ExcisionDonor(Donor):
     @classmethod
     def generate_alignments(cls):
         for ind, obj in cls.indices.items():
-            print(obj.name)
+            logging.info(obj.name)
+            segment_string = ''
             loc = next(iter(obj.locations)) # Pull an arbitrary location record
             for segment in loc[3:]:
                 if isinstance(segment, str):
                     length = len(segment)
                 else:
                     length = segment[1] - segment[0]
-                print(cls.make_label(length, ''), end='')
-            print('')
-            print(obj.sequence)
+                segment_string += cls.make_label(length, '')
+            logging.info(segment_string)
+            logging.info(obj.sequence)
             for s in obj.spacers:
                 orientation = s[0]
                 start = s[1]
@@ -560,9 +562,9 @@ class ExcisionDonor(Donor):
                 spacer = s[7]
                 pam = s[8]
                 if (orientation == '+'):
-                    print(' '*start + spacer + pam)
+                    logging.info(' '*start + spacer + pam)
                 else:
-                    print(' '*start + nucleotides.rc(spacer+pam))
+                    logging.info(' '*start + nucleotides.rc(spacer+pam))
     
     @staticmethod
     def make_label(length, label):
@@ -580,6 +582,12 @@ class ExcisionDonor(Donor):
                 for i, c in enumerate(label):
                     out[start+i] = c
             return ''.join(out)
+    
+    def get_inserts(self):
+        """
+        Returns a list constructed of the mAT inserts for locations
+        """
+        return [x[4] for x in self.locations]
     
     def get_trims(self, features):
         """
@@ -708,7 +716,7 @@ class Target(object):
                             alignment_downstream,
                         )
         
-        print(cls.__name__ + ' SAM file parsed: {!r}'.format(filename))
+        logging.info(cls.__name__ + ' SAM file parsed: {!r}'.format(filename))
     
     @classmethod
     def generate_query_fasta(cls, filename, sep=':'):
@@ -724,7 +732,7 @@ class Target(object):
                 print(' '.join(['>'+obj.name] + sorted([obj.format_location(x, sep) for x in obj.locations])), file=flo)
                 print(sequence, file=flo)
                 
-        print(cls.__name__ + ' query FASTA generated: {!r}'.format(filename))
+        logging.info(cls.__name__ + ' query FASTA generated: {!r}'.format(filename))
         return filename
     
     @classmethod
@@ -744,7 +752,7 @@ class Target(object):
                     'off-target=' + str(round(obj.off_targets['Hsu-Zhang'], 2)),
                 ]), file=flo)
                 print(sequence, file=flo)
-        print(cls.__name__ + ' spacers FASTA generated: {!r}'.format(filename))
+        logging.info(cls.__name__ + ' spacers FASTA generated: {!r}'.format(filename))
         return filename
     
     def format_location(self, location, sep=':'):
@@ -972,15 +980,16 @@ class Target(object):
             for f in list(on_target_features):
                 on_target_features.update(homologs.get(f, set()))
         
-        print('on_target_features', on_target_features)
+        logging.info('on_target_features' + str(on_target_features))
         # Check each alignment
         for a in self.alignments:
             a_features = None
+            temp_string = ''
             if a.postfilter:
                 if isinstance(self, ExcisionTarget):
                     if a.contig.startswith('exDonor-'):
                         a_features = ExcisionDonor.indices[a.contig].get_features()
-                        print('case exT-exD'.rjust(18), end=' ')
+                        temp_string += 'case exT-exD'.rjust(18) + ' '
                         
                         for i, C in enumerate(calculators):
                             c_score = a.score[C.name]
@@ -998,7 +1007,7 @@ class Target(object):
                                     
                     else: # This is a genomic contig and not a dDNA
                         a_features = self.get_features(features, a.contig, a.start, a.end) # contig, start, end
-                        print('case exT-gDNA'.rjust(18), end=' ')
+                        temp_string += 'case exT-gDNA'.rjust(18) + ' '
                         
                         for i, C in enumerate(calculators):
                             c_score = a.score[C.name]
@@ -1026,7 +1035,7 @@ class Target(object):
                         #     if exDonor is for another feature, then ignore
                         #a_features = ExcisionDonor.indices[a.contig].get_features()
                         intended_contigs = self.get_contigs()
-                        print('case reT-exD'.rjust(18), end=' ')
+                        temp_string += 'case reT-exD'.rjust(18) + ' '
                         
                         for i, C in enumerate(calculators):
                             c_score = a.score[C.name]
@@ -1047,7 +1056,7 @@ class Target(object):
                         #   multiplex: these are all off-target (use ratio)
                         #   monoplex: if reDonor has same feature as reTarget, then it is an off-target (use ratio)
                         a_features = ReversionDonor.indices[a.contig].get_features()
-                        print('case reT-reD'.rjust(18), end=' ')
+                        temp_string += 'case reT-reD'.rjust(18) + ' '
                         
                         for i, C in enumerate(calculators):
                             c_score = a.score[C.name]
@@ -1060,7 +1069,7 @@ class Target(object):
                                     a.action = 'off'
                     else:
                         # reTarget vs genome: these are all off-target, regardless of the feature
-                        print('case reT-gDNA'.rjust(18), end=' ')
+                        temp_string += 'case reT-gDNA'.rjust(18) + ' '
                     
                         for i, C in enumerate(calculators):
                             c_score = a.score[C.name]
@@ -1068,14 +1077,14 @@ class Target(object):
                                 off_targets[C.name]['gDNA'].append(c_score)
                                 a.action = 'off'
             else:
-                print('failed post-filter', end=' ')
-            
-            print (a.action.rjust(4), a, a_features)
+                temp_string += 'failed post-filter' + ' '
+            temp_string += ' '.join([a.action.rjust(4), str(a), str(a_features)])
+            logging.info(temp_string)
         
         for i, C in enumerate(calculators):
             on_str = str(len(on_targets[C.name]['gDNA'])) + ' + (' + str(args.dDNA_gDNA_ratio)+')'+str(len(on_targets[C.name]['dDNA']))
             off_str = str(len(off_targets[C.name]['gDNA'])) + ' + (' + str(args.dDNA_gDNA_ratio)+')'+str(len(off_targets[C.name]['dDNA']))
-            print(self.name, C.name, '('+on_str+')/(('+on_str+') + ('+off_str+'))')
+            logging.info(' '.join([self.name, C.name, '('+on_str+')/(('+on_str+') + ('+off_str+'))']))
         
         # Perform off-target calculations
         for C in calculators:
@@ -1238,7 +1247,7 @@ def parse_arguments():
     #    help="The length range of the 'target'/'spacer'/gRNA site")
     # Replacement for --pams and --target_lengths with this:
     parser.add_argument("--motifs", metavar="MOTIF", nargs="+", type=str,
-        default=["N{17,20}>NGG"],
+        default=["N{20}>NGG"],
         help="Find only targets with these 'SPACER>PAM' motifs, written from \
         5' to 3'. '>' points toward PAM. IUPAC ambiguities accepted. '{a,b}' \
         are quantifiers. Be sure to enclose motif parameters in quotes so your \
@@ -1266,7 +1275,7 @@ def parse_arguments():
     #    help="Minimum distance from contig edge a site can be found")
     parser.add_argument("--features", metavar="FEATURE", type=str, nargs="+", default=["gene"],
         help="Features to design gRNAs against. Must exist in GFF file. Examples: 'CDS', 'gene', 'mRNA', 'exon'")
-    parser.add_argument("--dDNA_gDNA_ratio", metavar="N", type=int, default=10,
+    parser.add_argument("--dDNA_gDNA_ratio", metavar="N", type=int, default=1000,
         help="Ratio of donor DNA to genomic DNA for calculating off-target scores")
     parser.add_argument("--target_gc", nargs=2, metavar=('MIN', 'MAX'), type=int, default=[25, 75],
         help="Generated gRNA spacers must have %%GC content between these values (excludes PAM motif)")
@@ -1308,6 +1317,8 @@ def parse_arguments():
 #        help="The minimum distance in bp a difference can exist from the edge of donor DNA") # homology with genome
     parser.add_argument("--max_consecutive_ts", metavar="N", type=int, default=4,
         help="The maximum number of Ts allowed in generated gRNA sequences")
+    parser.add_argument("--max_number_sequences_reported", metavar="N", type=int, default=5,
+        help="The maximum number of sequences to report for each step")
     # program currently will only search 'both' strands
     #parser.add_argument("--strands", type=str, choices=["+", "-", "both"], default="both",
     #    help="Strands to search for gRNAs")
@@ -1343,6 +1354,8 @@ def parse_arguments():
     
     # Parse the motifs
     # Compile regex for motifs
+    # Note that any logging these functions perform will not be written to disk,
+    # as no 'handler' has been specified.
     args.parsed_motifs = []
     args.compiled_motifs = []
     for motif in args.motifs:
@@ -1664,9 +1677,27 @@ def get_reTarget_homologs(features, homologs):
     # value = [ReversionTarget(), ReversionTarget(), ...] # list of ReversionTarget objects
     return ret_dict2
 
-def get_reTarget_allele(features, homologs):
+def get_reTarget_allele(features):
+    """Gets all ReversionTarget objects for each feature"""
+    ret_dict = {}
+    for f in features:
+        ret_dict[f] = set()
+        for name, obj in ReversionTarget.indices.items():
+            obj_features = set(utils.flatten(x[0].split(',') for x in obj.locations))
+            if (f in obj_features):
+                ret_dict[f].add(obj) # Store with the feature as key
+    return ret_dict
+
+def get_reTarget_allele_specific(features):
     """Gets allele-specific ReversionTarget objects"""
-    pass
+    ret_dict = {}
+    for f in features:
+        ret_dict[f] = set()
+        for name, obj in ReversionTarget.indices.items():
+            obj_features = set(utils.flatten(x[0].split(',') for x in obj.locations))
+            if ((len(obj_features) == 1) and (f in obj_features)):
+                ret_dict[f].add(obj) # Store with the feature as key
+    return ret_dict
 
 def rank_donors(donor_list):
     """Uses a heuristic to find the best Donor in the list"""
@@ -1717,6 +1748,113 @@ def rank_targets(target_list):
     #return sorted(target_list, key=lambda x: rank(x.score['Azimuth'], x.off_targets['Hsu-Zhang'], x.off_targets['CFD']), reverse=True)
     return sorted(rank_list, key=lambda x: x[0], reverse=True)
 
+def get_best_table(args, features, homologs, feature2gene):
+    """
+    Identify and print the best spacers and dDNAs for each feature, given
+    each mAT insert size, and us/ds trim length.
+    Thus, the user can see the best spacer for any given combination of these.
+    """
+    header = ['gene', 'features', 'insert', 'mAT', 'translations', '(us, ds) trim', 'weight', 'OT:Hsu-Zhang', 'OT:CFD', 'Azimuth', 'reTarget name', 'reTarget sequence', 'ExDonors']
+    print('\t'.join(header))
+    
+    # Get best ReversionTargets by calculating their weights, and also getting
+    # the ExcisionDonors that correspond to the ReversionTarget
+    ret_dict2 = get_reTarget_homologs(features, homologs)
+    for feature_homologs in sorted(ret_dict2):
+        # Get these two things which are common to all the top hits
+        gene = feature2gene[feature_homologs[0]] # Get the gene name
+        csfeatures = ','.join(feature_homologs) # Add the features as comma-separated list
+        
+        outputs = {}
+        #for insert_length in range(args.excise_insert_lengths[0], args.excise_insert_lengths[1]+1):
+        #    outputs[insert_length] = []
+        
+        # Print the top N for each insert size and trim
+        for weight, obj in rank_targets(ret_dict2[feature_homologs]):
+            othz = round(obj.off_targets['Hsu-Zhang'], 2)
+            otcfd = round(obj.off_targets['CFD'], 2)
+            azimuth = round(obj.score['Azimuth'], 2)
+            
+            # Get the ExcisionDonor objects for this ki-spacer, and weigh them
+            rds = rank_donors(obj.get_donors())
+            # filter out all but the top-weighted ones
+            rds = [x for x in rds if (x[0] == rds[0][0])]
+            #for gap, exd_obj in rds:
+            #    print(' ', ' ', gap, exd_obj.get_trims(features), exd_obj)
+            
+            exdonors = ','.join(map(lambda x: x[1].name, rds))
+            insert = ','.join(map(str, sorted(set(map(len, utils.flatten(map(lambda x: x[1].get_inserts(), rds)))))))
+            translations = None
+            
+            trims = set()
+            mats = set()
+            for gap, exd_obj in rds:
+                # [(us1, ds1), (us2, ds2), ...]
+                for pair in exd_obj.get_trims(features):
+                    trims.add(pair)
+                for location in exd_obj.locations:
+                    mats.add(location[4])
+            trims = ','.join(map(str, sorted(trims)))
+            mats = ','.join(sorted(mats))
+            
+            #ustrims = ','.join(map(str, sorted(set(map(lambda y: y[0], map(lambda x: x[1].get_trims(features), rds))))))
+            #dstrims = ','.join(map(str, sorted(set(map(lambda y: y[1], map(lambda x: x[1].get_trims(features), rds))))))
+            
+            sline = [gene, csfeatures, insert, mats, translations, trims, weight, othz, otcfd, azimuth, obj.name, obj.spacer+'|'+obj.pam, exdonors]
+            key = (insert, trims)
+            
+            if (len(outputs.get(key, [])) < args.max_number_sequences_reported):
+                outputs.setdefault(key, []).append(sline)
+        
+        for k in sorted(outputs):
+            for sline in outputs[k]:
+                print('\t'.join(map(str, sline)))
+        
+        if (len(outputs) == 0):
+            logging.info('No records that target ' + csfeatures)
+    
+    # Print a table of allele-specific spacer and dDNA pairs
+    ret_dict = get_reTarget_allele_specific(features)
+    for feature in sorted(ret_dict):
+        gene = feature2gene[feature] # Get the gene name
+        outputs = {}
+        
+        for weight, obj in rank_targets(ret_dict[feature]):
+            othz = round(obj.off_targets['Hsu-Zhang'], 2)
+            otcfd = round(obj.off_targets['CFD'], 2)
+            azimuth = round(obj.score['Azimuth'], 2)
+            
+            rds = rank_donors(obj.get_donors())
+            rds = [x for x in rds if (x[0] == rds[0][0])]
+            
+            exdonors = ','.join(map(lambda x: x[1].name, rds))
+            insert = ','.join(map(str, sorted(set(map(len, utils.flatten(map(lambda x: x[1].get_inserts(), rds)))))))
+            translations = None
+            
+            trims = set()
+            mats = set()
+            for gap, exd_obj in rds:
+                for pair in exd_obj.get_trims(features):
+                    trims.add(pair)
+                for location in exd_obj.locations:
+                    mats.add(location[4])
+            trims = ','.join(map(str, sorted(trims)))
+            mats = ','.join(sorted(mats))
+            
+            sline = [gene, feature, insert, mats, translations, trims, weight, othz, otcfd, azimuth, obj.name, obj.spacer+'|'+obj.pam, exdonors]
+            key = (insert, trims)
+            
+            if (len(outputs.get(key, [])) < args.max_number_sequences_reported):
+                outputs.setdefault(key, []).append(sline)
+        
+        for k in sorted(outputs):
+            for sline in outputs[k]:
+                print('\t'.join(map(str, sline)))
+        
+        # If there are no allele-specific records, then nothing is printed
+        if (len(outputs) == 0):
+            logging.info('No allele-specific records for ' + feature)
+
 def get_best(args, features, homologs):
     """Function that returns the best spacers and dDNAs for each feature"""
     
@@ -1725,34 +1863,34 @@ def get_best(args, features, homologs):
     # Print best ReversionTargets calculated and their corresponding ExcisionDonors
     ret_dict2 = get_reTarget_homologs(features, homologs)
     for k in ret_dict2:
-        print(k, len(ret_dict2[k]))
+        logging.info(str(k) + ' ' + str(len(ret_dict2[k])))
         # Print the top 5
         for rank, obj in rank_targets(ret_dict2[k])[:display_num]:
-            print(' ',rank, obj)
+            logging.info(' ' + str(rank) + ' ' + str(obj))
             # Get the ExcisionDonor objects for this ki-spacer, and rank them
             rds = rank_donors(obj.get_donors())
             # filter out all but the top-ranked ones
             rds = [x for x in rds if (x[0] == rds[0][0])]
             for gap, exd_obj in rds:
-                print(' ', ' ', gap, exd_obj.get_trims(features), exd_obj)
+                logging.info('   ' + str(gap) + ' ' + str(exd_obj.get_trims(features)) + ' ' + str(exd_obj))
     
     # Print best ExcisionTargets (not necessarily homozygous) for each feature
     # and the ReversionDonor
     for feature in sorted(features):
-        print(feature)
+        logging.info(feature)
         et_list = []
         for name, obj in ExcisionTarget.indices.items():
             if feature in obj.get_location_features():
                 et_list.append(obj)
         for rank, obj in rank_targets(et_list)[:display_num]:
-            print(' ', rank, obj)
+            logging.info('  ' + str(rank) + ' ' + str(obj))
         
         red_list = []
         for name, obj in ReversionDonor.indices.items():
             if feature in obj.get_location_features():
                 red_list.append(obj)
         for obj in red_list:
-            print(' ', obj)
+            logging.info('  ' + str(obj))
 
 def old_get_best(args, features, contigs):
     #exd_dict = {}
@@ -1811,15 +1949,14 @@ def old_get_best(args, features, contigs):
         # Find the ReversionDonor
         red_best = red_dict[feature]
         
-        print("")
-        print("  feature =", feature)
-        print("ko spacer =", ext_best)
+        logging.info("")
+        logging.info("  feature = " + feature)
+        logging.info("ko spacer = " + str(ext_best))
         for d in exd_best:
-            print("  ko dDNA =", d)
-        print("ki spacer =", ret_best)
+            logging.info("  ko dDNA = " + str(d))
+        logging.info("ki spacer = " + str(ret_best))
         for d in red_best:
-            print("  ki dDNA =", d)
-    
+            logging.info("  ki dDNA = " + str(d))
 
 def main():
     """Function to run complete AddTag analysis"""
@@ -1834,11 +1971,15 @@ def main():
         # Get timestamp
         start = time.time()
         
-        # Echo the command line parameters to STDOUT
-        print(args)
-        
         # Create the project directory if it doesn't exist
         os.makedirs(args.folder, exist_ok=True)
+        
+        # Create the logger
+        logging.basicConfig(filename=os.path.join(args.folder, 'log.txt'), level=logging.INFO, format='%(message)s') # format='%(levelname)s %(asctime)s: %(message)s'
+        
+        # Echo the command line parameters to STDOUT and the log
+        print(args)
+        logging.info(args)
         
         # Load the FASTA file specified on the command line
         contigs = utils.load_fasta_file(args.fasta)
@@ -1891,19 +2032,19 @@ def main():
         ExcisionTarget.load_sam(exq2exdDNA_sam_file, args, ExcisionDonor.get_contig_dict())
         
         # Calculate off-target/guide scores for each algorithm
-        print("ExcisionTarget after SAM parsing and off-target scoring")
+        logging.info("ExcisionTarget after SAM parsing and off-target scoring")
         for et_seq, et_obj in ExcisionTarget.sequences.items():
             et_obj.score_off_targets(args, homologs, features)
-            print(et_obj)
+            logging.info(et_obj)
             for a in et_obj.alignments:
-                print('  ', a)
+                logging.info('  ' + str(a))
         
         # Batch calculate with new ExcisionTarget class
         ExcisionTarget.score_batch()
         
-        print("ExcisionTarget after Azimuth calculation")
+        logging.info("ExcisionTarget after Azimuth calculation")
         for et_seq, et_obj in ExcisionTarget.sequences.items():
-            print(et_obj)
+            logging.info(et_obj)
         
         # Generate the FASTA with the final scores
         excision_spacers_file = ExcisionTarget.generate_spacers_fasta(os.path.join(args.folder, 'excision-spacers.fasta'))
@@ -1920,19 +2061,19 @@ def main():
         ReversionTarget.load_sam(req2redDNA_sam_file, args, ReversionDonor.get_contig_dict())
         
         # Calculate off-target/guide scores for each algorithm
-        print("ReversionTarget after SAM parsing and off-target scoring")
+        logging.info("ReversionTarget after SAM parsing and off-target scoring")
         for re_seq, re_obj in ReversionTarget.sequences.items():
             re_obj.score_off_targets(args, homologs, features)
-            print(re_obj)
+            logging.info(re_obj)
             for a in re_obj.alignments:
-                print('  ', a)
+                logging.info('  ' + str(a))
         
         # Batch calculate with new ReversionTarget class
         ReversionTarget.score_batch()
         
-        print("ReversionTarget after Azimuth calculation")
+        logging.info("ReversionTarget after Azimuth calculation")
         for rt_seq, rt_obj in ReversionTarget.sequences.items():
-            print(rt_obj)
+            logging.info(rt_obj)
         
         # Generate the FASTA with the final scores
         reversion_spacers_file = ReversionTarget.generate_spacers_fasta(os.path.join(args.folder, 'reversion-spacers.fasta'))
@@ -1942,9 +2083,11 @@ def main():
         
         # Pick out the best ones and print them out
         get_best(args, features, homologs)
+        get_best_table(args, features, homologs, feature2gene)
         
         # Print time taken for program to complete
-        print('Runtime: {}s'.format(time.time()-start))
+        logging.info('{} finished'.format(__program__))
+        logging.info('Runtime: {}s'.format(time.time()-start))
 
 def test(args):
     """Code to test the classes and functions in 'source/__init__.py'"""

@@ -9,9 +9,12 @@ import sys
 import os
 import gzip
 import datetime
+import logging
 
 # Import non-standard packages
 import regex
+
+logger = logging.getLogger(__name__)
 
 def flatten(iterable, remove_none=False):
     """Make a flat list out of a list of lists"""
@@ -115,7 +118,7 @@ def load_fasta_file(filename):
         if (name != None):
             contigs[name] = seq
     
-    print('FASTA file parsed: {!r}'.format(filename))
+    logger.info('FASTA file parsed: {!r}'.format(filename))
     return contigs
 
 def load_gff_file(filename, features, tag):
@@ -201,7 +204,7 @@ def load_gff_file(filename, features, tag):
                         #           gene     contig       start(bp)          end(bp)    strand
                         annotations[m[0]] = (sline[0], int(sline[3])-1, int(sline[4]), sline[6])
     
-    print('GFF file parsed: {!r}'.format(filename))
+    logger.info('GFF file parsed: {!r}'.format(filename))
     return annotations
 
 def load_git_date():
@@ -336,7 +339,7 @@ def load_homologs(filename, sep="\t"):
     #print("homologs:", file=sys.stderr)
     #for h in homologs:
     #    print(' ', h, homologs[h], file=sys.stderr)
-    print('Homologs file parsed: {!r}'.format(filename))
+    logger.info('Homologs file parsed: {!r}'.format(filename))
     return homologs, feature2gene
 
 def test():
