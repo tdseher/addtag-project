@@ -603,6 +603,20 @@ class ExcisionDonor(Donor):
             #trims.append(len(loc[4]) + loc[5][0]-l[3][1])
             trims.append((left_trim, right_trim))
         return trims
+    
+    def get_inserts_and_trims(self, features):
+        """
+        Returns list of insert size, and us/ds trims with the following format:
+          [(insert, us-trim, ds-trim), ...]
+        """
+        return_list = []
+        for loc in self.locations:
+            contig, start, end, strand = features[loc[0]]
+            mAT = loc[4]
+            left_trim = start - loc[3][1]
+            right_trim = loc[5][0] - end
+            return_list.append((mAT, left_trim, right_trim))
+        return return_list
 
 class ReversionDonor(Donor):
     prefix = 'reDonor'
@@ -1320,6 +1334,8 @@ def parse_arguments():
         help="The maximum number of Ts allowed in generated gRNA sequences")
     parser.add_argument("--max_number_sequences_reported", metavar="N", type=int, default=5,
         help="The maximum number of sequences to report for each step")
+    parser.add_argument("--min_weight_reported", metavar="N", type=float, default=0.01,
+        help="Only gRNA-dDNA pairs with at least this much weight will be reported.")
     # program currently will only search 'both' strands
     #parser.add_argument("--strands", type=str, choices=["+", "-", "both"], default="both",
     #    help="Strands to search for gRNAs")
@@ -1755,7 +1771,8 @@ def get_best_table(args, features, homologs, feature2gene):
     each mAT insert size, and us/ds trim length.
     Thus, the user can see the best spacer for any given combination of these.
     """
-    header = ['gene', 'features', 'insert', 'mAT', 'translations', '(us, ds) trim', 'weight', 'OT:Hsu-Zhang', 'OT:CFD', 'Azimuth', 'reTarget name', 'reTarget sequence', 'ExDonors']
+    #header = ['gene', 'features', 'insert', 'mAT', 'translations', '(us, ds) trim', 'weight', 'OT:Hsu-Zhang', 'OT:CFD', 'Azimuth', 'reTarget name', 'reTarget sequence', 'ExDonors']
+    header = ['gene', 'features', '(mAT, us-trim, ds-trim)', 'translations', 'weight', 'OT:Hsu-Zhang', 'OT:CFD', 'Azimuth', 'reTarget name', 'reTarget sequence', 'ExDonors']
     print('\t'.join(header))
     
     # Get best ReversionTargets by calculating their weights, and also getting
@@ -1767,8 +1784,6 @@ def get_best_table(args, features, homologs, feature2gene):
         csfeatures = ','.join(feature_homologs) # Add the features as comma-separated list
         
         outputs = {}
-        #for insert_length in range(args.excise_insert_lengths[0], args.excise_insert_lengths[1]+1):
-        #    outputs[insert_length] = []
         
         # Print the top N for each insert size and trim
         for weight, obj in rank_targets(ret_dict2[feature_homologs]):
@@ -1780,34 +1795,23 @@ def get_best_table(args, features, homologs, feature2gene):
             rds = rank_donors(obj.get_donors())
             # filter out all but the top-weighted ones
             rds = [x for x in rds if (x[0] == rds[0][0])]
-            #for gap, exd_obj in rds:
-            #    print(' ', ' ', gap, exd_obj.get_trims(features), exd_obj)
             
             exdonors = ','.join(map(lambda x: x[1].name, rds))
-            insert = ','.join(map(str, sorted(set(map(len, utils.flatten(map(lambda x: x[1].get_inserts(), rds)))))))
+            
+            key0 = sorted(set(utils.flatten(map(lambda x: x[1].get_inserts_and_trims(features), rds))))
+            key0s = ','.join(map(str, key0))
+            key1 = sorted(set([(len(x[0]), x[1], x[2]) for x in key0])) # replace mAT with length
+            key1s = ','.join(map(str, key1))
             translations = None
             
-            trims = set()
-            mats = set()
-            for gap, exd_obj in rds:
-                # [(us1, ds1), (us2, ds2), ...]
-                for pair in exd_obj.get_trims(features):
-                    trims.add(pair)
-                for location in exd_obj.locations:
-                    mats.add(location[4])
-            trims = ','.join(map(str, sorted(trims)))
-            mats = ','.join(sorted(mats))
+            sline = [gene, csfeatures, key0s, translations, weight, othz, otcfd, azimuth, obj.name, obj.spacer+'|'+obj.pam, exdonors]
             
-            #ustrims = ','.join(map(str, sorted(set(map(lambda y: y[0], map(lambda x: x[1].get_trims(features), rds))))))
-            #dstrims = ','.join(map(str, sorted(set(map(lambda y: y[1], map(lambda x: x[1].get_trims(features), rds))))))
-            
-            sline = [gene, csfeatures, insert, mats, translations, trims, weight, othz, otcfd, azimuth, obj.name, obj.spacer+'|'+obj.pam, exdonors]
-            key = (insert, trims)
-            
-            if (len(outputs.get(key, [])) < args.max_number_sequences_reported):
-                outputs.setdefault(key, []).append(sline)
+            if (weight >= args.min_weight_reported):
+                if (len(outputs.get(key1s, [])) < args.max_number_sequences_reported):
+                    outputs.setdefault(key1s, []).append(sline)
         
-        for k in sorted(outputs):
+        for k in sorted(outputs): # sort by insert/trims
+        #for k in sorted(outputs, key=lambda x: outputs[x][4], reverse=True): # sort by weight
             for sline in outputs[k]:
                 print('\t'.join(map(str, sline)))
         
@@ -1829,24 +1833,18 @@ def get_best_table(args, features, homologs, feature2gene):
             rds = [x for x in rds if (x[0] == rds[0][0])]
             
             exdonors = ','.join(map(lambda x: x[1].name, rds))
-            insert = ','.join(map(str, sorted(set(map(len, utils.flatten(map(lambda x: x[1].get_inserts(), rds)))))))
+            
+            key0 = sorted(set(utils.flatten(map(lambda x: x[1].get_inserts_and_trims(features), rds))))
+            key0s = ','.join(map(str, key0))
+            key1 = sorted(set([(len(x[0]), x[1], x[2]) for x in key0])) # replace mAT with length
+            key1s = ','.join(map(str, key1))
             translations = None
             
-            trims = set()
-            mats = set()
-            for gap, exd_obj in rds:
-                for pair in exd_obj.get_trims(features):
-                    trims.add(pair)
-                for location in exd_obj.locations:
-                    mats.add(location[4])
-            trims = ','.join(map(str, sorted(trims)))
-            mats = ','.join(sorted(mats))
+            sline = [gene, feature, key0s, translations, weight, othz, otcfd, azimuth, obj.name, obj.spacer+'|'+obj.pam, exdonors]
             
-            sline = [gene, feature, insert, mats, translations, trims, weight, othz, otcfd, azimuth, obj.name, obj.spacer+'|'+obj.pam, exdonors]
-            key = (insert, trims)
-            
-            if (len(outputs.get(key, [])) < args.max_number_sequences_reported):
-                outputs.setdefault(key, []).append(sline)
+            if (weight >= args.min_weight_reported):
+                if (len(outputs.get(key1s, [])) < args.max_number_sequences_reported):
+                    outputs.setdefault(key1s, []).append(sline)
         
         for k in sorted(outputs):
             for sline in outputs[k]:
