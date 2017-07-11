@@ -42,6 +42,8 @@ All generated sequences can be designed as either strand-specific or strand-agno
     - BWA ([source](https://github.com/lh3/bwa), [documentation](http://bio-bwa.sourceforge.net/bwa.shtml))
     - Cas-OFFinder ([source](https://github.com/snugel/cas-offinder), [binaries](https://sourceforge.net/projects/cas-offinder/files/Binaries/), [documentation](http://www.rgenome.net/cas-offinder/portable))
 
+ * Git >= 1.7.1 ([source, binaries](https://git-scm.com/downloads)) Certain AddTag functionality depends on Git.
+
 ### Program usage ###
 You can download the latest version of AddTag over HTTPS using `git` with the following command (replacing `username` with your BitBucket account name).
 ```sh
