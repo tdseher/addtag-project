@@ -10,6 +10,7 @@ import os
 import gzip
 import datetime
 import logging
+import subprocess
 
 # Import non-standard packages
 import regex
@@ -231,23 +232,15 @@ def load_git_date():
         date = 'missing'
     return date
 
-def load_git_commits():
-    '''Returns the git commit number for the current head and master'''
-    # Repository versions stored in this file:
-    #   .../addtag-project/.git/logs/regs/heads/master
-    root = os.path.join(os.path.dirname(__file__), '..')
-    filename = os.path.join('.git', 'logs', 'refs', 'heads', 'master')
-    filepath = os.path.join(root, filename)
-    #filepath = os.path.realpath(os.path.join(root, filename))
-    versions = set()
+def load_git_revisions():
+    '''Returns the number of git revisions for the current head and master'''
+    command_list = ['git', 'rev-list', 'HEAD']
+    working_dir = os.path.realpath(os.path.join(os.path.dirname(__file__), '..'))
     try:
-        with open(filepath, 'r') as flo:
-            for line in flo:
-                versions.add(line.rstrip().split(' ', 2)[1])
-        version = len(versions)
+        cp = subprocess.run(command_list, cwd=working_dir, shell=False, check=True, stdout=subprocess.PIPE)
+        return len(cp.stdout.decode().splitlines())
     except FileNotFoundError:
-        version = 'missing'
-    return version
+        return 'missing'
 
 def load_git_version():
     '''Returns the git hash for the current head and master'''

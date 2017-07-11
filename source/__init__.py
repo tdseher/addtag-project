@@ -28,7 +28,7 @@ __author__ = "Thaddeus D. Seher (@tdseher) & Aaron Hernday"
 __date__ = utils.load_git_date()
 __fullversion__ = utils.load_git_version()
 __version__ = __fullversion__[:7]
-__commits__ = utils.load_git_commits()
+__revisions__ = utils.load_git_revisions()
 __program__ = os.path.basename(sys.argv[0])
 __description__ = """\
 description:
@@ -88,10 +88,10 @@ description:
   All rights reserved.
 
 version:
-  short   {__version__}
-  full    {__fullversion__}
-  commits {__commits__}
-  date    {__date__}
+  short     {__version__}
+  full      {__fullversion__}
+  revisions {__revisions__}
+  date      {__date__}
 
 protein:
   The Cas9 or Cpf1 protein you use should be engineered specifically for your
