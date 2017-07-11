@@ -232,7 +232,7 @@ def load_git_date():
         date = 'missing'
     return date
 
-def load_git_revisions():
+def load_git_revision():
     '''Returns the number of git revisions for the current head and master'''
     command_list = ['git', 'rev-list', 'HEAD']
     working_dir = os.path.realpath(os.path.join(os.path.dirname(__file__), '..'))

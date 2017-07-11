@@ -28,7 +28,7 @@ __author__ = "Thaddeus D. Seher (@tdseher) & Aaron Hernday"
 __date__ = utils.load_git_date()
 __fullversion__ = utils.load_git_version()
 __version__ = __fullversion__[:7]
-__revisions__ = utils.load_git_revisions()
+__revision__ = utils.load_git_revision()
 __program__ = os.path.basename(sys.argv[0])
 __description__ = """\
 description:
@@ -88,10 +88,10 @@ description:
   All rights reserved.
 
 version:
-  short     {__version__}
-  full      {__fullversion__}
-  revisions {__revisions__}
-  date      {__date__}
+  short    {__version__}
+  full     {__fullversion__}
+  revision {__revision__}
+  date     {__date__}
 
 protein:
   The Cas9 or Cpf1 protein you use should be engineered specifically for your
@@ -1247,7 +1247,7 @@ def parse_arguments():
         type=str, help="Path of folder to store generated files")
     
     # Special version action optional argument
-    parser.add_argument("-v", "--version", action='version', version='{__program__} {__version__}'.format(**globals()))
+    parser.add_argument("-v", "--version", action='version', version='{__program__} {__version__} (revision {__revision__})'.format(**globals()))
     
     # Add optional arguments
     #parser.add_argument("--feature_homolog_regex", metavar="REGEX", type=str, default=None, help="regular expression with capturing group containing invariant feature. Example: '(.*)_[AB]' will treat features C2_10010C_A and C2_10010C_B as homologs")
