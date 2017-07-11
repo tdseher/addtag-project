@@ -1663,6 +1663,32 @@ def target_filter(seq, args):
 #    index_file = bowtie2.index_reference(args.fasta, tempdir=args.folder, threads=args.processors)
 #    return index_file
 
+def get_exTarget_homologs(features, homologs):
+    """Get ExcisionTarget objects for each homologous feature group"""
+    ext_dict = {}
+    if homologs:
+        groups = set()
+        for f in features:
+            groups.add(tuple(sorted(homologs[f])))
+        for g in groups:
+            ext_dict[g] = set()
+            for name, obj in ExcisionTarget.indices.items():
+                obj_features = set(utils.flatten(x[0].split(',') for x in obj.locations))
+                if (len(obj_features.intersection(g)) == len(g)):
+                    ext_dict[g].add(obj)
+    return ext_dict
+
+def get_exTarget_allele_specific(features):
+    """Gets allele-specific ExcisionTarget objects"""
+    ext_dict = {}
+    for f in features:
+        ext_dict[f] = set()
+        for name, obj in ExcisionTarget.indices.items():
+            obj_features = set(utils.flatten(x[0].split(',') for x in obj.locations))
+            if ((len(obj_features) == 1) and (f in obj_features)):
+                ext_dict[f].add(obj) # Store with the feature as key
+    return ext_dict
+
 def get_reTarget_homologs(features, homologs):
     """Get ReversionTarget objects for each homologous feature group"""
     ret_dict2 = {}
@@ -1772,7 +1798,7 @@ def get_best_table(args, features, homologs, feature2gene):
     Thus, the user can see the best spacer for any given combination of these.
     """
     #header = ['gene', 'features', 'insert', 'mAT', 'translations', '(us, ds) trim', 'weight', 'OT:Hsu-Zhang', 'OT:CFD', 'Azimuth', 'reTarget name', 'reTarget sequence', 'ExDonors']
-    header = ['gene', 'features', '(mAT, us-trim, ds-trim)', 'translations', 'weight', 'OT:Hsu-Zhang', 'OT:CFD', 'Azimuth', 'reTarget name', 'reTarget sequence', 'ExDonors']
+    header = ['gene', 'features', '(mAT, us-trim, ds-trim)', 'translations', 'weight', 'OT:Hsu-Zhang', 'OT:CFD', 'Azimuth', 'reTarget name', 'reTarget sequence', 'exDonors']
     print('\t'.join(header))
     
     # Get best ReversionTargets by calculating their weights, and also getting
@@ -1799,7 +1825,7 @@ def get_best_table(args, features, homologs, feature2gene):
             exdonors = ','.join(map(lambda x: x[1].name, rds))
             
             key0 = sorted(set(utils.flatten(map(lambda x: x[1].get_inserts_and_trims(features), rds))))
-            key0s = ','.join(map(str, key0))
+            key0s = ','.join('{}:{}:{}'.format(x[1], x[0], x[2]) for x in key0)
             key1 = sorted(set([(len(x[0]), x[1], x[2]) for x in key0])) # replace mAT with length
             key1s = ','.join(map(str, key1))
             translations = None
@@ -1816,9 +1842,9 @@ def get_best_table(args, features, homologs, feature2gene):
                 print('\t'.join(map(str, sline)))
         
         if (len(outputs) == 0):
-            logging.info('No records that target ' + csfeatures)
+            logging.info('No spacers for targeting knocked-out ' + csfeatures)
     
-    # Print a table of allele-specific spacer and dDNA pairs
+    # Print a table of allele-specific knock-in spacer and dDNA pairs
     ret_dict = get_reTarget_allele_specific(features)
     for feature in sorted(ret_dict):
         gene = feature2gene[feature] # Get the gene name
@@ -1835,7 +1861,7 @@ def get_best_table(args, features, homologs, feature2gene):
             exdonors = ','.join(map(lambda x: x[1].name, rds))
             
             key0 = sorted(set(utils.flatten(map(lambda x: x[1].get_inserts_and_trims(features), rds))))
-            key0s = ','.join(map(str, key0))
+            key0s = ','.join('{}:{}:{}'.format(x[1], x[0], x[2]) for x in key0)
             key1 = sorted(set([(len(x[0]), x[1], x[2]) for x in key0])) # replace mAT with length
             key1s = ','.join(map(str, key1))
             translations = None
@@ -1852,7 +1878,77 @@ def get_best_table(args, features, homologs, feature2gene):
         
         # If there are no allele-specific records, then nothing is printed
         if (len(outputs) == 0):
-            logging.info('No allele-specific records for ' + feature)
+            logging.info('No allele-specific spacers for targeting knocked-out ' + feature)
+    
+    header = ['gene', 'features', 'weight', 'OT:Hsu-Zhang', 'OT:CFD', 'Azimuth', 'exTarget name', 'exTarget sequence', 'reDonors']
+    print('\t'.join(header))
+    
+    # Print the best homozygous ExcisionTargets for each feature set
+    ext_dict2 = get_exTarget_homologs(features, homologs)
+    for feature_homologs in sorted(ext_dict2):
+        gene = feature2gene[feature_homologs[0]] # Get the gene name
+        csfeatures = ','.join(feature_homologs) # Add the features as comma-separated list
+        
+        red_list = set()
+        for name, obj in ReversionDonor.indices.items():
+            obj_features = set(obj.get_location_features())
+            if (len(obj_features.intersection(feature_homologs)) > 0):
+                red_list.add(obj)
+        red_list = sorted(red_list, key=lambda x: int(x.name.split('-')[1]))
+        
+        outputs = []
+        for weight, obj in rank_targets(ext_dict2[feature_homologs]):
+            othz = round(obj.off_targets['Hsu-Zhang'], 2)
+            otcfd = round(obj.off_targets['CFD'], 2)
+            azimuth = round(obj.score['Azimuth'], 2)
+            
+            redonors = ','.join(x.name for x in red_list)
+            
+            sline = [gene, csfeatures, weight, othz, otcfd, azimuth, obj.name, obj.spacer+'|'+obj.pam, redonors]
+            
+            if (weight >= args.min_weight_reported):
+                if (len(outputs) < args.max_number_sequences_reported):
+                    outputs.append(sline)
+        
+        for sline in outputs:
+            print('\t'.join(map(str, sline)))
+        
+        if (len(outputs) == 0):
+            logging.info('No spacers for targeting ' + csfeatures)
+    
+    # Print a table of allele-specific knock-out spacer and dDNA pairs
+    ext_dict = get_exTarget_allele_specific(features)
+    for feature in sorted(ext_dict):
+        gene = feature2gene[feature] # Get the gene name
+        
+        red_list = set()
+        for name, obj in ReversionDonor.indices.items():
+            if feature in obj.get_location_features():
+                red_list.add(obj)
+        red_list = sorted(red_list, key=lambda x: int(x.name.split('-')[1]))
+        
+        outputs = []
+        
+        for weight, obj in rank_targets(ext_dict[feature]):
+            othz = round(obj.off_targets['Hsu-Zhang'], 2)
+            otcfd = round(obj.off_targets['CFD'], 2)
+            azimuth = round(obj.score['Azimuth'], 2)
+            
+            redonors = ','.join(x.name for x in red_list)
+            
+            sline = [gene, feature, weight, othz, otcfd, azimuth, obj.name, obj.spacer+'|'+obj.pam, redonors]
+            
+            if (weight >= args.min_weight_reported):
+                if (len(outputs) < args.max_number_sequences_reported):
+                    outputs.append(sline)
+        
+        for sline in outputs:
+            print('\t'.join(map(str, sline)))
+        
+        # If there are no allele-specific records, then nothing is printed
+        if (len(outputs) == 0):
+            logging.info('No allele-specific spacers for targeting knocked-out ' + feature)
+    
 
 def get_best(args, features, homologs):
     """Function that returns the best spacers and dDNAs for each feature"""
