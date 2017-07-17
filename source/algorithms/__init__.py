@@ -14,7 +14,6 @@ from .algorithm import Algorithm, SingleSequenceAlgorithm, PairedSequenceAlgorit
 # Import all Algorithm subclasses defined in python files within this same folder
 exclusions = [
     '__init__.py',
-    'nucleotides.py',
     'azimuth_wrapper.py',
     'bae.py',
     'chari.py',
