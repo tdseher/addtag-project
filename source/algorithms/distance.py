@@ -520,7 +520,8 @@ class PamIdentity(SingleSequenceAlgorithm):
         """
         Quantifies the similarity between the PAM motif and the actual PAM
         of the target. Normalizes based on gapless minimum and maximum
-        possible bitscores.
+        possible bitscores. Returns the maximum for all pams that follow the
+        motif.
         """
         super().__init__("PAM-Identity", "Seher", 2017,
             citation="AddTag",
@@ -535,22 +536,22 @@ class PamIdentity(SingleSequenceAlgorithm):
     def calculate(self, potential, *args, **kwargs):
         off_sequence, off_target, off_pam, off_upstream, off_downstream = potential
         
-        return self.score(off_pam, kwargs['motif'])
+        return self.score(off_pam, kwargs['parsed_motif'])
     
-    def score(self, pam, motif):
+    def score(self, pam, parsed_motif):
         """"""
+        # Store each score in this list
+        scores = []
+        
         # Separate spacer and PAM motifs
-        if ('>' in motif):
-            spacer_motif, pam_motif = motif.split('>')
-        elif ('<' in motif):
-            pam_motif, spacer_motif = motif.split('<')
-        #else:
-        #    raise Exception()
+        spacers, pams, side = parsed_motif
+        for p in pams:
+            a = GlobalAlignment.align(p, pam, SCORES)
+            min_score, max_score = a.score_extremes(SCORES)
+            scores.append((a.bitscore - min_score)/(max_score - min_score)*100)
         
-        a = GlobalAlignment.align(pam_motif, pam, SCORES)
-        min_score, max_score = a.score_extremes(SCORES)
-        
-        return (a.bitscore - min_score)/(max_score - min_score)*100
+        # Return the max score
+        return max(scores)
 
 # Load scores from the data files when this module is imported
 try:
@@ -588,15 +589,34 @@ def test():
     
     print("=== PAM-Identity ===")
     C = PamIdentity()
-    print(C.calculate(('', '', 'GGG', '', ''), motif='N{{20}}>NGG'))
-    print(C.calculate(('', '', 'GAG', '', ''), motif='N{{20}}>NGG'))
-    print(C.calculate(('', '', 'GAG', '', ''), motif='N{{20}}>NRG'))
-    print(C.calculate(('', '', 'CCACAAA', '', ''), motif='N{{20}}>NHRBMAW'))
-    print(C.calculate(('', '', 'ATGCCAT', '', ''), motif='N{{20}}>NHRBMAW'))
-    print(C.calculate(('', '', 'CGACAAA', '', ''), motif='N{{20}}>NHRBMAW'))
-    print(C.calculate(('', '', 'CGACAAC', '', ''), motif='N{{20}}>NHRBMAW'))
-    print(C.calculate(('', '', 'CCACAGA', '', ''), motif='N{{20}}>NHRBMAW'))
-    print(C.calculate(('', '', 'CCCCAAG', '', ''), motif='N{{20}}>NHRBMAW'))
+#    print(C.calculate(('', '', 'GGG', '', ''), motif='N{{20}}>NGG'))
+#    print(C.calculate(('', '', 'GAG', '', ''), motif='N{{20}}>NGG'))
+#    print(C.calculate(('', '', 'GAG', '', ''), motif='N{{20}}>NRG'))
+#    print(C.calculate(('', '', 'CCACAAA', '', ''), motif='N{{20}}>NHRBMAW'))
+#    print(C.calculate(('', '', 'ATGCCAT', '', ''), motif='N{{20}}>NHRBMAW'))
+#    print(C.calculate(('', '', 'CGACAAA', '', ''), motif='N{{20}}>NHRBMAW'))
+#    print(C.calculate(('', '', 'CGACAAC', '', ''), motif='N{{20}}>NHRBMAW'))
+#    print(C.calculate(('', '', 'CCACAGA', '', ''), motif='N{{20}}>NHRBMAW'))
+#    print(C.calculate(('', '', 'CCCCAAG', '', ''), motif='N{{20}}>NHRBMAW'))
+#    print(C.calculate(('', '', 'AAATGG', '', ''), motif='N{{21,22}}>AAANGG'))
+#    print(C.calculate(('', '', 'AAATGG', '', ''), motif='N{{21,22}}>A{{3,4}}NGG'))
+    print(C.calculate(('', '', 'GGG', '', ''), parsed_motif=(['NNNNNNNNNNNNNNNNNNNN'], ['NGG'], '>')))
+    print(C.calculate(('', '', 'GAG', '', ''), parsed_motif=(['NNNNNNNNNNNNNNNNNNNN'], ['NGG'], '>')))
+    print(C.calculate(('', '', 'GAG', '', ''), parsed_motif=(['NNNNNNNNNNNNNNNNNNNN'], ['NRG'], '>')))
+    print(C.calculate(('', '', 'CCACAAA', '', ''), parsed_motif=(['NNNNNNNNNNNNNNNNNNNN'], ['NHRBMAW'], '>')))
+    print(C.calculate(('', '', 'ATGCCAT', '', ''), parsed_motif=(['NNNNNNNNNNNNNNNNNNNN'], ['NHRBMAW'], '>')))
+    print(C.calculate(('', '', 'CGACAAA', '', ''), parsed_motif=(['NNNNNNNNNNNNNNNNNNNN'], ['NHRBMAW'], '>')))
+    print(C.calculate(('', '', 'CGACAAC', '', ''), parsed_motif=(['NNNNNNNNNNNNNNNNNNNN'], ['NHRBMAW'], '>')))
+    print(C.calculate(('', '', 'CCACAGA', '', ''), parsed_motif=(['NNNNNNNNNNNNNNNNNNNN'], ['NHRBMAW'], '>')))
+    print(C.calculate(('', '', 'CCCCAAG', '', ''), parsed_motif=(['NNNNNNNNNNNNNNNNNNNN'], ['NHRBMAW'], '>')))
+    print(C.calculate(('', '', 'AAATGG', '', ''), parsed_motif=(['NNNNNNNNNNNNNNNNNNNNN', 'NNNNNNNNNNNNNNNNNNNNNN'], ['AAANGG'], '>')))
+    print(C.calculate(('', '', 'AAATGG', '', ''), parsed_motif=(['NNNNNNNNNNNNNNNNNNNNN', 'NNNNNNNNNNNNNNNNNNNNNN'], ['AAANGG', 'AAAANGG'], '>')))
+    print(C.calculate(('', '', 'AAAATGG', '', ''), parsed_motif=(['NNNNNNNNNNNNNNNNNNNNN', 'NNNNNNNNNNNNNNNNNNNNNN'], ['AAANGG', 'AAAANGG'], '>')))
+    print(C.calculate(('', '', 'AATATGG', '', ''), parsed_motif=(['NNNNNNNNNNNNNNNNNNNNN', 'NNNNNNNNNNNNNNNNNNNNNN'], ['AAANGG', 'AAAANGG'], '>')))
+    print(C.calculate(('', '', 'CAAATGG', '', ''), parsed_motif=(['NNNNNNNNNNNNNNNNNNNNN', 'NNNNNNNNNNNNNNNNNNNNNN'], ['AAANGG', 'AAAANGG'], '>')))
+    print(C.calculate(('', '', 'AAAATCG', '', ''), parsed_motif=(['NNNNNNNNNNNNNNNNNNNNN', 'NNNNNNNNNNNNNNNNNNNNNN'], ['AAANGG', 'AAAANGG'], '>')))
+    print(C.calculate(('', '', 'AAAATTG', '', ''), parsed_motif=(['NNNNNNNNNNNNNNNNNNNNN', 'NNNNNNNNNNNNNNNNNNNNNN'], ['AAANGG', 'AAAANGG'], '>')))
+    print(C.calculate(('', '', 'AAAATAG', '', ''), parsed_motif=(['NNNNNNNNNNNNNNNNNNNNN', 'NNNNNNNNNNNNNNNNNNNNNN'], ['AAANGG', 'AAAANGG'], '>')))
     
     print("=== Test ===")
     print(GlobalAlignment.align('GGG', 'GGG', SCORES))

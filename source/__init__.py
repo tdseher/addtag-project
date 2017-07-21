@@ -287,6 +287,7 @@ class Alignment(object):
         'target',
         'pam',
         'motif',
+        'parsed_motif',
         'contig',
         'start',
         'end',
@@ -298,12 +299,13 @@ class Alignment(object):
         'action',
     ]
     
-    def __init__(self, sequence, target, pam, motif, contig, start, end, orientation, upstream='', downstream=''):
+    def __init__(self, sequence, target, pam, motif, parsed_motif, contig, start, end, orientation, upstream='', downstream=''):
         # Most attributes derived from SAM output
         self.sequence = sequence
         self.target = target
         self.pam = pam
         self.motif = motif
+        self.parsed_motif = parsed_motif
         self.contig = contig
         self.start = start
         self.end = end
@@ -332,7 +334,7 @@ class Alignment(object):
         this = (self.sequence, self.target, self.pam, self.upstream, self.downstream)
         postfilter = []
         for C in algorithms.single_algorithms:
-            c_score = C.calculate(this, motif=self.motif)
+            c_score = C.calculate(this, parsed_motif=self.parsed_motif)
             self.score[C.name] = c_score
             if C.postfilter:
                 if (C.minimum <= c_score <= C.maximum):
@@ -340,7 +342,7 @@ class Alignment(object):
                 else:
                     postfilter.append(False)
         for C in algorithms.paired_algorithms:
-            c_score = C.calculate(parent, this, motif=self.motif)
+            c_score = C.calculate(parent, this, parsed_motif=self.parsed_motif)
             self.score[C.name] = c_score
             if C.postfilter:
                 if (C.minimum <= c_score <= C.maximum):
@@ -491,7 +493,7 @@ class ExcisionDonor(Donor):
                         t_upstream = sequence[start-10:start]
                         t_downstream = sequence[end:end+10]
                         
-                        targets.add((orientation, start, end, t_upstream, t_downstream, filt_seq, side, filt_spacer, filt_pam, args.motifs[i]))
+                        targets.add((orientation, start, end, t_upstream, t_downstream, filt_seq, side, filt_spacer, filt_pam, args.motifs[i], tuple([tuple(x) if isinstance(x, list) else x for x in args.parsed_motifs[i]])))
         return sorted(targets) # becomes a list
     
     @classmethod
@@ -785,7 +787,7 @@ class Target(object):
         feature, contig, orientation, start, end, upstream, downstream = location
         return sep.join([feature, contig, orientation, '..'.join([str(start), str(end)])])
     
-    def __init__(self, feature, contig, orientation, start, end, upstream, downstream, sequence, side, spacer, pam, motif):
+    def __init__(self, feature, contig, orientation, start, end, upstream, downstream, sequence, side, spacer, pam, motif, parsed_motif):
         """Create a structure for holding individual sequence information"""
         location = (feature, contig, orientation, start, end, upstream, downstream)
         self.locations = set()
@@ -795,6 +797,7 @@ class Target(object):
         self.spacer = spacer
         self.pam = pam
         self.motif = motif
+        self.parsed_motif = parsed_motif
         
         # List to store alignments
         self.alignments = []
@@ -875,7 +878,7 @@ class Target(object):
             if (C.default != None):
                 self.score[C.name] = C.default
             else:
-                self.score[C.name] = C.calculate(parent, motif=self.motif)
+                self.score[C.name] = C.calculate(parent, parsed_motif=self.parsed_motif)
         for C in algorithms.paired_algorithms:
             if (C.default != None):
                 self.score[C.name] = C.default
@@ -888,12 +891,14 @@ class Target(object):
         #parent = (self.sequence, self.target, self.pam, self.upstream, self.downstream)
         parent = (self.sequence, self.spacer, self.pam, loc[5], loc[6])
         aligned_target, aligned_pam, aligned_motif = self.split_spacer_pam(aligned_sequence, args)
+        aligned_parsed_motif = args.parsed_motifs[args.motifs.index(aligned_motif)]
         if ((aligned_target != None) and (aligned_pam != None)):
             a = Alignment(
                 aligned_sequence,
                 aligned_target,
                 aligned_pam,
                 aligned_motif,
+                aligned_parsed_motif,
                 aligned_contig,
                 aligned_start,
                 aligned_end,
@@ -1189,7 +1194,7 @@ class ExcisionTarget(Target):
                             for filt_seq, filt_spacer, filt_pam in filtered_targets:
                                 t_upstream = sequence[start-10:start]
                                 t_downstream = sequence[end:end+10]
-                                cls(feature, feature_contig, orientation, real_start, real_end, t_upstream, t_downstream, filt_seq, side, filt_spacer, filt_pam, args.motifs[i])
+                                cls(feature, feature_contig, orientation, real_start, real_end, t_upstream, t_downstream, filt_seq, side, filt_spacer, filt_pam, args.motifs[i], args.parsed_motifs[i])
                                 # Maybe add to ReversionDonor here
 
 class ReversionTarget(Target):
@@ -1207,8 +1212,8 @@ class ReversionTarget(Target):
             # Populate the ReversionTarget sequences indices dicts
             for t in obj.spacers: # [(orientation, start, end, filt_seq, side, filt_spacer, filt_pam), ...]
                 #final_targets.append(tuple([obj.name, obj_feature, obj_contig] + list(t)))
-                # t = (orientation, start, end, t_upstream, t_downstream, filt_seq, side, filt_spacer, filt_pam, args.motifs[i])
-                ReversionTarget(obj_features, obj.name, t[0], t[1], t[2], t[3], t[4], t[5], t[6], t[7], t[8], t[9])
+                # t = (orientation, start, end, t_upstream, t_downstream, filt_seq, side, filt_spacer, filt_pam, args.motifs[i], args.parsed_motifs[i])
+                ReversionTarget(obj_features, obj.name, t[0], t[1], t[2], t[3], t[4], t[5], t[6], t[7], t[8], t[9], t[10])
     
     def get_donors(self):
         return [ExcisionDonor.indices[x] for x in self.get_contigs()]
@@ -1378,8 +1383,7 @@ def parse_arguments():
     #    help="Path to the 'blastn' executable")
     #parser.add_argument("--blat_path", type=str, default="blat",
     #    help="Path to the 'blat' executable")
-    
-    parser.add_argument("--test", action="store_true", help="Perform tests only")
+    #parser.add_argument("--test", action="store_true", help="Perform tests only")
     
     # Parse the arguments
     args = parser.parse_args()
