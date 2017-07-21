@@ -138,7 +138,7 @@ class Doench2016(PairedSequenceAlgorithm):
         return self.score(on_target, off_target, on_pam)
     
     #def calculate(self, seq1, seq2, pam, *args, **kwargs):
-    def score(self, seq1, seq2, pam):
+    def score(self, seq1, seq2, pam, max_length=20):
         """Calculate the CFD score for a given gRNA and off-target sequence.
         
         Input oligonucleotides must be aligned with no gaps, and contain
@@ -208,7 +208,12 @@ class Doench2016(PairedSequenceAlgorithm):
         seq2 = seq2.replace('T','U')
         seq1 = seq1.replace('T','U')
         
-        # modify algorithm to allow for less than 20 nt gRNAs
+        # Make algorithm function for spacers greater than 20 nt
+        # by trimming off the left-most bases
+        seq2 = seq2[-max_length:]
+        seq1 = seq1[-max_length:]
+        
+        # Modify algorithm to allow for less than 20 nt gRNAs
         # loop should start at far-right (of longer sequence) and move left
         shorter, longer = sorted([seq1, seq2], key=len)
         #for i in range(-1, -len(shorter)-1, -1):
