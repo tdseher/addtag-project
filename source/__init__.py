@@ -92,6 +92,18 @@ version:
   revision {__revision__}
   date     {__date__}
 
+license:
+  You may not hold the authors liable for damages or data loss regarding the
+  use or inability to use the software. AddTag is provided without any
+  warranty. You may use the software for academic or private purposes without
+  purchasing a license. However, using the software for commercial purposes
+  requires purchase of a license. You may modify and distribute the software
+  as long as you make the modifications open source, and grant patent license
+  to the authors for inclusion in AddTag.
+  
+  Some AddTag features rely on code written by other people, provided under
+  different licenses. Please review them individually for more information.
+
 protein:
   The Cas9 or Cpf1 protein you use should be engineered specifically for your
   organism. It should be codon-optomized, and if using eukarya, contain an
