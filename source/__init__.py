@@ -20,8 +20,7 @@ from . import utils
 from . import nucleotides
 from . import scores
 from . import algorithms
-
-from .aligners import bowtie2
+from . import aligners
 
 # Define meta variables
 __author__ = "Thaddeus D. Seher (@tdseher) & Aaron Hernday"
@@ -1344,26 +1343,30 @@ def parse_arguments():
     #  Only report potential targets that have no off targets with mismatches within 8, 12, N nt from 3' end
     parser.add_argument("--processors", metavar="N", type=int, default=(os.cpu_count() or 1),
         help="Number of processors to use when performing pairwise sequence alignments")
-    parser.add_argument("--aligner", type=str, choices=['addtag', 'blast+',
-        'blat', 'bowtie', 'bowtie2', 'bwa', 'cas-offinder'], default='bowtie2',
+    
+    #available_aligners = ['addtag', 'blast+', 'blat', 'bowtie', 'bowtie2', 'bwa', 'cas-offinder']
+    available_aligners = list(map(lambda x: x.name, aligners.aligners))
+    parser.add_argument("--aligner", type=str, choices=available_aligners, default='bowtie2',
         help="Program to calculate pairwise alignments. Please note that the 'addtag' internal aligner is very slow.")
     # Other aligners to consider: 'rmap', 'maq', 'shrimp2', 'soap2', 'star', 'rhat', 'mrsfast', 'stampy'
-    parser.add_argument("--python2_path", type=str, default="python",
-        help="Path to the Python 2.7+ program")
-    parser.add_argument("--bowtie_path", type=str, default="bowtie",
-        help="Path to the 'bowtie' executable")
-    parser.add_argument("--bowtie-build_path", type=str, default="bowtie-build",
-        help="Path to the 'bowtie-build' executable")
-    parser.add_argument("--bowtie2_path", type=str, default="bowtie2",
-        help="Path to the 'bowtie2' executable")
-    parser.add_argument("--bowtie2-build_path", type=str, default="bowtie2-build",
-        help="Path to the 'bowtie2-build' executable")
-    parser.add_argument("--bwa_path", type=str, default="bwa",
-        help="Path to the 'bwa' executable")
-    parser.add_argument("--blastn_path", type=str, default="blastn",
-        help="Path to the 'blastn' executable")
-    parser.add_argument("--blat_path", type=str, default="blat",
-        help="Path to the 'blat' executable")
+    
+    #parser.add_argument("--python2_path", type=str, default="python",
+    #    help="Path to the Python 2.7+ program")
+    #parser.add_argument("--bowtie_path", type=str, default="bowtie",
+    #    help="Path to the 'bowtie' executable")
+    #parser.add_argument("--bowtie-build_path", type=str, default="bowtie-build",
+    #    help="Path to the 'bowtie-build' executable")
+    #parser.add_argument("--bowtie2_path", type=str, default="bowtie2",
+    #    help="Path to the 'bowtie2' executable")
+    #parser.add_argument("--bowtie2-build_path", type=str, default="bowtie2-build",
+    #    help="Path to the 'bowtie2-build' executable")
+    #parser.add_argument("--bwa_path", type=str, default="bwa",
+    #    help="Path to the 'bwa' executable")
+    #parser.add_argument("--blastn_path", type=str, default="blastn",
+    #    help="Path to the 'blastn' executable")
+    #parser.add_argument("--blat_path", type=str, default="blat",
+    #    help="Path to the 'blat' executable")
+    
     parser.add_argument("--test", action="store_true", help="Perform tests only")
     
     # Parse the arguments
@@ -1379,6 +1382,12 @@ def parse_arguments():
         spacers, pams, side = parse_motif(motif) # Parse the motif
         args.parsed_motifs.append((spacers, pams, side)) # Add to args
         args.compiled_motifs.append(nucleotides.compile_motif_regex(spacers, pams, side, anchored=False)) # Add to args
+    
+    # Add 'selected_aligner' to hold the actual aligner object
+    for a in aligners.aligners:
+        if a.name == args.aligner:
+            args.selected_aligner = a
+            break
     
     # Return the parsed arguments
     return args
@@ -1613,55 +1622,6 @@ def target_filter(seq, args):
     for i in range(len(temp_seqs2)):
         rets.append((temp_seqs2[i], temp_targets2[i], temp_pams2[i]))
     return rets
-
-#def index_reference(args):
-#    if (args.aligner == 'addtag'):
-#        index_file = fasta
-#    elif (args.aligner == 'blast+'):
-#        pass
-#    elif (args.aligner == 'blat'):
-#        pass
-#    elif (args.aligner == 'bowtie'):
-#        pass
-#    elif (args.aligner == 'bowtie2'):
-#        index_file = bowtie2.index_reference(args.fasta, tempdir=args.folder, threads=args.processors)
-#    elif (args.aligner == 'bwa'):
-#        pass
-#    elif (args.aligner == 'cas-offinder'):
-#        pass
-#    return index_file
-
-#def align(query_file, index_file, args):
-#    if (args.aligner == 'addtag'):
-#        sam_file = None
-#    elif (args.aligner == 'blast+'):
-#        pass
-#    elif (args.aligner == 'blat'):
-#        pass
-#    elif (args.aligner == 'bowtie'):
-#        pass
-#    elif (args.aligner == 'bowtie2'):
-#        sam_file = bowtie2.align(query_file, index_file, folder=args.folder, threads=args.processors)
-#    elif (args.aligner == 'bwa'):
-#        pass
-#    elif (args.aligner == 'cas-offinder'):
-#        pass
-#    return sam_file
-
-#def new_index_reference(args):
-#    name = 'excision-reference'
-#    folder = os.path.join(args.folder, name)
-#    # Make the directory if it does not yet exist
-#    try:
-#        os.mkdir(folder)
-#    except FileExistsError:
-#        pass
-#    
-#    # Concatenate args.fasta with 'excision-dDNAs.fasta' to make a new reference
-#    ex_reference_file = utils.concatenate_files(os.path.join(folder, name+'.fasta'), args.fasta, ex_dDNA_file)
-#    
-#    index_file = bowtie2.index_reference(args.fasta, tempdir=args.folder, threads=args.processors)
-#    return index_file
 
 def get_exTarget_homologs(features, homologs):
     """Get ExcisionTarget objects for each homologous feature group"""
@@ -2109,14 +2069,14 @@ def main():
         
         # Index args.fasta for alignment
         #index_file = index_reference(args)
-        genome_index_file = bowtie2.index_reference(args.fasta, tempdir=args.folder, threads=args.processors)
-        ex_dDNA_index_file = bowtie2.index_reference(ex_dDNA_file, tempdir=args.folder, threads=args.processors)
-        re_dDNA_index_file = bowtie2.index_reference(re_dDNA_file, tempdir=args.folder, threads=args.processors)
+        genome_index_file = args.selected_aligner.index(args.fasta, os.path.basename(args.fasta), args.folder, args.processors)
+        ex_dDNA_index_file = args.selected_aligner.index(ex_dDNA_file, os.path.basename(ex_dDNA_file), args.folder, args.processors)
+        re_dDNA_index_file = args.selected_aligner.index(re_dDNA_file, os.path.basename(re_dDNA_file), args.folder, args.processors)
         
         # Use selected alignment program to find all matches in the genome and dDNAs
         #ex_genome_sam_file = align(ex_query_file, genome_index_file, args)
-        exq2gDNA_sam_file = bowtie2.align(os.path.join(args.folder, 'excision-query-2-gDNA.sam'), ex_query_file, genome_index_file, folder=args.folder, threads=args.processors)
-        exq2exdDNA_sam_file = bowtie2.align(os.path.join(args.folder, 'excision-query-2-excision-dDNA.sam'), ex_query_file, ex_dDNA_index_file, folder=args.folder, threads=args.processors)
+        exq2gDNA_sam_file = args.selected_aligner.align(ex_query_file, genome_index_file, 'excision-query-2-gDNA.sam', args.folder, args.processors)
+        exq2exdDNA_sam_file = args.selected_aligner.align(ex_query_file, ex_dDNA_index_file, 'excision-query-2-excision-dDNA.sam', args.folder, args.processors)
         
         #print("ExcisionTarget before SAM parsing")
         #for et_seq, et_obj in ExcisionTarget.sequences.items():
@@ -2146,9 +2106,9 @@ def main():
         
         # Use selected alignment program to find all matches in the genome and dDNAs
         #re_sam_file = align(re_query_file, genome_index_file, args)
-        req2gDNA_sam_file = bowtie2.align(os.path.join(args.folder, 'reversion-query-2-gDNA.sam'), re_query_file, genome_index_file, folder=args.folder, threads=args.processors)
-        req2exdDNA_sam_file = bowtie2.align(os.path.join(args.folder, 'reversion-query-2-excision-dDNA.sam'), re_query_file, ex_dDNA_index_file, folder=args.folder, threads=args.processors)
-        req2redDNA_sam_file = bowtie2.align(os.path.join(args.folder, 'reversion-query-2-reversion-dDNA.sam'), re_query_file, re_dDNA_index_file, folder=args.folder, threads=args.processors)
+        req2gDNA_sam_file = args.selected_aligner.align(re_query_file, genome_index_file, 'reversion-query-2-gDNA.sam', args.folder, args.processors)
+        req2exdDNA_sam_file = args.selected_aligner.align(re_query_file, ex_dDNA_index_file, 'reversion-query-2-excision-dDNA.sam', args.folder, args.processors)
+        req2redDNA_sam_file = args.selected_aligner.align(re_query_file, re_dDNA_index_file, 'reversion-query-2-reversion-dDNA.sam', args.folder, args.processors)
         
         # Load the SAM files and add Alignments to ReversionTarget sequences
         ReversionTarget.load_sam(req2gDNA_sam_file, args, contigs)

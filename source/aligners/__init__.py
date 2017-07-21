@@ -14,11 +14,13 @@ from .aligner import Aligner
 # Import all Algorithm subclasses defined in python files within this same folder
 exclusions = [
     '__init__.py',
+#    'addtag.py',
     'blastplus.py',
     'blat.py',
     'bowtie.py',
+#    'bowtie2.py',
     'bwa.py',
-    'cctop.py',
+    'casoffinder.py',
 ]
 
 path = os.path.dirname(os.path.abspath(__file__))
@@ -26,7 +28,7 @@ files = [f.rstrip(".py") for f in os.listdir(path) if (f.endswith('.py') and (f 
 for f in files:
     module = import_module('.'.join([__name__, f]))
 
-# Create an instance of each SingleSequenceAlgorithm subclass, and add to this list
+# Create an instance of each Aligner subclass, and add to this list
 aligners = []
 for C in Aligner.__subclasses__():
     aligners.append(C())
