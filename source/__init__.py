@@ -248,7 +248,7 @@ motifs:
             AWG<N{{32,33}}  EcCas3      Escherichia coli (*)            Swarts, et al (2012)
 
 outputs:
-  STDOUT                            Abbreviated program status
+  STDOUT                            Tab-delimited analysis results
   STDERR                            Errors
   folder/                           Folder holding generated files
   folder/log.txt                    Log of important program operations
