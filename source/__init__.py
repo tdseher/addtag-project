@@ -1395,7 +1395,6 @@ def parse_arguments():
     #    help="Path to the 'blastn' executable")
     #parser.add_argument("--blat_path", type=str, default="blat",
     #    help="Path to the 'blat' executable")
-    #parser.add_argument("--test", action="store_true", help="Perform tests only")
     
     # Parse the arguments
     args = parser.parse_args()
@@ -2047,170 +2046,123 @@ def main():
     # Obtain command line arguments and parse them
     args = parse_arguments()
     
-    if args.test:
-        # Perform test code
-        test(args)
-    else:
-        # Get timestamp
-        start = time.time()
-        
-        # Create the project directory if it doesn't exist
-        os.makedirs(args.folder, exist_ok=True)
-        
-        # Create the logger
-        logging.basicConfig(filename=os.path.join(args.folder, 'log.txt'), level=logging.INFO, format='%(message)s') # format='%(levelname)s %(asctime)s: %(message)s'
-        
-        # Echo the command line parameters to STDOUT and the log
-        print(args)
-        logging.info(args)
-        
-        # Load the FASTA file specified on the command line
-        contigs = utils.load_fasta_file(args.fasta)
-        
-        # Open and parse the GFF file specified on the command line
-        features = utils.load_gff_file(args.gff, args.features, args.tag)
-        
-        # Make index of homologs
-        if args.feature_homologs:
-            homologs, feature2gene = utils.load_homologs(args.feature_homologs)
-        else:
-            homologs, feature2gene = None, None
-        
-        # Merge features?
-        #features = merge_features(features)
-        
-        # Search features within contigs for targets that match the motifs
-        ExcisionTarget.get_targets(args, contigs, features)
-        
-        # Write the query list to FASTA
-        ex_query_file = ExcisionTarget.generate_query_fasta(os.path.join(args.folder, 'excision-query.fasta'))
-        
-        # Generate excision dDNAs and their associated reversion gRNA spacers
-        ExcisionDonor.generate_donors(args, features, contigs)
-        ReversionTarget.get_targets()
-        ex_dDNA_file = ExcisionDonor.generate_fasta(os.path.join(args.folder, 'excision-dDNAs.fasta'))
-        re_query_file = ReversionTarget.generate_query_fasta(os.path.join(args.folder, 'reversion-query.fasta'))
-        
-        # Generate reversion dDNAs and write them to FASTA
-        ReversionDonor.generate_donors(args, features, contigs)
-        re_dDNA_file = ReversionDonor.generate_fasta(os.path.join(args.folder, 'reversion-dDNAs.fasta'))
-        
-        # Index args.fasta for alignment
-        #index_file = index_reference(args)
-        genome_index_file = args.selected_aligner.index(args.fasta, os.path.basename(args.fasta), args.folder, args.processors)
-        ex_dDNA_index_file = args.selected_aligner.index(ex_dDNA_file, os.path.basename(ex_dDNA_file), args.folder, args.processors)
-        re_dDNA_index_file = args.selected_aligner.index(re_dDNA_file, os.path.basename(re_dDNA_file), args.folder, args.processors)
-        
-        # Use selected alignment program to find all matches in the genome and dDNAs
-        #ex_genome_sam_file = align(ex_query_file, genome_index_file, args)
-        exq2gDNA_sam_file = args.selected_aligner.align(ex_query_file, genome_index_file, 'excision-query-2-gDNA.sam', args.folder, args.processors)
-        exq2exdDNA_sam_file = args.selected_aligner.align(ex_query_file, ex_dDNA_index_file, 'excision-query-2-excision-dDNA.sam', args.folder, args.processors)
-        
-        #print("ExcisionTarget before SAM parsing")
-        #for et_seq, et_obj in ExcisionTarget.sequences.items():
-        #    print(et_obj)
-        
-        # Load the SAM files and add Alignments to ExcisionTarget sequences
-        ExcisionTarget.load_sam(exq2gDNA_sam_file, args, contigs)
-        ExcisionTarget.load_sam(exq2exdDNA_sam_file, args, ExcisionDonor.get_contig_dict())
-        
-        # Calculate off-target/guide scores for each algorithm
-        logging.info("ExcisionTarget after SAM parsing and off-target scoring")
-        for et_seq, et_obj in ExcisionTarget.sequences.items():
-            et_obj.score_off_targets(args, homologs, features)
-            logging.info(et_obj)
-            for a in et_obj.alignments:
-                logging.info('  ' + str(a))
-        
-        # Batch calculate with new ExcisionTarget class
-        ExcisionTarget.score_batch()
-        
-        logging.info("ExcisionTarget after Azimuth calculation")
-        for et_seq, et_obj in ExcisionTarget.sequences.items():
-            logging.info(et_obj)
-        
-        # Generate the FASTA with the final scores
-        excision_spacers_file = ExcisionTarget.generate_spacers_fasta(os.path.join(args.folder, 'excision-spacers.fasta'))
-        
-        # Use selected alignment program to find all matches in the genome and dDNAs
-        #re_sam_file = align(re_query_file, genome_index_file, args)
-        req2gDNA_sam_file = args.selected_aligner.align(re_query_file, genome_index_file, 'reversion-query-2-gDNA.sam', args.folder, args.processors)
-        req2exdDNA_sam_file = args.selected_aligner.align(re_query_file, ex_dDNA_index_file, 'reversion-query-2-excision-dDNA.sam', args.folder, args.processors)
-        req2redDNA_sam_file = args.selected_aligner.align(re_query_file, re_dDNA_index_file, 'reversion-query-2-reversion-dDNA.sam', args.folder, args.processors)
-        
-        # Load the SAM files and add Alignments to ReversionTarget sequences
-        ReversionTarget.load_sam(req2gDNA_sam_file, args, contigs)
-        ReversionTarget.load_sam(req2exdDNA_sam_file, args, ExcisionDonor.get_contig_dict())
-        ReversionTarget.load_sam(req2redDNA_sam_file, args, ReversionDonor.get_contig_dict())
-        
-        # Calculate off-target/guide scores for each algorithm
-        logging.info("ReversionTarget after SAM parsing and off-target scoring")
-        for re_seq, re_obj in ReversionTarget.sequences.items():
-            re_obj.score_off_targets(args, homologs, features)
-            logging.info(re_obj)
-            for a in re_obj.alignments:
-                logging.info('  ' + str(a))
-        
-        # Batch calculate with new ReversionTarget class
-        ReversionTarget.score_batch()
-        
-        logging.info("ReversionTarget after Azimuth calculation")
-        for rt_seq, rt_obj in ReversionTarget.sequences.items():
-            logging.info(rt_obj)
-        
-        # Generate the FASTA with the final scores
-        reversion_spacers_file = ReversionTarget.generate_spacers_fasta(os.path.join(args.folder, 'reversion-spacers.fasta'))
-        
-        # Test code to generate alignments
-        ExcisionDonor.generate_alignments()
-        
-        # Pick out the best ones and print them out
-        get_best(args, features, homologs)
-        get_best_table(args, features, homologs, feature2gene)
-        
-        # Print time taken for program to complete
-        logging.info('{} finished'.format(__program__))
-        logging.info('Runtime: {}s'.format(time.time()-start))
-
-def test(args):
-    """Code to test the classes and functions in 'source/__init__.py'"""
-    # Echo the command line parameters
-    print(args)
-    
-    sys.exit(10)
-    
-    # Get timestamp
+    # Get timestamp for analysis beginning
     start = time.time()
     
-    # Load the FASTA file specified on the command line
-    print("=== FASTA ===")
-    #contigs = utils.load_fasta_file(args.fasta)
-    #print(list(contigs.keys())[:5])
+    # Create the project directory if it doesn't exist
+    os.makedirs(args.folder, exist_ok=True)
     
-    # Test SAM file parsing
-    print("=== SAM ===")
+    # Create the logger
+    logging.basicConfig(filename=os.path.join(args.folder, 'log.txt'), level=logging.INFO, format='%(message)s') # format='%(levelname)s %(asctime)s: %(message)s'
+    
+    # Echo the command line parameters to STDOUT and the log
+    print(args, flush=True)
+    logging.info(args)
+    
+    # Load the FASTA file specified on the command line
+    contigs = utils.load_fasta_file(args.fasta)
     
     # Open and parse the GFF file specified on the command line
-    # returns a dictionary:
-    #  features[ID] = (contig, start(bp), end(bp), frame)
-    print("=== GFF ===")
-    #features = utils.load_gff_file(args.gff, args.features, args.tag)
-    #for k in list(features.keys())[:10]:
-    #    print(k, features[k])
+    features = utils.load_gff_file(args.gff, args.features, args.tag)
     
-    # Test code to find all similar oligonucleotides in the FASTA
-    print("=== Align ===")
-    #target = 'TCCGGTACAKTGAKTTGTAC'
-    #regex = nucleotides.build_regex(target, max_errors=2)
-    #matches = nucleotides.find_target_matches(regex, contigs, overlap=True)
-    #for m in matches:
-    #    print(m)
-    #    for seq in nucleotides.disambiguate_iupac(m[4]):
-    #        print(seq, len(seq), hsuzhang.hsuzhang_score(target, seq))
+    # Make index of homologs
+    if args.feature_homologs:
+        homologs, feature2gene = utils.load_homologs(args.feature_homologs)
+    else:
+        homologs, feature2gene = None, None
     
-    # Test score calculations
-    print("=== Score calculations ===")
+    # Merge features?
+    #features = merge_features(features)
+    
+    # Search features within contigs for targets that match the motifs
+    ExcisionTarget.get_targets(args, contigs, features)
+    
+    # Write the query list to FASTA
+    ex_query_file = ExcisionTarget.generate_query_fasta(os.path.join(args.folder, 'excision-query.fasta'))
+    
+    # Generate excision dDNAs and their associated reversion gRNA spacers
+    ExcisionDonor.generate_donors(args, features, contigs)
+    ReversionTarget.get_targets()
+    ex_dDNA_file = ExcisionDonor.generate_fasta(os.path.join(args.folder, 'excision-dDNAs.fasta'))
+    re_query_file = ReversionTarget.generate_query_fasta(os.path.join(args.folder, 'reversion-query.fasta'))
+    
+    # Generate reversion dDNAs and write them to FASTA
+    ReversionDonor.generate_donors(args, features, contigs)
+    re_dDNA_file = ReversionDonor.generate_fasta(os.path.join(args.folder, 'reversion-dDNAs.fasta'))
+    
+    # Index args.fasta for alignment
+    #index_file = index_reference(args)
+    genome_index_file = args.selected_aligner.index(args.fasta, os.path.basename(args.fasta), args.folder, args.processors)
+    ex_dDNA_index_file = args.selected_aligner.index(ex_dDNA_file, os.path.basename(ex_dDNA_file), args.folder, args.processors)
+    re_dDNA_index_file = args.selected_aligner.index(re_dDNA_file, os.path.basename(re_dDNA_file), args.folder, args.processors)
+    
+    # Use selected alignment program to find all matches in the genome and dDNAs
+    #ex_genome_sam_file = align(ex_query_file, genome_index_file, args)
+    exq2gDNA_sam_file = args.selected_aligner.align(ex_query_file, genome_index_file, 'excision-query-2-gDNA.sam', args.folder, args.processors)
+    exq2exdDNA_sam_file = args.selected_aligner.align(ex_query_file, ex_dDNA_index_file, 'excision-query-2-excision-dDNA.sam', args.folder, args.processors)
+    
+    #print("ExcisionTarget before SAM parsing")
+    #for et_seq, et_obj in ExcisionTarget.sequences.items():
+    #    print(et_obj)
+    
+    # Load the SAM files and add Alignments to ExcisionTarget sequences
+    ExcisionTarget.load_sam(exq2gDNA_sam_file, args, contigs)
+    ExcisionTarget.load_sam(exq2exdDNA_sam_file, args, ExcisionDonor.get_contig_dict())
+    
+    # Calculate off-target/guide scores for each algorithm
+    logging.info("ExcisionTarget after SAM parsing and off-target scoring")
+    for et_seq, et_obj in ExcisionTarget.sequences.items():
+        et_obj.score_off_targets(args, homologs, features)
+        logging.info(et_obj)
+        for a in et_obj.alignments:
+            logging.info('  ' + str(a))
+    
+    # Batch calculate with new ExcisionTarget class
+    ExcisionTarget.score_batch()
+    
+    logging.info("ExcisionTarget after Azimuth calculation")
+    for et_seq, et_obj in ExcisionTarget.sequences.items():
+        logging.info(et_obj)
+    
+    # Generate the FASTA with the final scores
+    excision_spacers_file = ExcisionTarget.generate_spacers_fasta(os.path.join(args.folder, 'excision-spacers.fasta'))
+    
+    # Use selected alignment program to find all matches in the genome and dDNAs
+    #re_sam_file = align(re_query_file, genome_index_file, args)
+    req2gDNA_sam_file = args.selected_aligner.align(re_query_file, genome_index_file, 'reversion-query-2-gDNA.sam', args.folder, args.processors)
+    req2exdDNA_sam_file = args.selected_aligner.align(re_query_file, ex_dDNA_index_file, 'reversion-query-2-excision-dDNA.sam', args.folder, args.processors)
+    req2redDNA_sam_file = args.selected_aligner.align(re_query_file, re_dDNA_index_file, 'reversion-query-2-reversion-dDNA.sam', args.folder, args.processors)
+    
+    # Load the SAM files and add Alignments to ReversionTarget sequences
+    ReversionTarget.load_sam(req2gDNA_sam_file, args, contigs)
+    ReversionTarget.load_sam(req2exdDNA_sam_file, args, ExcisionDonor.get_contig_dict())
+    ReversionTarget.load_sam(req2redDNA_sam_file, args, ReversionDonor.get_contig_dict())
+    
+    # Calculate off-target/guide scores for each algorithm
+    logging.info("ReversionTarget after SAM parsing and off-target scoring")
+    for re_seq, re_obj in ReversionTarget.sequences.items():
+        re_obj.score_off_targets(args, homologs, features)
+        logging.info(re_obj)
+        for a in re_obj.alignments:
+            logging.info('  ' + str(a))
+    
+    # Batch calculate with new ReversionTarget class
+    ReversionTarget.score_batch()
+    
+    logging.info("ReversionTarget after Azimuth calculation")
+    for rt_seq, rt_obj in ReversionTarget.sequences.items():
+        logging.info(rt_obj)
+    
+    # Generate the FASTA with the final scores
+    reversion_spacers_file = ReversionTarget.generate_spacers_fasta(os.path.join(args.folder, 'reversion-spacers.fasta'))
+    
+    # Test code to generate alignments
+    ExcisionDonor.generate_alignments()
+    
+    # Pick out the best ones and print them out
+    get_best(args, features, homologs)
+    get_best_table(args, features, homologs, feature2gene)
     
     # Print time taken for program to complete
-    print('Runtime: {}s'.format(time.time()-start))
-
+    logging.info('{} finished'.format(__program__))
+    logging.info('Runtime: {}s'.format(time.time()-start))
