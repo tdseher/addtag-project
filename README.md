@@ -84,6 +84,15 @@ $ git reset --hard
 $ git pull
 ```
 
+Alternatively, if you want to keep the local modifications, you can use stash to hide them away before pulling, then reapply them afterwards.
+```sh
+$ git stash
+$ git pull
+$ git stash pop
+```
+
+Each one of these methods may require your Atlassian login credentials.
+
 ### Program usage ###
 The following commands assume the current working directory is the AddTag folder `addtag-project/`. To view the program usage, you may run AddTag with the `--help` flag. This will print out command line parameter descriptions and examples.
 ```sh
