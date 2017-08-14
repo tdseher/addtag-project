@@ -234,8 +234,10 @@ motifs:
           N{{21}}>NNGRRT    SaCas9      Staphylococcus aureus (Sa)      Ran, et al (2015)
        N{{21,23}}>NNGRRT    SaCas9      H. sapiens/E.coli               Kleinstiver, et al (2015a)
        N{{21,23}}>NNNRRT    SaCas9 KKH  Staphylococcus aureus KKH       Kleinstiver, et al (2015b)
-          N{{20}}>NNNNGMTT  NmCas9      Neisseria meningitidis (Nm)     Hou, et al (2013)
+          N{{20}}>NNNNGATT  NmCas9      Neisseria meningitidis (Nm)     ?
+          N{{20}}>NNNNGMTT  NmCas9      Neisseria meningitidis          Hou, et al (2013)
           N{{20}}>NNNNACA   CjCas9      Campylobacter jejuni (Cj)       Fonfara, et al (2013)
+          N{{20}}>NNNNRYAC  cjCas9      Campylobacter jejuni            ?
          N{{20?}}>NAAAAC    TdCas9      Treponema denticola (Td)        Zhang (unpublished)
        N{{18,21}}>NGGNCNDD  BlCas9      Brevibacillus laterosporus (Bl) Karvelis, et al (2015)
           N{{20}}>NNNNCND   BlCas9      Brevibacillus laterosporus      Karvelis, et al (2015)
