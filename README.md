@@ -44,7 +44,7 @@ All generated sequences can be designed as either strand-specific or strand-agno
 
  * Git >= 1.7.1 ([source, binaries](https://git-scm.com/downloads)) Certain AddTag functionality depends on Git.
 
-### Program usage ###
+### Obtaining AddTag ###
 You can download the latest version of AddTag over HTTPS using `git` with the following command (replacing `username` with your BitBucket account name).
 ```sh
 $ git clone https://username@bitbucket.org/tdseher/addtag-project.git
@@ -57,17 +57,35 @@ Or you can download AddTag over SSH using a 'publickey'.
 $ git clone git@bitbucket.org:tdseher/addtag-project.git
 ```
 
-Either of these options will download the AddTag into a folder called `addtag-project/` in your current working directory. Go ahead and change the working directory into it.
+Either of these options will download the AddTag into a folder called `addtag-project/` in your current working directory. Go ahead and change the working directory into the AddTag folder.
 ```sh
 $ cd addtag-project/
 ```
 
-The following commands assume the current working directory is the AddTag folder `addtag-project/`. Make sure the `addtag` program is executable.
+`git` should automatically make the `addtag` program executable. If it does not, you can use the following command to do it. 
 ```sh
 $ chmod +x addtag
 ```
 
-To view the program usage, you may run AddTag with the `--help` flag. This will print out command line parameter descriptions and examples.
+### Updating AddTag ###
+Set the working directory as the AddTag folder.
+```sh
+$ cd addtag-project/
+```
+
+If you would like to update your local copy to the newest version available, use the following command from within the `addtag-project/` directory.
+```sh
+$ git pull
+```
+
+If you want the newest version, but you made local changes, then you can first discard your changes, and then update. Use the following two commands from inside the `addtag-project/` folder.
+```sh
+$ git reset --hard
+$ git pull
+```
+
+### Program usage ###
+The following commands assume the current working directory is the AddTag folder `addtag-project/`. To view the program usage, you may run AddTag with the `--help` flag. This will print out command line parameter descriptions and examples.
 ```sh
 $ ./addtag --help
 ```
