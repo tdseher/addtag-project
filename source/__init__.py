@@ -279,7 +279,17 @@ outputs:
 """.format(**locals())
 __epilog__ = """\
 example:
- $ python3 {__program__} --fasta genome.fasta --gff genome.gff --folder addtag-output
+  At a minimum, AddTag needs to be executed with the '--fasta', '--gff', and
+  '--folder' options:
+   $ python3 {__program__} --fasta genome.fasta --gff genome.gff
+     --folder addtag-output
+  
+  You will often want to save the analysis results. You can do so by redirecting
+  STDOUT to a file. Here is another example usage with a few more parameters:
+   $ python3 {__program__} --fasta chromosomes.fasta --gff features.gff
+     --feature_homologs homologs.txt --excise_insert_lengths 0 3
+     --excise_downstream_homology 47 50 --folder  > aaron-i03.out
+     2> aaron-i03.err
 """.format(**locals())
 
 class Alignment(object):
