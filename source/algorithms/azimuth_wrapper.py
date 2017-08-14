@@ -68,7 +68,7 @@ def main():
     #     length_audit: check length of each sequence.
     #     learn_options_override: a dictionary indicating which learn_options to override (optional).
     # Returns: a numpy array of predictions.
-    predictions = azimuth.model_comparison.predict(sequences, pam_audit=False)
+    predictions = azimuth.model_comparison.predict(sequences, aa_cut=None, percent_peptide=None, model=None, pam_audit=False)
     #predictions = azimuth.model_comparison.predict(sequences, amino_acid_cut_positions, percent_peptides)
     
     for i, prediction in enumerate(predictions):
