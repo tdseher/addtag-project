@@ -1785,7 +1785,7 @@ def get_best_table(args, features, homologs, feature2gene):
     Thus, the user can see the best spacer for any given combination of these.
     """
     #header = ['gene', 'features', 'insert', 'mAT', 'translations', '(us, ds) trim', 'weight', 'OT:Hsu-Zhang', 'OT:CFD', 'Azimuth', 'reTarget name', 'reTarget sequence', 'ExDonors']
-    header = ['gene', 'features', '(mAT, us-trim, ds-trim)', 'translations', 'weight', 'OT:Hsu-Zhang', 'OT:CFD', 'Azimuth', 'reTarget name', 'reTarget sequence', 'exDonors']
+    header = ['gene', 'features', 'us-trim:mAT:ds-trim', 'translations', 'weight', 'OT:Hsu-Zhang', 'OT:CFD', 'Azimuth', 'reTarget name', 'reTarget sequence', 'exDonors']
     print('\t'.join(header))
     
     # Get best ReversionTargets by calculating their weights, and also getting
