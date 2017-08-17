@@ -52,7 +52,7 @@ $ git clone https://username@bitbucket.org/tdseher/addtag-project.git
 
 This will ask you for your Atlassian password associated with the `username`.
 
-Or you can download AddTag over SSH using a 'publickey'.
+Or you can download AddTag over SSH without typing your password if the repository is configured with your 'publickey'.
 ```sh
 $ git clone git@bitbucket.org:tdseher/addtag-project.git
 ```
