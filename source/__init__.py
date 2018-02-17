@@ -1785,7 +1785,20 @@ def get_best_table(args, features, homologs, feature2gene):
     Thus, the user can see the best spacer for any given combination of these.
     """
     #header = ['gene', 'features', 'insert', 'mAT', 'translations', '(us, ds) trim', 'weight', 'OT:Hsu-Zhang', 'OT:CFD', 'Azimuth', 'reTarget name', 'reTarget sequence', 'ExDonors']
-    header = ['gene', 'features', 'us-trim:mAT:ds-trim', 'translations', 'weight', 'OT:Hsu-Zhang', 'OT:CFD', 'Azimuth', 'reTarget name', 'reTarget sequence', 'exDonors']
+    # Add columns for:
+    #  contig:start..end
+    #   contig_A:40221..40241,contig_B:40155..40175
+    #  feature:start..end
+    #   CR_02630C_A:221..241,CR_02630C_B:224:244
+    #  strand
+    #   +     or     -
+    #  hairpin-delta-g
+    #   -0.22
+    #  homodimer-delta-g
+    #   -1.46
+    #  heterodimer-delta-g
+    #   -4.81
+    header = ['gene', 'features', 'contig:start..end:strand', 'feature:start..end', 'us-trim:mAT:ds-trim', 'translations', 'weight', 'OT:Hsu-Zhang', 'OT:CFD', 'Azimuth', 'reTarget name', 'reTarget sequence', 'exDonors', 'hairpin ΔG', 'homodimer ΔG', 'heterodimer ΔG']
     print('\t'.join(header))
     
     # Get best ReversionTargets by calculating their weights, and also getting
@@ -1815,9 +1828,11 @@ def get_best_table(args, features, homologs, feature2gene):
             key0s = ','.join('{}:{}:{}'.format(x[1], x[0], x[2]) for x in key0)
             key1 = sorted(set([(len(x[0]), x[1], x[2]) for x in key0])) # replace mAT with length
             key1s = ','.join(map(str, key1))
+            locations0 = sorted(set(utils.flatten([xo.format_location(x) for x in xo.locations] for xo in rds)))
+            locations0s= ','.join(locations0)
             translations = None
             
-            sline = [gene, csfeatures, key0s, translations, weight, othz, otcfd, azimuth, obj.name, obj.spacer+'|'+obj.pam, exdonors]
+            sline = [gene, csfeatures, locations0x, key0s, translations, weight, othz, otcfd, azimuth, obj.name, obj.spacer+'|'+obj.pam, exdonors]
             
             if (weight >= args.min_weight_reported):
                 if (len(outputs.get(key1s, [])) < args.max_number_sequences_reported):
