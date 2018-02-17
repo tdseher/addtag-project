@@ -19,6 +19,7 @@ exclusions = [
     'chari.py',
     'oof.py',
     'proxgc.py',
+    'stemmer.py',
     'wang.py',
     'xu.py',
 ]
