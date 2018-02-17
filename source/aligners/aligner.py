@@ -29,6 +29,7 @@ class Aligner(object): # Name of the subclass
         author,
         year,
         citation=None,
+        input='fasta',
         output='sam',
         truncated=False,
     ):
@@ -40,6 +41,7 @@ class Aligner(object): # Name of the subclass
         self.author = author       # Author of the algorithm (str)
         self.year = year           # Year algorithm published (int)
         self.citation = citation   # Citation (None, str)
+        self.input = input
         self.output = output       # Designate the output format the alignment will be in, so AddTag can select the correct parser
         self.truncated = truncated # Normally, the entire short read is locally aligned to the genome contigs. This tells the parser that what is reported in the SAM file in the 10th column is incomplete.
         

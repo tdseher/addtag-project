@@ -79,6 +79,44 @@ def findOfftargetsBowtie(queue, batchId, batchBase, faFname, genome, pamPat, bed
     # --maxbts=2000 maximum number of backtracks
     # -p 4 = use four threads
     # --mm = use mmap
+    
+    
+    # Other recommended arguments for bowtie:
+    #  "The search of off-target sites is carried out using Bowtie [18] version 0.12.7. Advantage has
+    #  been taken of the seed used by Bowtie to search for matches and was linked to our definition of
+    #  the sgRNA core plus the PAM. However prior to Bowtie based alignment, the sgRNA target sequence
+    #  has to be reverse complemented as a prerequisite of Bowtie's alignment procedure,
+    #  which only starts at the 5' end. With this modification Bowtie is invoked with the following parameters:
+    #  -a, -n <core mismatches +1>, -l <core length>, -e <total mismatches * 30 + 30>
+    #  and-y. Subsequently, the output from Bowtie is parsed and only alignments including a proper
+    #  PAM are listed." (Stemmer 2015)
+    #
+    #   command = bowtiePath + os.path.sep + "bowtie " + " -a " + indexPath + " -n " + str(2 + 1)  # plus 1 mismatch in the PAM, maximum 3!
+    #   command = command + " -l 6"  # minimum 5, additional 4 bases from the PAM
+    #   command = command + " -e " + str(totalMismatches * 30 + 30)
+    #   command = command + " -y "  # try hard to find all mismatched seeds
+    #   command = command + " --quiet "  # just print alignments, no info
+    #   command = command + " -c TTTN" + sequence[len(PAM):]
+    #   bowtieOutput = os.popen(command, "r")
+    # 
+    # if (coreMismatches == "NA" or coreRange == "NA"):
+    #     command = bowtiePath + os.path.sep + "bowtie " + " -a " + indexPath + " -n " + str(2 + 1)  # plus 1 mismatch in the PAM, maximum 3!
+    #     command = command + " -l " + str(2 + len(revPAM))  # minimum 5, additional 3 bases from the PAM
+    #     command = command + " -e " + str(totalMismatches * 30 + 30)
+    #     command = command + " -y "  # try hard to find all mismatched seeds
+    #     command = command + " --quiet "  # just print alignments, no info
+    #     command = command + " -c " + revPAM + reverse_complement(sequence[:-len(revPAM)])
+    # else:
+    #     command = bowtiePath + os.path.sep + "bowtie " + " -a " + indexPath + " -n " + str(coreMismatches + 1)  # plus 1 mismatch in the PAM, maximum 3!
+    #     command = command + " -l " + str(coreRange + len(revPAM))  # minimum 5, additional 3 bases from the PAM 
+    #     command = command + " -e " + str(totalMismatches * 30 + 30)
+    #     command = command + " -y "  # try hard to find all mismatched seeds
+    #     command = command + " --quiet "  # just print alignments, no info
+    #     command = command + " -c " + revPAM + reverse_complement(sequence[:-len(revPAM)])
+    # bowtieOutput = os.popen(command, "r")
+    
+    
+    
     maxOcc = MAXOCC # meaning in BWA: includes any PAM, in bowtie we have the PAM in the input sequence
     cmd = "$BIN/bowtie -e 1000 %(genomePath)s -f %(bwFaFname)s  -v 3 -y -t -k %(maxOcc)d -m %(maxOcc)d dummy --max tooManyHits.txt --mm --refout --maxbts=2000 -p 4" % locals()
     runCmd(cmd)
