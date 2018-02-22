@@ -221,6 +221,7 @@ motifs:
           N{{20}}>NAG       SpCas9      H. sapiens; Cell-free           Hsu, et al (2013)
           N{{20}}>NRG       SpCas9      H. sapiens; Cell-free           Hsu, et al (2013); Karvelis, et al (2015)
          GN{{19}}>NRG       SpCas9      H. sapiens; Cell-free           Hsu, et al (2013)
+          N{{??}}>NNGTGA    SpCas9      Streptococcus pasteurianus?     ?
   G{{,2}}N{{19,20}}>NGG       Cas9p       Plants                          Ma & Liu (2016)
          RN{{19}}>NGG       Cas9p       Plants                          Ma, et al (2015)
         RYN{{19}}>NGG       Cas9p       Plants                           + Ma & Liu (2016)
@@ -237,15 +238,18 @@ motifs:
           N{{20}}>NNNNGATT  NmCas9      Neisseria meningitidis (Nm)     ?
           N{{20}}>NNNNGMTT  NmCas9      Neisseria meningitidis          Hou, et al (2013)
           N{{20}}>NNNNACA   CjCas9      Campylobacter jejuni (Cj)       Fonfara, et al (2013)
-          N{{20}}>NNNNRYAC  cjCas9      Campylobacter jejuni            ?
+          N{{20}}>NNNNRYAC  CjCas9      Campylobacter jejuni            ?
+          N{{20}}>NNNVRYAC  CjCas9      Campylobacter jejuni            ?
          N{{20?}}>NAAAAC    TdCas9      Treponema denticola (Td)        Zhang (unpublished)
        N{{18,21}}>NGGNCNDD  BlCas9      Brevibacillus laterosporus (Bl) Karvelis, et al (2015)
           N{{20}}>NNNNCND   BlCas9      Brevibacillus laterosporus      Karvelis, et al (2015)
           N{{20}}>NNNNCNDD  BlCas9      Brevibacillus laterosporus      Karvelis, et al (2015)
           N{{20}}>GNNNCNNA  PmCas9      Pasteurella multocida (Pm)      Fonfara, et al (2013)
           N{{20}}>NG        FnCas9      Francisella novicida (Fn) (*)   Fonfara, et al (2013)
-           TTTN<N{{20,23}}  Cpf1        Acidaminococcus/Lachnospiraceae ?
+           TTTN<N{{20,23}}  AsCpf1/LbCpf1  Acidaminococcus/Lachnospiraceae ?
+           TTTV<N{{20,23}}  AsCpf1/LbCpf1  Acidaminococcus/Lachnospiraceae ?
             TTN<N{{20,23}}  FnCpf1      Francisella novicida (*)        ?
+            YTN<N{{20,23}}  FnCpf1      Francisella (*)                 ?
              AW<GN{{31,32}} EcCas3      Escherichia coli (Ec) (*)       Swarts, et al (2012)
             AWG<N{{32,33}}  EcCas3      Escherichia coli (*)            Swarts, et al (2012)
 
