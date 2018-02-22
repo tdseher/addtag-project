@@ -46,3 +46,14 @@ for C in PairedSequenceAlgorithm.__subclasses__():
 batched_single_algorithms = []
 for C in BatchedSingleSequenceAlgorithm.__subclasses__():
     batched_single_algorithms.append(C())
+
+# Make a list of algorithms that have non-default weights
+def detect_overridden_methods(parent_class, child_instance):
+    common = parent_class.__dict__.keys() & child_instance.__class__.__dict__.keys()
+    diff = [m for m in common if parent_class.__dict__[m] != child_instance.__class__.__dict__[m]]
+    return diff
+weighted_algorithms = []
+for C in single_algorithms + paired_algorithms + batched_single_algorithms:
+    diffs = detect_overridden_methods(Algorithm, C)
+    if 'weight' in diffs:
+        weighted_algorithms.append(C)
