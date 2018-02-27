@@ -115,143 +115,12 @@ protein:
   same species.
 
 glossary:
-  RGN         RNA-guided nuclease, like Cas9, Cas3, and Cpf1.
-  dDNA        Donor DNA. The DNA that is knocked-in using endogenous cellular
-              homologous recombination machinery.
-  gDNA        Genomic DNA.
-  HDR         Homology-Directed Repair, a DNA repair mechanism that uses a
-              template to repair nicks or double-stranded breaks.
-  PAM         The Protospacer Adjacent Motif is a short nucleotide sequence that
-              serves as a binding signal for Cas9, and its presence is a strict
-              requirement for Cas9-mediated DNA cleavage. Must be at 3' end for
-              Cas9, and 5' end for Cpf1. The PAM sequence is on the genomic DNA,
-              not the gRNA.
-  spacer      The ~20 nt element that is homologous to the region of your
-              feature of interest, and will direct Cas9 nuclease activity.
-              The portion of the crRNA (or sgRNA) that is complementary to the
-              genomic DNA target sequence ~20 nt.
-  scaffold    The sequence within the gRNA that is responsible for Cas9 binding.
-              Does not include the 20 nt spacer/targeting sequence that is used
-              to guide Cas9 to target DNA.
-  target      The ~20 nt genomic sequence that precedes the PAM sequence.
-  protospacer Short genomic DNA sequences ~20 nt of foreign DNA separated by a
-              short palindromic repeat and kept like a record against future
-              encounters.
-  pre-crRNA   CRISPR array of protospacers is transcribed into pre-crRNA.
-  crRNA       pre-crRNA is processed (cut up) to produce a set of crRNAs.
-              CRISPR-targeting RNA that contains both the ~20 base spacer
-              element and additional nucleotides which are complementary to
-              the tracrRNA. crRNA is variable.
-  tracrRNA    Hybridizes to the crRNA and binds to the CAS9 protein activating
-              the complex to creating double-stranded breaks at specific sites
-              within genomic sequence.
-              Trans-activating crRNA (which serves as the Cas9 nuclease-
-              recruiting sequence?) that has sequence complementary to the
-              palindromic repeat. When the tracrRNA hybridizes to the short
-              palindromic repeat, it triggers processing by the bacterial
-              double-stranded RNA-specific ribonuclease, RNase III. Any crRNA
-              and the tracrRNA can then both bind to the Cas9 nuclease, which
-              then becomes activated and specific to the DNA sequence
-              complimentary to the crRNA. tracrRNA is invariable, and is
-              specific to each Cas9 protein.
-  gRNA        Guide RNA is a single molecule with two regions: the spacer and
-              the scaffold. It is a synthetic fusion of the endogenous bacterial
-              crRNA and tracrRNA sequences, and provides both targeting
-              specificity and scaffolding/binding ability for Cas9 nuclease.
-              Does not exist in nature. Also referred to as sgRNA.
-  sgRNA       Synthetic guide RNA, or single guide RNA (synonymous with 'gRNA').
-              Combines the tracrRNA and crRNA, which are separate molecules,
-              into a single RNA construct, simplifying the components needed to
-              use CRISPR/Cas9 for genome editing (for plasmid or IVT
-              expression). A linker loop sequence is included between the two.
-  Cas         CRISPR-associated family of genes, which typically couple
-              a nuclease, helicase, or polymerase domain with a 
-              poly-nucleotide binding domain.
-  Cas9        Cas9 family nucleases.
-  eCas9       Any engineered Cas9 variant. Usually non-synonymous substitutions
-              are placed at one or more residues predicted to interact with the
-              non-target DNA strand.
-                For instance, SpCas9-HF1 (high-fidelity variant 1) has alanine
-                substitutions at four residues in SpCas9, identified from
-                crystal structures, in order to disrupt non-specific contacts
-                with the phosphate backbone of the target DNA strand (which
-                interacts with the gRNA).
-  dCas9       Catalytically 'dead' Cas9 protein, that drive RNA-DNA
-              hybridization but fail to cleave the target DNA.
-  FokI-dCas9  dCas9 fused with the dimerization-dependent FokI nuclease domain:
-              creates a dimeric RNA-guided FokI-dCas9 nuclease (RFN)
-              architecture requiring recognition of extended double-length
-              target sites for efficient cleavage. Amino-terminal fusions of
-              FokI to dCas9 can recognize two 20-nucleotide 'half-sites' in a
-              'PAM-out' orientation separated by a 13-18 bp spacer and can
-              efficiently cleave in this intervening region.
-  Cas9n       Engineered variants of Cas9 in which one of the two nuclease
-              domains has been catalytically inactivated, which results in the
-              nicking of only one DNA strand and leaving the other strand
-              intact. Another strategy proposed to reduce off-target effects
-              is to use paired Cas9 nickases (Cas9n), mutated versions of Cas9
-              in which one of the two nuclease domains (RuvC or HNH) has been
-              catalytically inactivated (for example, by introduction of a
-              D10A or H840A mutation). Paired nickases can be directed by two
-              gRNAs targeted to neighbouring sites to create offset nicks that
-              can induce indel mutations.
-  Cpf1        Cpf1 family nucleases.
-  Sp          Streptococcus pyogenes.
-  St          Streptococcus thermophilus.
-  Sm          Streptococcus mutans.
-  Sa          Staphylococcus aureus.
-  Nm          Neisseria meningitidis.
-  Cj          Campylobacter jejuni.
-  Td          Treponema denticola.
-  Bl          Brevibacillus laterosporus.
-  Pm          Pasteurella multocida.
-  Fn          Francisella novicida.
-  Ec          Escherichia coli.
+  To see a glossary of common CRISPR/RGN terms, run the following:
+   $ python3 {__program__} -g
   
 motifs:
-  Below are common SPACER>PAM arrangements (* = putative):
-       5'-Motif-3'        Protein     System                          Citation
-          N{{20}}>NGG       SpCas9      Streptococcus pyogenes (Sp)     ?
-       N{{17,20}}>NGG       SpCas9      Streptococcus pyogenes          Fu, et al (2014)
-          N{{20}}>NGA       SpCas9 VQR  H. sapiens/E.coli               Kleinstiver, et al (2015a)
-          N{{20}}>NGNG      SpCas9 EQR  H. sapiens/E.coli               Kleinstiver, et al (2015a)
-          N{{20}}>NGAG      SpCas9 EQR  H. sapiens/E.coli               Kleinstiver, et al (2015a)
-          N{{20}}>NGCG      SpCas9 VRER H. sapiens/E.coli               Kleinstiver, et al (2015a)
-          N{{20}}>NAAG      SpCas9 QQR  Streptococcus pyogenes QQR1     Anders, et al (2016)
-          N{{20}}>NAG       SpCas9      H. sapiens; Cell-free           Hsu, et al (2013)
-          N{{20}}>NRG       SpCas9      H. sapiens; Cell-free           Hsu, et al (2013); Karvelis, et al (2015)
-         GN{{19}}>NRG       SpCas9      H. sapiens; Cell-free           Hsu, et al (2013)
-          N{{??}}>NNGTGA    SpCas9      Streptococcus pasteurianus?     ?
-  G{{,2}}N{{19,20}}>NGG       Cas9p       Plants                          Ma & Liu (2016)
-         RN{{19}}>NGG       Cas9p       Plants                          Ma, et al (2015)
-        RYN{{19}}>NGG       Cas9p       Plants                           + Ma & Liu (2016)
-         N{{20?}}>NNAGAAW   StCas9      Streptococcus thermophilus (St) Horvath, et al (2008); Cong et al (2013)
-          N{{20}}>NNAAAAW   StCas9      Streptococcus thermophilus      Fonfara, et al (2013)
-       N{{20,23}}>NNAGAA    StCas9      H. sapiens/E.coli               Kleinstiver, et al (2015a)
-          N{{20}}>NGGNG     StCas9      Streptococcus thermophilus      Horvath, et al (2008)
-          N{{20}}>NHRBMAW   StCas9      Streptococcus thermophilus      Karvelis, et al (2015)
-          N{{20}}>NGGWG     StCas9      Saccharomyces cerevisiae        Xu, et al (2015)
-          N{{20}}>NGG       SmCas9      Streptococcus  mutans (Sm)      Fonfara, et al (2013)
-          N{{21}}>NNGRRT    SaCas9      Staphylococcus aureus (Sa)      Ran, et al (2015)
-       N{{21,23}}>NNGRRT    SaCas9      H. sapiens/E.coli               Kleinstiver, et al (2015a)
-       N{{21,23}}>NNNRRT    SaCas9 KKH  Staphylococcus aureus KKH       Kleinstiver, et al (2015b)
-          N{{20}}>NNNNGATT  NmCas9      Neisseria meningitidis (Nm)     ?
-          N{{20}}>NNNNGMTT  NmCas9      Neisseria meningitidis          Hou, et al (2013)
-          N{{20}}>NNNNACA   CjCas9      Campylobacter jejuni (Cj)       Fonfara, et al (2013)
-          N{{20}}>NNNNRYAC  CjCas9      Campylobacter jejuni            ?
-          N{{20}}>NNNVRYAC  CjCas9      Campylobacter jejuni            ?
-         N{{20?}}>NAAAAC    TdCas9      Treponema denticola (Td)        Zhang (unpublished)
-       N{{18,21}}>NGGNCNDD  BlCas9      Brevibacillus laterosporus (Bl) Karvelis, et al (2015)
-          N{{20}}>NNNNCND   BlCas9      Brevibacillus laterosporus      Karvelis, et al (2015)
-          N{{20}}>NNNNCNDD  BlCas9      Brevibacillus laterosporus      Karvelis, et al (2015)
-          N{{20}}>GNNNCNNA  PmCas9      Pasteurella multocida (Pm)      Fonfara, et al (2013)
-          N{{20}}>NG        FnCas9      Francisella novicida (Fn) (*)   Fonfara, et al (2013)
-           TTTN<N{{20,23}}  AsCpf1/LbCpf1  Acidaminococcus/Lachnospiraceae ?
-           TTTV<N{{20,23}}  AsCpf1/LbCpf1  Acidaminococcus/Lachnospiraceae ?
-            TTN<N{{20,23}}  FnCpf1      Francisella novicida (*)        ?
-            YTN<N{{20,23}}  FnCpf1      Francisella (*)                 ?
-             AW<GN{{31,32}} EcCas3      Escherichia coli (Ec) (*)       Swarts, et al (2012)
-            AWG<N{{32,33}}  EcCas3      Escherichia coli (*)            Swarts, et al (2012)
+  To see a list of common SPACER>PAM arrangements, run the following:
+   $ python3 {__program__} -s
 
 outputs:
   STDOUT                            Tab-delimited analysis results
@@ -1257,6 +1126,28 @@ class CustomHelpFormatter(argparse.HelpFormatter):
                     help += ' (default: %(default)s)'
         return help
 
+class ValidateShowMotifs(argparse.Action):
+    def __call__(self, parser, args, values, option_string=None):
+        # print '{n} {v} {o}'.format(n=args, v=values, o=option_string)
+        if (values == []):
+            utils.print_local_file('motifs.txt')
+            sys.exit()
+            #raise ValueError('invalid cores N: %s (choose N > 0)' % value)
+            #raise argparse.ArgumentTypeError("%s is an invalid positive int value" % value)
+        
+        setattr(args, self.dest, values)
+
+class ValidateShowGlossary(argparse.Action):
+    def __call__(self, parser, args, values, option_string=None):
+        # print '{n} {v} {o}'.format(n=args, v=values, o=option_string)
+        if (values == []):
+            utils.print_local_file('glossary.txt')
+            sys.exit()
+            #raise ValueError('invalid cores N: %s (choose N > 0)' % value)
+            #raise argparse.ArgumentTypeError("%s is an invalid positive int value" % value)
+        
+        setattr(args, self.dest, values)
+
 def parse_arguments():
     # Create the argument parser
     parser = argparse.ArgumentParser(
@@ -1264,6 +1155,20 @@ def parse_arguments():
         epilog=__epilog__,
         formatter_class=CustomHelpFormatter
     )
+    
+    # Change the help text of the "-h" flag
+    parser._actions[0].help='Show this help message and exit.'
+    
+    # Special version action optional argument
+    parser.add_argument("-v", "--version", action='version',
+        help="Show program's version number and exit.",
+        version='{__program__} {__version__} (revision {__revision__})'.format(**globals()))
+    
+    # Add special arguments for additional help messages
+    parser.add_argument("-s", "--show", nargs=0, action=ValidateShowMotifs, default=argparse.SUPPRESS,
+        help="Show list of common RGN motifs, then exit.")
+    parser.add_argument("-g", "--glossary", nargs=0, action=ValidateShowGlossary, default=argparse.SUPPRESS,
+        help="Show glossary of common CRISPR/RGN terms, then exit.")
     
     # Add required arguments
     required_group = parser.add_argument_group('required arguments')
@@ -1278,10 +1183,10 @@ def parse_arguments():
     required_group.add_argument("--folder", required=True, metavar="FOLDER",
         type=str, help="Path of folder to store generated files")
     
-    # Special version action optional argument
-    parser.add_argument("-v", "--version", action='version', version='{__program__} {__version__} (revision {__revision__})'.format(**globals()))
-    
     # Add optional arguments
+    parser.add_argument("--exhaustive", action="store_true", 
+        help="Perform brute force search for optimal gRNA design. \
+        This will significantly increase runtime.") # Default to on when not trimming???
     #parser.add_argument("--feature_homolog_regex", metavar="REGEX", type=str, default=None, help="regular expression with capturing group containing invariant feature. Example: '(.*)_[AB]' will treat features C2_10010C_A and C2_10010C_B as homologs")
     # okay idea, but needs more thought before implementation
     parser.add_argument("--feature_homologs", metavar="*.homologs", type=str, default=None,
@@ -1297,8 +1202,13 @@ def parse_arguments():
         default=["N{20}>NGG"],
         help="Find only targets with these 'SPACER>PAM' motifs, written from \
         5' to 3'. '>' points toward PAM. IUPAC ambiguities accepted. '{a,b}' \
-        are quantifiers. Be sure to enclose motif parameters in quotes so your \
-        shell does not interpret STDIN/STDOUT redirection.")
+        are quantifiers. '/' is a sense strand cut, '\' is an antisense strand \
+        cut, and '|' is a double-strand cut. '.' is a base used for positional \
+        information, but not enzymatic recognition. Be sure to enclose each \
+        motif in quotes so your shell does not interpret STDIN/STDOUT redirection.")
+    parser.add_argument("--off_target_motifs", metavar="MOTIF", nargs="+", type=str,
+        default=None,
+        help="Defaults to the same as the on-target motif. Definition identical syntax.")
     # Need to decide if construct inputs should be TSV, or FASTA
     # And whether or not there should be an upstream parameter separate from
     # a downstream one. or if they are the same, then what?
@@ -1321,23 +1231,34 @@ def parse_arguments():
     #parser.add_argument("--min_contig_edge_distance", metavar="N", type=int, default=500,
     #    help="Minimum distance from contig edge a site can be found")
     parser.add_argument("--features", metavar="FEATURE", type=str, nargs="+", default=["gene"],
-        help="Features to design gRNAs against. Must exist in GFF file. Examples: 'CDS', 'gene', 'mRNA', 'exon'")
+        help="Features to design gRNAs against. Must exist in GFF file. \
+        Examples: 'CDS', 'gene', 'mRNA', 'exon', 'intron', 'tRNA', 'rRNA'")
+    parser.add_argument("--warning_features", metavar='FEATURE', nargs="+", type=str, default=['all'],
+        help="GFF tags that will trigger a warning if they overlap with the \
+        target feature. Examples: 'CDS', 'gene', 'mRNA', 'exon', 'intron', 'tRNA', 'rRNA'")
     parser.add_argument("--dDNA_gDNA_ratio", metavar="N", type=int, default=1000,
         help="Ratio of donor DNA to genomic DNA for calculating off-target scores")
     parser.add_argument("--target_gc", nargs=2, metavar=('MIN', 'MAX'), type=int, default=[25, 75],
         help="Generated gRNA spacers must have %%GC content between these values (excludes PAM motif)")
+    #
+    #
     parser.add_argument("--excise_upstream_homology", nargs=2, metavar=("MIN", "MAX"), type=int, default=[50,50],
         help="Range of homology lengths acceptable for knock-out dDNAs, inclusive.")
     parser.add_argument("--excise_downstream_homology", nargs=2, metavar=("MIN", "MAX"), type=int, default=[47,50],
         help="Range of homology lengths acceptable for knock-out dDNAs, inclusive.")
+    #
+    #
     parser.add_argument("--excise_donor_lengths", nargs=2, metavar=('MIN', 'MAX'), type=int, default=[100, 100],
         help="Range of lengths acceptable for knock-out dDNAs, inclusive.")
     parser.add_argument("--excise_insert_lengths", nargs=2, metavar=("MIN", "MAX"), type=int, default=[0,3],
-        help="Range for inserted DNA lengths, inclusive (mini-AddTag, mAT). If MIN < 0, then regions of dDNA homology (outside the feature) will be removed.")
+        help="Range for inserted DNA lengths, inclusive (mini-AddTag, mAT). \
+        If MIN < 0, then regions of dDNA homology (outside the feature) will be removed.")
     parser.add_argument("--excise_feature_edge_distance", metavar="N", type=int, default=0,
         help="If positive, gRNAs won't target any nucleotides within this distance \
              from the edge of the feature. If negative, gRNAs will target nucleotides \
              this distance outside the feature.")
+    #
+    #
     parser.add_argument("--excise_upstream_feature_trim", nargs=2, metavar=('MIN', 'MAX'),
         type=int, default=[0, 0], help="Between MIN and MAX number of nucleotides \
         upstream of the feature will be considered for knock-out when designing \
@@ -1346,6 +1267,8 @@ def parse_arguments():
         type=int, default=[0, 0], help="Between MIN and MAX number of nucleotides \
         downstream of the feature will be considered for knock-out when designing \
         donor DNA.")
+    #
+    #
     #parser.add_argument("--min_donor_insertions", metavar="N", type=int, default=2,
     #    help="The uniqueness of final donor DNA compared to the rest of the genome")
     #parser.add_argument("--min_donor_deletions", metavar="N", type=int, default=2,
@@ -1419,6 +1342,10 @@ def parse_arguments():
         if a.name == args.aligner:
             args.selected_aligner = a
             break
+    
+    # populate --off_target_motifs with --motifs if None
+    if (args.off_target_motifs == None):
+        args.off_target_motifs = args.motifs
     
     # Return the parsed arguments
     return args

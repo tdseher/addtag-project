@@ -335,6 +335,12 @@ def load_homologs(filename, sep="\t"):
     logger.info('Homologs file parsed: {!r}'.format(filename))
     return homologs, feature2gene
 
+def print_local_file(filename):
+    filepath = os.path.join(os.path.dirname(__file__), filename)
+    with open(filepath, 'r') as flo:
+        for line in flo:
+            print(line.rstrip())
+
 def test():
     #print(load_git_version())
     alignments = load_sam_file(sys.argv[1])
