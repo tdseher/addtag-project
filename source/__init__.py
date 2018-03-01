@@ -47,15 +47,16 @@ description:
   
   Diagram of DNA-RNA hybridization and nuclease catalyzed by Cas9:
     (sgRNA = crRNA + linker + tracrRNA) = (gRNA = spacer + scaffold)
-                                 gRNA ┌────────────────────────┐
-                                sgRNA ┌───tracrRNA────┐┌linker┐│
-                            cut┐    3'╤╤╤╤╗            ╔╤╤╗   ││
-           ┌──╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥ ╥╥╥┐      ╚╦╦╦╦╦╦╦╦╦╦╦╦╝  ╢   ││
-           │5'╩╩╩╩╩╩╩╩╩╩╩╩╩╩╩╩╩═╩╩╩╪╧╧╧╧╧╧╧╩╩╩╩╩╩╩╩╩╩╩╩╧╧╧╝   ││
-           │  └────────────────────│──────crRNA───────┘└──────┘│
-           │  └──────spacer───────┘│└──────────scaffold────────┘
-    3'╥╥╥╥╥┘                cut┐   └╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥5'
-    5'╨╨╨╨╨───┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴ ┴┴┴─╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨3' genome
+                                       gRNA ┌────────────────────────┐
+                                      sgRNA ┌───tracrRNA────┐┌linker┐│
+                            cut┐   ┌┬┬┬┐  3'╤╤╤╤╗            ╔╤╤╗   ││
+           ┌──╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥ ╥╥╥┘   │        ╚╦╦╦╦╦╦╦╦╦╦╦╦╝  ╢   ││
+           │5'╩╩╩╩╩╩╩╩╩╩╩╩╩╩╩╩╩═╩╩╩╧╧╧╧╪╧╧╧╧╧╧╧╧╧╩╩╩╩╩╩╩╩╩╩╩╩╧╧╧╝   ││
+           │  └────────────────────────│────────crRNA───────┘└──────┘│
+           │  └──────spacer───────┘└───│─────────────scaffold────────┘
+           │                     Cas┬─┐│
+    3'╥╥╥╥╥┘                cut┐    xxx└╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥5'
+    5'╨╨╨╨╨───┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴┴ ┴┴┴─╨╨╨─╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨3' genome
               └──────target───────┘ └─┴PAM
   
   Diagram of genome labels for excision:
@@ -146,7 +147,7 @@ outputs:
   folder/protection-dDNAs.fasta     wt dDNAs of off-target sites to prevent
                                     mutations at off-target Cas9 binding sites
                                     (contains edit distance in header s/i/d)
-  folder/protection-primers.fasta   Primers for amplifying protection dDNAs
+  folder/protection-primers.fasta   Primers for amplifying protection DNAs
   folder/primers.fasta              Primers to check for KO/KI (contains
                                     expected amplicon sizes in header)
 """.format(**locals())
@@ -562,8 +563,8 @@ class ReversionDonor(Donor):
 class Target(object):
     """Data structure defining a gRNA Target"""
     prefix = 'Target'
-    sequences = {} # key = nucleotide sequence, value = ExcisionTarget object
-    indices = {} # key = exTarget-102, value = ExcisionTarget object
+    sequences = {} # key = nucleotide sequence, value = ExcisionTarget/ReversionTarget object
+    indices = {} # key = exTarget-102, value = ExcisionTarget/ReversionTarget object
     
     @classmethod
     def load_sam(cls, filename, args, contigs, sep=':'):
@@ -1035,8 +1036,7 @@ class ExcisionTarget(Target):
         Searches within the annotated features on all contigs for targets
         that match the args.motifs criteria, then filters them.
         
-        Returns list of valid gRNA sites with the following format
-          [(feature, contig, start, end, seq, side, spacer, pam), ...]
+        The constructor call adds the valid gRNA sites to 'ExcisionTarget.sequences' and 'ExcisionTarget.indices'.
         """
         # Find unique gRNA sites within each feature
         # Use a sliding window to make a list of queries
@@ -1090,6 +1090,12 @@ class ReversionTarget(Target):
     
     @classmethod
     def get_targets(cls):
+        """
+        Extracts the spacer element from each ExcisionDonor object, and uses it
+        to create the associated ReversionTarget objects.
+        
+        The constructor call adds the valid gRNA sites to 'ReversionTarget.sequences' and 'ReversionTarget.indices'.
+        """
         for dDNA, obj in ExcisionDonor.sequences.items():
             #obj_features = ','.join([x[0] for x in list(obj.locations)])
             obj_features = ','.join(sorted(set([x[0] for x in obj.locations])))
@@ -1202,7 +1208,7 @@ def parse_arguments():
         default=["N{20}>NGG"],
         help="Find only targets with these 'SPACER>PAM' motifs, written from \
         5' to 3'. '>' points toward PAM. IUPAC ambiguities accepted. '{a,b}' \
-        are quantifiers. '/' is a sense strand cut, '\' is an antisense strand \
+        are quantifiers. '/' is a sense strand cut, '\\' is an antisense strand \
         cut, and '|' is a double-strand cut. '.' is a base used for positional \
         information, but not enzymatic recognition. Be sure to enclose each \
         motif in quotes so your shell does not interpret STDIN/STDOUT redirection.")
@@ -1286,9 +1292,9 @@ def parse_arguments():
 #    parser.add_argument("--min_donor_distance", metavar="N", type=int, default=36,
 #        help="The minimum distance in bp a difference can exist from the edge of donor DNA") # homology with genome
     parser.add_argument("--max_consecutive_ts", metavar="N", type=int, default=4,
-        help="The maximum number of Ts allowed in generated gRNA sequences")
+        help="The maximum number of Ts allowed in generated gRNA sequences.")
     parser.add_argument("--max_number_sequences_reported", metavar="N", type=int, default=5,
-        help="The maximum number of sequences to report for each step")
+        help="The maximum number of sequences to report for each step.")
     parser.add_argument("--min_weight_reported", metavar="N", type=float, default=0.01,
         help="Only gRNA-dDNA pairs with at least this much weight will be reported.")
     # program currently will only search 'both' strands
@@ -1298,7 +1304,7 @@ def parse_arguments():
     # Add command line arguments for the additional hard constraints:
     #  Only report potential targets that have no off targets with mismatches within 8, 12, N nt from 3' end
     parser.add_argument("--processors", metavar="N", type=int, default=(os.cpu_count() or 1),
-        help="Number of processors to use when performing pairwise sequence alignments")
+        help="Number of processors to use when performing pairwise sequence alignments.")
     
     #available_aligners = ['addtag', 'blast+', 'blat', 'bowtie', 'bowtie2', 'bwa', 'cas-offinder']
     available_aligners = list(map(lambda x: x.name, aligners.aligners))
@@ -2057,6 +2063,7 @@ def main():
     
     # Calculate off-target/guide scores for each algorithm
     logging.info("ExcisionTarget after SAM parsing and off-target scoring")
+    ##### Add short-circuit/heuristic #####
     for et_seq, et_obj in ExcisionTarget.sequences.items():
         et_obj.score_off_targets(args, homologs, features)
         logging.info(et_obj)
@@ -2086,6 +2093,16 @@ def main():
     
     # Calculate off-target/guide scores for each algorithm
     logging.info("ReversionTarget after SAM parsing and off-target scoring")
+    # Somehow need to prioritize sequences for scoring.
+    # Sequences with best diversity should be scored first.
+    # If calculation time runs out, then just stop.
+    # Should time each feature separately?
+    ##### Subroutine #####
+    #start_time = time.time()
+    #if (time.time() - start_time >= args.max_time):
+    #    logging.info('Site search terminated due to time constraints.')
+    #    return
+    ##### Subroutine #####
     for re_seq, re_obj in ReversionTarget.sequences.items():
         re_obj.score_off_targets(args, homologs, features)
         logging.info(re_obj)
