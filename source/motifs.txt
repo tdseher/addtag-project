@@ -1,6 +1,7 @@
        5'-Motif-3'          Protein       Confidence Protein origin system           Empirical system         Citation
      N{17}|N{3}>NGG         SpCas9        Vetted     Streptococcus pyogenes (Sp)     ?                        ?
        N{17,20}>NGG         SpCas9        Vetted     Streptococcus pyogenes          ?                        Fu, et al (2014)
+          N{??}>NGG         SpCas9 D1135E
           N{20}>NGA         SpCas9 VQR               Streptococcus pyogenes VQR      H. sapiens; E.coli       Kleinstiver, et al (2015a)
           N{20}>NGNG        SpCas9 EQR               Streptococcus pyogenes EQR      H. sapiens; E.coli       Kleinstiver, et al (2015a)
           N{20}>NGAG        SpCas9 EQR               Streptococcus pyogenes EQR      H. sapiens; E.coli       Kleinstiver, et al (2015a)
@@ -37,6 +38,8 @@
            TTTN<N{19}/.{4}\ AsCpf1/LbCpf1            Acidaminococcus/Lachnospiraceae ?                        ?
            TTTN<N{20,23}    AsCpf1/LbCpf1            Acidaminococcus/Lachnospiraceae ?                        ?
            TTTV<N{20,23}    AsCpf1/LbCpf1            Acidaminococcus/Lachnospiraceae ?                        ?
+           TYCV<N{??}       AsCpf1 RR/LbCpf1 RR
+           TATV<N{??}       AsCpf1 RVR
             TTN<N{20,23}    FnCpf1        Putative   Francisella novicida            ?                        ?
             YTN<N{20,23}    FnCpf1        Putative   Francisella spp.?               ?                        ?
              AW<GN{31,32}   EcCas3        Putative   Escherichia coli (Ec)           ?                        Swarts, et al (2012)

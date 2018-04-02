@@ -90,8 +90,9 @@ class GlobalAlignment(object):
     
     def __init__(self, seq1, seq2, scoring, print_matrices=False):
         """
-        Align two sequences globally. Utilizes affine gap penalties.
-        Calculates the following for single optimal alignment:
+        Align two sequences globally using the Needleman-Wunsch algorithm.
+        Utilizes affine gap penalties. Calculates the following for single
+        optimal alignment:
          * aligned sequences,
          * cumulative scores, final bitscore,
          * matches, substitutions, insertions, deletions,

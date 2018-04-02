@@ -72,6 +72,31 @@ def kmers(k, y=''):
         for m in ['A', 'C', 'G', 'T']:
             yield from kmers(k-1, m+y)
 
+def permute_genotypes(genes, y=''):
+    """
+    Generator for recursive definition of genotypes in string form.
+    Example usage:
+      >>> list(permute_genotypes(['aA', 'bB']))
+      ['ab', 'aB', 'Ab', 'AB']
+      >>> list(permute_genotypes(['ACGT']*2))
+      ['AA', 'AC', 'AG', 'AT', 'CA', 'CC', 'CG', 'CT', 'GA', 'GC', 'GG', 'GT', 'TA', 'TC', 'TG', 'TT']
+    """
+    if (len(genes) == 0):
+        yield y
+    else:
+        for allele in genes[0]:
+            # Code for Python 3
+            yield from permute_genotypes(genes[1:], y+allele)
+            
+            # Code for Python 2 (not tested for efficiency)
+            # _iter = iter(permute_genotypes(genes[1:], y+allele))
+            # try:
+            #     while True: #broken by StopIteration
+            #         yield next(_iter)
+            # except StopIteration as e:
+            #     if e.args:
+            #         yield e.args[0]
+
 def lcs(string1, string2):
     """Find the longest common substring between two strings"""
     matcher = difflib.SequenceMatcher(None, string1, string2, True)

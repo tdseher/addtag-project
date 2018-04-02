@@ -208,6 +208,55 @@ def load_gff_file(filename, features, tag):
     logger.info('GFF file parsed: {!r}'.format(filename))
     return annotations
 
+def encode_text(text):
+    '''
+    GFF3 files are nine-column, tab-delimited, plain text files. Literal use
+    of tab, newline, carriage return, the percent (%) sign, and control
+    characters must be encoded using RFC 3986 Percent-Encoding; no other
+    characters may be encoded. Backslash and other ad-hoc escaping
+    conventions that have been added to the GFF format are not allowed.
+    The file contents may include any character in the set supported by the
+    operating environment, although for portability with other systems, use
+    of Latin-1 or Unicode are recommended.
+    
+    Note that unescaped spaces are allowed within fields, meaning that
+    parsers must split on tabs, not spaces. Use of the "+" (plus) character
+    to encode spaces is depracated from early versions of the spec and is
+    no longer allowed.
+    
+    Undefined fields are replaced with the "." character, as described in
+    the original GFF spec.
+    '''
+    
+    table = {
+        '"': '%22',
+        '%': '%25',
+        '&': '%26',
+        "'": '%27',
+        '(': '%28',
+        ')': '%29',
+        ',': '%2C',
+        ';': '%3B',
+        '=': '%3D',
+        '[': '%5B',
+        '\\': '%5C',
+        ']': '%5D',
+        chr(127): '%7F',
+    }
+    for i in range(33):
+        table[chr(i)] = '%' + hex(i)[2:].zfill(2)
+    #table[chr(0)] = '%20'
+    
+    return ''.join(table.get(c,c) for c in text)
+
+def decode_text(text):
+    '''
+    Replaces %-escaped hexadecimal text with its proper character.
+    '''
+    change = lambda x: chr(int('0x'+x.group()[1:], 16))
+    new_text, number_substitutions = regex.subfn(r'(%[0-9A-F]{2})', change, text)
+    return new_text
+
 def load_git_date():
     '''
     Returns the date of the most-recent git commit for the current head
