@@ -1142,6 +1142,23 @@ class CustomHelpFormatter(argparse.HelpFormatter):
                     help += ' (default: %(default)s)'
         return help
 
+class ValidateDesign(argparse.Action):        
+    def __call__(self, parser, args, values, option_string=None):
+        # print '{n} {v} {o}'.format(n=args, v=values, o=option_string)
+        nmin = 1
+        nmax = 2
+        if not (nmin <= len(values) <= nmax):
+            raise argparse.ArgumentTypeError('argument --{f}: expected between {nmin} and {nmax} arguments'.format(f=self.dest, nmin=nmin, nmax=nmax))
+        
+        s = set(values) # in case there are duplicates, reduce them to a single occurrence with set()
+        valid_values = {'cut', 'addtag', 'sigtag'} # set
+        
+        d = s.difference(valid_values)
+        if (len(d) > 0):
+            raise ValueError('invalid Design TYPE: %s (choose from {cut, addtag, sigtag})' % d.pop())
+        
+        setattr(args, self.dest, list(s))
+
 class ValidateShowMotifs(argparse.Action):
     def __call__(self, parser, args, values, option_string=None):
         # print '{n} {v} {o}'.format(n=args, v=values, o=option_string)
@@ -1343,6 +1360,8 @@ class main(object):
             type=str, help="Path of folder to store generated files.")
         
         # Add optional arguments
+        parser.add_argument("--design", nargs='+', type=str, action=ValidateDesign, default=['cut','addtag'],
+            help="Choose 1 or 2 from {cut, addtag, sigtag}")
         parser.add_argument("--exhaustive", action="store_true", 
             help="Perform brute force search for optimal gRNA design. \
             This will significantly increase runtime.") # Default to on when not trimming???
