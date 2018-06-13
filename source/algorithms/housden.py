@@ -21,6 +21,7 @@ class Housden(SingleSequenceAlgorithm):
         super().__init__("Housden", "Housden, et al", 2015,
             citation="Housden, et al. Identification of potential drug targets for tuberous sclerosis complex by synthetic screens combining CRISPR-based knockouts with RNAi. Science Signaling 8(393), rs9 (2015)",
             off_target=True,
+            on_target=True,
             prefilter=False,
             postfilter=False,
             minimum=0.0,

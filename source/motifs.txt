@@ -1,4 +1,5 @@
        5'-Motif-3'          Protein       Confidence Protein origin system           Empirical system         Citation
+       ===========          =======       ========== =====================           ================         ========
      N{17}|N{3}>NGG         SpCas9        Vetted     Streptococcus pyogenes (Sp)     ?                        ?
        N{17,20}>NGG         SpCas9        Vetted     Streptococcus pyogenes          ?                        Fu, et al (2014)
           N{??}>NGG         SpCas9 D1135E
@@ -10,6 +11,8 @@
           N{20}>NAG         SpCas9                   Streptococcus pyogenes          H. sapiens; Cell-free    Hsu, et al (2013)
           N{20}>NRG         SpCas9        Vetted     Streptococcus pyogenes          H. sapiens; Cell-free    Hsu, et al (2013); Karvelis, et al (2015)
          GN{19}>NRG         SpCas9                   Streptococcus pyogenes          H. sapiens; Cell-free    Hsu, et al (2013)
+       N{17}NGG>NGG         SpCas9        Vetted     Streptococcus pyogenes          C. elegans; Candida spp  Farboud  & Meyer (2015); Grahl, et al (2017)
+          N{10}>AGGNGG      SpCas9                   Streptococcus pyogenes          C. elegans;              Farboud  & Meyer (2015)
           N{??}>NNGTGA      SpCas9                   Streptococcus pasteurianus?     ?                        ?
   G{,2}N{19,20}>NGG         Cas9p                    ?                               Plants                   Ma & Liu (2016)
          RN{19}>NGG         Cas9p                    ?                               Plants                   Ma, et al (2015); Ma & Liu (2016)
@@ -19,7 +22,7 @@
        N{20,23}>NNAGAA      StCas9                   Streptococcus thermophilus      H. sapiens/E.coli        Kleinstiver, et al (2015a)
           N{20}>NGGNG       StCas9                   Streptococcus thermophilus      ?                        Horvath, et al (2008)
           N{20}>NHRBMAW     StCas9                   Streptococcus thermophilus      ?                        Karvelis, et al (2015)
-          N{20}>NGGWG       StCas9                   Streptococcus thermophilus      Saccharomyces cerevisiae Xu, et al (2015)
+          N{20}>NGGWG       StCas9                   Streptococcus thermophilus      S. cerevisiae            Xu, et al (2015)
           N{20}>NGG         SmCas9                   Streptococcus  mutans (Sm)      ?                        Fonfara, et al (2013)
           N{21}>NNGRRT      SaCas9                   Staphylococcus aureus (Sa)      ?                        Ran, et al (2015)
        N{21,23}>NNGRRT      SaCas9                   Staphylococcus aureus           H. sapiens; E.coli       Kleinstiver, et al (2015a)

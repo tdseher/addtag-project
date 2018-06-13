@@ -1,93 +1,83 @@
-  Term        Definition
-  RGN         RNA-guided nuclease, like Cas9, Cas3, and Cpf1.
-  dDNA        Donor DNA. The DNA that is knocked-in using endogenous cellular
-              homologous recombination machinery.
-  gDNA        Genomic DNA.
-  HDR         Homology-Directed Repair, a DNA repair mechanism that uses a
-              template to repair nicks or double-stranded breaks.
-  PAM         The Protospacer Adjacent Motif is a short nucleotide sequence that
-              serves as a binding signal for Cas9, and its presence is a strict
-              requirement for Cas9-mediated DNA cleavage. Must be at 3' end for
-              Cas9, and 5' end for Cpf1. The PAM sequence is on the genomic DNA,
-              not the gRNA.
-  spacer      The ~20 nt element that is homologous to the region of your
-              feature of interest, and will direct Cas9 nuclease activity.
-              The portion of the crRNA (or sgRNA) that is complementary to the
-              genomic DNA target sequence ~20 nt.
-  scaffold    The sequence within the gRNA that is responsible for Cas9 binding.
-              Does not include the 20 nt spacer/targeting sequence that is used
-              to guide Cas9 to target DNA.
-  target      The ~20 nt genomic sequence that precedes the PAM sequence.
-  protospacer Short genomic DNA sequences ~20 nt of foreign DNA separated by a
-              short palindromic repeat and kept like a record against future
-              encounters.
-  pre-crRNA   CRISPR array of protospacers is transcribed into pre-crRNA.
-  crRNA       pre-crRNA is processed (cut up) to produce a set of crRNAs.
-              CRISPR-targeting RNA that contains both the ~20 base spacer
-              element and additional nucleotides which are complementary to
-              the tracrRNA. crRNA is variable.
-  tracrRNA    Hybridizes to the crRNA and binds to the CAS9 protein activating
-              the complex to creating double-stranded breaks at specific sites
-              within genomic sequence.
-              Trans-activating crRNA (which serves as the Cas9 nuclease-
-              recruiting sequence?) that has sequence complementary to the
-              palindromic repeat. When the tracrRNA hybridizes to the short
-              palindromic repeat, it triggers processing by the bacterial
-              double-stranded RNA-specific ribonuclease, RNase III. Any crRNA
-              and the tracrRNA can then both bind to the Cas9 nuclease, which
-              then becomes activated and specific to the DNA sequence
-              complimentary to the crRNA. tracrRNA is invariable, and is
-              specific to each Cas9 protein.
-  gRNA        Guide RNA is a single molecule with two regions: the spacer and
-              the scaffold. It is a synthetic fusion of the endogenous bacterial
-              crRNA and tracrRNA sequences, and provides both targeting
-              specificity and scaffolding/binding ability for Cas9 nuclease.
-              Does not exist in nature. Also referred to as sgRNA.
-  sgRNA       Synthetic guide RNA, or single guide RNA (synonymous with 'gRNA').
-              Combines the tracrRNA and crRNA, which are separate molecules,
-              into a single RNA construct, simplifying the components needed to
-              use CRISPR/Cas9 for genome editing (for plasmid or IVT
-              expression). A linker loop sequence is included between the two.
-  Cas         CRISPR-associated family of genes, which typically couple
-              a nuclease, helicase, or polymerase domain with a 
-              poly-nucleotide binding domain.
-  Cas9        Cas9 family nucleases.
-  eCas9       Any engineered Cas9 variant. Usually non-synonymous substitutions
-              are placed at one or more residues predicted to interact with the
-              non-target DNA strand.
-                For instance, SpCas9-HF1 (high-fidelity variant 1) has alanine
-                substitutions at four residues in SpCas9, identified from
-                crystal structures, in order to disrupt non-specific contacts
-                with the phosphate backbone of the target DNA strand (which
-                interacts with the gRNA).
-  dCas9       Catalytically 'dead' Cas9 protein, that drive RNA-DNA
-              hybridization but fail to cleave the target DNA.
-  FokI-dCas9  dCas9 fused with the dimerization-dependent FokI nuclease domain:
-              creates a dimeric RNA-guided FokI-dCas9 nuclease (RFN)
-              architecture requiring recognition of extended double-length
-              target sites for efficient cleavage. Amino-terminal fusions of
-              FokI to dCas9 can recognize two 20-nucleotide 'half-sites' in a
-              'PAM-out' orientation separated by a 13-18 bp spacer and can
-              efficiently cleave in this intervening region.
-  Cas9n       Engineered variants of Cas9 in which one of the two nuclease
-              domains has been catalytically inactivated, which results in the
-              nicking of only one DNA strand and leaving the other strand
-              intact. Another strategy proposed to reduce off-target effects
-              is to use paired Cas9 nickases (Cas9n), mutated versions of Cas9
-              in which one of the two nuclease domains (RuvC or HNH) has been
-              catalytically inactivated (for example, by introduction of a
-              D10A or H840A mutation). Paired nickases can be directed by two
-              gRNAs targeted to neighbouring sites to create offset nicks that
-              can induce indel mutations.
-  Cpf1        Cpf1 family nucleases.
-  Sp          Streptococcus pyogenes.
-  St          Streptococcus thermophilus.
-  Sm          Streptococcus mutans.
-  Sa          Staphylococcus aureus.
-  Nm          Neisseria meningitidis.
-  Cj          Campylobacter jejuni.
-  Td          Treponema denticola.
-  Bl          Brevibacillus laterosporus.
-  Pm          Pasteurella multocida.
-  Fn          Francisella novicida.
-  Ec          Escherichia coli.
+Term        Definition
+====        ==========
+RGN         RNA-guided nuclease, like Cas9, Cas3, and Cpf1.
+dDNA        Donor DNA. The DNA that is knocked-in using endogenous cellular
+            homologous recombination machinery.
+gDNA        Genomic DNA.
+HDR         Homology-Directed Repair, a DNA repair mechanism that uses a
+            template to repair nicks or double-stranded breaks.
+PAM         The Protospacer Adjacent Motif is a short nucleotide sequence that
+            serves as a binding signal for Cas9, and its presence is a strict
+            requirement for Cas9-mediated DNA cleavage. Must be at 3' end for
+            Cas9, and 5' end for Cpf1. The PAM sequence is on the genomic DNA,
+            not the gRNA.
+spacer      The ~20 nt element that is homologous to the region of your
+            feature of interest, and will direct Cas9 nuclease activity.
+            The portion of the crRNA (or sgRNA) that is complementary to the
+            genomic DNA target sequence ~20 nt.
+scaffold    The sequence within the gRNA that is responsible for Cas9 binding.
+            Does not include the 20 nt spacer/targeting sequence that is used
+            to guide Cas9 to target DNA.
+target      The ~20 nt genomic sequence that precedes the PAM sequence.
+protospacer Short genomic DNA sequences ~20 nt of foreign DNA separated by a
+            short palindromic repeat and kept like a record against future
+            encounters.
+pre-crRNA   CRISPR array of protospacers is transcribed into pre-crRNA.
+crRNA       pre-crRNA is processed (cut up) to produce a set of crRNAs.
+            CRISPR-targeting RNA that contains both the ~20 base spacer
+            element and additional nucleotides which are complementary to
+            the tracrRNA. crRNA is variable.
+tracrRNA    Hybridizes to the crRNA and binds to the CAS9 protein activating
+            the complex to creating double-stranded breaks at specific sites
+            within genomic sequence.
+            Trans-activating crRNA (which serves as the Cas9 nuclease-
+            recruiting sequence?) that has sequence complementary to the
+            palindromic repeat. When the tracrRNA hybridizes to the short
+            palindromic repeat, it triggers processing by the bacterial
+            double-stranded RNA-specific ribonuclease, RNase III. Any crRNA
+            and the tracrRNA can then both bind to the Cas9 nuclease, which
+            then becomes activated and specific to the DNA sequence
+            complimentary to the crRNA. tracrRNA is invariable, and is
+            specific to each Cas9 protein.
+gRNA        Guide RNA is a single molecule with two regions: the spacer and
+            the scaffold. It is a synthetic fusion of the endogenous bacterial
+            crRNA and tracrRNA sequences, and provides both targeting
+            specificity and scaffolding/binding ability for Cas9 nuclease.
+            Does not exist in nature. Also referred to as sgRNA.
+sgRNA       Synthetic guide RNA, or single guide RNA (synonymous with 'gRNA').
+            Combines the tracrRNA and crRNA, which are separate molecules,
+            into a single RNA construct, simplifying the components needed to
+            use CRISPR/Cas9 for genome editing (for plasmid or IVT
+            expression). A linker loop sequence is included between the two.
+Cas         CRISPR-associated family of genes, which typically couple
+            a nuclease, helicase, or polymerase domain with a 
+            poly-nucleotide binding domain.
+Cas9        Cas9 family nucleases.
+eCas9       Any engineered Cas9 variant. Usually non-synonymous substitutions
+            are placed at one or more residues predicted to interact with the
+            non-target DNA strand.
+              For instance, SpCas9-HF1 (high-fidelity variant 1) has alanine
+              substitutions at four residues in SpCas9, identified from
+              crystal structures, in order to disrupt non-specific contacts
+              with the phosphate backbone of the target DNA strand (which
+              interacts with the gRNA).
+dCas9       Catalytically 'dead' Cas9 protein, that drive RNA-DNA
+            hybridization but fail to cleave the target DNA.
+FokI-dCas9  dCas9 fused with the dimerization-dependent FokI nuclease domain:
+            creates a dimeric RNA-guided FokI-dCas9 nuclease (RFN)
+            architecture requiring recognition of extended double-length
+            target sites for efficient cleavage. Amino-terminal fusions of
+            FokI to dCas9 can recognize two 20-nucleotide 'half-sites' in a
+            'PAM-out' orientation separated by a 13-18 bp spacer and can
+            efficiently cleave in this intervening region.
+Cas9n       Engineered variants of Cas9 in which one of the two nuclease
+            domains has been catalytically inactivated, which results in the
+            nicking of only one DNA strand and leaving the other strand
+            intact. Another strategy proposed to reduce off-target effects
+            is to use paired Cas9 nickases (Cas9n), mutated versions of Cas9
+            in which one of the two nuclease domains (RuvC or HNH) has been
+            catalytically inactivated (for example, by introduction of a
+            D10A or H840A mutation). Paired nickases can be directed by two
+            gRNAs targeted to neighbouring sites to create offset nicks that
+            can induce indel mutations.
+Cpf1        Cpf1 family nucleases. Also refered to as Cas12a

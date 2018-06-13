@@ -453,25 +453,6 @@ def split_target_sequence(seq, pams, force=False, side='>'):
     else:
         return None
 
-def compile_motif_regex(spacers, pams, side, anchored=False):
-    """
-    Returns compiled regex
-    """
-    spacer_pattern = '(' + '|'.join([build_regex_pattern(x, capture=False) for x in spacers]) + ')'
-    pam_pattern = '(' + '|'.join([build_regex_pattern(x, capture=False) for x in pams]) + ')'
-    if (side == '>'): # SPACER>PAM
-        if anchored:
-            re_pattern = '^'+ spacer_pattern + pam_pattern + '$'
-        else:
-            re_pattern = spacer_pattern + pam_pattern
-    elif (side == '<'): # PAM<SPACER
-        if anchored:
-            re_pattern = '^'+ pam_pattern + spacer_pattern + '$'
-        else:
-            re_pattern = pam_pattern + spacer_pattern
-    c = regex.compile(re_pattern, flags=regex.ENHANCEMATCH|regex.IGNORECASE)
-    return c
-
 def motif_search2(sequence, side, compiled_regex):
     """
     Return list of all (target, start, end, spacer, PAM) found within sequence

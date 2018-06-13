@@ -17,6 +17,8 @@ exclusions = [
     'azimuth_wrapper.py',
     'bae.py',
     'chari.py',
+    'chakraborty.py',
+    'distance_matrix.py',
     'oof.py',
     'proxgc.py',
     'stemmer.py',
@@ -25,6 +27,7 @@ exclusions = [
 ]
 path = os.path.dirname(os.path.abspath(__file__))
 files = [f.rstrip(".py") for f in os.listdir(path) if (f.endswith('.py') and (f not in exclusions))]
+
 for f in files:
     module = import_module('.'.join([__name__, f]))
 

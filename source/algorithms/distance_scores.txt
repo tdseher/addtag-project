@@ -7,8 +7,10 @@ C	C		1
 G	G		1
 T	T		1
 # Transitions (Purines: A<->G, Pyrimidines: C<->T)
+# Purines
 A	G		-1
 G	A		-1
+# Pyrimidines
 C	T		-1
 T	C		-1
 # Transversions

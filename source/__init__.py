@@ -11,6 +11,7 @@ import os
 import argparse
 import time
 import logging
+import random
 
 # Import non-standard packages
 import regex
@@ -29,6 +30,7 @@ __fullversion__ = utils.load_git_version()
 __version__ = __fullversion__[:7]
 __revision__ = utils.load_git_revision()
 __program__ = os.path.basename(sys.argv[0])
+__citation__ = "{__author__}. AddTag. Unpublished ({__date__})".format(**locals())
 __description__ = """\
 description:
   Program for identifying exclusive endogenous gRNA sites and creating unique
@@ -83,15 +85,19 @@ description:
        ╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥╥
        ╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨╨
        └──────────────────────re_donor_length──────────────────────┘
-  
-  Copyright (c) 2017 {__author__}.
-  All rights reserved.
 
 version:
   short    {__version__}
   full     {__fullversion__}
   revision {__revision__}
   date     {__date__}
+
+citation:
+  {__citation__}
+
+copyright:
+  AddTag Copyright (c) 2017 {__author__}.
+  All rights reserved.
 
 license:
   You may not hold the authors liable for damages or data loss regarding the
@@ -114,14 +120,6 @@ protein:
   sequences can have huge length differences. Remember that each Cas9 is only
   compatible with the tracrRNA and crRNA (or synthetic gRNA) derived from the
   same species.
-
-glossary:
-  To see a glossary of common CRISPR/RGN terms, run the following:
-   $ python3 {__program__} -g
-  
-motifs:
-  To see a list of common SPACER>PAM arrangements, run the following:
-   $ python3 {__program__} -s
 
 outputs:
   STDOUT                            Tab-delimited analysis results
@@ -173,7 +171,6 @@ class Alignment(object):
         'target',
         'pam',
         'motif',
-        'parsed_motif',
         'contig',
         'start',
         'end',
@@ -185,13 +182,12 @@ class Alignment(object):
         'action',
     ]
     
-    def __init__(self, sequence, target, pam, motif, parsed_motif, contig, start, end, orientation, upstream='', downstream=''):
+    def __init__(self, sequence, target, pam, motif, contig, start, end, orientation, upstream='', downstream=''):
         # Most attributes derived from SAM output
         self.sequence = sequence
         self.target = target
         self.pam = pam
         self.motif = motif
-        self.parsed_motif = parsed_motif
         self.contig = contig
         self.start = start
         self.end = end
@@ -220,7 +216,7 @@ class Alignment(object):
         this = (self.sequence, self.target, self.pam, self.upstream, self.downstream)
         postfilter = []
         for C in algorithms.single_algorithms:
-            c_score = C.calculate(this, parsed_motif=self.parsed_motif)
+            c_score = C.calculate(this, parsed_motif=self.motif.parsed_list)
             self.score[C.name] = c_score
             if C.postfilter:
                 if (C.minimum <= c_score <= C.maximum):
@@ -228,7 +224,7 @@ class Alignment(object):
                 else:
                     postfilter.append(False)
         for C in algorithms.paired_algorithms:
-            c_score = C.calculate(parent, this, parsed_motif=self.parsed_motif)
+            c_score = C.calculate(parent, this, parsed_motif=self.motif.parsed_list)
             self.score[C.name] = c_score
             if C.postfilter:
                 if (C.minimum <= c_score <= C.maximum):
@@ -252,7 +248,7 @@ class Alignment(object):
             self.target + '|' + self.pam,
             self.contig + ':' + self.orientation + ':' + str(self.start) + '..' + str(self.end),
             'action=' + str(self.action),
-            'motif=' + self.motif,
+            'motif=' + self.motif.motif_string,
             'postfilter=' + str(self.postfilter)] +
             [x + '=' + str(round(self.score[x], 2)) for x in self.score]
             ) + ')'
@@ -366,20 +362,21 @@ class ExcisionDonor(Donor):
             if (orientation == '-'):
                 sequence = nucleotides.rc(sequence)
             
-            for i in range(len(args.parsed_motifs)):
-                spacers, pams, side = args.parsed_motifs[i]
-                compiled_regex = args.compiled_motifs[i]
+            #for i in range(len(args.parsed_motifs)):
+            for mymotif in OnTargetMotif.motifs:
+                #spacers, pams, side = args.parsed_motifs[i]
+                spacers, pams, side = mymotif.parsed_list
+                #compiled_regex = args.compiled_motifs[i]
                 #matches = nucleotides.motif_search(sequence, spacers, pams, side)
-                matches = nucleotides.motif_search2(sequence, side, compiled_regex)
+                matches = nucleotides.motif_search2(sequence, side, mymotif.compiled_regex)
                 for seq, start, end, spacer, pam in matches:
                     if (orientation == '-'):
                         start, end = len(sequence) - end, len(sequence) - start
-                    filtered_targets = target_filter(seq, args)
+                    t_upstream = sequence[start-10:start]
+                    t_downstream = sequence[end:end+10]
+                    filtered_targets = target_filter(seq, spacer, pam, t_upstream, t_downstream, args)
                     for filt_seq, filt_spacer, filt_pam in filtered_targets:
-                        t_upstream = sequence[start-10:start]
-                        t_downstream = sequence[end:end+10]
-                        
-                        targets.add((orientation, start, end, t_upstream, t_downstream, filt_seq, side, filt_spacer, filt_pam, args.motifs[i], tuple([tuple(x) if isinstance(x, list) else x for x in args.parsed_motifs[i]])))
+                        targets.add((orientation, start, end, t_upstream, t_downstream, filt_seq, side, filt_spacer, filt_pam, mymotif.motif_string, tuple([tuple(x) if isinstance(x, list) else x for x in mymotif.parsed_list])))
         return sorted(targets) # becomes a list
     
     @classmethod
@@ -787,14 +784,14 @@ class Target(object):
         #parent = (self.sequence, self.target, self.pam, self.upstream, self.downstream)
         parent = (self.sequence, self.spacer, self.pam, loc[5], loc[6])
         aligned_target, aligned_pam, aligned_motif = self.split_spacer_pam(aligned_sequence, args)
-        aligned_parsed_motif = args.parsed_motifs[args.motifs.index(aligned_motif)]
+        #aligned_parsed_motif = args.parsed_motifs[args.motifs.index(aligned_motif)]
+        #aligned_parsed_motif = aligned_motif.parsed_list
         if ((aligned_target != None) and (aligned_pam != None)):
             a = Alignment(
                 aligned_sequence,
                 aligned_target,
                 aligned_pam,
                 aligned_motif,
-                aligned_parsed_motif,
                 aligned_contig,
                 aligned_start,
                 aligned_end,
@@ -811,26 +808,36 @@ class Target(object):
         r_spacer = None
         r_pam = None
         r_motif = None
-        for i in range(len(args.parsed_motifs)):
-            spacers, pams, side = args.parsed_motifs[i]
-            compiled_regex = args.compiled_motifs[i]
-            m = nucleotides.motif_conformation2(sequence, side, compiled_regex)
+        #for i in range(len(args.parsed_motifs)):
+        for motif in OnTargetMotif.motifs:
+            #spacers, pams, side = args.parsed_motifs[i]
+            spacers, pams, side = motif.parsed_list
+            #compiled_regex = args.compiled_motifs[i]
+            m = nucleotides.motif_conformation2(sequence, side, motif.compiled_regex)
+            
+            # If the motif matches, then return it
             if m:
                 r_spacer = m[0]
                 r_pam = m[1]
-                r_motif = args.motifs[i]
+                #r_motif = args.motifs[i]
+                r_motif = motif
                 break
+            # If the motif does not match, then fudge it for this motif
+            # This will return the last-fudged motif, and not necessarily the best-fudged motif
+            # Will need to improve this code later
             else:
                 if (side == '>'):
                     l = max(map(len, pams))
                     r_spacer = sequence[:-l]
                     r_pam = sequence[-l:]
-                    r_motif = args.motifs[i]
+                    #r_motif = args.motifs[i]
+                    r_motif = motif
                 elif (side == '<'):
                     l = max(map(len, pams))
                     r_spacer = seq[:l]
                     r_pam = seq[l:]
-                    r_motif = args.motifs[i]
+                    #r_motif = args.motifs[i]
+                    r_motif = motif
         return r_spacer, r_pam, r_motif
     
     def get_features(self, features, contig, start, end):
@@ -1073,11 +1080,13 @@ class ExcisionTarget(Target):
                     else:
                         sequence = nucleotides.rc(contigs[feature_contig][feature_start:feature_end])
                     
-                    for i in range(len(args.parsed_motifs)):
-                        spacers, pams, side = args.parsed_motifs[i]
-                        compiled_regex = args.compiled_motifs[i]
+                    #for i in range(len(args.parsed_motifs)):
+                    for mymotif in OnTargetMotif.motifs:
+                        #spacers, pams, side = args.parsed_motifs[i]
+                        spacers, pams, side = mymotif.parsed_list
+                        #compiled_regex = args.compiled_motifs[i]
                         #matches = nucleotides.motif_search(sequence, spacers, pams, side)
-                        matches = nucleotides.motif_search2(sequence, side, compiled_regex)
+                        matches = nucleotides.motif_search2(sequence, side, mymotif.compiled_regex)
                         for seq, start, end, spacer, pam in matches:
                             if (orientation == '+'):
                                 real_start = feature_start + start
@@ -1085,11 +1094,11 @@ class ExcisionTarget(Target):
                             else:
                                 real_start = len(sequence) - end + feature_start
                                 real_end = len(sequence) - start + feature_start
-                            filtered_targets = target_filter(seq, args)
+                            t_upstream = sequence[start-10:start]
+                            t_downstream = sequence[end:end+10]
+                            filtered_targets = target_filter(seq, spacer, pam, t_upstream, t_downstream, args)
                             for filt_seq, filt_spacer, filt_pam in filtered_targets:
-                                t_upstream = sequence[start-10:start]
-                                t_downstream = sequence[end:end+10]
-                                cls(feature, feature_contig, orientation, real_start, real_end, t_upstream, t_downstream, filt_seq, side, filt_spacer, filt_pam, args.motifs[i], args.parsed_motifs[i])
+                                cls(feature, feature_contig, orientation, real_start, real_end, t_upstream, t_downstream, filt_seq, side, filt_spacer, filt_pam, mymotif.motif_string, mymotif.parsed_list)
                                 # Maybe add to ReversionDonor here
 
 class ReversionTarget(Target):
@@ -1119,6 +1128,250 @@ class ReversionTarget(Target):
     def get_donors(self):
         return [ExcisionDonor.indices[x] for x in self.get_contigs()]
 
+class Motif(object):
+    motifs = []
+    def __init__(self, motif_string):
+        # Save the input string: 'N{3,5}>NRG'
+        self.motif_string = motif_string
+        
+        # Create [spacers, pams, side] list: (['NNN', 'NNNN', 'NNNNN'], ['NRG'], '>')
+        self.parsed_list = self.parse_motif(self.motif_string)
+        
+        # Build the regex string: '((?:[ACGT][ACGT][ACGT])|(?:[ACGT][ACGT][ACGT][ACGT])|(?:[ACGT][ACGT][ACGT][ACGT][ACGT]))((?:[ACGT][AG]G))'
+        self.regex_string = self.build_motif_regex(self.parsed_list[0], self.parsed_list[1], self.parsed_list[2])
+        
+        # Compile the regex
+        self.compiled_regex = self.compile_regex(self.regex_string, ignore_case=True)
+        
+        # Save object to publicly-accessible, class list
+        self.motifs.append(self)
+        
+    def parse_motif(self, motif):
+        """
+        Takes string of SPACER>PAM and returns ([spacer, spacer, ...], [pam, pam ...], '>')
+        
+        Example inputs: 'G{,2}N{19,20}>NGG', 'N{20,21}>NNGRRT', 'TTTN<N{20,23}'
+        """
+        
+        # Still need to implement:
+        #  Identify gRNA pairs on opposite strands appropriate for "nickase" Cas9
+        #  allow for PAM-out and PAM-in orientations
+        #  --motifs, where '.' is any non-spacer nucleotide
+        #    'CCN<N{17,20}.{13,18}N{17,20}>NGG'     # PAM-out
+        #    'N{17,20}>NGG.{13,18}CCN<N{17,20}'     # PAM-in
+        
+        gt_count = motif.count('>')
+        lt_count = motif.count('<')
+        lb_count = motif.count('{')
+        rb_count = motif.count('}')
+        # Make sure motif does not violate basic rules
+        if (gt_count + lt_count < 1):
+            raise Exception("Motif lacks distinction between spacer and PAM sequences ('>' or '<' character)")
+        elif (gt_count + lt_count > 1):
+            raise Exception("Motif has too many '>' or '<' characters")
+        if (lb_count != rb_count):
+            raise Exception("Motif braces '{' and '}' do not match")
+        if (motif.count(' ') > 0):
+            raise Exception("Motif contains invalid space ' ' characters")
+        if (motif.count('{}') > 0):
+            raise Exception("Motif contains invalid quantifier '{}'")
+        if (motif.count('{,}') > 0):
+            raise Exception("Motif contains invalid quantifier '{,}'")
+        
+        if (gt_count == 1):
+            spacer_motif, pam_motif = motif.split('>')
+            side = '>'
+        elif (lt_count == 1):
+            pam_motif, spacer_motif = motif.split('<')
+            side = '<'
+        
+        return self.parse_motif_helper(spacer_motif), self.parse_motif_helper(pam_motif), side
+    
+    # List of common motifs obtained from
+    #  https://github.com/maximilianh/crisporWebsite/crispor.py
+    
+    # from (https://benchling.com/pub/cpf1):
+    # Cpf1 is an RNA-guided nuclease, similar to Cas9. It recognizes a T-rich
+    # PAM, TTTN, but on the 5' side of the guide. This makes it distinct from
+    # Cas9, which uses an NGG PAM on the 3' side. The cut Cpf1 makes is
+    # staggered. In AsCpf1 and LbCpf1, it occurs 19 bp after the PAM on the
+    # targeted (+) strand and 23 bp on the other strand, as shown here:
+    #                        Cpf1
+    #   TTTC GAGAAGTCATCTAATAAGG|CCAC TGTTA
+    #   AAAG CTCTTCAGTAGATTATTCC GGTG|ACAAT
+    #   =PAM =========gRNA====== =
+    #
+    # Benchling suggests 20 nt guides can be used for now, as there is not real
+    # suggestion for optimal guide length. Robust guide scores for Cpf1 are
+    # still in development, but simple scoring based on the number of off-target
+    # sites is available on Benchling.
+    # 
+    # Cpf1 requires only a crRNA for activity and does not need a tracrRNA to
+    # also be present.
+    #
+    # Two Cp1-family proteins, AsCpf1 (from Acidaminococcus)
+    # and LbCpf1 (from Lachnospiraceae), have been shown to perform efficient
+    # genome editing in human cells.
+    #
+    # Why use Cpf1 over Cas9?
+    #  see https://benchling.com/pub/cpf1
+    
+    def parse_motif_helper(self, submotif):
+        """
+        Helper function that parses either the SPACER or PAM motif.
+        Decodes quantifiers and returns a list
+        """
+        # Keep track of expanded sequences
+        sequences = ['']
+        
+        # Keep track if a quantifier is being parsed
+        quantifier = None
+        
+        # Iterate through the characters
+        for c in submotif:
+            if (c == '{'): # Start the quantifier
+                quantifier = ''
+            elif (c == '}'): # End the quantifier
+                quantifier_list = quantifier.split(',')
+                if (len(quantifier_list) == 1):
+                    min_length = int(quantifier)
+                    max_length = min_length
+                    
+                elif (len(quantifier_list) == 2):
+                    if (quantifier_list[0] == ''):
+                        min_length = 0
+                    else:
+                        min_length = int(quantifier_list[0])
+                    if (quantifier_list[1] == ''):
+                        raise Exception("Motif quantifier '{" + quantifier + "}' contains no maximum value")
+                    else:
+                        max_length = int(quantifier_list[1])
+                    if (min_length > max_length):
+                        raise Exception("Motif quantifier '{" + quantifier + "}' minimum and maximum lengths are invalid")
+                
+                last_chars = [ x[-1] for x in sequences ]
+                
+                sequences = [ x[:-1] for x in sequences ]
+                
+                new_sequences = []
+                for i, s in enumerate(sequences):
+                    for length in range(min_length, max_length+1):
+                        new_sequences.append(s + last_chars[i]*length)
+                sequences = new_sequences
+                quantifier = None
+            elif (quantifier != None): # add current character to quantifier if it is open
+                quantifier += c
+            else: # add the current character to the expanded sequences
+                for i in range(len(sequences)):
+                    sequences[i] = sequences[i] + c
+        
+        return sequences
+    
+    def compile_regex(self, re_pattern, ignore_case=False, enhance_match=False, best_match=False):
+        """
+        Returns compiled regex
+        """
+        # Choose the regex flags
+        myflags = 0
+        if ignore_case:
+            myflags |= regex.IGNORECASE
+        if enhance_match:
+            myflags |= regex.ENHANCEMATCH
+        if best_match:
+            myflags |= regex.BESTMATCH
+            
+        c = regex.compile(re_pattern, flags=myflags) # regex.ENHANCEMATCH|regex.IGNORECASE
+        return c
+    
+    def build_motif_regex(self, spacers, pams, side, anchored=False):
+        """
+        Returns regex pattern string for motif
+        """
+        spacer_pattern = '(' + '|'.join([self.build_regex_pattern(x, capture=False) for x in spacers]) + ')'
+        pam_pattern = '(' + '|'.join([self.build_regex_pattern(x, capture=False) for x in pams]) + ')'
+        if (side == '>'): # SPACER>PAM
+            if anchored:
+                re_pattern = '^'+ spacer_pattern + pam_pattern + '$'
+            else:
+                re_pattern = spacer_pattern + pam_pattern
+        elif (side == '<'): # PAM<SPACER
+            if anchored:
+                re_pattern = '^'+ pam_pattern + spacer_pattern + '$'
+            else:
+                re_pattern = pam_pattern + spacer_pattern
+        return re_pattern
+    
+    def build_regex_pattern(self, iupac_sequence, max_substitutions=0, max_insertions=0, max_deletions=0, max_errors=0, capture=True):
+        """
+        Build a regular expression pattern for the nucleotide search, taking IUPAC
+        ambiguities into account.
+        
+        So far for DNA only
+        Expects string as input (NOT a list)
+        """
+        # Format the fuzzy matching restrictions
+        fuzzy = []
+        if (max_substitutions > 0):
+            fuzzy.append('s<={}'.format(max_substitutions))
+        if (max_insertions > 0):
+            fuzzy.append('i<={}'.format(max_insertions))
+        if (max_deletions > 0):
+            fuzzy.append('d<={}'.format(max_deletions))
+        if (max_errors > 0):
+            fuzzy.append('e<={}'.format(max_errors))
+        if (len(fuzzy) > 0):
+            fuzzy = '{' + ','.join(fuzzy) + '}'
+        else:
+            fuzzy = ''
+        
+        # Convert the IUPAC sequence to an equivalent regex
+        iupac = {
+            'a': 'a',
+            'c': 'c',
+            'g': 'g',
+            't': 't',
+            'r': '[ag]',
+            'y': '[ct]',
+            'm': '[ac]',
+            'k': '[gt]',
+            'w': '[at]',
+            's': '[cg]',
+            'b': '[cgt]',
+            'd': '[agt]',
+            'h': '[act]',
+            'v': '[acg]',
+            'n': '[acgt]',
+            
+            'A': 'A',
+            'C': 'C',
+            'G': 'G',
+            'T': 'T',
+            'R': '[AG]',
+            'Y': '[CT]',
+            'M': '[AC]',
+            'K': '[GT]',
+            'W': '[AT]',
+            'S': '[CG]',
+            'B': '[CGT]',
+            'D': '[AGT]',
+            'H': '[ACT]',
+            'V': '[ACG]',
+            'N': '[ACGT]',
+        }
+        sequence = ''.join(map(lambda x: iupac[x], iupac_sequence))
+        if capture:
+            pattern = '(' + sequence + ')' + fuzzy
+        else:
+            pattern = '(?:' + sequence + ')' + fuzzy
+        #logger.info('Built regex string: {!r}'.format(pattern))
+        return pattern
+
+class OnTargetMotif(Motif):
+    motifs = []
+
+class OffTargetMotif(Motif):
+    motifs = []
+
 class CustomHelpFormatter(argparse.HelpFormatter):
     """Help message formatter which retains any formatting in descriptions
     and adds default values to argument help.
@@ -1142,48 +1395,48 @@ class CustomHelpFormatter(argparse.HelpFormatter):
                     help += ' (default: %(default)s)'
         return help
 
-class ValidateDesign(argparse.Action):        
-    def __call__(self, parser, args, values, option_string=None):
-        # print '{n} {v} {o}'.format(n=args, v=values, o=option_string)
-        nmin = 1
-        nmax = 2
-        if not (nmin <= len(values) <= nmax):
-            raise argparse.ArgumentTypeError('argument --{f}: expected between {nmin} and {nmax} arguments'.format(f=self.dest, nmin=nmin, nmax=nmax))
-        
-        s = set(values) # in case there are duplicates, reduce them to a single occurrence with set()
-        valid_values = {'cut', 'addtag', 'sigtag'} # set
-        
-        d = s.difference(valid_values)
-        if (len(d) > 0):
-            raise ValueError('invalid Design TYPE: %s (choose from {cut, addtag, sigtag})' % d.pop())
-        
-        setattr(args, self.dest, list(s))
-
-class ValidateShowMotifs(argparse.Action):
-    def __call__(self, parser, args, values, option_string=None):
-        # print '{n} {v} {o}'.format(n=args, v=values, o=option_string)
-        if (values == []):
-            utils.print_local_file('motifs.txt')
-            sys.exit()
-            #raise ValueError('invalid cores N: %s (choose N > 0)' % value)
-            #raise argparse.ArgumentTypeError("%s is an invalid positive int value" % value)
-        
-        setattr(args, self.dest, values)
-
-class ValidateShowGlossary(argparse.Action):
-    def __call__(self, parser, args, values, option_string=None):
-        # print '{n} {v} {o}'.format(n=args, v=values, o=option_string)
-        if (values == []):
-            utils.print_local_file('glossary.txt')
-            sys.exit()
-            #raise ValueError('invalid cores N: %s (choose N > 0)' % value)
-            #raise argparse.ArgumentTypeError("%s is an invalid positive int value" % value)
-        
-        setattr(args, self.dest, values)
+# class ValidateDesign(argparse.Action):        
+#     def __call__(self, parser, args, values, option_string=None):
+#         # print '{n} {v} {o}'.format(n=args, v=values, o=option_string)
+#         nmin = 1
+#         nmax = 2
+#         if not (nmin <= len(values) <= nmax):
+#             raise argparse.ArgumentTypeError('argument --{f}: expected between {nmin} and {nmax} arguments'.format(f=self.dest, nmin=nmin, nmax=nmax))
+#         
+#         s = set(values) # in case there are duplicates, reduce them to a single occurrence with set()
+#         valid_values = {'cut', 'addtag', 'sigtag'} # set
+#         
+#         d = s.difference(valid_values)
+#         if (len(d) > 0):
+#             raise ValueError('invalid Design TYPE: %s (choose from {cut, addtag, sigtag})' % d.pop())
+#         
+#         setattr(args, self.dest, list(s))
+# 
+# class ValidateShowMotifs(argparse.Action):
+#     def __call__(self, parser, args, values, option_string=None):
+#         # print '{n} {v} {o}'.format(n=args, v=values, o=option_string)
+#         if (values == []):
+#             utils.print_local_file('motifs.txt')
+#             sys.exit()
+#             #raise ValueError('invalid cores N: %s (choose N > 0)' % value)
+#             #raise argparse.ArgumentTypeError("%s is an invalid positive int value" % value)
+#         
+#         setattr(args, self.dest, values)
+# 
+# class ValidateShowGlossary(argparse.Action):
+#     def __call__(self, parser, args, values, option_string=None):
+#         # print '{n} {v} {o}'.format(n=args, v=values, o=option_string)
+#         if (values == []):
+#             utils.print_local_file('glossary.txt')
+#             sys.exit()
+#             #raise ValueError('invalid cores N: %s (choose N > 0)' % value)
+#             #raise argparse.ArgumentTypeError("%s is an invalid positive int value" % value)
+#         
+#         setattr(args, self.dest, values)
 
 class main(object):
     def __init__(self):
-        """Function to run complete AddTag analysis"""
+        """Create argument parser, then run the selected sub-program"""
         
         # Obtain command line arguments and parse them
         args = self.parse_arguments()
@@ -1191,18 +1444,80 @@ class main(object):
         # Get timestamp for analysis beginning
         start = time.time()
         
-        # Create the project directory if it doesn't exist
-        os.makedirs(args.folder, exist_ok=True)
+        if hasattr(args, 'folder'):
+            # Create the project directory if it doesn't exist
+            os.makedirs(args.folder, exist_ok=True)
         
-        # Create the logger
-        logging.basicConfig(filename=os.path.join(args.folder, 'log.txt'), level=logging.INFO, format='%(message)s') # format='%(levelname)s %(asctime)s: %(message)s'
+            # Create the logger
+            logging.basicConfig(filename=os.path.join(args.folder, 'log.txt'), level=logging.INFO, format='%(message)s') # format='%(levelname)s %(asctime)s: %(message)s'
         
         # Echo the command line parameters to STDOUT and the log
         print(args, flush=True)
-        logging.info(args)
+        
+        if hasattr(args, 'folder'):
+            logging.info(args)
+        
+        # call the function for which action was used
+        args.func(args)
+        
+        if hasattr(args, 'folder'):
+            # Print time taken for program to complete
+            logging.info('{} finished'.format(__program__))
+            logging.info('Runtime: {}s'.format(time.time()-start))
+        
+    def _glossary(self, args):
+        """Print the Glossary"""
+        utils.print_local_file('glossary.txt')
+    
+    def _motifs(self, args):
+        """Print the list of common CRISPR/Cas motifs"""
+        utils.print_local_file('motifs.txt')
+    
+    def _algorithms(self, args):
+        """Print information on the algorithms"""
+        for C in algorithms.single_algorithms + algorithms.paired_algorithms + algorithms.batched_single_algorithms:
+            print('==========', C.name, '==========')
+            print('     Author:', C.author)
+            print('       Year:', C.year)
+            print('   Citation:', C.citation)
+            print(' Off-target:', C.off_target)
+            print('  On-target:', C.on_target)
+            print('  Prefilter:', C.prefilter)
+            print(' Postfilter:', C.postfilter)
+            print('   Min, max:', C.minimum, C.maximum)
+            print('    Default:', C.default)
+            print('')
+        #prefilter_choices = [C for C in algorithms.single_algorithms + algorithms.paired_algorithms + algorithms.batched_single_algorithms if C.prefilter]
+        #off_target_choices = [C for C in algorithms.single_algorithms + algorithms.paired_algorithms + algorithms.batched_single_algorithms if C.off_target]
+        #on_target_choices = [C for C in algorithms.single_algorithms + algorithms.paired_algorithms + algorithms.batched_single_algorithms if C.on_target]
+        #postfilter_choices = [C for C in algorithms.single_algorithms + algorithms.paired_algorithms + algorithms.batched_single_algorithms if C.postfilter]
+    
+    def _aligners(self, args):
+        """Print information about the supported aligners"""
+        # Aligners intended to implement = ['addtag', 'blast+', 'blat', 'bowtie', 'bowtie2', 'bwa', 'cas-offinder']
+        # Other aligners to consider: 'rmap', 'maq', 'shrimp2', 'soap2', 'star', 'rhat', 'mrsfast', 'stampy'
+        for x in aligners.aligners:
+            print('==========', x.name, '==========')
+            print('     Author:', x.author)
+            print('       Year:', x.year)
+            print('   Citation:', x.citation)
+            print('      Input:', x.input)
+            print('     Output:', x.output)
+            print('  Truncated:', x.truncated)
+            print('')
+    
+    def _search(self, args):
+        print("Search GFF here.")
+    
+    def _evaluate(self, args):
+        print("Perform the evaluation here.")
+    
+    def _generate(self, args):
+        """Perform complete CRISPR/Cas analysis for input"""
+        print("Design all sequences here.")
         
         # Load the FASTA file specified on the command line
-        contigs = utils.load_fasta_file(args.fasta)
+        contigs = utils.load_fasta_file(args.fasta[0]) # To do --> Do this for all FASTA files, then merge them into the same dictionary
         
         # Open and parse the GFF file specified on the command line
         features = utils.load_gff_file(args.gff, args.features, args.tag)
@@ -1237,7 +1552,7 @@ class main(object):
         
         # Index args.fasta for alignment
         #index_file = index_reference(args)
-        genome_index_file = args.selected_aligner.index(args.fasta, os.path.basename(args.fasta), args.folder, args.processors)
+        genome_index_file = args.selected_aligner.index(args.fasta[0], os.path.basename(args.fasta[0]), args.folder, args.processors)
         ex_dDNA_index_file = args.selected_aligner.index(ex_dDNA_file, os.path.basename(ex_dDNA_file), args.folder, args.processors)
         re_dDNA_index_file = args.selected_aligner.index(re_dDNA_file, os.path.basename(re_dDNA_file), args.folder, args.processors)
         
@@ -1319,17 +1634,45 @@ class main(object):
         self.get_best(args, features, homologs)
         self.get_best_table(args, features, homologs, feature2gene)
         
-        # Print time taken for program to complete
-        logging.info('{} finished'.format(__program__))
-        logging.info('Runtime: {}s'.format(time.time()-start))
+        # Existing pipeline - Want to mutate feature, and cut site within feature
+        # ,,,,,,,,,,,,,,,,NNNNNNNNNNNNNNNNNNNN111NNN................... Feature to be mutated contains cut site 1
+        # ,,,,,,,,,,,,,,,,aaa222aaa.................................... Feature is knocked-out, and unique cut site 2 added
+        # ,,,,,,,,,,,,,,,,mmmmmmmmmmmmmmmmmmmmmmmmmm................... Cut site 2 targeted and replaced by mutant
+        
+        # New pipeline - Want to mutate feature, but cut site outside of feature
+        # ,,,,,,,,,,,,,,,,NNNNNNNNNNNNNN---------------111---.......... Feature to be mutated does not contain closest cut site 1
+        # ,,,,,,,,,,,,,,,,nnnnnnnnnnnnnnnnnnnnnnnnnnnnn111nnn.......... Feature expanded to include cut site
+        # ,,,,,,,,,,,,,,,,aaa222aaa.................................... Feature is knocked-out, and unique cut site 2 added
+        # ,,,,,,,,,,,,,,,,mmmmmmmmmmmmmm---------------111---.......... Cut site 2 targeted and replaced by mutant (input) plus wild type cut site 1
+        
+        # 1) input: feature start and end
+        # 2) if closest/best cut site is outside the feature
+        #    Then expand the feature to include the closest/best cut site
+        #    Also, concatenate the wild-type version of the expanded site to the mutant
+        #    to create the new ki-dDNA
+        
+        # What if multiple features are adjacent to each other?
+        # Then they should be combined into a single transformation.
+        # ,,,,,,,,,NNNNNNNNNNN111NNN........NNNNNNNNN111NNN............ Since features 1 and 2 are independent, they can be kept as separate reactions
+        # ,,,,,,,,,NNNNNNNNNN--------111-------NNNNNNNNNNNN............ Since features 1 and 2 both have the closest/best cut site, they are combined
+        # ,,,,,,,,,nnnnnnnnnnnnnnnnnn111nnnnnnnnnnnnnnnnnnn............
+        # ,,,,,,,,,aaa222aaa...........................................
+        # ,,,,,,,,,mmmmmmmmmm--------111-------mmmmmmmmmmmm............ the dDNA is expanded to include the wt region in between both of these features
     
-    def parse_arguments(self):
-        # Create the argument parser
+    def _confirm(self, args):
+        print("Design conformation primers here.")
+    
+    def _parser_general(self):
+        '''general parser'''
+        # Create the parent argument parser
         parser = argparse.ArgumentParser(
             description=__description__,
             epilog=__epilog__,
             formatter_class=CustomHelpFormatter
         )
+        
+        # Create the subparsers
+        subparsers = parser.add_subparsers(metavar='action', help='choose an action to perform (required)')
         
         # Change the help text of the "-h" flag
         parser._actions[0].help='Show this help message and exit.'
@@ -1339,20 +1682,234 @@ class main(object):
             help="Show program's version number and exit.",
             version='{__program__} {__version__} (revision {__revision__})'.format(**globals()))
         
-        # Add special arguments for additional help messages
-        parser.add_argument("-s", "--show", nargs=0, action=ValidateShowMotifs, default=argparse.SUPPRESS,
-            help="Show list of common RGN motifs, then exit.")
-        parser.add_argument("-g", "--glossary", nargs=0, action=ValidateShowGlossary, default=argparse.SUPPRESS,
-            help="Show glossary of common CRISPR/RGN terms, then exit.")
+        return parser, subparsers
+    
+    def _parser_glossary(self, subparsers):
+        ''' "glossary" parser '''
+        __glossary_description__ = "Show glossary of common CRISPR/Cas terms, then exit."
+        __glossary_help__ = "Show glossary of common CRISPR/Cas terms, then exit."
+        parser_glossary = subparsers.add_parser('glossary',
+            description=__glossary_description__,
+            #epilog=__glossary_epilog__,
+            formatter_class=CustomHelpFormatter,
+            help=__glossary_help__
+        )
+        parser_glossary.set_defaults(func=self._glossary)
+        
+        # Change the help text of the "-h" flag
+        parser_glossary._actions[0].help='Show this help message and exit.'
+        
+        # Special version action optional argument
+        parser_glossary.add_argument("-v", "--version", action='version',
+            help="Show program's version number and exit.",
+            version='{__program__} {__version__} (revision {__revision__})'.format(**globals()))
+        
+        # Add mandatory arguments
+        # Add optional arguments
+        return parser_glossary
+    
+    def _parser_motifs(self, subparsers):
+        ''' "motifs" parser '''
+        __motifs_description__ = "Show list of common CRISPR/Cas SPACER>PAM arrangements, then exit."
+        __motifs_help__ = "Show list of common CRISPR/Cas SPACER>PAM arrangements, then exit."
+        parser_motifs = subparsers.add_parser('motifs',
+            description=__motifs_description__,
+            #epilog=__motif_epilog__,
+            formatter_class=CustomHelpFormatter,
+            help=__motifs_help__
+        )
+        parser_motifs.set_defaults(func=self._motifs)
+        
+        # Change the help text of the "-h" flag
+        parser_motifs._actions[0].help='Show this help message and exit.'
+        
+        # Special version action optional argument
+        parser_motifs.add_argument("-v", "--version", action='version',
+            help="Show program's version number and exit.",
+            version='{__program__} {__version__} (revision {__revision__})'.format(**globals()))
+        
+        # Add mandatory arguments
+        # Add optional arguments
+        return parser_motifs
+    
+    def _parser_algorithms(self, subparsers):
+        ''' "algorithms" parser '''
+        __algorithms_description__ = "Show list of all implemented gRNA evaluation algorithms."
+        __algorithms_help__ = "Show list of all implemented gRNA evaluation algorithms."
+        parser_algorithms = subparsers.add_parser('algorithms',
+            description=__algorithms_description__,
+            #epilog=__algorithms_epilog__,
+            formatter_class=CustomHelpFormatter,
+            help=__algorithms_help__
+        )
+        parser_algorithms.set_defaults(func=self._algorithms)
+        
+        # Change the help text of the "-h" flag
+        parser_algorithms._actions[0].help='Show this help message and exit.'
+        
+        # Special version action optional argument
+        parser_algorithms.add_argument("-v", "--version", action='version',
+            help="Show program's version number and exit.",
+            version='{__program__} {__version__} (revision {__revision__})'.format(**globals()))
+        
+        # Add mandatory arguments
+        # Add optional arguments
+        
+        return parser_algorithms
+    
+    def _parser_aligners(self, subparsers):
+        ''' "aligners" parser '''
+        __aligners_description__ = "Show list of all supported alignment programs."
+        __aligners_help__ = "Show list of all supported alignment programs."
+        parser_aligners = subparsers.add_parser('aligners',
+            description=__aligners_description__,
+            #epilog=__aligners_epilog__,
+            formatter_class=CustomHelpFormatter,
+            help=__aligners_help__
+        )
+        parser_aligners.set_defaults(func=self._aligners)
+        
+        # Change the help text of the "-h" flag
+        parser_aligners._actions[0].help='Show this help message and exit.'
+        
+        # Special version action optional argument
+        parser_aligners.add_argument("-v", "--version", action='version',
+            help="Show program's version number and exit.",
+            version='{__program__} {__version__} (revision {__revision__})'.format(**globals()))
+        
+        # Add mandatory arguments
+        # Add optional arguments
+        
+        return parser_aligners
+    
+    def _parser_search(self, subparsers):
+        ''' "search" parser '''
+        __search_description__ = "Search features for specific gene name or id."
+        __search_help__ = "Search features for specific gene name or id."
+        parser_search = subparsers.add_parser('search',
+            description=__search_description__,
+            #epilog=__search_epilog__,
+            formatter_class=CustomHelpFormatter,
+            help=__search_help__
+        )
+        parser_search.set_defaults(func=self._search)
+        
+        # Change the help text of the "-h" flag
+        parser_search._actions[0].help='Show this help message and exit.'
+        
+        # Special version action optional argument
+        parser_search.add_argument("-v", "--version", action='version',
+            help="Show program's version number and exit.",
+            version='{__program__} {__version__} (revision {__revision__})'.format(**globals()))
+        
+        # Add mandatory arguments
+        # Add optional arguments
+        return parser_search
+    
+    def _parser_evaluate(self, subparsers):
+        ''' "evaluate" parser '''
+        __evaluate_description__ = 'Evaluate pre-designed CRISPR/Cas oligonucleotide sequences.'
+        __evaluate_help__ = "Evaluate pre-designed CRISPR/Cas oligonucleotide sequences."
+        parser_evaluate = subparsers.add_parser('evaluate',
+            description=__evaluate_description__,
+            #epilog=__evaluate_epilog__,
+            formatter_class=CustomHelpFormatter,
+            help=__evaluate_help__
+        )
+        parser_evaluate.set_defaults(func=self._evaluate)
+        
+        # Change the help text of the "-h" flag
+        parser_evaluate._actions[0].help='Show this help message and exit.'
+        
+        # Special version action optional argument
+        parser_evaluate.add_argument("-v", "--version", action='version',
+            help="Show program's version number and exit.",
+            version='{__program__} {__version__} (revision {__revision__})'.format(**globals()))
         
         # Add required arguments
-        required_group = parser.add_argument_group('required arguments')
-        required_group.add_argument("--fasta", required=True, metavar="*.fasta", type=str,
-            help="FASTA file with contigs to find unique gRNA sites. Input FASTA \
-                must not be compressed. Ambiguous bases within the FASTA will not \
+        required_group = parser_evaluate.add_argument_group('required arguments')
+        required_group.add_argument("--fasta", required=True, nargs="+", metavar="*.fasta", type=str,
+            help="FASTA files with contigs to find unique gRNA sites. Input FASTA \
+                must not be compressed. User can decide whether ambiguous bases can \
                 be chosen for gRNA sites. All FASTA sequences should have unique \
                 primary headers (everything between the '>' symbol and the first \
-                whitespace should be unique).")
+                whitespace should be unique). You should include FASTA of the genome \
+                and any plasmids.")
+        required_group.add_argument("--gff", required=True, metavar="*.gff", type=str,
+            help="GFF file specifying chromosomal features that should be \
+                 multiplexed together.")
+        required_group.add_argument("--folder", required=True, metavar="FOLDER",
+            type=str, help="Path of folder to store generated files.")
+        
+        # Add required, mutually-exclusive group
+        required_group = parser_evaluate.add_mutually_exclusive_group(required=True)
+        required_group.add_argument("--gRNAs", metavar="*.fasta",
+            help="Evaluate where gRNAs would target, and for each site, what \
+                 its scores would be.")
+        
+        required_group.add_argument("--dDNAs", nargs="+", metavar="*.fasta", type=str,
+            help="Homology arms, presence of unique gRNA target site, and which \
+                 features these dDNAs would disrupt, and whether-or-not the \
+                 dDNA would introudce a mutation.")
+        
+        required_group.add_argument("--primers", metavar="*.fasta",
+            help="Evaluate what amplicon sizes to expect for wt/ko/ki for \
+                 input primers. Also evaluate the Tm/sensitivity/dimerization/etc \
+                 for the input primers. Does not evaluate these in multiplex.")
+        
+        # Maybe: make --gRNAs, --dDNAs, and --primers all accept the same number of FASTA files
+        #   Then, when it does calculations, it does all of them in serial steps.
+        #  step 1: --gRNAs[0], --dDNAs[0], --primers[0]
+        #  step 2: --gRNAs[1], --dDNAs[1], --primers[1]
+        #  etc...
+        
+        # Add optional arguments
+        
+        # If evaluating knock-in gRNA, then include the ko-dDNA with the "--fasta" argument??
+        #  addtag evaluate
+        #   --ko-gRNA            
+        #   --ko-dDNA            Evaluate knock-out dDNA for which DNA features it would knock-out, and evaluate whether it has a unique gRNA target
+        #   --ki-gRNA            Evaulate if knock-in gRNA would target the input ko-dDNA
+        #   --ki-dDNA            Evaluate if knock-in dDNA will restore wild type correctly, or where the mutations will be
+        #   --primers FASTA      Evaluate what amplicon sizes to expect for wt/ko/ki for input primers.
+        #                        Also evaluate the Tms/sensitivity/dimerization/etc for the input primers
+        #                        (DOES NOT EVALUATE THESE IN MULTIPLEX)
+        #                        >feature1 F
+        #                        NNNNNNNNNNNNNNNNNNNN
+        #                        >feature1 R
+        #                        NNNNNNNNNNNNNNNNNNNN
+        
+        return parser_evaluate
+    
+    def _parser_generate(self, subparsers):
+        ''' "generate" parser '''
+        __generate_description__ = "Design full sets of oligonucleotide sequences for CRISPR/Cas genome engineering experiment."
+        __generate_help__ = "Design full sets of oligonucleotide sequences for CRISPR/Cas genome engineering experiment."
+        parser_generate = subparsers.add_parser('generate',
+            description=__generate_description__,
+            #epilog=__generate_epilog__,
+            formatter_class=CustomHelpFormatter,
+            help=__generate_help__
+        )
+        parser_generate.set_defaults(func=self._generate)
+        
+        # Change the help text of the "-h" flag
+        parser_generate._actions[0].help='Show this help message and exit.'
+        
+        # Special version action optional argument
+        parser_generate.add_argument("-v", "--version", action='version',
+            help="Show program's version number and exit.",
+            version='{__program__} {__version__} (revision {__revision__})'.format(**globals()))
+        
+        # Add required arguments
+        required_group = parser_generate.add_argument_group('required arguments')
+        required_group.add_argument("--fasta", required=True, nargs="+", metavar="*.fasta", type=str,
+            help="FASTA files with contigs to find unique gRNA sites. Input FASTA \
+                must not be compressed. User can decide whether ambiguous bases can \
+                be chosen for gRNA sites. All FASTA sequences should have unique \
+                primary headers (everything between the '>' symbol and the first \
+                whitespace should be unique). You should include FASTA of the genome \
+                and any plasmids.")
         required_group.add_argument("--gff", required=True, metavar="*.gff", type=str,
             help="GFF file specifying chromosomal features that should be \
                  multiplexed together.")
@@ -1360,14 +1917,12 @@ class main(object):
             type=str, help="Path of folder to store generated files.")
         
         # Add optional arguments
-        parser.add_argument("--design", nargs='+', type=str, action=ValidateDesign, default=['cut','addtag'],
-            help="Choose 1 or 2 from {cut, addtag, sigtag}")
-        parser.add_argument("--exhaustive", action="store_true", 
+        parser_generate.add_argument("--exhaustive", action="store_true", 
             help="Perform brute force search for optimal gRNA design. \
             This will significantly increase runtime.") # Default to on when not trimming???
         #parser.add_argument("--feature_homolog_regex", metavar="REGEX", type=str, default=None, help="regular expression with capturing group containing invariant feature. Example: '(.*)_[AB]' will treat features C2_10010C_A and C2_10010C_B as homologs")
         # okay idea, but needs more thought before implementation
-        parser.add_argument("--homologs", metavar="*.homologs", type=str, default=None,
+        parser_generate.add_argument("--homologs", metavar="*.homologs", type=str, default=None,
             help="Path to text file containing homologous features on the same \
                 line, separated by TAB characters")
         #parser.add_argument("--pams", metavar="SEQ", nargs="+", type=str,
@@ -1376,7 +1931,7 @@ class main(object):
         #    type=int, default=[17, 20],
         #    help="The length range of the 'target'/'spacer'/gRNA site")
         # Replacement for --pams and --target_lengths with this:
-        parser.add_argument("--motifs", metavar="MOTIF", nargs="+", type=str,
+        parser_generate.add_argument("--motifs", metavar="MOTIF", nargs="+", type=str,
             default=["N{20}>NGG"],
             help="Find only targets with these 'SPACER>PAM' motifs, written from \
             5' to 3'. '>' points toward PAM. IUPAC ambiguities accepted. '{a,b}' \
@@ -1384,66 +1939,75 @@ class main(object):
             cut, and '|' is a double-strand cut. '.' is a base used for positional \
             information, but not enzymatic recognition. Be sure to enclose each \
             motif in quotes so your shell does not interpret STDIN/STDOUT redirection.")
-        parser.add_argument("--off_target_motifs", metavar="MOTIF", nargs="+", type=str,
-            default=None,
+        parser_generate.add_argument("--off_target_motifs", metavar="MOTIF", nargs="+", type=str,
+            default=[],
             help="Defaults to the same as the on-target motif. Definition syntax is identical.")
         # Need to decide if construct inputs should be TSV, or FASTA
         # And whether or not there should be an upstream parameter separate from
         # a downstream one. or if they are the same, then what?
-        parser.add_argument("--constructs", metavar="*.fasta", nargs="+", type=str,
+        parser_generate.add_argument("--constructs", metavar="*.fasta", nargs="+", type=str,
             default=[], help="The first sequence will be prepended, and the second \
             sequence will be appended to the generated spacer sequences to form \
             the construct sequences. It is useful to put the gRNA promotor as the \
             first sequence, and the scaffold sequence and terminator as the \
             second. Specify one FASTA file for each motif.")
-        parser.add_argument("--tag", metavar='TAG', type=str, default='ID',
+        parser_generate.add_argument("--tag", metavar='TAG', type=str, default='ID',
             help="GFF tag with feature names. Examples: 'ID', 'Name', 'Gene', 'Parent', or 'locus_tag'")
-        parser.add_argument("--selection", metavar='FEATURE', nargs="+", type=str, default=None, #default=argparse.SUPPRESS, # '==SUPPRESS=='
+        parser_generate.add_argument("--selection", metavar='FEATURE', nargs="+", type=str, default=None, #default=argparse.SUPPRESS, # '==SUPPRESS=='
             help="Select only certain features rather than all features in input GFF file.")
-        parser.add_argument("--ambiguities", type=str, choices=["discard", "disambiguate", "keep"], default="discard",
+        parser_generate.add_argument("--ambiguities", type=str,
+            choices=["exclusive", "discard", "disambiguate", "keep"],
+            default="discard",
             help="How generated gRNAs should treat ambiguous bases: \
+            exclusive - gRNAs will only be created for ambiguous locations; \
             discard - no gRNAs will be created where the FASTA has an ambiguous base; \
             disambiguate - gRNAs containing ambiguous bases will be converted to a set of non-ambiguous gRNAs; \
             keep - gRNAs can have ambiguous bases.")
-        parser.add_argument("--case", type=str, default="ignore",
-            choices=["ignore", "discard-lower", "discard-upper", "invariant-lower", "invariant-upper"],
-            help="Restrict generation of gRNAs based on case of nucleotides in input FASTA.")
+        parser_generate.add_argument("--case", type=str, default="ignore",
+            choices=["ignore", "upper-only", "lower-only", "mixed-lower", "mixed-upper", "mixed-only"],
+            help="Restrict generation of gRNAs based on case of nucleotides in input FASTA: \
+            ignore - keep all spacers; \
+            upper-only - discard any potential spacer with a lower-case character in the genome; \
+            lower-only - discard all potential spacers with upper-case characters; \
+            mixed-lower - discard spacers that are all upper-case; \
+            mixed-upper - discard spacers that are all lower-case; \
+            mixed-only - only use spacers that have both lower- and upper-case characters.")
         #parser.add_argument("--min_contig_edge_distance", metavar="N", type=int, default=500,
         #    help="Minimum distance from contig edge a site can be found")
-        parser.add_argument("--features", metavar="FEATURE", type=str, nargs="+", default=["gene"],
+        parser_generate.add_argument("--features", metavar="FEATURE", type=str, nargs="+", default=["gene"],
             help="Features to design gRNAs against. Must exist in GFF file. \
             Examples: 'CDS', 'gene', 'mRNA', 'exon', 'intron', 'tRNA', 'rRNA'")
-        parser.add_argument("--warning_features", metavar='FEATURE', nargs="+", type=str, default=['all'],
+        parser_generate.add_argument("--warning_features", metavar='FEATURE', nargs="+", type=str, default=['all'],
             help="GFF tags that will trigger a warning if they overlap with the \
             target feature. Examples: 'CDS', 'gene', 'mRNA', 'exon', 'intron', 'tRNA', 'rRNA'")
-        parser.add_argument("--dDNA_gDNA_ratio", metavar="N", type=int, default=1000,
+        parser_generate.add_argument("--dDNA_gDNA_ratio", metavar="N", type=int, default=1000,
             help="Ratio of donor DNA to genomic DNA for calculating off-target scores")
-        parser.add_argument("--target_gc", nargs=2, metavar=('MIN', 'MAX'), type=int, default=[25, 75],
-            help="Generated gRNA spacers must have %%GC content between these values (excludes PAM motif)")
+        #parser_generate.add_argument("--target_gc", nargs=2, metavar=('MIN', 'MAX'), type=int, default=[25, 75],
+        #    help="Generated gRNA spacers must have %%GC content between these values (excludes PAM motif)") # Moved to prefilter
         #
         #
-        parser.add_argument("--excise_upstream_homology", nargs=2, metavar=("MIN", "MAX"), type=int, default=[50,50],
+        parser_generate.add_argument("--excise_upstream_homology", nargs=2, metavar=("MIN", "MAX"), type=int, default=[50,50],
             help="Range of homology lengths acceptable for knock-out dDNAs, inclusive.")
-        parser.add_argument("--excise_downstream_homology", nargs=2, metavar=("MIN", "MAX"), type=int, default=[47,50],
+        parser_generate.add_argument("--excise_downstream_homology", nargs=2, metavar=("MIN", "MAX"), type=int, default=[47,50],
             help="Range of homology lengths acceptable for knock-out dDNAs, inclusive.")
         #
         #
-        parser.add_argument("--excise_donor_lengths", nargs=2, metavar=('MIN', 'MAX'), type=int, default=[100, 100],
+        parser_generate.add_argument("--excise_donor_lengths", nargs=2, metavar=('MIN', 'MAX'), type=int, default=[100, 100],
             help="Range of lengths acceptable for knock-out dDNAs, inclusive.")
-        parser.add_argument("--excise_insert_lengths", nargs=2, metavar=("MIN", "MAX"), type=int, default=[0,3],
+        parser_generate.add_argument("--excise_insert_lengths", nargs=2, metavar=("MIN", "MAX"), type=int, default=[0,3],
             help="Range for inserted DNA lengths, inclusive (mini-AddTag, mAT). \
             If MIN < 0, then regions of dDNA homology (outside the feature) will be removed.")
-        parser.add_argument("--excise_feature_edge_distance", metavar="N", type=int, default=0,
+        parser_generate.add_argument("--excise_feature_edge_distance", metavar="N", type=int, default=0,
             help="If positive, gRNAs won't target any nucleotides within this distance \
                  from the edge of the feature. If negative, gRNAs will target nucleotides \
                  this distance outside the feature.")
         #
         #
-        parser.add_argument("--excise_upstream_feature_trim", nargs=2, metavar=('MIN', 'MAX'),
+        parser_generate.add_argument("--excise_upstream_feature_trim", nargs=2, metavar=('MIN', 'MAX'),
             type=int, default=[0, 0], help="Between MIN and MAX number of nucleotides \
             upstream of the feature will be considered for knock-out when designing \
             donor DNA.")
-        parser.add_argument("--excise_downstream_feature_trim", nargs=2, metavar=("MIN", "MAX"),
+        parser_generate.add_argument("--excise_downstream_feature_trim", nargs=2, metavar=("MIN", "MAX"),
             type=int, default=[0, 0], help="Between MIN and MAX number of nucleotides \
             downstream of the feature will be considered for knock-out when designing \
             donor DNA.")
@@ -1457,19 +2021,19 @@ class main(object):
         #    help="The uniqueness of final donor DNA compared to the rest of the genome")
         #parser.add_argument("--min_donor_errors", metavar="N", type=int, default=3,
         #    help="The uniqueness of final donor DNA compared to the rest of the genome")
-        parser.add_argument("--revert_upstream_homology", nargs=2, metavar=("MIN", "MAX"), type=int, default=[300,300],
+        parser_generate.add_argument("--revert_upstream_homology", nargs=2, metavar=("MIN", "MAX"), type=int, default=[300,300],
             help="Range of homology lengths acceptable for knock-in dDNAs, inclusive.")
-        parser.add_argument("--revert_downstream_homology", nargs=2, metavar=("MIN", "MAX"), type=int, default=[300,300],
+        parser_generate.add_argument("--revert_downstream_homology", nargs=2, metavar=("MIN", "MAX"), type=int, default=[300,300],
             help="Range of homology lengths acceptable for knock-in dDNAs, inclusive.")
-        parser.add_argument("--revert_donor_lengths", nargs=2, metavar=('MIN', 'MAX'), type=int, default=[0, 100000],
+        parser_generate.add_argument("--revert_donor_lengths", nargs=2, metavar=('MIN', 'MAX'), type=int, default=[0, 100000],
             help="Range of lengths acceptable for knock-in dDNAs.")
     #    parser.add_argument("--min_donor_distance", metavar="N", type=int, default=36,
     #        help="The minimum distance in bp a difference can exist from the edge of donor DNA") # homology with genome
-        parser.add_argument("--max_consecutive_ts", metavar="N", type=int, default=4,
-            help="The maximum number of Ts allowed in generated gRNA sequences.")
-        parser.add_argument("--max_number_sequences_reported", metavar="N", type=int, default=5,
+        #parser_generate.add_argument("--max_consecutive_ts", metavar="N", type=int, default=4, # Moved to prefilter algorithm
+        #    help="The maximum number of Ts allowed in generated gRNA sequences.")
+        parser_generate.add_argument("--max_number_sequences_reported", metavar="N", type=int, default=5,
             help="The maximum number of sequences to report for each step.")
-        parser.add_argument("--min_weight_reported", metavar="N", type=float, default=0.01,
+        parser_generate.add_argument("--min_weight_reported", metavar="N", type=float, default=0.01,
             help="Only gRNA-dDNA pairs with at least this much weight will be reported.")
         # program currently will only search 'both' strands
         #parser.add_argument("--strands", type=str, choices=["+", "-", "both"], default="both",
@@ -1477,17 +2041,128 @@ class main(object):
         
         # Add command line arguments for the additional hard constraints:
         #  Only report potential targets that have no off targets with mismatches within 8, 12, N nt from 3' end
-        parser.add_argument("--processors", metavar="N", type=int, default=(os.cpu_count() or 1),
+        parser_generate.add_argument("--processors", metavar="N", type=int, default=(os.cpu_count() or 1),
             help="Number of processors to use when performing pairwise sequence alignments.")
         
-        #available_aligners = ['addtag', 'blast+', 'blat', 'bowtie', 'bowtie2', 'bwa', 'cas-offinder']
-        available_aligners = list(map(lambda x: x.name, aligners.aligners))
-        parser.add_argument("--aligner", type=str, choices=available_aligners, default='bowtie2',
+        aligner_choices = [x.name for x in aligners.aligners]
+        parser_generate.add_argument("--aligner", type=str, choices=aligner_choices, default='bowtie2',
             help="Program to calculate pairwise alignments. Please note that the 'addtag' internal aligner is very slow.")
-        # Other aligners to consider: 'rmap', 'maq', 'shrimp2', 'soap2', 'star', 'rhat', 'mrsfast', 'stampy'
         
-        parser.add_argument("--max_time", metavar="SECONDS", type=float, default=60,
+        
+        prefilter_choices = [C.name for C in algorithms.single_algorithms + algorithms.paired_algorithms + algorithms.batched_single_algorithms if C.prefilter]
+        parser_generate.add_argument("--prefilters", nargs='+', type=str,
+            choices=prefilter_choices, default=['GC', 'PolyT'],
+            help="Specific algorithms for determining gRNA goodness.")
+        
+        off_target_choices = [C.name for C in algorithms.single_algorithms + algorithms.paired_algorithms + algorithms.batched_single_algorithms if C.off_target]
+        parser_generate.add_argument("--offtargetfilters", nargs='+', type=str,
+            choices=off_target_choices, default=['CFD', 'Hsu-Zhang'],
+            help="Specific algorithms for determining gRNA goodness.")
+        
+        on_target_choices = [C.name for C in algorithms.single_algorithms + algorithms.paired_algorithms + algorithms.batched_single_algorithms if C.on_target]
+        parser_generate.add_argument("--ontargetfilters", nargs='+', type=str,
+            choices=on_target_choices, default=['Azimuth'],
+            help="Specific algorithms for determining gRNA goodness.")
+        
+        postfilter_choices = [C.name for C in algorithms.single_algorithms + algorithms.paired_algorithms + algorithms.batched_single_algorithms if C.postfilter]
+        parser_generate.add_argument("--postfilters", nargs='+', type=str,
+            choices=postfilter_choices, default=['Errors'],
+            help="Specific algorithms for determining gRNA goodness.")
+        
+        
+        # Temporary stopgap to make sure the calculations don't take too long
+        parser_generate.add_argument("--max_time", metavar="SECONDS", type=float, default=60,
             help="Maximum amount of time, in seconds, for each feature to spend calculating dDNAs.")
+        
+        return parser_generate
+        
+        # subparsers
+        #  addtag generate
+        #   --ko-gRNA                              Design gRNAs to target features in genome
+        #   --ko-dDNA mintag|addtag|unitag|sigtag  Design knock-out dDNAs for target features in genome
+        #                                          (these will be constrained to dDNAs targetable by ki-gRNAs)
+        #             mintag                          Designs unique us/i/ds junction target specific to each feature
+        #                    addtag                   Designs unique target for each feature
+        #                           unitag            Designs a single, unique target for ALL features
+        #                                  sigtag     Designs unique barcode for each feature
+        #   --sigtag_length INT                    Specify length of sigtag barcode in nt (Or should this be --sigtag_motif NNNNNN?)
+        #   --flanktags generate                   Design identical uptag/dntag primer sequences to addtag/sigtag/unitag for each site/feature
+        #   --flanktag_length INT INT              Specify length of generated uptag and dntag sequences in nt
+        #   --flanktags input FAST                 Use file specifying uptag/dntag primers sequences for addtag/sigtag for all sites
+        #                                          >feature1 uptag
+        #                                          NNNNNNNNNNNNNNNNNNNN
+        #                                          >feature1 dntag
+        #                                          NNNNNNNNNNNNNNNNNNNN
+        #   
+        #   --ki-gRNA     Design knock-in gRNAs that target the ko-dDNA
+        #   --ki-dDNA wt        Design the dDNA for knocking the wild type feature back in
+        #   --ki-dDNA FASTA     If a FASTA file is specified, then use mutants for these indicated features
+        #                       >feature1
+        #                       NNNNNNNNNNNNNNNNNNN
+        #                       The entire feature will be replaced by this sequence
+    
+    def _parser_confirm(self, subparsers):
+        ''' "confirm" parser '''
+        __confirm_description__ = "Design primers for confirming whether each step of genome engineering is successful or not."
+        __confirm_help__ = "Design primers for confirming whether each step of genome engineering is successful or not."
+        parser_confirm = subparsers.add_parser('confirm',
+            description=__confirm_description__,
+            #epilog=__confirm_epilog__,
+            formatter_class=CustomHelpFormatter,
+            help=__confirm_help__
+        )
+        parser_confirm.set_defaults(func=self._confirm)
+        
+        # Change the help text of the "-h" flag
+        parser_confirm._actions[0].help='Show this help message and exit.'
+        
+        # Special version action optional argument
+        parser_confirm.add_argument("-v", "--version", action='version',
+            help="Show program's version number and exit.",
+            version='{__program__} {__version__} (revision {__revision__})'.format(**globals()))
+        
+        # Add mandatory arguments
+        # Add optional arguments
+        
+        return parser_confirm
+        
+        # subparsers
+        #  addtag confirm       Design primers for confirming whether each step genome engineering is successful or not
+        #                       Design primers for ko/ki confirmation (NOT FEATURE-MULTIPLEX AWARE)
+        #   --fasta FASTA       Genome sequence
+        #   --dDNAs FASTA ...   A dDNA FASTA file for each subsequent CRISPR/Cas transformation.
+        #                       Typically, the first is KO, and the second is KI. However, any
+        #                       Number of serial genome engineering experiments can be specified.
+        #   --number_pcr_conditions INT    Number of PCR conditions to develop primers for.
+        #                                  All amplicons within each condition will have similar size in nt
+    
+    def parse_arguments(self):
+        '''
+        Create parser object, populate it with options, then parse command line
+        input.
+        '''
+        
+        parser, subparsers = self._parser_general()
+        parser_glossary = self._parser_glossary(subparsers)
+        parser_motifs = self._parser_motifs(subparsers)
+        parser_algorithms = self._parser_algorithms(subparsers)
+        parser_aligners = self._parser_aligners(subparsers)
+        parser_search = self._parser_search(subparsers)
+        parser_evaluate = self._parser_evaluate(subparsers)
+        parser_generate = self._parser_generate(subparsers)
+        parser_confirm = self._parser_confirm(subparsers)
+        
+        
+        # Add special arguments for additional help messages --> These have been deprecated
+        #parser.add_argument("-s", "--show", nargs=0, action=ValidateShowMotifs, default=argparse.SUPPRESS,
+        #    help="Show list of common RGN motifs, then exit.")
+        #parser.add_argument("-g", "--glossary", nargs=0, action=ValidateShowGlossary, default=argparse.SUPPRESS,
+        #    help="Show glossary of common CRISPR/RGN terms, then exit.")
+        
+        # Add optional arguments --> Deprecated
+        #parser.add_argument("--design", nargs='+', type=str, action=ValidateDesign, default=['cut','addtag'],
+        #    help="Choose 1 or 2 from {cut, addtag, sigtag}")
+        
         
         #parser.add_argument("--python2_path", type=str, default="python",
         #    help="Path to the Python 2.7+ program")
@@ -1509,26 +2184,45 @@ class main(object):
         # Parse the arguments
         args = parser.parse_args()
         
-        # Parse the motifs
-        # Compile regex for motifs
-        # Note that any logging these functions perform will not be written to disk,
-        # as no 'handler' has been specified.
-        args.parsed_motifs = []
-        args.compiled_motifs = []
-        for motif in args.motifs:
-            spacers, pams, side = self.parse_motif(motif) # Parse the motif
-            args.parsed_motifs.append((spacers, pams, side)) # Add to args
-            args.compiled_motifs.append(nucleotides.compile_motif_regex(spacers, pams, side, anchored=False)) # Add to args
+        # If no arguments provided, then print the mini-help usage
+        if (len(sys.argv) < 2):
+            parser.print_usage()
+            sys.exit(1)
         
-        # Add 'selected_aligner' to hold the actual aligner object
-        for a in aligners.aligners:
-            if a.name == args.aligner:
-                args.selected_aligner = a
-                break
-        
-        # populate --off_target_motifs with --motifs if None
-        if (args.off_target_motifs == None):
-            args.off_target_motifs = args.motifs
+        if (args.func == self._generate):
+            
+            # Old colde for compiling regex for motifs
+            ## Note that any logging these functions perform will not be written to disk,
+            ## as no 'handler' has been specified.
+            #args.parsed_motifs = []
+            #args.compiled_motifs = []
+            #for motif in args.motifs:
+            #    spacers, pams, side = self.parse_motif(motif) # Parse the motif
+            #    args.parsed_motifs.append((spacers, pams, side)) # Add to args
+            #    args.compiled_motifs.append(nucleotides.compile_motif_regex(spacers, pams, side, anchored=False)) # Add to args
+            
+            # populate --off_target_motifs with --motifs if None
+            #if (args.off_target_motifs == None):
+            #    args.off_target_motifs = args.motifs
+            
+            # Parse the on-target motifs
+            for motif in args.motifs:
+                OnTargetMotif(motif)
+            
+            # Parse the off-target motifs
+            for motif in set(args.off_target_motifs).difference(args.motifs): # These motifs are exclusive to off-target list
+                OffTargetMotif(motif)
+            
+            # Motif.motifs           list of ALL motifs, both on-target and off-target?  <-- not implemented yet
+            # OnTargetMotif.motifs   list of on-target motifs
+            # OffTargetMotif.motifs  list of off-target motifs
+            
+            
+            # Add 'selected_aligner' to hold the actual aligner object
+            for a in aligners.aligners:
+                if (a.name == args.aligner):
+                    args.selected_aligner = a
+                    break
         
         # Return the parsed arguments
         return args
@@ -1549,61 +2243,18 @@ class main(object):
                 f = features.get(s)
                 if f:
                     new_features[s] = f
-                
+                else:
+                    raise Exception("Feature specified as '--selection "+s+"' does not exist in input '--gff'.")
+                    #sys.exit(1)
+            if (len(new_features) == 0):
+                raise Exception("Input '--gff' and '--selection' combination returns no valid features.")
+                #sys.exit(1)
             return new_features
         else:
+            if (len(features) == 0):
+                raise("Input '--gff' has no valid features.")
+                #sys.exit(1)
             return features
-    
-    def _parse_motif_helper(self, submotif):
-        """
-        Helper function that parses either the SPACER or PAM motif.
-        Decodes quantifiers and returns a list
-        """
-        # Keep track of expanded sequences
-        sequences = ['']
-        
-        # Keep track if a quantifier is being parsed
-        quantifier = None
-        
-        # Iterate through the characters
-        for c in submotif:
-            if (c == '{'): # Start the quantifier
-                quantifier = ''
-            elif (c == '}'): # End the quantifier
-                quantifier_list = quantifier.split(',')
-                if (len(quantifier_list) == 1):
-                    min_length = int(quantifier)
-                    max_length = min_length
-                    
-                elif (len(quantifier_list) == 2):
-                    if (quantifier_list[0] == ''):
-                        min_length = 0
-                    else:
-                        min_length = int(quantifier_list[0])
-                    if (quantifier_list[1] == ''):
-                        raise Exception("Motif quantifier '{" + quantifier + "}' contains no maximum value")
-                    else:
-                        max_length = int(quantifier_list[1])
-                    if (min_length > max_length):
-                        raise Exception("Motif quantifier '{" + quantifier + "}' minimum and maximum lengths are invalid")
-                
-                last_chars = [ x[-1] for x in sequences ]
-                
-                sequences = [ x[:-1] for x in sequences ]
-                
-                new_sequences = []
-                for i, s in enumerate(sequences):
-                    for length in range(min_length, max_length+1):
-                        new_sequences.append(s + last_chars[i]*length)
-                sequences = new_sequences
-                quantifier = None
-            elif (quantifier != None): # add current character to quantifier if it is open
-                quantifier += c
-            else: # add the current character to the expanded sequences
-                for i in range(len(sequences)):
-                    sequences[i] = sequences[i] + c
-        
-        return sequences
     
     def rolling_picker(self):
         """
@@ -1622,77 +2273,6 @@ class main(object):
         """
         
         pass
-        
-    
-    def parse_motif(self, motif):
-        """
-        Takes string of SPACER>PAM and returns ([spacer, spacer, ...], [pam, pam ...], '>')
-        
-        Example inputs: 'G{,2}N{19,20}>NGG', 'N{20,21}>NNGRRT', 'TTTN<N{20,23}'
-        """
-        
-        # Still need to implement:
-        #  Identify gRNA pairs on opposite strands appropriate for "nickase" Cas9
-        #  allow for PAM-out and PAM-in orientations
-        #  --motifs, where '.' is any non-spacer nucleotide
-        #    'CCN<N{17,20}.{13,18}N{17,20}>NGG'     # PAM-out
-        #    'N{17,20}>NGG.{13,18}CCN<N{17,20}'     # PAM-in
-        
-        gt_count = motif.count('>')
-        lt_count = motif.count('<')
-        lb_count = motif.count('{')
-        rb_count = motif.count('}')
-        # Make sure motif does not violate basic rules
-        if (gt_count + lt_count < 1):
-            raise Exception("Motif lacks distinction between spacer and PAM sequences ('>' or '<' character)")
-        elif (gt_count + lt_count > 1):
-            raise Exception("Motif has too many '>' or '<' characters")
-        if (lb_count != rb_count):
-            raise Exception("Motif braces '{' and '}' do not match")
-        if (motif.count(' ') > 0):
-            raise Exception("Motif contains invalid space ' ' characters")
-        if (motif.count('{}') > 0):
-            raise Exception("Motif contains invalid quantifier '{}'")
-        if (motif.count('{,}') > 0):
-            raise Exception("Motif contains invalid quantifier '{,}'")
-        
-        if (gt_count == 1):
-            spacer_motif, pam_motif = motif.split('>')
-            side = '>'
-        elif (lt_count == 1):
-            pam_motif, spacer_motif = motif.split('<')
-            side = '<'
-        
-        return self._parse_motif_helper(spacer_motif), self._parse_motif_helper(pam_motif), side
-    
-    # List of common motifs obtained from
-    #  https://github.com/maximilianh/crisporWebsite/crispor.py
-    
-    # from (https://benchling.com/pub/cpf1):
-    # Cpf1 is an RNA-guided nuclease, similar to Cas9. It recognizes a T-rich
-    # PAM, TTTN, but on the 5' side of the guide. This makes it distinct from
-    # Cas9, which uses an NGG PAM on the 3' side. The cut Cpf1 makes is
-    # staggered. In AsCpf1 and LbCpf1, it occurs 19 bp after the PAM on the
-    # targeted (+) strand and 23 bp on the other strand, as shown here:
-    #                        Cpf1
-    #   TTTC GAGAAGTCATCTAATAAGG|CCAC TGTTA
-    #   AAAG CTCTTCAGTAGATTATTCC GGTG|ACAAT
-    #   =PAM =========gRNA====== =
-    #
-    # Benchling suggests 20 nt guides can be used for now, as there is not real
-    # suggestion for optimal guide length. Robust guide scores for Cpf1 are
-    # still in development, but simple scoring based on the number of off-target
-    # sites is available on Benchling.
-    # 
-    # Cpf1 requires only a crRNA for activity and does not need a tracrRNA to
-    # also be present.
-    #
-    # Two Cp1-family proteins, AsCpf1 (from Acidaminococcus)
-    # and LbCpf1 (from Lachnospiraceae), have been shown to perform efficient
-    # genome editing in human cells.
-    #
-    # Why use Cpf1 over Cas9?
-    #  see https://benchling.com/pub/cpf1
     
     def merge_features(self, features):
         """Combine overlapping features?"""
@@ -1833,6 +2413,7 @@ class main(object):
         Thus, the user can see the best spacer for any given combination of these.
         """
         
+        ########## Results table for the knock-out dDNAs and the efficiency of their gRNA for cutting them (ExcisionDonor+ReversionTarget or ko-dDNA+ki-gRNA) ##########
         # Add a column for "WARNING", that tells the user if the target feature overlaps with another feature
         #  it will just list the feature IDs that overlap:
         #   C4_03620C_A-T,C4_03620C_A-T-E1
@@ -1939,6 +2520,9 @@ class main(object):
             if (len(outputs) == 0):
                 logging.info('No allele-specific spacers for targeting knocked-out ' + feature)
         
+        ########## Results table for cutting the wild-type genome (ExcisionTarget or ko-gRNA) ##########
+        
+        # to add to header: contig:strand:start..end
         header = ['gene', 'features', 'weight', 'OT:Hsu-Zhang', 'OT:CFD', 'Azimuth', 'exTarget name', 'exTarget sequence', 'reDonors']
         print('\t'.join(header))
         
@@ -2112,27 +2696,44 @@ class main(object):
             for d in red_best:
                 logging.info("  ki dDNA = " + str(d))
 
-def target_filter(seq, args):
-#def new_target_filter(seq, side, spacer, pam, args):
+def target_filter(sequence, target, pam, upstream, downstream, args):
     '''
     Filters the candidate gRNA sequence based on the following criteria:
-     1) case: ignore, discard-lower, discard-upper (does not process invariant-lower/invariant-upper)
-     2) ambiguous character expansion: discard, keep, disambiguate
-     3) maximum consecutive Ts
-     4) SPACER>PAM check using regex
-     5) %GC
+     1) case: ignore, upper-only, lower-only, mixed-lower, mixed-upper, mixed-only
+     2) ambiguous character expansion: exclusive, discard, keep, disambiguate
+     3) SPACER>PAM check using regex (following disambiguation expansion)
+     4) Prefilters: maximum consecutive Ts, %GC
     
     Returns list of validated sequences
     '''
     
+    seq = sequence
+    
     # Check the case of the potential gRNA sequence
-    if (args.case == "discard-lower"):
+    if (args.case == "upper-only"):
         if regex.search('[a-z]', seq):
             return [] # Reject this sequence because it has lower-case characters
-    elif (args.case == "discard-upper"):
+    elif (args.case == "lower-only"):
         if regex.search('[A-Z]', seq):
             return [] # Reject this sequence because it has upper-case characters
-    # if (args.case == "ignore"), then do nothing
+    elif (args.case == "mixed-lower"):
+        if not regex.search('[a-z]', seq):
+            return []
+    elif (args.case == "mixed-upper"):
+        if not regex.search('[A-Z]', seq):
+            return []
+    elif (args.case == "mixed-only"):
+        if not (regex.search('[a-z]', seq) and regex.search('[A-Z]', seq)):
+            return [] # Reject this sequence because it does not have both lower-case and upper-case characters
+    #elif (args.case == "ignore") # then do nothing
+    #    pass
+    
+    # Molecule  5'-sequence-3'                                          Description     ignore  upper-only  lower-only  mixed-lower  mixed-upper  mixed-only
+    # ========  ======================================================  ==============  ======  ==========  ==========  ===========  ===========  ==========
+    # genome    ACCATAGGAATCCAGCGGCGATCTTAAaggaggatctaggtcgatagcggaata  -               -       -           -           -            -            -
+    # spacer           GAATCCAGCGGCGATCTTAA                             All upper-case  keep    keep        discard     discard      keep         discard
+    # spacer                     GCGATCTTAAaggaggatct                   Mixed case      keep    discard     discard     keep         keep         keep
+    # spacer                               aggaggatctaggtcgatag         All lower-case  keep    discard     keep        keep         discard      discard
     
     # Discard potential gRNAs that have mismatches with their target site
     #if (args.case == "invariant-lower"):
@@ -2140,80 +2741,108 @@ def target_filter(seq, args):
     #elif (args.case == "invariant-upper"):
     #    pass
     
-    # Convert sequences to upper-case so it can be evaluated by the scoring algorithms
+    # Convert input sequence to upper-case so it can be evaluated by the scoring algorithms
     seq = seq.upper()
     
-    # Check if target sequence has any ambiguities
+    
     if (args.ambiguities == 'discard'):
+        # If target sequence has any ambiguities, then discard it
         if regex.search('[^ATCGatcg]', seq):
-            # Reject this sequence
             return []
-        seqs = [seq]
-    # Disambiguate sequences if necessary
+        # Otherwise, proceed
+        seqs1 = [seq]
     elif (args.ambiguities == 'disambiguate'):
-        seqs = nucleotides.disambiguate_iupac(seq)
-    # Do nothing if just 'keep'
+        # Disambiguate sequences if necessary
+        seqs1 = nucleotides.disambiguate_iupac(seq)
+    elif (args.ambiguities == 'exclusive'):
+        # If no ambiguous characters are found, hten discard it
+        if not regex.search('[^ATCGatcg]', seq):
+            return [] # Reject this sequence
+        # Otherwise, disambiguate
+        seqs1 = nucleotides.disambiguate_iupac(seq)
     else:
-        seqs = [seq]
+        # Do nothing if just 'keep'
+        seqs1 = [seq]
     
-    # Remove targets with T{5,}
-    seqs = [ nt for nt in seqs if ('T'*(args.max_consecutive_ts+1) not in nt) ]
     
-#    # Apply all prefilters
-#    this = (sequence, target, pam, upstream, downstream)
-#    prefilter = []
-#    for C in algorithms.single_algorithms:
-#        c_score = C.calculate(this)
-#        if C.prefilter:
-#            if (C.minimum <= c_score <= C.maximum):
-#                prefilter.append(True)
-#            else:
-#                prefilter.append(False)
-#    # parent = (sequence, target, pam, upstream, downstream)
-#    #for C in algorithms.paired_algorithms:
-#    #    c_score = C.calculate(parent, this)
-#    #    if C.prefilter:
-#    #        if (C.minimum <= c_score <= C.maximum):
-#    #            prefilter.append(True)
-#    #        else:
-#    #            prefilter.append(False)
-#    
-#    # If alignment meets all prefilter criteria, then set it as True
-#    prefilter = all(prefilter) # all([]) returns True
-    
-    # Remove targets that do not confine to at least one of the defined
-    # SPACER>PAM motifs.
+    # After disambiguation, some spacers may no longer confine to their motifs.
+    # Thus, we must remove targets that do not confine to at least one of
+    # the defined SPACER>PAM motifs.
+    #
+    # For instance, if motif is AN{4}>NGG
+    #     genome ACCTACATCWAGCTAGGCTCTAA
+    #     spacer          WAGCT
+    #        pam               AGG
+    # expansion1          TAGCT           <-- Discard
+    # expansion2          AAGCT           <-- Keep
+    # 
     # Also, separate the SPACER and PAM motifs
-    temp_seqs = []
-    temp_targets = []
-    temp_pams = []
-    for nt in seqs:
-        for i in range(len(args.parsed_motifs)):
+    seqs2 = []
+    targets2 = []
+    pams2 = []
+    for nt in seqs1:
+        # for i in range(len(args.parsed_motifs)):
+        for motif in OnTargetMotif.motifs:
         #for spacers, pams, side in args.parsed_motifs:
             #m = nucleotides.motif_conformation(nt, spacers, pams, side)
-            spacers, pams, side = args.parsed_motifs[i]
-            compiled_regex = args.compiled_motifs[i]
-            m = nucleotides.motif_conformation2(nt, side, compiled_regex)
+            #spacers, pams, side = args.parsed_motifs[i]
+            spacers, pams, side = motif.parsed_list
+            #compiled_regex = args.compiled_motifs[i]
+            m = nucleotides.motif_conformation2(nt, side, motif.compiled_regex)
             if m:
-                temp_seqs.append(nt)
-                temp_targets.append(m[0])
-                temp_pams.append(m[1])
+                seqs2.append(nt)
+                targets2.append(m[0])
+                pams2.append(m[1])
                 #break # consider breaking here
     #seqs = temp_seqs
     
-    # Remove targets whose %GC is outside the chosen bounds
-    temp_seqs2 = []
-    temp_targets2 = []
-    temp_pams2 = []
-    for i in range(len(temp_seqs)):
-        if (args.target_gc[0] <= scores.gc_score(temp_targets[i]) <= args.target_gc[1]):
-            temp_seqs2.append(temp_seqs[i])
-            temp_targets2.append(temp_targets[i])
-            temp_pams2.append(temp_pams[i])
-    #seqs = temp_seqs2
+    # Remove targets with T{5,} (old code)
+    #seqs = [ nt for nt in seqs if ('T'*(args.max_consecutive_ts+1) not in nt) ]
+    
+    # Apply all prefilters to each sequence
+    seqs3 = []
+    for i in range(len(seqs2)):
+        prefilter_passes = []
+        prefilter_choices = [C for C in algorithms.single_algorithms + algorithms.paired_algorithms + algorithms.batched_single_algorithms if C.prefilter] # Really, should only be SingleSequenceAlgorithms
+        this = (seqs2[i], targets2[i], pams2[i], upstream, downstream) # For GC and PolyT, only 'target' is used
+        for C in prefilter_choices:
+            c_score = C. calculate(this)
+            if (C.minimum <= c_score <= C.maximum):
+                prefilter_passes.append(True)
+            else:
+                prefilter_passes.append(False)
+        # Code to handle PairedSequenceAlgorithms
+        # parent = (sequence, target, pam, upstream, downstream)
+        #for C in algorithms.paired_algorithms:
+        #    c_score = C.calculate(parent, this)
+        #    if C.prefilter:
+        #        if (C.minimum <= c_score <= C.maximum):
+        #            prefilter_passes.append(True)
+        #        else:
+        #            prefilter_passes.append(False)
+        
+        # If alignment meets all prefilter criteria, then set it as True
+        if all(prefilter_passes): # FYI: all([]) returns True
+            #seqs3.append(seqs2[i])
+            seqs3.append((seqs2[i], targets2[i], pams2[i]))
+            
+    
+    
+    
+    # # Remove targets whose %GC is outside the chosen bounds
+    # temp_seqs3 = []
+    # temp_targets3 = []
+    # temp_pams3 = []
+    # for i in range(len(temp_seqs2)):
+    #     if (args.target_gc[0] <= scores.gc_score(temp_targets2[i]) <= args.target_gc[1]):
+    #         temp_seqs3.append(temp_seqs2[i])
+    #         temp_targets3.append(temp_targets2[i])
+    #         temp_pams3.append(temp_pams2[i])
+    # #seqs = temp_seqs2
     
     # [(seq, spacer, pam), (seq, spacer, pam)]
-    rets = []
-    for i in range(len(temp_seqs2)):
-        rets.append((temp_seqs2[i], temp_targets2[i], temp_pams2[i]))
-    return rets
+    #rets = []
+    #for i in range(len(temp_seqs2)):
+    #    rets.append((temp_seqs2[i], temp_targets2[i], temp_pams2[i]))
+    #return rets
+    return seqs3

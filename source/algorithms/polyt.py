@@ -92,6 +92,7 @@ def test():
     f = ('',                    'W', 'AGG', '', '') # 0.5
     g = ('',                    'h', 'AGG', '', '') # 0.3333333333333333
     h = ('',                    'N', 'AGG', '', '') # 0.25
+    i = ('', 'AACTTTTTYCCATTNTTTTT', 'GGG', '', '') # 7.25
     
     print("=== PolyT ===")
     C = PolyT()
@@ -103,6 +104,7 @@ def test():
     print(C.calculate(f))
     print(C.calculate(g))
     print(C.calculate(h))
+    print(C.calculate(i))
 
 if (__name__ == "__main__"):
     test()

@@ -12,8 +12,10 @@ import regex
 
 if (__name__ == "__main__"):
     from algorithm import SingleSequenceAlgorithm, PairedSequenceAlgorithm
+    from distance_matrix import load_scores, build_iupac_score, build_score
 else:
     from .algorithm import SingleSequenceAlgorithm, PairedSequenceAlgorithm
+    from .distance_matrix import load_scores, build_iupac_score, build_score
 
 class GlobalAlignment(object):
     __slots__ = [
@@ -39,12 +41,13 @@ class GlobalAlignment(object):
         This function assumes self.seq1 is the motif with IUPAC ambiguities.
         'NGG' for the PAM, for instance.
         """
-        iupac = [
-            'A', 'C', 'G', 'T',
-            'R', 'Y', 'M', 'K', 'W', 'S',
-            'B', 'D', 'H', 'V',
-            'N',
-        ] # note the lack of '-'
+        #iupac = [
+        #    'A', 'C', 'G', 'T',
+        #    'R', 'Y', 'M', 'K', 'W', 'S',
+        #    'B', 'D', 'H', 'V',
+        #    'N',
+        #] # note the lack of '-'
+        iupac = list(set([item for sublist in scoring for item in sublist if not item in ('open', 'extend', '-')]))
         
         minimums = []
         maximums = []
@@ -294,140 +297,6 @@ class GlobalAlignment(object):
                 retval[-1].append(0)
         return retval
 
-def build_score(match=1, transition=-1, transversion=-1.2, gap_open=-4, gap_extend=-2):
-    characters = ['-', 'A', 'C', 'G', 'T']
-    scoring = {}
-    for c1 in characters:
-        for c2 in characters:
-            if ((c1 == '-') or (c2 == '-')):
-                scoring[(c1, c2, 'open')] = gap_open
-                scoring[(c1, c2, 'extend')] = gap_extend
-            elif (c1 == c2):
-                scoring[(c1, c2)] = match
-            elif (((c1 in ['A', 'G']) and (c2 in ['A', 'G'])) or ((c1 in ['C', 'T']) and (c2 in ['C', 'T']))):
-                scoring[(c1, c2)] = transition
-            else:
-                scoring[(c1, c2)] = transversion
-    return scoring
-    
-def build_iupac_score(single_scoring):
-    """
-    Extrapolate input scoring matrix to handle IUPAC ambiguity codes.
-    Input argument should be the scoring dict, which can be generated
-    with the 'build_score()' function.
-    """
-    #single_scoring = build_score()
-    iupac_scoring = {}
-    
-    iupac = {
-        '-': ['-'],
-        'A': ['A'],
-        'C': ['C'],
-        'G': ['G'],
-        'T': ['T'],
-        'R': ['A', 'G'],
-        'Y': ['C', 'T'],
-        'M': ['A', 'C'],
-        'K': ['G', 'T'],
-        'W': ['A', 'T'],
-        'S': ['C', 'G'],
-        'B': ['C', 'G', 'T'],
-        'D': ['A', 'G', 'T'],
-        'H': ['A', 'C', 'T'],
-        'V': ['A', 'C', 'G'],
-        'N': ['A', 'C', 'G', 'T'],
-    }
-    
-    for c1 in iupac.keys():
-        for c2 in iupac.keys():
-            scores = []
-            go_scores = []
-            ge_scores = []
-            for i1 in iupac[c1]:
-                for i2 in iupac[c2]:
-                    if ((i1 == '-') or (i2 == '-')):
-                        go_scores.append(single_scoring[(i1, i2, 'open')])
-                        ge_scores.append(single_scoring[(i1, i2, 'extend')])
-                    else:
-                        scores.append(single_scoring[(i1, i2)])
-            
-            if (len(scores) > 0):
-                iupac_scoring[(c1, c2)] = sum(scores)/len(scores)
-            
-            go_concat = scores + go_scores
-            if (len(go_scores) > 0):
-                iupac_scoring[(c1, c2, 'open')] = sum(go_concat)/len(go_concat)
-            
-            ge_concat = scores + ge_scores
-            if (len(ge_scores) > 0):
-                iupac_scoring[(c1, c2, 'extend')] = sum(ge_concat)/len(ge_concat)
-    return iupac_scoring
-
-# # Scoring matrix of log-likelihood ratios with weights for
-# # transitions/transversions, gap penalties, etc
-# scoring = {
-#     # Matches
-#     ('A', 'A'): 1,
-#     ('C', 'C'): 1,
-#     ('G', 'G'): 1,
-#     ('T', 'T'): 1,
-#     # Transitions (Purines: A<->G, Pyrimidines: C<->T)
-#     ('A', 'G'): -1,
-#     ('G', 'A'): -1,
-#     ('C', 'T'): -1,
-#     ('T', 'C'): -1,
-#     # Transversions
-#     ('A', 'T'): -1.2, # Weak
-#     ('T', 'A'): -1.2, # Weak
-#     ('C', 'G'): -1.2, # Strong
-#     ('G', 'C'): -1.2, # Strong
-#     ('A', 'C'): -1.2, # Amino
-#     ('C', 'A'): -1.2, # Amino
-#     ('G', 'T'): -1.2, # Keto
-#     ('T', 'G'): -1.2, # Keto
-#     # Insertions
-#     ('-', 'A', 'open'): -4,
-#     ('-', 'C', 'open'): -4,
-#     ('-', 'G', 'open'): -4,
-#     ('-', 'T', 'open'): -4,
-#     ('-', 'A', 'extend'): -2,
-#     ('-', 'C', 'extend'): -2,
-#     ('-', 'G', 'extend'): -2,
-#     ('-', 'T', 'extend'): -2,
-#     # Deletions
-#     ('A', '-', 'open'): -4,
-#     ('C', '-', 'open'): -4,
-#     ('G', '-', 'open'): -4,
-#     ('T', '-', 'open'): -4,
-#     ('A', '-', 'extend'): -2,
-#     ('C', '-', 'extend'): -2,
-#     ('G', '-', 'extend'): -2,
-#     ('T', '-', 'extend'): -2,
-#     # Gaps should never be aligned to each other
-#     ('-', '-', 'open'): -4,
-#     ('-', '-', 'extend'): -2,
-# }
-# 
-# scoring = build_iupac_score(scoring)
-
-def load_scores(file_path, sep="\t"):
-    """Load the PAM scors defined by Doench et al (2016)
-    These represent the 'NGG' scores, excluding the 'N'
-    """
-    scoring = {}
-    with open(file_path, 'r') as flo:
-        for line in flo:
-            line = line.rstrip()
-            if (len(line) > 0):
-                m = regex.match(r'^\s*#', line)
-                if not m:
-                    sline = line.split(sep)
-                    if (sline[2] == ''):
-                        scoring[(sline[0], sline[1])] = float(sline[3])
-                    else:
-                        scoring[(sline[0], sline[1], sline[2])] = float(sline[3])
-    return scoring
-
 class Substitutions(PairedSequenceAlgorithm):
     def __init__(self):
         super().__init__("Substitutions", "Seher", 2017,
@@ -554,7 +423,10 @@ class PamIdentity(SingleSequenceAlgorithm):
         # Return the max score
         return max(scores)
 
-# Load scores from the data files when this module is imported
+# Build test substitution matrix
+# SCORES = build_iupac_score(build_score())
+
+# Load substitution matrix scores from the data files when this module is imported
 try:
     SCORES = load_scores(os.path.join(os.path.dirname(__file__), 'distance_scores.txt'))
     SCORES = build_iupac_score(SCORES)
@@ -635,7 +507,7 @@ def test():
     print(GlobalAlignment.align('R', 'G', SCORES), 'R', 'G')
     print(GlobalAlignment.align('R', 'T', SCORES), 'R', 'T')
     
-    print('------')
+    print('=======================================')
     a = GlobalAlignment.align('NARRG', 'TAAG', SCORES)
     print(a.align1)
     print(a.align2)
@@ -643,7 +515,7 @@ def test():
     print(a.score_extremes(SCORES))
     print(a.score_extremes(SCORES, gaps=True), 'gaps')
     
-    print('------')
+    print('=======================================')
     a = GlobalAlignment.align('NARG', 'TTAAG', SCORES)
     print(a.align1)
     print(a.align2)
@@ -651,7 +523,7 @@ def test():
     print(a.score_extremes(SCORES))
     print(a.score_extremes(SCORES, gaps=True), 'gaps')
     
-    print('------')
+    print('=======================================')
     a = GlobalAlignment.align('NGG', 'GGG', SCORES)
     print(a.align1)
     print(a.align2)
@@ -659,7 +531,7 @@ def test():
     print(a.score_extremes(SCORES))
     print(a.score_extremes(SCORES, gaps=True), 'gaps')
     
-    print('------')
+    print('=======================================')
     a = GlobalAlignment.align('NGG', 'ARG', SCORES)
     print(a.align1)
     print(a.align2)
@@ -667,7 +539,7 @@ def test():
     print(a.score_extremes(SCORES))
     print(a.score_extremes(SCORES, gaps=True), 'gaps')
     
-    print('------')
+    print('=======================================')
     a = GlobalAlignment.align('NRG', 'AGG', SCORES)
     print(a.align1)
     print(a.align2)
@@ -675,7 +547,7 @@ def test():
     print(a.score_extremes(SCORES))
     print(a.score_extremes(SCORES, gaps=True), 'gaps')
     
-    print('------')
+    print('=======================================')
     a = GlobalAlignment.align('NGG', 'ACG', SCORES)
     print(a.align1)
     print(a.align2)
@@ -683,7 +555,7 @@ def test():
     print(a.score_extremes(SCORES))
     print(a.score_extremes(SCORES, gaps=True), 'gaps')
     
-    print('------')
+    print('=======================================')
     a = GlobalAlignment.align('NHRBMAW', 'CCACAAA', SCORES)
     print(a.align1)
     print(a.align2)
@@ -691,13 +563,59 @@ def test():
     print(a.score_extremes(SCORES))
     print(a.score_extremes(SCORES, gaps=True), 'gaps')
     
-    print('------')
+    print('=======================================')
     a = GlobalAlignment.align('NHRBMAW', 'CGACAAA', SCORES)
     print(a.align1)
     print(a.align2)
     print(a.bitscore)
     print(a.score_extremes(SCORES))
     print(a.score_extremes(SCORES, gaps=True), 'gaps')
+    
+    print('=======================================')
+    a = GlobalAlignment.align('', 'CGACAAA', SCORES)
+    print(a.align1)
+    print(a.align2)
+    print(a.bitscore)
+    print(a.score_extremes(SCORES))
+    print(a.score_extremes(SCORES, gaps=True), 'gaps')
+    
+    print('=======================================')
+    a = GlobalAlignment.align('AACGTACGTACAATAGTTTTACGATAACCGATAGCGATACCCATTAGACTATA', 'AAATAACGTAACTACAATAGTTCTACGATAACCGATATTGCGTTACCCAATAGACGATA', SCORES)
+    print(a.align1)
+    print(a.align2)
+    print(a.bitscore)
+    print(a.score_extremes(SCORES))
+    print(a.score_extremes(SCORES, gaps=True), 'gaps')
+    
+    print('=======================================')
+    a = GlobalAlignment.align('ACAATTACC', 'AATCCG', SCORES)
+    print(a.align1)
+    print(a.align2)
+    print(a.bitscore)
+    print(a.score_extremes(SCORES))
+    print(a.score_extremes(SCORES, gaps=True), 'gaps')
+    
+    print('=======================================')
+    a = GlobalAlignment.align('ACGGTTGC', 'AGCGTC', SCORES)
+    print(a.align1)
+    print(a.align2)
+    print(a.bitscore)
+    print(a.score_extremes(SCORES))
+    print(a.score_extremes(SCORES, gaps=True), 'gaps')
+    
+    print('=======================================')
+    scores = build_score(match=10, transition=-30, transversion=-30, gap_open=-40, gap_extend=-1)
+    a = GlobalAlignment.align('AAATTTGC', 'CGCCTTAC', scores)
+    print(a.align1)
+    print(a.align2)
+    print(a.bitscore)
+    print(a.score_extremes(scores))
+    print(a.score_extremes(scores, gaps=True), 'gaps')
+    # AAATTTG~----C score=-98 <-- This is what it returns
+    # ~----CGCCTTAC
+    
+    # ~-----AAATTTGC score=-70 <-- This is the optimal alignment
+    # CGCCTTA~-----C
 
 if (__name__ == "__main__"):
     test()

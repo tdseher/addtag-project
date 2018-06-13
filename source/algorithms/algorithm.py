@@ -14,6 +14,7 @@ class Algorithm(object): # Name of the subclass
         year,
         citation=None,
         off_target=False,
+        on_target=False,
         prefilter=False,
         postfilter=False,
         minimum=0.0,
@@ -27,13 +28,14 @@ class Algorithm(object): # Name of the subclass
         self.name = name             # Unique name for the algorithm (str). No other Algorithm objects should have this name.
         self.author = author         # Author of the algorithm (str)
         self.year = year             # Year algorithm published (int)
-        self.citation = citation     # Citation (None, str)
-        self.off_target = off_target # Calculate off-target/Guide/Efficiency score (True, False)
+        self.citation = citation     # Citation (None/str)
+        self.off_target = off_target # Use algorithm to calculate off-target/Guide/Efficiency score (True/False)
+        self.on_target = on_target   # Algorithm calculates on-target score (True/False)
         self.prefilter = prefilter   # Use algorithm to filter sequences before alignment
         self.postfilter = postfilter # Use algorithm to filter sequences after alignment
         self.minimum = minimum       # Minimum score to be included in pre- and post- alignment filters (float)
         self.maximum = maximum       # Maximum score to be included in pre- and post- alignment filters (float)
-        self.default = default       # If defined, then this will be the on-target default score (None, float)
+        self.default = default       # If defined, then this will be the on-target default score (None/float)
     
     def calculate(self, *args, **kwargs):
         """
@@ -88,6 +90,19 @@ class SingleSequenceAlgorithm(Algorithm):
          iupac (True, False)
          distance (int)
         """
+        # Example:
+        # motif       TTTN<N{19}/.{4}\
+        # genome      AGCCAACGACTTTAGCTAGCTAAAGGACCTATGCCCATTACATGCCG
+        # sequence              TTTAGCTAGCTAAAGGACCTATGCCCA
+        # upstream    AGCCAACGAC
+        # pam                   TTTA
+        # target                    GCTAGCTAAAGGACCTATG
+        # cut sites                                   ><  ><
+        # sense cuts                                  ><
+        # antisense cuts                                  ><
+        # double-strand cuts
+        # downstream                                       TTACATGCCG
+        
         sequence, target, pam, upstream, downstream = intended
         
         return self.score(target, pam)
