@@ -1516,8 +1516,12 @@ class main(object):
         """Perform complete CRISPR/Cas analysis for input"""
         print("Design all sequences here.")
         
+        #contigs = utils.load_fasta_file(args.fasta[0]) # To do --> Do this for all FASTA files, then merge them into the same dictionary
+        
         # Load the FASTA file specified on the command line
-        contigs = utils.load_fasta_file(args.fasta[0]) # To do --> Do this for all FASTA files, then merge them into the same dictionary
+        # Merge all sequence information into the same dictionary
+        #fasta_index, contig_index, contig_sequences = utils.load_indexed_fasta_files(args.fasta)
+        contig_sequences = utils.load_multiple_fasta_files(args.fasta)
         
         # Open and parse the GFF file specified on the command line
         features = utils.load_gff_file(args.gff, args.features, args.tag)
@@ -1535,24 +1539,27 @@ class main(object):
         #features = merge_features(features)
         
         # Search features within contigs for targets that match the motifs
-        ExcisionTarget.get_targets(args, contigs, features)
+        ExcisionTarget.get_targets(args, contig_sequences, features)
         
         # Write the query list to FASTA
         ex_query_file = ExcisionTarget.generate_query_fasta(os.path.join(args.folder, 'excision-query.fasta'))
         
         # Generate excision dDNAs and their associated reversion gRNA spacers
-        ExcisionDonor.generate_donors(args, features, contigs)
+        ExcisionDonor.generate_donors(args, features, contig_sequences)
         ReversionTarget.get_targets()
         ex_dDNA_file = ExcisionDonor.generate_fasta(os.path.join(args.folder, 'excision-dDNAs.fasta'))
         re_query_file = ReversionTarget.generate_query_fasta(os.path.join(args.folder, 'reversion-query.fasta'))
         
         # Generate reversion dDNAs and write them to FASTA
-        ReversionDonor.generate_donors(args, features, contigs)
+        ReversionDonor.generate_donors(args, features, contig_sequences)
         re_dDNA_file = ReversionDonor.generate_fasta(os.path.join(args.folder, 'reversion-dDNAs.fasta'))
+        
+        # Merge input FASTA files into a single one
+        genome_fasta_file = utils.write_merged_fasta(contig_sequences, os.path.join(args.folder, 'genome.fasta'))
         
         # Index args.fasta for alignment
         #index_file = index_reference(args)
-        genome_index_file = args.selected_aligner.index(args.fasta[0], os.path.basename(args.fasta[0]), args.folder, args.processors)
+        genome_index_file = args.selected_aligner.index(genome_fasta_file, os.path.basename(genome_fasta_file), args.folder, args.processors)
         ex_dDNA_index_file = args.selected_aligner.index(ex_dDNA_file, os.path.basename(ex_dDNA_file), args.folder, args.processors)
         re_dDNA_index_file = args.selected_aligner.index(re_dDNA_file, os.path.basename(re_dDNA_file), args.folder, args.processors)
         
@@ -1566,7 +1573,7 @@ class main(object):
         #    print(et_obj)
         
         # Load the SAM files and add Alignments to ExcisionTarget sequences
-        ExcisionTarget.load_sam(exq2gDNA_sam_file, args, contigs)
+        ExcisionTarget.load_sam(exq2gDNA_sam_file, args, contig_sequences)
         ExcisionTarget.load_sam(exq2exdDNA_sam_file, args, ExcisionDonor.get_contig_dict())
         
         # Calculate off-target/guide scores for each algorithm
@@ -1595,7 +1602,7 @@ class main(object):
         req2redDNA_sam_file = args.selected_aligner.align(re_query_file, re_dDNA_index_file, 'reversion-query-2-reversion-dDNA.sam', args.folder, args.processors)
         
         # Load the SAM files and add Alignments to ReversionTarget sequences
-        ReversionTarget.load_sam(req2gDNA_sam_file, args, contigs)
+        ReversionTarget.load_sam(req2gDNA_sam_file, args, contig_sequences)
         ReversionTarget.load_sam(req2exdDNA_sam_file, args, ExcisionDonor.get_contig_dict())
         ReversionTarget.load_sam(req2redDNA_sam_file, args, ReversionDonor.get_contig_dict())
         

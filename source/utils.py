@@ -11,6 +11,7 @@ import gzip
 import datetime
 import logging
 import subprocess
+import textwrap
 
 # Import non-standard packages
 import regex
@@ -83,7 +84,127 @@ def decode_sam_flags(field, kind='str'):
     elif (kind == 'list'):
         return list_flags
 
+def write_merged_fasta(contig_sequences, filename, columns=80):
+    """
+    Creates a FASTA file
+    """
+    wrapper = textwrap.TextWrapper(width=columns, replace_whitespace=False, drop_whitespace=False, expand_tabs=False, break_on_hyphens=False)
+    with open(filename, 'w') as flo:
+        for name, sequence in contig_sequences.items():
+            print('>'+name, file=flo)
+            print(wrapper.fill(sequence), file=flo)
+    logging.info('Merged FASTA written: {!r}'.format(filename))
+    return filename
+
+def load_indexed_fasta_files(filenames):
+    """
+    Load multiple FASTA files
+    Does not require primary sequence headers to be unique
+    """
+    
+    # All input FASTA files are indexed
+    # All input FASTA contigs are indexed:
+    #
+    # For instance, if program is run with the following parameters:
+    #  --fasta F1.fasta F2.fasta
+    # 
+    # fasta_index = {
+    # # N: FILENAME
+    #   0: 'F1.fasta',
+    #   1: 'F2.fasta',
+    # }
+    # contig_index = {
+    # # N: (FASTA_INDEX, CONTIG, HEADER), <-- this tuple structure not implemented yet
+    #   0: (0, 'contig1', '>contig1 something'),
+    #   1: (0, 'contig2', '>contig2'),
+    #   2: (1, 'contig1', '>contig1 nothing'),
+    # }
+    # 
+    # contigs = {
+    # # N: SEQUENCE
+    #   0: 'ACGACTA...',
+    #   1: 'CCAACCA...',
+    #   2: 'GGTGTAG...',
+    # }
+    fasta_index = {} # {N: FILENAME, ...}
+    contig_index = {} # {N: CONTIG, ...}
+    contig_sequences = {} # {N: SEQUENCE, ...}
+    for filename in filenames:
+        ci, cs = load_fasta_file(filename)
+        shift = len(contig_index)
+        for k, v in ci.items():
+            contig_index[k+shift] = v
+        for k, v in cs.items():
+            contig_sequences[k+shift] = v
+        fasta_index[len(fasta_index)] = filename
+    return fasta_index, contig_index, contig_sequences
+
+def load_multiple_fasta_files(filenames):
+    """
+    Load multiple FASTA files
+    Requires primary sequence headers to be unique
+    """
+    contig_index = {} # {N: CONTIG, ...}
+    contig_sequences = {} # {CONTIG: SEQUENCE, ...}
+    for filename in filenames:
+        ci, cs = load_fasta_file(filename)
+        shift = len(contig_index)
+        
+        for index, name in ci.items():
+            contig_index[index+shift] = name
+            contig_sequences[name] = cs[index]
+    
+    if (len(contig_sequences) != len(contig_index)):
+        raise Exception('Duplicate contig names found in input FASTA files')
+    
+    return contig_sequences
+
+def check_header_collisions(contig_index):
+    """
+    Function to warn the user if any contigs have the same name.
+    """
+    if (len(set(contig_index.values())) != len(contig_index.values())):
+        logger.info('Duplicate contig names found in input FASTA files')
+
 def load_fasta_file(filename):
+    """
+    Load contig sequences from file.
+    Can open a *.gz compressed file.
+    Returns an index dict() as well as sequence dict()
+    """
+    contig_index = {}
+    contig_sequences = {}
+    
+    # Automatically process GZIP compressed files
+    if filename.endswith('.gz'):
+        flo = gzip.open(filename, 'rt')
+    else:
+        flo = open(filename, 'r')
+    
+    with flo:
+        index = 0
+        name = None
+        seq = None
+        for line in flo:
+            line = line.rstrip()
+            if line.startswith('>'):
+                if (name != None):
+                    contig_index[index] = name
+                    contig_sequences[index] = seq
+                    index += 1
+                name = regex.split(r'\s+', line[1:], 1)[0]
+                seq = ''
+            else:
+                seq += line
+        if (name != None):
+            contig_index[index] = name
+            contig_sequences[index] = seq
+    
+    logger.info('FASTA file parsed: {!r}'.format(filename))
+    
+    return contig_index, contig_sequences
+
+def old_load_fasta_file(filename):
     """
     Load contig sequences from file into dict()
     Primary sequence headers must be unique
