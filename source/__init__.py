@@ -1135,7 +1135,7 @@ class Motif(object):
         self.motif_string = motif_string
         
         # Create [spacers, pams, side] list: (['NNN', 'NNNN', 'NNNNN'], ['NRG'], '>')
-        self.parsed_list = self.parse_motif(self.motif_string)
+        self.parsed_list, self.spacer_sense_cuts, self.spacer_antisense_cuts, self.pam_sense_cuts, self.pam_antisense_cuts = self.parse_motif(self.motif_string)
         
         # Build the regex string: '((?:[ACGT][ACGT][ACGT])|(?:[ACGT][ACGT][ACGT][ACGT])|(?:[ACGT][ACGT][ACGT][ACGT][ACGT]))((?:[ACGT][AG]G))'
         self.regex_string = self.build_motif_regex(self.parsed_list[0], self.parsed_list[1], self.parsed_list[2])
@@ -1145,6 +1145,19 @@ class Motif(object):
         
         # Save object to publicly-accessible, class list
         self.motifs.append(self)
+        
+        # Example:
+        # motif          TTTN<N{19}/.{4}\
+        # genome      ...CCAAAGCCAACGACTTTAGCTAGCTAAAGGACCTATGCCCATTACATGCCGCCAA...
+        # sequence                     TTTAGCTAGCTAAAGGACCTATGCCCA
+        # upstream           AGCCAACGAC
+        # pam                          TTTA
+        # target                           GCTAGCTAAAGGACCTATG
+        # cut sites                                          ><  ><
+        # sense cuts                                         ><
+        # antisense cuts                                         ><
+        # double-strand cuts
+        # downstream                                              TTACATGCCG
         
     def parse_motif(self, motif):
         """
@@ -1185,7 +1198,10 @@ class Motif(object):
             pam_motif, spacer_motif = motif.split('<')
             side = '<'
         
-        return self.parse_motif_helper(spacer_motif), self.parse_motif_helper(pam_motif), side
+        spacer_sequences, spacer_sense_cuts, spacer_antisense_cuts = self.parse_motif_helper(spacer_motif)
+        pam_sequences, pam_sense_cuts, pam_antisense_cuts = self.parse_motif_helper(pam_motif)
+        
+        return (spacer_sequences, pam_sequences, side), spacer_sense_cuts, spacer_antisense_cuts, pam_sense_cuts, pam_antisense_cuts
     
     # List of common motifs obtained from
     #  https://github.com/maximilianh/crisporWebsite/crispor.py
@@ -1228,7 +1244,7 @@ class Motif(object):
         quantifier = None
         
         # Iterate through the characters
-        for c in submotif:
+        for i, c in enumerate(submotif):
             if (c == '{'): # Start the quantifier
                 quantifier = ''
             elif (c == '}'): # End the quantifier
@@ -1254,18 +1270,48 @@ class Motif(object):
                 sequences = [ x[:-1] for x in sequences ]
                 
                 new_sequences = []
-                for i, s in enumerate(sequences):
+                for j, s in enumerate(sequences):
                     for length in range(min_length, max_length+1):
-                        new_sequences.append(s + last_chars[i]*length)
+                        new_sequences.append(s + last_chars[j]*length)
                 sequences = new_sequences
                 quantifier = None
             elif (quantifier != None): # add current character to quantifier if it is open
+                # We strip out any cut sites
+                #if (c not in ['/', '\\', '|']):
                 quantifier += c
             else: # add the current character to the expanded sequences
-                for i in range(len(sequences)):
-                    sequences[i] = sequences[i] + c
+                for j in range(len(sequences)):
+                    sequences[j] = sequences[j] + c
         
-        return sequences
+        # Define empty list holding all cut sites
+        sense_cuts = []
+        antisense_cuts = []
+        
+        # Iterate through sequences, and record the location of any cut sites
+        # Then strip out any cut sites
+        for i, seq in enumerate(sequences):
+            sense_cuts.append([])
+            antisense_cuts.append([])
+            found = 0
+            
+            nseq = seq
+            for j, c in enumerate(seq):
+                if (c  == '/'):
+                    sense_cuts[-1].append(j-found)
+                    nseq = nseq.replace('/', '', 1)
+                    found += 1
+                elif (c == '\\'):
+                    antisense_cuts[-1].append(j-found)
+                    nseq = nseq.replace('\\', '', 1)
+                    found += 1
+                elif (c == '|'):
+                    sense_cuts[-1].append(j-found)
+                    antisense_cuts[-1].append(j-found)
+                    nseq = nseq.replace('|', '', 1)
+                    found += 1
+            sequences[i] = nseq
+        
+        return sequences, sense_cuts, antisense_cuts
     
     def compile_regex(self, re_pattern, ignore_case=False, enhance_match=False, best_match=False):
         """
@@ -1357,6 +1403,12 @@ class Motif(object):
             'H': '[ACT]',
             'V': '[ACG]',
             'N': '[ACGT]',
+            
+            '.': '.', # Any character
+            
+            '|': r'\|', # Double-stranded cut
+            '/': r'\/', # Sense cut
+            '\\': r'\\', # anti-sense cut
         }
         sequence = ''.join(map(lambda x: iupac[x], iupac_sequence))
         if capture:
