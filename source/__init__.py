@@ -23,6 +23,9 @@ from . import scores
 from . import algorithms
 from . import aligners
 
+# Create the logger
+#logger = logging.getLogger(__name__)
+
 # Define meta variables
 __author__ = "Thaddeus D. Seher (@tdseher) & Aaron Hernday"
 __date__ = utils.load_git_date()
@@ -289,9 +292,11 @@ class Donor(object):
         return sep.join(output_list)
     
     def get_features(self):
+        """Return (sorted) list of all feature names this Donor maps to"""
         return sorted(set(x[0] for x in self.locations))
     
     def get_location_features(self):
+        """Return (sorted) list of all feature names this Donor maps to"""
         return sorted(set(x[0] for x in self.locations))
     
     def __init__(self, feature, contig, orientation, sequence, *segments, spacer=None):
@@ -354,33 +359,33 @@ class ExcisionDonor(Donor):
     sequences = {}
     indices = {}
     
-    @classmethod
-    def get_targets(cls, args, sequence):
-        targets = set()
-        #for seq_i, sequence in enumerate(dDNAs):
-        for orientation in ['+', '-']:
-            if (orientation == '-'):
-                sequence = nucleotides.rc(sequence)
-            
-            #for i in range(len(args.parsed_motifs)):
-            for mymotif in OnTargetMotif.motifs:
-                #spacers, pams, side = args.parsed_motifs[i]
-                spacers, pams, side = mymotif.parsed_list
-                #compiled_regex = args.compiled_motifs[i]
-                #matches = nucleotides.motif_search(sequence, spacers, pams, side)
-                matches = nucleotides.motif_search2(sequence, side, mymotif.compiled_regex)
-                for seq, start, end, spacer, pam in matches:
-                    if (orientation == '-'):
-                        start, end = len(sequence) - end, len(sequence) - start
-                    t_upstream = sequence[start-10:start]
-                    t_downstream = sequence[end:end+10]
-                    filtered_targets = target_filter(seq, spacer, pam, t_upstream, t_downstream, args)
-                    for filt_seq, filt_spacer, filt_pam in filtered_targets:
-                        targets.add((orientation, start, end, t_upstream, t_downstream, filt_seq, side, filt_spacer, filt_pam, mymotif.motif_string, tuple([tuple(x) if isinstance(x, list) else x for x in mymotif.parsed_list])))
-        return sorted(targets) # becomes a list
+    # @classmethod
+    # def get_targets(cls, args, sequence):
+    #     targets = set()
+    #     #for seq_i, sequence in enumerate(dDNAs):
+    #     for orientation in ['+', '-']:
+    #         if (orientation == '-'):
+    #             sequence = nucleotides.rc(sequence)
+    #         
+    #         #for i in range(len(args.parsed_motifs)):
+    #         for mymotif in OnTargetMotif.motifs:
+    #             #spacers, pams, side = args.parsed_motifs[i]
+    #             spacers, pams, side = mymotif.parsed_list
+    #             #compiled_regex = args.compiled_motifs[i]
+    #             #matches = nucleotides.motif_search(sequence, spacers, pams, side)
+    #             matches = nucleotides.motif_search2(sequence, side, mymotif.compiled_regex)
+    #             for seq, start, end, spacer, pam in matches:
+    #                 if (orientation == '-'):
+    #                     start, end = len(sequence) - end, len(sequence) - start
+    #                 t_upstream = sequence[start-10:start]
+    #                 t_downstream = sequence[end:end+10]
+    #                 filtered_targets = target_filter(seq, spacer, pam, t_upstream, t_downstream, args)
+    #                 for filt_seq, filt_spacer, filt_pam in filtered_targets:
+    #                     targets.add((orientation, start, end, t_upstream, t_downstream, filt_seq, side, filt_spacer, filt_pam, mymotif.motif_string, tuple([tuple(x) if isinstance(x, list) else x for x in mymotif.parsed_list])))
+    #     return sorted(targets) # becomes a list
     
     @classmethod
-    def exhaustive_site_search(cls, args, feature, contig, start, end, strand, my_contig, orientation):
+    def exhaustive_site_search(cls, args, f, contig_sequence, orientation):
         """
         Method for generating all potential mAT given the us/ds trims and
         insert size. Also called "Brute force" method
@@ -393,10 +398,10 @@ class ExcisionDonor(Donor):
                     for ds_hom in range(args.excise_downstream_homology[0], args.excise_downstream_homology[1]+1):
                         for insert_length in range(args.excise_insert_lengths[0], args.excise_insert_lengths[1]+1):
                             if (args.excise_donor_lengths[0] <= us_hom+insert_length+ds_hom <= args.excise_donor_lengths[1]):
-                                start1, end1 = start-us_hom-us_trim, start-us_trim
-                                start2, end2 = end+ds_trim, end+ds_hom+ds_trim
-                                upstream = my_contig[start1:end1]
-                                downstream = my_contig[start2:end2]
+                                start1, end1 = f.start-us_hom-us_trim, f.start-us_trim
+                                start2, end2 = f.end+ds_trim, f.end+ds_hom+ds_trim
+                                upstream = contig_sequence[start1:end1]
+                                downstream = contig_sequence[start2:end2]
                                 #upstream = contigs[contig][start - args.excise_donor_homology[1]:start]
                                 #downstream = contigs[contig][end:end + args.excise_donor_homology[1]]
                                 
@@ -407,7 +412,7 @@ class ExcisionDonor(Donor):
                                     
                                     #if (args.excise_donor_lengths[0] <= len(dDNA) <= args.excise_donor_lengths[1]):
                                     #dDNAs.append(dDNA)
-                                    new_targets = cls.get_targets(args, dDNA) # [(orientation, start, end, filt_seq, side, filt_spacer, filt_pam), ...]
+                                    new_targets = Target.get_targets(args, dDNA) # [(orientation, start, end, filt_seq, side, filt_spacer, filt_pam), ...]
                                     
                                     # The ReversionTarget must overlap the junction. These are valid cases:
                                     # dDNA    uuuuuuuuuuuuiiiidddddddddddd
@@ -424,29 +429,31 @@ class ExcisionDonor(Donor):
                                         # Target is a tuple: (orientation, start, end, upstream, downstream, sequence, side, spacer, pam, motif)
                                         # If it is not one of the two failure states, then add it
                                         if not ((t[2] < len(upstream)) or (t[1] >= len(upstream) + len(mAT))):
-                                            cls(feature, contig, orientation, dDNA, (start1, end1), mAT, (start2, end2), spacer=t)
+                                            cls(f.name, f.contig, orientation, dDNA, (start1, end1), mAT, (start2, end2), spacer=t)
     
     @classmethod
-    def generate_donors(cls, args, features, contigs):
+    def generate_donors(cls, args, contigs):
         """
         Creates the DNA oligo with the structure:
         [upstream homology][unique gRNA][downstream homology]
         that excises the target feature
         """
         # Generate the full set of potential dDNAs
-        for feature in features:
-            contig, start, end, strand = features[feature]
+        for feature_name, f in Feature.features.items():
+        #for feature in features:
+            #contig, start, end, strand = features[feature]
             # start & end are 0-based indices, inclusive/exclusive
             
             # assumes start < end
             # DNA 5' of feature is upstream
             # DNA 3' of feature is downstream
             
-            my_contig = contigs[contig]
-            orientation = '+'
+            contig_sequence = contigs[f.contig]
+            orientation = '+' # ????? what is this for? I don't remember
             
             # For each potential dDNA, evaluate how good it is
-            cls.exhaustive_site_search(args, feature, contig, start, end, strand, my_contig, orientation)
+            #cls.exhaustive_site_search(args, feature, contig, start, end, strand, contig_sequence, orientation)
+            cls.exhaustive_site_search(args, f, contig_sequence, orientation)
     
     @classmethod
     def generate_alignments(cls):
@@ -496,31 +503,33 @@ class ExcisionDonor(Donor):
         """
         return [x[4] for x in self.locations]
     
-    def get_trims(self, features):
+    def get_trims(self):
         """
         Get the length of the upstream and downstream trims for each location
         """
         trims = []
         for loc in self.locations:
-            contig, start, end, strand = features[loc[0]]
+            #contig, start, end, strand = features[loc[0]]
+            f = Feature.features[loc[0]]
             #mAT = loc[4]
-            left_trim = start - loc[3][1]
-            right_trim = loc[5][0] - end
+            left_trim = f.start - loc[3][1]
+            right_trim = loc[5][0] - f.end
             #trims.append(len(loc[4]) + loc[5][0]-l[3][1])
             trims.append((left_trim, right_trim))
         return trims
     
-    def get_inserts_and_trims(self, features):
+    def get_inserts_and_trims(self):
         """
         Returns list of insert size, and us/ds trims with the following format:
           [(insert, us-trim, ds-trim), ...]
         """
         return_list = []
         for loc in self.locations:
-            contig, start, end, strand = features[loc[0]]
+            f = Feature.features[loc[0]]
+            #contig, start, end, strand = features[loc[0]]
             mAT = loc[4]
-            left_trim = start - loc[3][1]
-            right_trim = loc[5][0] - end
+            left_trim = f.start - loc[3][1]
+            right_trim = loc[5][0] - f.end
             return_list.append((mAT, left_trim, right_trim))
         return return_list
 
@@ -530,19 +539,20 @@ class ReversionDonor(Donor):
     indices = {}
     
     @classmethod
-    def generate_donors(cls, args, features, contigs):
+    def generate_donors(cls, args, contigs):
         """
         Creates the DNA oligo with the structure:
         [upstream homology][original feature][downstream homology]
         """
         # There should be one ReversionDonor for each feature
-        for feature in features:
+        for feature_name, f in Feature.features.items():
+        #for feature in features:
             # First, get the homology blocks up- and down-stream of the feature
-            contig, start, end, strand = features[feature]
+            #contig, start, end, strand = features[feature]
             
-            feature_length = end - start
+            feature_length = f.end - f.start
             
-            my_contig = contigs[contig]
+            my_contig = contigs[f.contig]
             orientation = '+'
             
             for us_hom in range(args.revert_upstream_homology[0], args.revert_upstream_homology[1]+1):
@@ -550,22 +560,22 @@ class ReversionDonor(Donor):
                     if (args.revert_donor_lengths[0] <= us_hom+feature_length+ds_hom <= args.revert_donor_lengths[1]):
                         # to implement:
                         #   make revert_upstream_homology and revert_downstream_homology exclude the trim sequences
-                        if (strand == '+'):
-                            start1, end1 = start-us_hom, start
-                            start2, end2 = end, end+ds_hom
+                        if (f.strand == '+'):
+                            start1, end1 = f.start-us_hom, f.start
+                            start2, end2 = f.end, f.end+ds_hom
                         else:
-                            start1, end1 = start-ds_hom, start
-                            start2, end2 = end, end+us_hom
+                            start1, end1 = f.start-ds_hom, f.start
+                            start2, end2 = f.end, f.end+us_hom
                         upstream = my_contig[start1:end1]
                         downstream = my_contig[start2:end2]
-                        feature_sequence = my_contig[start:end]
+                        feature_sequence = my_contig[f.start:f.end]
                         
                         dDNA = upstream + feature_sequence + downstream
                         #for re_seq, re_target in ReversionTarget.indices.items():
                         #    if feature in [x[0] for x in re_target.locations]:
                         #        cls(feature, contig, orientation, (start1, end1), '..'.join(map(str, [start, end])), (start2, end2), dDNA, re_target)
                         #cls(feature, contig, orientation, (start1, end1), '..'.join(map(str, [start, end])), (start2, end2), dDNA, None)
-                        cls(feature, contig, orientation, dDNA, (start1, end2), spacer=None)
+                        cls(feature_name, f.contig, orientation, dDNA, (start1, end2), spacer=None)
 
 class Target(object):
     """Data structure defining a gRNA Target"""
@@ -680,7 +690,7 @@ class Target(object):
         feature, contig, orientation, start, end, upstream, downstream = location
         return sep.join([feature, contig, orientation, '..'.join([str(start), str(end)])])
     
-    def __init__(self, feature, contig, orientation, start, end, upstream, downstream, sequence, side, spacer, pam, motif, parsed_motif):
+    def __init__(self, feature, contig, orientation, start, end, upstream, downstream, sequence, side, spacer, pam, motif, parsed_motif, add=True):
         """Create a structure for holding individual sequence information"""
         location = (feature, contig, orientation, start, end, upstream, downstream)
         self.locations = set()
@@ -699,9 +709,10 @@ class Target(object):
         self.index = len(self.sequences)
         self.name = self.prefix + '-' + str(self.index)
         
-        the_target = self.sequences.setdefault(self.sequence, self)
-        the_target.locations.add(location)
-        self.indices.setdefault(the_target.name, the_target)
+        if add:
+            the_target = self.sequences.setdefault(self.sequence, self)
+            the_target.locations.add(location)
+            self.indices.setdefault(the_target.name, the_target)
         
         # Scores for this sequence only (not PairedSequenceAlgorithm)
         self.score = {}
@@ -713,54 +724,30 @@ class Target(object):
         if (len(self.locations) > 0):
             self.calculate_default_scores()
     
-#    def overlap_distance(self, start1, end1, start2, end2):
-#        coverage = self.overlap_coverage(start1, end1, start2, end2)
-#        if (coverage > 0):
-#            return -coverage
-#        else:
-#            #return min(abs(start2-end1), abs(start1-end2))
-#            return max(start2-end1, start1-end2)
-#            # 1 ..........
-#            # 2              XXXXXX
-#            
-#            # 1          ........
-#            # 2 XXXXXX
-    
-#    def overlap_percent_coverage(self, start1, end1, start2, end2):
-#        coverage = self.overlap_coverage(start1, end1, start2, end2)
-#        return float(coverage) / max(abs(end1 - start1), abs(end2 - start2))
-    
-#    def percent_full_length_coverage(self, start1, end1, len1, start2, end2, len2):
-#        coverage = self.overlap_coverage(start1, end1, start2, end2)
-#        return float(coverage) / max(len1, len2)
-    
-    def overlap_coverage(self, start1, end1, start2, end2, index_base=0):
-        coverage = 0
-        
-        # Expects 0-based, left-inclusive, right-exclusive indexing
-        if (start2 <= start1 <= end1 <= end2):
-            # 1      .............
-            # 2   XXXXXXXXXXXXXXXXXX
-            coverage = abs(end1 - start1)
-        elif (start1 <= start2 <= end2 <= end1):
-            # 1      .....................
-            # 2            XXXXXXXXXX
-            coverage = abs(end2 - start2)
-        elif (start1 <= start2 <= end1 <= end2):
-            # 1      ........
-            # 2        XXXXXXXX
-            coverage = abs(end1 - start2)
-        elif (start2 <= start1 <= end2 <= end1):
-            # 1      .............
-            # 2  XXXXXXXXXX
-            coverage = abs(end2 - start1)
-        
-        # if 1-based, left-inclusive, right-inclusive indexing,
-        # then give +1 to coverage
-        if index_base == 1:
-            coverage += 1
-        
-        return coverage
+    @classmethod
+    def get_targets(cls, args, sequence):
+        targets = set()
+        #for seq_i, sequence in enumerate(dDNAs):
+        for orientation in ['+', '-']:
+            if (orientation == '-'):
+                sequence = nucleotides.rc(sequence)
+            
+            #for i in range(len(args.parsed_motifs)):
+            for mymotif in OnTargetMotif.motifs:
+                #spacers, pams, side = args.parsed_motifs[i]
+                spacers, pams, side = mymotif.parsed_list
+                #compiled_regex = args.compiled_motifs[i]
+                #matches = nucleotides.motif_search(sequence, spacers, pams, side)
+                matches = nucleotides.motif_search2(sequence, side, mymotif.compiled_regex)
+                for seq, start, end, spacer, pam in matches:
+                    if (orientation == '-'):
+                        start, end = len(sequence) - end, len(sequence) - start
+                    upstream = sequence[start-10:start]
+                    downstream = sequence[end:end+10]
+                    filtered_targets = target_filter(seq, spacer, pam, upstream, downstream, args)
+                    for filt_seq, filt_spacer, filt_pam in filtered_targets:
+                        targets.add((orientation, start, end, upstream, downstream, filt_seq, side, filt_spacer, filt_pam, mymotif.motif_string, tuple([tuple(x) if isinstance(x, list) else x for x in mymotif.parsed_list])))
+        return sorted(targets) # becomes a list
     
     def calculate_default_scores(self):
         """Populate this scores for this Sequence"""
@@ -840,21 +827,23 @@ class Target(object):
                     r_motif = motif
         return r_spacer, r_pam, r_motif
     
-    def get_features(self, features, contig, start, end):
-        the_features = []
-        for feature in features:
-            f_contig, f_start, f_end, f_strand = features[feature]
-            if (contig == f_contig):
-                if (self.overlap_coverage(start, end, f_start, f_end) > 0):
-                    the_features.append(feature)
-        
-        return the_features
+    def get_features(self):
+        """Return (sorted) list of all feature names this Target maps to"""
+        return sorted(set(x[0] for x in self.locations))
     
     def get_contigs(self):
         return sorted(set(x[1] for x in self.locations))
     
     def get_location_features(self):
+        """Return (sorted) list of all feature names this Target maps to"""
         return sorted(set(x[0] for x in self.locations))
+    
+    def get_parent(self):
+        """Returns a parent tuple for an arbitrary location record"""
+        loc = next(iter(self.locations)) # Pull an arbitrary location record
+        #parent = (self.sequence, self.target, self.pam, self.upstream, self.downstream)
+        parent = (self.sequence, self.spacer, self.pam, loc[5], loc[6])
+        return parent
     
     @classmethod
     def score_batch(cls):
@@ -880,7 +869,7 @@ class Target(object):
                 t_obj = cls.indices[t_index]
                 t_obj.score[C.name] = batch_scores[i]
     
-    def score_off_targets(self, args, homologs, features):
+    def score_off_targets(self, args, homologs):
         """
         Calculate Guide Score (off-target score) for all single/paired
         algorithms with the 'off_target=True' attribute.
@@ -940,7 +929,8 @@ class Target(object):
                                     a.action = 'off'
                                     
                     else: # This is a genomic contig and not a dDNA
-                        a_features = self.get_features(features, a.contig, a.start, a.end) # contig, start, end
+                        a_features = Feature.get_overlapping_features(a.contig, a.start, a.end)
+                        #a_features = self.get_features(features, a.contig, a.start, a.end) # contig, start, end
                         temp_string += 'case exT-gDNA'.rjust(18) + ' '
                         
                         for i, C in enumerate(calculators):
@@ -1048,58 +1038,173 @@ class ExcisionTarget(Target):
     indices = {} # key = exTarget-102, value = ExcisionTarget object
     
     @classmethod
-    def get_targets(cls, args, contigs, features):
-        """
-        Searches within the annotated features on all contigs for targets
-        that match the args.motifs criteria, then filters them.
-        
-        The constructor call adds the valid gRNA sites to 'ExcisionTarget.sequences' and 'ExcisionTarget.indices'.
-        """
-        # Find unique gRNA sites within each feature
-        # Use a sliding window to make a list of queries
-        for feature in features:
+    def old_search_all_features(cls, args, features, contigs):
+        for feature_name in features:
+            feature_contig, feature_start, feature_end, feature_strand = features[feature_name]
             
-            feature_contig, feature_start, feature_end, feature_strand = features[feature]
-            if (feature_end == None):
-                feature_end = len(contigs[feature_contig])
-            
-            # Make sure the contig the feature is on is present in the FASTA
             if feature_contig in contigs:
-                # Find a site within this feature that will serve as a unique gRNA
+                cls.expand_feature(args, (feature_name, feature_contig, feature_start, feature_end, feature_strand), (feature_contig, contigs[feature_contig]))
+            else:
+                logging.info("The contig '{}' for feature '{}' is not in the input FASTA.".format(feature_contig, feature_name))
+        
+    
+    @classmethod
+    def search_all_features(cls, args, contigs):
+        for feature_name, f in Feature.features.items():
+            contig_sequence = contigs[f.contig]
+            ef = f.expand_feature(args, contig_sequence)
+            
+            # Search for targets in the feature
+            feature_sequence = contig_sequence[ef.start:ef.end]
+            targets = Target.get_targets(args, feature_sequence) # Does both orientations (+/-)
+            
+            # Create ExcisionTarget objects for each found target
+            for t in targets:
+                t_orientation = t[0]
+                t_start = t[1]
+                t_end = t[2]
+                t_upstream = t[3]
+                t_downstream = t[4]
+                t_sequence = t[5]
+                t_side = t[6]
+                t_spacer = t[7]
+                t_pam = t[8]
+                t_motif_string = t[9]
+                t_motif_parsed_list = t[10]
                 
-                # for each orientation:
-                # if (args.strands in ['+', 'both']):
-                #  targets.extend...
-                # if (args.strands in ['-', 'both']):
-                #  targets.extend...
+                if (t_orientation == '+'):
+                    real_start = f.start + t_start
+                    real_end = f.start + t_end
+                else:
+                    contig_length = len(contig_sequence)
+                    real_start = contig_length - t_end + f.start
+                    real_end = contig_length - t_start + f.start
                 
-                # Search both the '+' and '-' strands
-                for orientation in ['+', '-']:
-                    if (orientation == '+'):
-                        sequence = contigs[feature_contig][feature_start:feature_end]
-                    else:
-                        sequence = nucleotides.rc(contigs[feature_contig][feature_start:feature_end])
-                    
-                    #for i in range(len(args.parsed_motifs)):
-                    for mymotif in OnTargetMotif.motifs:
-                        #spacers, pams, side = args.parsed_motifs[i]
-                        spacers, pams, side = mymotif.parsed_list
-                        #compiled_regex = args.compiled_motifs[i]
-                        #matches = nucleotides.motif_search(sequence, spacers, pams, side)
-                        matches = nucleotides.motif_search2(sequence, side, mymotif.compiled_regex)
-                        for seq, start, end, spacer, pam in matches:
-                            if (orientation == '+'):
-                                real_start = feature_start + start
-                                real_end = feature_start + end
-                            else:
-                                real_start = len(sequence) - end + feature_start
-                                real_end = len(sequence) - start + feature_start
-                            t_upstream = sequence[start-10:start]
-                            t_downstream = sequence[end:end+10]
-                            filtered_targets = target_filter(seq, spacer, pam, t_upstream, t_downstream, args)
-                            for filt_seq, filt_spacer, filt_pam in filtered_targets:
-                                cls(feature, feature_contig, orientation, real_start, real_end, t_upstream, t_downstream, filt_seq, side, filt_spacer, filt_pam, mymotif.motif_string, mymotif.parsed_list)
-                                # Maybe add to ReversionDonor here
+                #OLD cls(feature, feature_contig, orientation, real_start, real_end, t_upstream, t_downstream, filt_seq, side, filt_spacer, filt_pam, motif.motif_string, motif.parsed_list)
+                #REFERENCE CODE targets.add((orientation, start, end, upstream, downstream, filt_seq, side, filt_spacer, filt_pam, mymotif.motif_string, tuple([tuple(x) if isinstance(x, list) else x for x in mymotif.parsed_list])))
+                cls(f.name, f.contig, t_orientation, real_start, real_end, t_upstream, t_downstream, t_sequence, t_side, t_spacer, t_pam, t_motif_string, t_motif_parsed_list)
+                # t = (orientation, start, end, t_upstream, t_downstream, filt_seq, side, filt_spacer, filt_pam, args.motifs[i], args.parsed_motifs[i])
+                #SIMILAR ReversionTarget(obj_features, obj.name, t[0], t[1], t[2], t[3], t[4], t[5], t[6], t[7], t[8], t[9], t[10])
+            
+            
+            
+    
+    @classmethod
+    def old_expand_feature(cls, args, f, contig_sequence, expansion_size=100, minimum_targets_per_feature=10):
+        
+        feature_start = f.start
+        feature_end = f.end
+        
+        contig_length = len(contig_sequence)
+        
+        if (feature_end == None):
+            feature_end = len(contig_sequence)
+        
+        targets = []
+        while ((len(targets) < minimum_targets_per_feature) and ((feature_start, feature_end) != (0, contig_length))):
+            feature_sequence = contig_sequence[feature_start:feature_end]
+            targets = Target.get_targets(args, feature_sequence) # Does both orientations (+/-)
+            
+            feature_start = max(0, feature_start-expansion_size)
+            feature_end = min(contig_length, feature_end + expansion_size)
+        
+        # Create ExcisionTarget objects for each found target
+        for t in targets:
+            t_orientation = t[0]
+            t_start = t[1]
+            t_end = t[2]
+            t_upstream = t[3]
+            t_downstream = t[4]
+            t_sequence = t[5]
+            t_side = t[6]
+            t_spacer = t[7]
+            t_pam = t[8]
+            t_motif_string = t[9]
+            t_motif_parsed_list = t[10]
+            
+            if (t_orientation == '+'):
+                real_start = feature_start + t_start
+                real_end = feature_start + t_end
+            else:
+                real_start = contig_length - t_end + feature_start
+                real_end = contig_length - t_start + feature_start
+            
+            #OLD cls(feature, feature_contig, orientation, real_start, real_end, t_upstream, t_downstream, filt_seq, side, filt_spacer, filt_pam, motif.motif_string, motif.parsed_list)
+            #REFERENCE CODE targets.add((orientation, start, end, upstream, downstream, filt_seq, side, filt_spacer, filt_pam, mymotif.motif_string, tuple([tuple(x) if isinstance(x, list) else x for x in mymotif.parsed_list])))
+            cls(f.name, f.contig, t_orientation, real_start, real_end, t_upstream, t_downstream, t_sequence, t_side, t_spacer, t_pam, t_motif_string, t_motif_parsed_list)
+            # t = (orientation, start, end, t_upstream, t_downstream, filt_seq, side, filt_spacer, filt_pam, args.motifs[i], args.parsed_motifs[i])
+            #SIMILAR ReversionTarget(obj_features, obj.name, t[0], t[1], t[2], t[3], t[4], t[5], t[6], t[7], t[8], t[9], t[10])
+    
+    # @classmethod
+    # def get_targets(cls, args, contigs, features):
+    #     """
+    #     Searches within the annotated features on all contigs for targets
+    #     that match the args.motifs criteria, then filters them.
+    #     
+    #     The constructor call adds the valid gRNA sites to 'ExcisionTarget.sequences' and 'ExcisionTarget.indices'.
+    #     """
+    #     # Find unique gRNA sites within each feature
+    #     # Use a sliding window to make a list of queries
+    #     for feature in features: # This is the filtered list of features, so we want to find all of these
+    #         
+    #         feature_contig, feature_start, feature_end, feature_strand = features[feature]
+    #         if (feature_end == None):
+    #             feature_end = len(contigs[feature_contig])
+    #         
+    #         # Make sure the contig the feature is on is present in the FASTA
+    #         if feature_contig in contigs:
+    #             # Find a site within this feature that will serve as a unique gRNA
+    #             
+    #             # for each orientation:
+    #             # if (args.strands in ['+', 'both']):
+    #             #  targets.extend...
+    #             # if (args.strands in ['-', 'both']):
+    #             #  targets.extend...
+    #             
+    #             # Code to enable automatic feature expansion
+    #             # expansion_size = 10 # number of nt to expand features in 5' and 3' direction
+    #             # minimum_spacers_per_feature = 100
+    #             # found_spacers = 0
+    #             # while ((found_spacers < minimum_spacers_per_feature) and ((feature_start, feature_end) != (0, contig_length)):
+    #             #     for orientation in ['+', '-']:
+    #             #         for motif in OnTargetMotif.motifs:
+    #             #             for m in matches:
+    #             #                 for target in filtered_targets:
+    #             #                     cls() # need to add the novel (feature_start, feature_end) so it can be stored in this object
+    #             #                     found_spacers += 1.0/len(filtered_targets) # Penalize for targets at the exact same location (IUPAC disambiguation)
+    #             #     # Expand feature before next iteration
+    #             #     feature_start = max(0, feature_start-expansion_size)
+    #             #     feature_end = min(contig_length, feature_end + expansion_size)
+    #             
+    #             # Search both the '+' and '-' strands
+    #             for orientation in ['+', '-']:
+    #                 if (orientation == '+'):
+    #                     sequence = contigs[feature_contig][feature_start:feature_end]
+    #                 else:
+    #                     sequence = nucleotides.rc(contigs[feature_contig][feature_start:feature_end])
+    #                 
+    #                 #for i in range(len(args.parsed_motifs)):
+    #                 for motif in OnTargetMotif.motifs:
+    #                     #spacers, pams, side = args.parsed_motifs[i]
+    #                     spacers, pams, side = motif.parsed_list
+    #                     #compiled_regex = args.compiled_motifs[i]
+    #                     #matches = nucleotides.motif_search(sequence, spacers, pams, side)
+    #                     matches = nucleotides.motif_search2(sequence, side, motif.compiled_regex)
+    #                     for seq, start, end, spacer, pam in matches:
+    #                         if (orientation == '+'):
+    #                             real_start = feature_start + start
+    #                             real_end = feature_start + end
+    #                         else:
+    #                             real_start = len(sequence) - end + feature_start
+    #                             real_end = len(sequence) - start + feature_start
+    #                         t_upstream = sequence[start-10:start]
+    #                         t_downstream = sequence[end:end+10]
+    #                         filtered_targets = target_filter(seq, spacer, pam, t_upstream, t_downstream, args)
+    #                         for filt_seq, filt_spacer, filt_pam in filtered_targets:
+    #                             cls(feature, feature_contig, orientation, real_start, real_end, t_upstream, t_downstream, filt_seq, side, filt_spacer, filt_pam, motif.motif_string, motif.parsed_list)
+    #                             # Maybe add to ReversionDonor here
+    #         else:
+    #             logging.info("The contig '{}' for feature '{}' is not in the input FASTA.".format(feature_contig, feature))
 
 class ReversionTarget(Target):
     prefix = 'reTarget'
@@ -1418,6 +1523,254 @@ class Motif(object):
         #logger.info('Built regex string: {!r}'.format(pattern))
         return pattern
 
+class Feature(object):
+    features = {}
+    # Origin flags
+    NONE=0
+    INPUT=1
+    DERIVED=2
+    def __init__(self, contig, start, end, strand, name=None, attributes=None, source=None, feature_type=None, score=None, frame=None, origin=0, sep=';'):
+        self.contig = contig
+        self.source = source
+        self.feature_type = feature_type
+        self.start = start
+        self.end = end
+        if (score != '.'):
+            self.score = score
+        else:
+            self.score = None
+        self.strand = strand
+        if (frame != '.'):
+            self.frame = frame
+        else:
+            self.frame = None
+        self.attributes = {}
+        if isinstance(attributes, dict):
+            self.attributes = attributes
+        elif isinstance(attributes, str): # "ID=12;Parent=nope"
+            alist = regex.split(sep+'\s*', attributes) # ['ID=12', 'Parent=nope']
+            self.attributes = dict([regex.split('\s*=\s*', x) for x in alist]) # {'ID': '12', 'Parent': 'nope'}
+        self.name = name
+        self.origin = origin
+    
+    @classmethod
+    def parse_gff_line(cls, text):
+        obj = None
+        
+        line = text.rstrip()
+        if not line.startswith('#'):
+            sline = line.split('\t')
+            if (len(sline) > 6):
+                contig = sline[0]
+                source = sline[1]
+                feature_type = sline[2]
+                start = int(sline[3])-1
+                end = int(sline[4])
+                score = sline[5]
+                strand = sline[6]
+                frame = None
+                attributes = None
+                if (len(sline) > 7):
+                    frame = sline[7]
+                if (len(sline) > 8):
+                    attributes = sline[8]
+                obj = Feature(contig, start, end, strand, source=source, feature_type=feature_type, score=score, frame=frame, attributes=attributes, origin=Feature.INPUT)
+        return obj
+    
+    @classmethod
+    def load_gff_file(cls, filename, feature_types, selected_features, tag):
+        """
+        Load General Feature Format (GFF) file into dict()
+        One line per feature, each containing 9 columns of data, plus optional
+        track definition lines.
+        
+        Converts positions to 0-based index.
+        """
+        # Fields must be tab-separated. Also, all but the final field in each
+        # feature line must contain a value; "empty" columns should be denoted
+        # with a '.'
+        #  1) seqid - name of the chromosome or scaffold; chromosome names can
+        #     be given with or without the 'chr' prefix. Important note: the
+        #     seqname must be a standard chromosome name or an identifier such as
+        #     a scaffold ID, without any additional content such as species or
+        #     assembly.
+        #  2) source - name of the program that generated this feature, or the
+        #     data source (database or project name)
+        #  3) feature - feature type name, e.g. Gene, Variation, Similarity
+        #  4) start - Start position of the feature, with sequence numbering
+        #     starting at 1.
+        #  5) end - End position of the feature, with sequence numbering
+        #     starting at 1.
+        #  6) score - A floating point value. As in earlier versions of the format,
+        #     the semantics of the score are ill-defined. It is strongly
+        #     recommended that E-values be used for sequence similarity features,
+        #     and that P-values be used for ab initio gene prediction features.
+        #     If there is no score, put a '.' (a period) in this field.
+        #  7) strand - defined as '+' (forward), '-' (reverse), '.' (unstranded),
+        #     '?' (relevant, but unknown).
+        #  8) frame - for CDS features, '0', '1' or '2'. '0' indicates that the first base of
+        #     the feature is the first base of a codon, '1' that the second base
+        #     is the first base of a codon, and so on. Other features can use '.'.
+        #  9) attribute - A semicolon-separated list of tag-value pairs, providing
+        #     additional information about each feature. A list of feature
+        #     attributes in the format tag=value. Multiple tag=value pairs are
+        #     separated by semicolons. URL escaping rules are used for tags or
+        #     values containing the following characters: ",=;". Spaces are allowed
+        #     in this field, but tabs must be replaced with the %09 URL escape.
+        #     This field is not required.
+        #     Column 9 tags have predefined meanings:
+        #       ID - Indicates the unique identifier of the feature. IDs must be
+        #            unique within the scope of the GFF file.
+        #       Name - Display name for the feature. This is the name to be displayed to the user. Unlike IDs, there is no requirement that the Name be unique within the file.
+        #       Alias - A secondary name for the feature. It is suggested that this tag be used whenever a secondary identifier for the feature is needed, such as locus names and accession numbers. Unlike ID, there is no requirement that Alias be unique within the file.
+        #       Parent - Indicates the parent of the feature. A parent ID can be used to group exons into transcripts, transcripts into genes, and so forth. A feature may have multiple parents. Parent can *only* be used to indicate a partof relationship.
+        #       Target - Indicates the target of a nucleotide-to-nucleotide or protein-to-nucleotide alignment. The format of the value is "target_id start end [strand]", where strand is optional and may be "+" or "-". If the target_id contains spaces, they must be escaped as hex escape %20.
+        #       Gap - The alignment of the feature to the target if the two are not collinear (e.g. contain gaps). The alignment format is taken from the CIGAR format described in the Exonerate documentation. http://cvsweb.sanger.ac.uk/cgi-bin/cvsweb.cgi/exonerate?cvsroot=Ensembl). See the GFF3 specification for more information.
+        #       Derives_from - Used to disambiguate the relationship between one feature and another when the relationship is a temporal one rather than a purely structural "part of" one. This is needed for polycistronic genes. See the GFF3 specification for more information.
+        #       Note - A free text note.
+        #       Dbxref - A database cross reference. See the GFF3 specification for more information.
+        #       Ontology_term - A cross reference to an ontology term. See the GFF3 specification for more information.
+        #     Multiple attributes of the same type are indicated by separating the
+        #     values with the comma "," character, as in: 'Parent=AF2312,AB2812,abc-3'
+        #     Note that attribute names are case sensitive. "Parent" is not the
+        #     same as "parent". All attributes that begin with an uppercase letter
+        #     are reserved for later use. Attributes that begin with a lowercase
+        #     letter can be used freely by applications. You can stash any
+        #     semi-structured data into the database by using one or more
+        #     unreserved (lowercase) tags.
+        
+        with open(filename, 'r') as flo:
+            for line in flo:
+                line = line.rstrip()
+                obj = cls.parse_gff_line(line)
+                if obj:
+                    if obj.feature_type in feature_types:
+                        obj.name = obj.attributes[tag]
+                        
+                        # Reduce the total number of features to just the ones indicated in the selection
+                        if selected_features:
+                            if (obj.name in selected_features):
+                                cls.features[obj.name] = obj
+                        else:
+                            cls.features[obj.name] = obj
+        
+        #logger.info('GFF file parsed: {!r}'.format(filename))
+    
+    @classmethod
+    def assert_features(cls, selection, contigs):
+        # Current implementation limitations
+        # GFF file only has 'Gene=' tag on ONE of the homologs, and not the other
+        # User will have to specify the feature twice if he wants to target both homologs
+        
+        # Require at least one in order to filter
+        # Feature has this format: key=gene/tag, value = (contig, start(bp), end(bp), strand)
+        if selection:
+            for s in selection:
+                f = cls.features.get(s)
+                if not f:
+                    raise Exception("Feature specified as '--selection "+s+"' does not exist in input '--gff'.")
+        
+        for feature_name, f in cls.features.items():
+            if not f.contig in contigs:
+                raise Exception("Feature '{}' lies on contig '{}' which does not exist in input '--fasta'.".format(feature_name, f.contig))
+        
+        if (len(cls.features) == 0):
+            raise Exception("Input '--gff' and '--selection' combination returns no valid features.")
+    
+    def expand_feature(self, args, contig_sequence, expansion_size=100, minimum_targets_per_feature=10):
+        feature_start = self.start
+        feature_end = self.end
+        
+        contig_length = len(contig_sequence)
+        
+        if (feature_end == None):
+            feature_end = len(contig_sequence)
+        
+        # Gradually expand feature size until the minimum number of targets is found
+        feature_sequence = contig_sequence[feature_start:feature_end]
+        targets = Target.get_targets(args, feature_sequence) # Does both orientations (+/-)
+        count = 0
+        while ((len(targets) < minimum_targets_per_feature) and ((feature_start, feature_end) != (0, contig_length))):
+            feature_start = max(0, feature_start-expansion_size)
+            feature_end = min(contig_length, feature_end + expansion_size)
+            
+            feature_sequence = contig_sequence[feature_start:feature_end]
+            targets = Target.get_targets(args, feature_sequence) # Does both orientations (+/-)
+            count += 1
+        
+        # Save the new feature as a Feature object
+        if (count > 0):
+            new_name = f.name + '_derived'
+            new_attributes = f.attributes.copy()
+            new_attributes[args.tag] = new_name
+            new_feature = Feature(f.contig, feature_start, feature_end, f.strand, source=f.source, feature_type=f.feature_type, score=f.score, frame=f.frame, attributes=new_attributes, origin=Feature.DERIVED)
+            new_feature.name = new_name
+            Feature.features[new_feature.name] = new_feature
+            return new_feature
+        else:
+            return self
+    
+#    def overlap_distance(self, start1, end1, start2, end2):
+#        coverage = self.overlap_coverage(start1, end1, start2, end2)
+#        if (coverage > 0):
+#            return -coverage
+#        else:
+#            #return min(abs(start2-end1), abs(start1-end2))
+#            return max(start2-end1, start1-end2)
+#            # 1 ..........
+#            # 2              XXXXXX
+#            
+#            # 1          ........
+#            # 2 XXXXXX
+    
+#    def overlap_percent_coverage(self, start1, end1, start2, end2):
+#        coverage = self.overlap_coverage(start1, end1, start2, end2)
+#        return float(coverage) / max(abs(end1 - start1), abs(end2 - start2))
+    
+#    def percent_full_length_coverage(self, start1, end1, len1, start2, end2, len2):
+#        coverage = self.overlap_coverage(start1, end1, start2, end2)
+#        return float(coverage) / max(len1, len2)
+    
+    @staticmethod
+    def overlap_coverage(start1, end1, start2, end2, index_base=0):
+        coverage = 0
+        
+        # Expects 0-based, left-inclusive, right-exclusive indexing
+        if (start2 <= start1 <= end1 <= end2):
+            # 1      .............
+            # 2   XXXXXXXXXXXXXXXXXX
+            coverage = abs(end1 - start1)
+        elif (start1 <= start2 <= end2 <= end1):
+            # 1      .....................
+            # 2            XXXXXXXXXX
+            coverage = abs(end2 - start2)
+        elif (start1 <= start2 <= end1 <= end2):
+            # 1      ........
+            # 2        XXXXXXXX
+            coverage = abs(end1 - start2)
+        elif (start2 <= start1 <= end2 <= end1):
+            # 1      .............
+            # 2  XXXXXXXXXX
+            coverage = abs(end2 - start1)
+        
+        # if 1-based, left-inclusive, right-inclusive indexing,
+        # then give +1 to coverage
+        if index_base == 1:
+            coverage += 1
+        
+        return coverage
+    
+    @classmethod
+    def get_overlapping_features(cls, contig, start, end):
+        """Returns list (sorted) of features that overlap with arguments"""
+        the_features = set()
+        for feature_name, f in cls.features.items():
+            if (contig == f.contig):
+                if (cls.overlap_coverage(start, end, f.start, f.end) > 0):
+                    the_features.add(feature_name)
+        
+        return sorted(the_features)
+
 class OnTargetMotif(Motif):
     motifs = []
 
@@ -1446,6 +1799,33 @@ class CustomHelpFormatter(argparse.HelpFormatter):
                 if action.option_strings or action.nargs in defaulting_nargs:
                     help += ' (default: %(default)s)'
         return help
+
+class ValidateFlanktags(argparse.Action):        
+    def __call__(self, parser, args, values, option_string=None):
+        # print '{n} {v} {o}'.format(n=args, v=values, o=option_string)
+        nmin = 1
+        nmax = 2
+        if not (nmin <= len(values) <= nmax):
+            raise argparse.ArgumentTypeError('argument --{f}: expected between {nmin} and {nmax} arguments'.format(f=self.dest, nmin=nmin, nmax=nmax))
+        
+        # If only 1 argument, then it is a filename
+        if (len(values) == 1):
+            pass
+        elif (len(values) == 2):
+            # If 2 arguments, then the first is either "uniform" or "specific"
+            s0 = set(values[0])
+            valid_s0_values = {'uniform', 'specific'} # set
+            d0 = s0.difference(valid_s0_values)
+            if (len(d0) > 0):
+                raise ValueError('invalid design TYPE: %s (choose from {uniform,specific})' % d.pop())
+            
+            s1 = set(values[1]) # in case there are duplicates, reduce them to a single occurrence with set()
+            valid_s1_values = {'single', 'paired'} # set
+            d1 = s1.difference(valid_s1_values)
+            if (len(d1) > 0):
+                raise ValueError('invalid design TYPE: %s (choose from {single,paired})' % d.pop())
+        
+        setattr(args, self.dest, list(s))
 
 # class ValidateDesign(argparse.Action):        
 #     def __call__(self, parser, args, values, option_string=None):
@@ -1559,14 +1939,133 @@ class main(object):
             print('')
     
     def _search(self, args):
+        """
+        Search input FASTA for arbitrary IUPAC sequence
+        Print out a GFF3 that can be used as an input to "generate"
+        """
+        if not args.identifier:
+            args.identifier = ["search_"+str(x) for x in range(len(args.query))]
+        if (len(args.query) != len(args.identifier)):
+            raise Exception("The number of sequences specified in '--query' does not match the number of features in '--identifier'.")
+        
+        myflags = regex.ENHANCEMATCH | regex.IGNORECASE # regex.ENHANCEMATCH|regex.IGNORECASE|regex.BESTMATCH
+        
+        contig_sequences = utils.load_multiple_fasta_files(args.fasta)
+        
+        for i, qseq in enumerate(args.query):
+            qpat = nucleotides.build_regex_pattern(qseq) #max_substitutions=0, max_insertions=0, max_deletions=0, max_errors=0, capture=True
+            c = regex.compile(qpat, flags=myflags)
+            
+            rc_qseq = nucleotides.rc(qseq)
+            rc_qpat = nucleotides.build_regex_pattern(rc_qseq)
+            rc_c = regex.compile(rc_qpat, flags=myflags)
+            
+            j = 0
+            
+            for ctg_name, ctg_seq in contig_sequences.items():
+                for m in c.finditer(ctg_seq):
+                    # contig_id, source, feature_type, start, end, score, strand, frame, attributes
+                    contig_id = ctg_name
+                    source = "addtag"
+                    feature_type = "search"
+                    start = m.start()+1
+                    end = m.end()
+                    score = '.' # <------ replace with E-value or percent identity
+                    strand = '+'
+                    frame = '.'
+                    attributes = args.tag+'='+args.identifier[i] + '_' + str(j)
+                    print("\t".join(str(x) for x in [contig_id, source, feature_type, start, end, score, strand, frame, attributes]))
+                    j += 1
+                
+                for m in rc_c.finditer(ctg_seq):
+                    contig_id = ctg_name
+                    source = "addtag"
+                    feature_type = "search"
+                    start = m.start()+1
+                    end = m.end()
+                    score = '.' # <------ replace with E-value or percent identity
+                    strand = '-'
+                    frame = '.'
+                    attributes = args.tag+'='+args.identifier[i] + '_' + str(j)
+                    print("\t".join(str(x) for x in [contig_id, source, feature_type, start, end, score, strand, frame, attributes]))
+                    j += 1
+        # End
+    
+    def _feature(self, args):
         print("Search GFF here.")
     
     def _evaluate(self, args):
+        '''UNDER DEVELOPMENT'''
         print("Perform the evaluation here.")
+        
+        contig_sequences = utils.load_multiple_fasta_files(args.fasta)
+        
+        dDNA_file = ExcisionDonor.generate_fasta(os.path.join(args.folder, 'excision-dDNAs.fasta'))
+        genome_fasta_file = utils.write_merged_fasta(contig_sequences, os.path.join(args.folder, 'genome.fasta'))
+        
+        # search spacer FASTA against genome+dDNA FASTA
+        genome_index_file = args.selected_aligner.index(genome_fasta_file, os.path.basename(genome_fasta_file), args.folder, args.processors)
+        dDNA_index_file = args.selected_aligner.index(dDNA_file, os.path.basename(dDNA_file), args.folder, args.processors)
+        
+        q2gDNA_sam_file = args.selected_aligner.align(ex_query_file, genome_index_file, 'excision-query-2-gDNA.sam', args.folder, args.processors)
+        q2exdDNA_sam_file = args.selected_aligner.align(ex_query_file, ex_dDNA_index_file, 'excision-query-2-excision-dDNA.sam', args.folder, args.processors)
+        
+        ExcisionTarget.load_sam(q2gDNA_sam_file, args, contig_sequences)
+        ExcisionTarget.load_sam(q2exdDNA_sam_file, args, ExcisionDonor.get_contig_dict())
+        
+        # Calculate off-target/guide scores for each algorithm
+        logging.info("ExcisionTarget after SAM parsing and off-target scoring")
+        ##### Add short-circuit/heuristic #####
+        for et_seq, et_obj in ExcisionTarget.sequences.items():
+            et_obj.score_off_targets(args, homologs)
+            logging.info(et_obj)
+            for a in et_obj.alignments:
+                logging.info('  ' + str(a))
+        
+        # Batch calculate with new ExcisionTarget class
+        ExcisionTarget.score_batch()
+        
+        logging.info("ExcisionTarget after Azimuth calculation")
+        for et_seq, et_obj in ExcisionTarget.sequences.items():
+            logging.info(et_obj)
+        
+        
+        
     
     def _generate(self, args):
         """Perform complete CRISPR/Cas analysis for input"""
-        print("Design all sequences here.")
+        
+        # Old colde for compiling regex for motifs
+        ## Note that any logging these functions perform will not be written to disk,
+        ## as no 'handler' has been specified.
+        #args.parsed_motifs = []
+        #args.compiled_motifs = []
+        #for motif in args.motifs:
+        #    spacers, pams, side = self.parse_motif(motif) # Parse the motif
+        #    args.parsed_motifs.append((spacers, pams, side)) # Add to args
+        #    args.compiled_motifs.append(nucleotides.compile_motif_regex(spacers, pams, side, anchored=False)) # Add to args
+        
+        # populate --off_target_motifs with --motifs if None
+        #if (args.off_target_motifs == None):
+        #    args.off_target_motifs = args.motifs
+        
+        # Parse the on-target motifs
+        for motif in args.motifs:
+            OnTargetMotif(motif)
+        
+        # Parse the off-target motifs
+        for motif in set(args.off_target_motifs).difference(args.motifs): # These motifs are exclusive to off-target list
+            OffTargetMotif(motif)
+        
+        # Motif.motifs           list of ALL motifs, both on-target and off-target?  <-- not implemented yet
+        # OnTargetMotif.motifs   list of on-target motifs
+        # OffTargetMotif.motifs  list of off-target motifs
+        
+        # Add 'selected_aligner' to hold the actual aligner object
+        for a in aligners.aligners:
+            if (a.name == args.aligner):
+                args.selected_aligner = a
+                break
         
         #contigs = utils.load_fasta_file(args.fasta[0]) # To do --> Do this for all FASTA files, then merge them into the same dictionary
         
@@ -1576,10 +2075,11 @@ class main(object):
         contig_sequences = utils.load_multiple_fasta_files(args.fasta)
         
         # Open and parse the GFF file specified on the command line
-        features = utils.load_gff_file(args.gff, args.features, args.tag)
-        
+        #features = utils.load_gff_file(args.gff, args.features, args.tag)
         # Filter features by what is selected
-        features = self.filter_features(features, args.selection)
+        #features = self.filter_features(features, args.selection)
+        Feature.load_gff_file(args.gff, args.features, args.selection, args.tag)
+        Feature.assert_features(args.selection, contig_sequences)
         
         # Make index of homologs
         if args.homologs:
@@ -1590,20 +2090,58 @@ class main(object):
         # Merge features?
         #features = merge_features(features)
         
+        
+        #### Some checks that need to be added ####
+        # The feature being targeted MUST not go up to the edge of the contigs
+        # Otherwise there will be no junction. i.e. the upstream and downstream
+        # regions won't exist.
+        # Actually, these regions must be at minimum, 50 nt
+        ###########################################
+        
+        
+        if (args.ko_gRNA): # (True/False)
+            # Search for good targets within specified features
+            pass
+            
+        if (args.ko_dDNA): # (mintag/addtag/unitag/bartag)
+            if (args.ko_dDNA == 'mintag'):
+                pass
+            elif (args.ko_dDNA == 'addtag'):
+                pass
+            elif (args.ko_dDNA == 'unitag'):
+                pass
+            elif (args.ko_dDNA == 'bartag'):
+                pass
+        
+        if (args.ki_gRNA): # (True/False)
+            pass
+        
+        if (args.ki_dDNA != None): # (None/True/'*.fasta')
+            #if (len(args.ki_dDNA) == 1):
+            if isinstance(args.ki_dDNA, str):
+                # If a file is specified, then it has the knock-in DNA
+                # that should be stitched to flanking homology arms
+                pass
+            else:
+                # Otherwise, generate KI dDNA that are wild type
+                pass
+        
+        
         # Search features within contigs for targets that match the motifs
-        ExcisionTarget.get_targets(args, contig_sequences, features)
+        # Old code (without feature expansion) ExcisionTarget.get_targets(args, contig_sequences, features)
+        ExcisionTarget.search_all_features(args, contig_sequences)
         
         # Write the query list to FASTA
         ex_query_file = ExcisionTarget.generate_query_fasta(os.path.join(args.folder, 'excision-query.fasta'))
         
         # Generate excision dDNAs and their associated reversion gRNA spacers
-        ExcisionDonor.generate_donors(args, features, contig_sequences)
+        ExcisionDonor.generate_donors(args, contig_sequences)
         ReversionTarget.get_targets()
-        ex_dDNA_file = ExcisionDonor.generate_fasta(os.path.join(args.folder, 'excision-dDNAs.fasta'))
+        ex_dDNA_file = ExcisionDonor.generate_fasta(os.path.join(args.folder, 'excision-dDNAs.fasta')) # Program will fail with error if this file is empty...
         re_query_file = ReversionTarget.generate_query_fasta(os.path.join(args.folder, 'reversion-query.fasta'))
         
         # Generate reversion dDNAs and write them to FASTA
-        ReversionDonor.generate_donors(args, features, contig_sequences)
+        ReversionDonor.generate_donors(args, contig_sequences)
         re_dDNA_file = ReversionDonor.generate_fasta(os.path.join(args.folder, 'reversion-dDNAs.fasta'))
         
         # Merge input FASTA files into a single one
@@ -1632,7 +2170,7 @@ class main(object):
         logging.info("ExcisionTarget after SAM parsing and off-target scoring")
         ##### Add short-circuit/heuristic #####
         for et_seq, et_obj in ExcisionTarget.sequences.items():
-            et_obj.score_off_targets(args, homologs, features)
+            et_obj.score_off_targets(args, homologs)
             logging.info(et_obj)
             for a in et_obj.alignments:
                 logging.info('  ' + str(a))
@@ -1671,7 +2209,7 @@ class main(object):
         #    return
         ##### Subroutine #####
         for re_seq, re_obj in ReversionTarget.sequences.items():
-            re_obj.score_off_targets(args, homologs, features)
+            re_obj.score_off_targets(args, homologs)
             logging.info(re_obj)
             for a in re_obj.alignments:
                 logging.info('  ' + str(a))
@@ -1690,8 +2228,8 @@ class main(object):
         ExcisionDonor.generate_alignments()
         
         # Pick out the best ones and print them out
-        self.get_best(args, features, homologs)
-        self.get_best_table(args, features, homologs, feature2gene)
+        self.get_best(args, homologs)
+        self.get_best_table(args, homologs, feature2gene)
         
         # Existing pipeline - Want to mutate feature, and cut site within feature
         # ,,,,,,,,,,,,,,,,NNNNNNNNNNNNNNNNNNNN111NNN................... Feature to be mutated contains cut site 1
@@ -1843,11 +2381,13 @@ class main(object):
     
     def _parser_search(self, subparsers):
         ''' "search" parser '''
-        __search_description__ = "Search features for specific gene name or id."
-        __search_help__ = "Search features for specific gene name or id."
+        # Searches input FASTA for DNA, and outputs a GFF file for use as input for 'generate'
+        
+        __search_description__ = "Search input FASTA for DNA sequence, and output a GFF file for use as input to 'generate'"
+        __search_help__ = "Search for positions of DNA in FASTA to make GFF file."
         parser_search = subparsers.add_parser('search',
             description=__search_description__,
-            #epilog=__search_epilog__,
+            #epilog=__feature_epilog__,
             formatter_class=CustomHelpFormatter,
             help=__search_help__
         )
@@ -1862,8 +2402,50 @@ class main(object):
             version='{__program__} {__version__} (revision {__revision__})'.format(**globals()))
         
         # Add mandatory arguments
+        required_group = parser_search.add_argument_group('required arguments')
+        required_group.add_argument("--fasta", required=True, nargs="+", metavar="*.fasta", type=str,
+            help="FASTA files with contigs to find unique gRNA sites. Input FASTA \
+            must not be compressed. User can decide whether ambiguous bases can \
+            be chosen for gRNA sites. All FASTA sequences should have unique \
+            primary headers (everything between the '>' symbol and the first \
+            whitespace should be unique). You should include FASTA of the genome \
+            and any plasmids.")
+        
+        required_group.add_argument("--query", required=True, nargs="+", metavar="SEQUENCE", type=str,
+            help="Sequence to search")
+        
         # Add optional arguments
+        parser_search.add_argument("--identifier", metavar="FEATURE", type=str, nargs="+",
+            help="Identifier for input query sequences")
+        
+        parser_search.add_argument("--tag", metavar="TAG", type=str, default="ID",
+            help="GFF3 attribute tag")
+        
         return parser_search
+    
+    def _parser_feature(self, subparsers):
+        ''' "feature" parser '''
+        __feature_description__ = "Search features for specific gene name or id."
+        __feature_help__ = "Search features for specific gene name or id."
+        parser_feature = subparsers.add_parser('feature',
+            description=__feature_description__,
+            #epilog=__feature_epilog__,
+            formatter_class=CustomHelpFormatter,
+            help=__feature_help__
+        )
+        parser_feature.set_defaults(func=self._feature)
+        
+        # Change the help text of the "-h" flag
+        parser_feature._actions[0].help='Show this help message and exit.'
+        
+        # Special version action optional argument
+        parser_feature.add_argument("-v", "--version", action='version',
+            help="Show program's version number and exit.",
+            version='{__program__} {__version__} (revision {__revision__})'.format(**globals()))
+        
+        # Add mandatory arguments
+        # Add optional arguments
+        return parser_feature
     
     def _parser_evaluate(self, subparsers):
         ''' "evaluate" parser '''
@@ -1901,17 +2483,21 @@ class main(object):
             type=str, help="Path of folder to store generated files.")
         
         # Add required, mutually-exclusive group
-        required_group = parser_evaluate.add_mutually_exclusive_group(required=True)
-        required_group.add_argument("--gRNAs", metavar="*.fasta",
+        me_group = parser_evaluate.add_mutually_exclusive_group(required=True)
+        me_group.add_argument("--spacers", metavar="*.fasta",
+            help="Evaluate where spacers would target, and for each site, what \
+                 its scores would be.")
+        
+        me_group.add_argument("--gRNAs", metavar="*.fasta",
             help="Evaluate where gRNAs would target, and for each site, what \
                  its scores would be.")
         
-        required_group.add_argument("--dDNAs", nargs="+", metavar="*.fasta", type=str,
+        me_group.add_argument("--dDNAs", nargs="+", metavar="*.fasta", type=str,
             help="Homology arms, presence of unique gRNA target site, and which \
                  features these dDNAs would disrupt, and whether-or-not the \
-                 dDNA would introudce a mutation.")
+                 dDNA would introduce a mutation.")
         
-        required_group.add_argument("--primers", metavar="*.fasta",
+        me_group.add_argument("--primers", metavar="*.fasta",
             help="Evaluate what amplicon sizes to expect for wt/ko/ki for \
                  input primers. Also evaluate the Tm/sensitivity/dimerization/etc \
                  for the input primers. Does not evaluate these in multiplex.")
@@ -1937,6 +2523,21 @@ class main(object):
         #                        NNNNNNNNNNNNNNNNNNNN
         #                        >feature1 R
         #                        NNNNNNNNNNNNNNNNNNNN
+        
+        
+        parser_evaluate.add_argument("--motifs", metavar="MOTIF", nargs="+", type=str,
+            default=["N{20}>NGG"],
+            help="Find only targets with these 'SPACER>PAM' motifs, written from \
+            5' to 3'. '>' points toward PAM. IUPAC ambiguities accepted. '{a,b}' \
+            are quantifiers. '/' is a sense strand cut, '\\' is an antisense strand \
+            cut, and '|' is a double-strand cut. '.' is a base used for positional \
+            information, but not enzymatic recognition. Be sure to enclose each \
+            motif in quotes so your shell does not interpret STDIN/STDOUT redirection.")
+        parser_evaluate.add_argument("--off_target_motifs", metavar="MOTIF", nargs="+", type=str,
+            default=[],
+            help="Defaults to the same as the on-target motif. Definition syntax is identical.")
+        
+        
         
         return parser_evaluate
     
@@ -1964,14 +2565,14 @@ class main(object):
         required_group = parser_generate.add_argument_group('required arguments')
         required_group.add_argument("--fasta", required=True, nargs="+", metavar="*.fasta", type=str,
             help="FASTA files with contigs to find unique gRNA sites. Input FASTA \
-                must not be compressed. User can decide whether ambiguous bases can \
-                be chosen for gRNA sites. All FASTA sequences should have unique \
-                primary headers (everything between the '>' symbol and the first \
-                whitespace should be unique). You should include FASTA of the genome \
-                and any plasmids.")
+            must not be compressed. User can decide whether ambiguous bases can \
+            be chosen for gRNA sites. All FASTA sequences should have unique \
+            primary headers (everything between the '>' symbol and the first \
+            whitespace should be unique). You should include FASTA of the genome \
+            and any plasmids.")
         required_group.add_argument("--gff", required=True, metavar="*.gff", type=str,
             help="GFF file specifying chromosomal features that should be \
-                 multiplexed together.")
+            multiplexed together.")
         required_group.add_argument("--folder", required=True, metavar="FOLDER",
             type=str, help="Path of folder to store generated files.")
         
@@ -1983,7 +2584,7 @@ class main(object):
         # okay idea, but needs more thought before implementation
         parser_generate.add_argument("--homologs", metavar="*.homologs", type=str, default=None,
             help="Path to text file containing homologous features on the same \
-                line, separated by TAB characters")
+            line, separated by TAB characters")
         #parser.add_argument("--pams", metavar="SEQ", nargs="+", type=str,
         #    default=["NGG"], help="Constrain finding only targets with these PAM sites")
         #parser.add_argument("--target_lengths", nargs=2, metavar=('MIN', 'MAX'),
@@ -2058,10 +2659,11 @@ class main(object):
             If MIN < 0, then regions of dDNA homology (outside the feature) will be removed.")
         parser_generate.add_argument("--excise_feature_edge_distance", metavar="N", type=int, default=0,
             help="If positive, gRNAs won't target any nucleotides within this distance \
-                 from the edge of the feature. If negative, gRNAs will target nucleotides \
-                 this distance outside the feature.")
+            from the edge of the feature. If negative, gRNAs will target nucleotides \
+            this distance outside the feature.")
         #
-        #
+        # May need to remove '--excise_upstream_feature_trim' and '--excise_downstream_feature_trim'
+        # And replace with '--expand_feature {upstream,downstream,both}'
         parser_generate.add_argument("--excise_upstream_feature_trim", nargs=2, metavar=('MIN', 'MAX'),
             type=int, default=[0, 0], help="Between MIN and MAX number of nucleotides \
             upstream of the feature will be considered for knock-out when designing \
@@ -2070,6 +2672,10 @@ class main(object):
             type=int, default=[0, 0], help="Between MIN and MAX number of nucleotides \
             downstream of the feature will be considered for knock-out when designing \
             donor DNA.")
+        #parser_generate.add_argument("--expand_feature", type=str, default="both",
+        #    choices=["none", "upstream", "downstream", "both"],
+        #    help="Sequence immediately up/down-stream of intended feature may \
+        #    be knocked-out in order to generate good mintag sites.")
         #
         #
         #parser.add_argument("--min_donor_insertions", metavar="N", type=int, default=2,
@@ -2133,32 +2739,78 @@ class main(object):
         parser_generate.add_argument("--max_time", metavar="SECONDS", type=float, default=60,
             help="Maximum amount of time, in seconds, for each feature to spend calculating dDNAs.")
         
-        return parser_generate
+        
+        
+        parser_generate.add_argument("--bartag_motif", type=str, default='N{20}',
+            help="Structure of nucleotides that should be generated")
+        
+        parser_generate.add_argument("--bartag_distance", type=int, default=3,
+            help="Minimum required edit distance between each bartag.")
+        
+        parser_generate.add_argument("--flanktags", nargs='+', action=ValidateFlanktags, type=str,
+            metavar=('{*.fasta,uniform,specific}', '{single,pair}'), default=None,
+            help="If 'uniform', then all features will share the same flanktags. \
+            If 'specific', then each feature will have its own flanktags. \
+            If '*.fasta', then flanktags will be taken from an input FASTA file with either a single or paired flanktags. \
+            If 'single', then design a single oligo to serve as both the uptag and dntag. \
+            If 'pair', then design uptag different to dntag.")
+        
+        #--flanktags myfile.fasta
+        #--flanktags uniform single
+        #--flanktags uniform pair
+        #--flanktags feature single
+        #--flanktags feature pair
+        
+        # By default, unlabeled flanktags won't be strand specific, but if they are labeled, then they will be strand-specific
+        # The flanktag length will be 18-25 nt, preferring 20
+        
+        # Splitting up "generate" into specific sub-tasks
+        parser_generate.add_argument("--ko-gRNA", action='store_true', default=False,
+            help="Design gRNAs to target features in genome")
+        
+        parser_generate.add_argument("--ko-dDNA", type=str, default=None,
+            choices=['mintag', 'addtag', 'unitag', 'bartag'],
+            help="'mintag' are unique us/i/ds junction targets specific to each feature. \
+            'addtag' are unique targets for each feature. \
+            'unitag' is a single and uniform, unique target for ALL features. \
+            'bartag' are unique barcodes for each feature (does not guarantee targets).")
+        
+        parser_generate.add_argument("--ki-gRNA", action='store_true', default=False,
+            help="Design gRNAs to target either the dDNA. \
+            Defaults to True if '--ko-dDNA mintag' is specified.")
+        
+        parser_generate.add_argument("--ki-dDNA", nargs='?', type=str, default=None,
+            metavar='*.fasta', const=True,
+            help="If only the option with no file is specified, then design wild type dDNA. \
+            If FASTA file is specified, then design dDNA to replace features with foreign sequences. \
+            The sequence header should have a 'TAG=*' field where 'TAG' is the tag specified with '--tag' option.")
         
         # subparsers
         #  addtag generate
         #   --ko-gRNA                              Design gRNAs to target features in genome
-        #   --ko-dDNA mintag|addtag|unitag|sigtag  Design knock-out dDNAs for target features in genome
+        #   --ko-dDNA mintag|addtag|unitag|bartag  Design knock-out dDNAs for target features in genome
         #                                          (these will be constrained to dDNAs targetable by ki-gRNAs)
         #             mintag                          Designs unique us/i/ds junction target specific to each feature
         #                    addtag                   Designs unique target for each feature
-        #                           unitag            Designs a single, unique target for ALL features
-        #                                  sigtag     Designs unique barcode for each feature
-        #   --sigtag_length INT                    Specify length of sigtag barcode in nt (Or should this be --sigtag_motif NNNNNN?)
+        #                           unitag            Designs a single/uniform, unique target for ALL features
+        #                                  bartag     Designs unique barcode for each feature
+        #   --bartag_length INT                    Specify length of sigtag barcode in nt (Or should this be --sigtag_motif NNNNNN?)
         #   --flanktags generate                   Design identical uptag/dntag primer sequences to addtag/sigtag/unitag for each site/feature
         #   --flanktag_length INT INT              Specify length of generated uptag and dntag sequences in nt
-        #   --flanktags input FAST                 Use file specifying uptag/dntag primers sequences for addtag/sigtag for all sites
-        #                                          >feature1 uptag
+        #   --flanktags input FASTA                Use file specifying uptag/dntag primers sequences for addtag/sigtag for all sites
+        #                                          >seq1 ID=feature1 flanktag=uptag
         #                                          NNNNNNNNNNNNNNNNNNNN
-        #                                          >feature1 dntag
+        #                                          >seq2 ID=feature1 dntag
         #                                          NNNNNNNNNNNNNNNNNNNN
         #   
         #   --ki-gRNA     Design knock-in gRNAs that target the ko-dDNA
         #   --ki-dDNA wt        Design the dDNA for knocking the wild type feature back in
         #   --ki-dDNA FASTA     If a FASTA file is specified, then use mutants for these indicated features
-        #                       >feature1
+        #                       >seq1 ID=feature1
         #                       NNNNNNNNNNNNNNNNNNN
         #                       The entire feature will be replaced by this sequence
+        
+        return parser_generate
     
     def _parser_confirm(self, subparsers):
         ''' "confirm" parser '''
@@ -2207,6 +2859,7 @@ class main(object):
         parser_algorithms = self._parser_algorithms(subparsers)
         parser_aligners = self._parser_aligners(subparsers)
         parser_search = self._parser_search(subparsers)
+        parser_feature = self._parser_feature(subparsers)
         parser_evaluate = self._parser_evaluate(subparsers)
         parser_generate = self._parser_generate(subparsers)
         parser_confirm = self._parser_confirm(subparsers)
@@ -2247,41 +2900,6 @@ class main(object):
         if (len(sys.argv) < 2):
             parser.print_usage()
             sys.exit(1)
-        
-        if (args.func == self._generate):
-            
-            # Old colde for compiling regex for motifs
-            ## Note that any logging these functions perform will not be written to disk,
-            ## as no 'handler' has been specified.
-            #args.parsed_motifs = []
-            #args.compiled_motifs = []
-            #for motif in args.motifs:
-            #    spacers, pams, side = self.parse_motif(motif) # Parse the motif
-            #    args.parsed_motifs.append((spacers, pams, side)) # Add to args
-            #    args.compiled_motifs.append(nucleotides.compile_motif_regex(spacers, pams, side, anchored=False)) # Add to args
-            
-            # populate --off_target_motifs with --motifs if None
-            #if (args.off_target_motifs == None):
-            #    args.off_target_motifs = args.motifs
-            
-            # Parse the on-target motifs
-            for motif in args.motifs:
-                OnTargetMotif(motif)
-            
-            # Parse the off-target motifs
-            for motif in set(args.off_target_motifs).difference(args.motifs): # These motifs are exclusive to off-target list
-                OffTargetMotif(motif)
-            
-            # Motif.motifs           list of ALL motifs, both on-target and off-target?  <-- not implemented yet
-            # OnTargetMotif.motifs   list of on-target motifs
-            # OffTargetMotif.motifs  list of off-target motifs
-            
-            
-            # Add 'selected_aligner' to hold the actual aligner object
-            for a in aligners.aligners:
-                if (a.name == args.aligner):
-                    args.selected_aligner = a
-                    break
         
         # Return the parsed arguments
         return args
@@ -2337,13 +2955,14 @@ class main(object):
         """Combine overlapping features?"""
         return features
     
-    def get_exTarget_homologs(self, features, homologs):
+    def get_exTarget_homologs(self, homologs):
         """Get ExcisionTarget objects for each homologous feature group"""
         ext_dict = {}
         if homologs:
             groups = set()
-            for f in features:
-                groups.add(tuple(sorted(homologs[f])))
+            for feature_name, f in Feature.features.items():
+            #for f in features:
+                groups.add(tuple(sorted(homologs[feature_name])))
             for g in groups:
                 ext_dict[g] = set()
                 for name, obj in ExcisionTarget.indices.items():
@@ -2352,27 +2971,29 @@ class main(object):
                         ext_dict[g].add(obj)
         return ext_dict
     
-    def get_exTarget_allele_specific(self, features):
+    def get_exTarget_allele_specific(self):
         """Gets allele-specific ExcisionTarget objects"""
         ext_dict = {}
-        for f in features:
-            ext_dict[f] = set()
+        for feature_name, f in Feature.features.items():
+        #for f in features:
+            ext_dict[feature_name] = set()
             for name, obj in ExcisionTarget.indices.items():
                 obj_features = set(utils.flatten(x[0].split(',') for x in obj.locations))
-                if ((len(obj_features) == 1) and (f in obj_features)):
-                    ext_dict[f].add(obj) # Store with the feature as key
+                if ((len(obj_features) == 1) and (feature_name in obj_features)):
+                    ext_dict[feature_name].add(obj) # Store with the feature as key
         return ext_dict
     
-    def get_reTarget_homologs(self, features, homologs):
+    def get_reTarget_homologs(self, homologs):
         """Get ReversionTarget objects for each homologous feature group"""
         ret_dict2 = {}
         
         if homologs:
             groups = set()
-            for f in features:
+            for feature_name, f in Feature.features.items():
+            #for f in features:
                 #contig, start, end, strand = features[feature]
                 # Convert to tuple
-                groups.add(tuple(sorted(homologs[f])))
+                groups.add(tuple(sorted(homologs[feature_name])))
             # groups = {('F1_A', 'F1_B'), ('F2_A', 'F2_B')} # A set of tuples
             
             for g in groups:
@@ -2405,15 +3026,16 @@ class main(object):
                     ret_dict[f].add(obj) # Store with the feature as key
         return ret_dict
     
-    def get_reTarget_allele_specific(self, features):
+    def get_reTarget_allele_specific(self):
         """Gets allele-specific ReversionTarget objects"""
         ret_dict = {}
-        for f in features:
-            ret_dict[f] = set()
+        for feature_name, f in Feature.features.items():
+        #for f in features:
+            ret_dict[feature_name] = set()
             for name, obj in ReversionTarget.indices.items():
                 obj_features = set(utils.flatten(x[0].split(',') for x in obj.locations))
-                if ((len(obj_features) == 1) and (f in obj_features)):
-                    ret_dict[f].add(obj) # Store with the feature as key
+                if ((len(obj_features) == 1) and (feature_name in obj_features)):
+                    ret_dict[feature_name].add(obj) # Store with the feature as key
         return ret_dict
     
     def rank_donors(self, donor_list):
@@ -2465,7 +3087,7 @@ class main(object):
         #return sorted(target_list, key=lambda x: rank(x.score['Azimuth'], x.off_targets['Hsu-Zhang'], x.off_targets['CFD']), reverse=True)
         return sorted(rank_list, key=lambda x: x[0], reverse=True)
     
-    def get_best_table(self, args, features, homologs, feature2gene):
+    def get_best_table(self, args, homologs, feature2gene):
         """
         Identify and print the best spacers and dDNAs for each feature, given
         each mAT insert size, and us/ds trim length.
@@ -2498,7 +3120,7 @@ class main(object):
         
         # Get best ReversionTargets by calculating their weights, and also getting
         # the ExcisionDonors that correspond to the ReversionTarget
-        ret_dict2 = self.get_reTarget_homologs(features, homologs)
+        ret_dict2 = self.get_reTarget_homologs(homologs)
         for feature_homologs in sorted(ret_dict2):
             # Get these two things which are common to all the top hits
             gene = feature2gene[feature_homologs[0]] # Get the gene name
@@ -2521,7 +3143,7 @@ class main(object):
                 
                 exdonors = ','.join(map(lambda x: x[1].name, rds))
                 
-                key0 = sorted(set(utils.flatten(map(lambda x: x[1].get_inserts_and_trims(features), rds))))
+                key0 = sorted(set(utils.flatten(map(lambda x: x[1].get_inserts_and_trims(), rds))))
                 key0s = ','.join('{}:{}:{}'.format(x[1], x[0], x[2]) for x in key0)
                 key1 = sorted(set([(len(x[0]), x[1], x[2]) for x in key0])) # replace mAT with length
                 key1s = ','.join(map(str, key1))
@@ -2544,7 +3166,7 @@ class main(object):
                 logging.info('No spacers for targeting knocked-out ' + csfeatures)
         
         # Print a table of allele-specific knock-in spacer and dDNA pairs
-        ret_dict = self.get_reTarget_allele_specific(features)
+        ret_dict = self.get_reTarget_allele_specific()
         for feature in sorted(ret_dict):
             gene = feature2gene[feature] # Get the gene name
             outputs = {}
@@ -2559,7 +3181,7 @@ class main(object):
                 
                 exdonors = ','.join(map(lambda x: x[1].name, rds))
                 
-                key0 = sorted(set(utils.flatten(map(lambda x: x[1].get_inserts_and_trims(features), rds))))
+                key0 = sorted(set(utils.flatten(map(lambda x: x[1].get_inserts_and_trims(), rds))))
                 key0s = ','.join('{}:{}:{}'.format(x[1], x[0], x[2]) for x in key0)
                 key1 = sorted(set([(len(x[0]), x[1], x[2]) for x in key0])) # replace mAT with length
                 key1s = ','.join(map(str, key1))
@@ -2586,7 +3208,7 @@ class main(object):
         print('\t'.join(header))
         
         # Print the best homozygous ExcisionTargets for each feature set
-        ext_dict2 = self.get_exTarget_homologs(features, homologs)
+        ext_dict2 = self.get_exTarget_homologs(homologs)
         for feature_homologs in sorted(ext_dict2):
             gene = feature2gene[feature_homologs[0]] # Get the gene name
             csfeatures = ','.join(feature_homologs) # Add the features as comma-separated list
@@ -2619,7 +3241,7 @@ class main(object):
                 logging.info('No spacers for targeting ' + csfeatures)
         
         # Print a table of allele-specific knock-out spacer and dDNA pairs
-        ext_dict = self.get_exTarget_allele_specific(features)
+        ext_dict = self.get_exTarget_allele_specific()
         for feature in sorted(ext_dict):
             gene = feature2gene[feature] # Get the gene name
             
@@ -2652,13 +3274,13 @@ class main(object):
                 logging.info('No allele-specific spacers for targeting knocked-out ' + feature)
         
     
-    def get_best(self, args, features, homologs):
+    def get_best(self, args, homologs):
         """Function that returns the best spacers and dDNAs for each feature"""
         
         display_num = 5
         
         # Print best ReversionTargets calculated and their corresponding ExcisionDonors
-        ret_dict2 = self.get_reTarget_homologs(features, homologs)
+        ret_dict2 = self.get_reTarget_homologs(homologs)
         for k in ret_dict2:
             logging.info(str(k) + ' ' + str(len(ret_dict2[k])))
             # Print the top 5
@@ -2669,11 +3291,11 @@ class main(object):
                 # filter out all but the top-ranked ones
                 rds = [x for x in rds if (x[0] == rds[0][0])]
                 for gap, exd_obj in rds:
-                    logging.info('   ' + str(gap) + ' ' + str(exd_obj.get_trims(features)) + ' ' + str(exd_obj))
+                    logging.info('   ' + str(gap) + ' ' + str(exd_obj.get_trims()) + ' ' + str(exd_obj))
         
         # Print best ExcisionTargets (not necessarily homozygous) for each feature
         # and the ReversionDonor
-        for feature in sorted(features):
+        for feature in sorted(Feature.features):
             logging.info(feature)
             et_list = []
             for name, obj in ExcisionTarget.indices.items():
