@@ -17,7 +17,7 @@ All generated sequences can be designed as either strand-specific or strand-agno
 ### Requirements ###
 
  * Python >= 3.5.1 ([source](https://www.python.org/downloads/), [binaries](https://www.python.org/downloads/), [documentation](https://docs.python.org/3/))
-    - regex module ([source](https://bitbucket.org/mrabarnett/mrab-regex), [whls](https://pypi.python.org/pypi/regex), [documentation](https://pypi.python.org/pypi/regex))
+    - regex module ([source](https://bitbucket.org/mrabarnett/mrab-regex), [whls](https://pypi.org/project/regex/), [documentation](https://pypi.org/project/regex/))
       
       note: The easy way to install this is through pip.
       
@@ -42,6 +42,10 @@ All generated sequences can be designed as either strand-specific or strand-agno
     - Bowtie 2 ([source](https://github.com/BenLangmead/bowtie2), [binaries](https://sourceforge.net/projects/bowtie-bio/files/bowtie2/), [documentation](http://bowtie-bio.sourceforge.net/bowtie2/manual.shtml))
     - BWA ([source](https://github.com/lh3/bwa), [documentation](http://bio-bwa.sourceforge.net/bwa.shtml))
     - Cas-OFFinder ([source](https://github.com/snugel/cas-offinder), [binaries](https://sourceforge.net/projects/cas-offinder/files/Binaries/), [documentation](http://www.rgenome.net/cas-offinder/portable))
+
+ * For cPCR oligo design, we recommend at least one third-party thermodynamics calculation program.
+    - UNAFold ([documentation](http://unafold.rna.albany.edu/))
+    - primer3-py module ([source](https://github.com/libnano/primer3-py), [whls](https://pypi.org/project/primer3-py/), [documentation](https://libnano.github.io/primer3-py/))
 
  * Git >= 1.7.1 ([source, binaries](https://git-scm.com/downloads)) Certain AddTag functionality depends on Git.
 
