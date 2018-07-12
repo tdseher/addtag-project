@@ -19,7 +19,7 @@ All generated sequences can be designed as either strand-specific or strand-agno
  * Python >= 3.5.1 ([source](https://www.python.org/downloads/), [binaries](https://www.python.org/downloads/), [documentation](https://docs.python.org/3/))
     - regex module ([source](https://bitbucket.org/mrabarnett/mrab-regex), [whls](https://pypi.org/project/regex/), [documentation](https://pypi.org/project/regex/))
       
-      note: The easy way to install this is through pip.
+      note: The easy way to install this is through `pip`.
       
       ```
       $ pip3 install regex
@@ -46,6 +46,12 @@ All generated sequences can be designed as either strand-specific or strand-agno
  * For cPCR oligo design, we recommend at least one third-party thermodynamics calculation program.
     - UNAFold ([documentation](http://unafold.rna.albany.edu/))
     - primer3-py module ([source](https://github.com/libnano/primer3-py), [whls](https://pypi.org/project/primer3-py/), [documentation](https://libnano.github.io/primer3-py/))
+      
+      note: The easy way to install this is through `pip`.
+      
+      ```
+      $ pip3 install primer3-py
+      ```
 
  * Git >= 1.7.1 ([source, binaries](https://git-scm.com/downloads)) Certain AddTag functionality depends on Git.
 
