@@ -11,8 +11,8 @@
           N{20}>NAG         SpCas9                   Streptococcus pyogenes          H. sapiens; Cell-free    Hsu, et al (2013)
           N{20}>NRG         SpCas9        Vetted     Streptococcus pyogenes          H. sapiens; Cell-free    Hsu, et al (2013); Karvelis, et al (2015)
          GN{19}>NRG         SpCas9                   Streptococcus pyogenes          H. sapiens; Cell-free    Hsu, et al (2013)
-       N{17}NGG>NGG         SpCas9        Vetted     Streptococcus pyogenes          C. elegans; Candida spp  Farboud  & Meyer (2015); Grahl, et al (2017)
-          N{10}>AGGNGG      SpCas9                   Streptococcus pyogenes          C. elegans;              Farboud  & Meyer (2015)
+      N{17}|NGG>NGG         SpCas9        Vetted     Streptococcus pyogenes          C. elegans; Candida spp  Farboud  & Meyer (2015); Grahl, et al (2017)
+          N{10}>AGGNGG      SpCas9                   Streptococcus pyogenes          C. elegans; ?            Farboud  & Meyer (2015)
           N{??}>NNGTGA      SpCas9                   Streptococcus pasteurianus?     ?                        ?
   G{,2}N{19,20}>NGG         Cas9p                    ?                               Plants                   Ma & Liu (2016)
          RN{19}>NGG         Cas9p                    ?                               Plants                   Ma, et al (2015); Ma & Liu (2016)
@@ -41,8 +41,8 @@
            TTTN<N{19}/.{4}\ AsCpf1/LbCpf1            Acidaminococcus/Lachnospiraceae ?                        ?
            TTTN<N{20,23}    AsCpf1/LbCpf1            Acidaminococcus/Lachnospiraceae ?                        ?
            TTTV<N{20,23}    AsCpf1/LbCpf1            Acidaminococcus/Lachnospiraceae ?                        ?
-           TYCV<N{??}       AsCpf1 RR/LbCpf1 RR
-           TATV<N{??}       AsCpf1 RVR
+           TYCV<N{??}       AsCpf1 RR/LbCpf1 RR      ?                               ?                        ?
+           TATV<N{??}       AsCpf1 RVR               ?                               ?                        ?
             TTN<N{20,23}    FnCpf1        Putative   Francisella novicida            ?                        ?
             YTN<N{20,23}    FnCpf1        Putative   Francisella spp.?               ?                        ?
              AW<GN{31,32}   EcCas3        Putative   Escherichia coli (Ec)           ?                        Swarts, et al (2012)
