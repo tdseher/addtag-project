@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
 """AddTag Copyright (c) 2016 Thaddeus D. Seher & Aaron Hernday"""
 
@@ -7,12 +8,87 @@
 # Import standard packages
 import sys
 import math
+import os
+import subprocess
 
 # import non-standard package
 import regex
 
 # Code to analyze PCR primers
 # IDT uses mfold_util 4.5 for hairpins (UNAFold)
+
+# JalView uses RNAAliFold
+
+# Primer design possibilities for wild-type, mintag, addtag, mutant/transgene
+#     ─genome┐┌─us_homology─┐┌─feature─┐┌─ds_homology─┐┌genome─
+# Fo  ──> - - - - - - - - - - - - - - - - - - - - - - - - - <──  Ro
+# Fo  ──> - - - - - - - - - - <──  Rf
+#                             Ff  ──> - - - - - - - - - - - <──  Ro
+#                         Ff  ──>- -<──  Rf
+# Sample FASTA headers for these
+# >oligo-1 pair=oligo-2 location=feature strand=+ feature=NNNNNNN amplicon_size=N
+# >oligo-2 pair=oligo-1 location=feature strand=- feature=NNNNNNN amplicon_size=N
+#
+# >oligo-3 pair=oligo-4 location=upstream strand=+ feature=NNNNNNN amplicaon_size=N
+# >oligo-4 pair=oligo-3 location=feature strand=- feature=NNNNNNN amplicaon_size=N
+#
+# >oligo-5 pair=oligo-6 location=feature strand=+ feature=NNNNNNN amplicaon_size=N
+# >oligo-6 pair=oligo-5 location=downstream strand=- feature=NNNNNNN amplicaon_size=N
+
+
+
+# Primer design possibilities for flanktag
+#     ─genome┐┌─us_homology─┐┌─uptag─┐┌─bartag─┐┌─dntag─┐┌─ds_homology─┐┌genome─
+# Fo  ──> - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -<──  Ro
+# Fo  ──> - - - - - - - - - - <──  Ru
+# Fo  ──> - - - - - - - - - - - - - - - <──  Rb
+# Fo  ──> - - - - - - - - - - - - - - - - - - - - - <──  Rd
+#                          Fu  ──>- - - - - - - - - - - - - - - - - - - - - -<──  Ro
+#                                      Fb  ──>- - - - - - - - - - - - - - - -<──  Ro
+#                                                Fd  ──>- - - - - - - - - - -<──  Ro
+#                           Fu  ──> - - - - - - - -<──  Rd
+# Sample FASTA headers for these
+# >oligo-7 pair=oligo-8 location=upstream strand=+ feature=NNNNNNN amplicaon_size=N
+# >oligo-8 pair=oligo-7 location=uptag strand=- feature=NNNNNNN amplicaon_size=N
+
+class Sequence(object):
+    def __init__(self, sequence, concentration, molecule='DNA'):
+        self.sequence = sequence # ACGT...
+        self.molecule = molecule # 'DNA' or 'RNA'
+        self.concentration = concentration # concentration in molarity
+
+class Geometry(object):
+    def __init__(self, sequences):
+        self.sequences = sequences # [Sequence(), ...]
+        self.delta_G = self.get_delta_G()
+        self.delta_H = self.get_delta_H()
+        self.delta_S = self.get_delta_S()
+        self.probability = None
+        self.melting_temperature = self.get_melting_temperature()
+
+    def get_delta_G(self, sodium=0.05, magnesium=0.0):
+        pass
+    def get_delta_H(self):
+        pass
+    def get_delta_S(self):
+        pass
+    def get_melting_temperature(self):
+        pass
+
+def get_geometries(seqs, sodium=0.05, magnesium=0.0):
+    pass
+
+def make_primer():
+    # primer length should be 17-28 nt long
+    # 3' GC clamp
+    # %GC should be between 40-60
+    # Tm should be between 50-70
+    # min delta-G should be -3
+    # should avoid runs of 3-or-more Cs and Gs in 3' end
+    # 3' ends of primers should NOT be complementary
+    #    (as even a little dimerization will inhibit target annealing)
+    
+    pass
 
 def get_best_pair(primer, seq):
     """
