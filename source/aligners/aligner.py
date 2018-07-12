@@ -2,7 +2,7 @@
 
 """AddTag Copyright (c) 2016 Thaddeus D. Seher & Aaron Hernday"""
 
-# source/algorithms/algorithm.py
+# source/algorithms/aligner.py
 
 # Import standard packages
 import sys
