@@ -9,6 +9,7 @@ import sys
 import os
 import math
 import fractions
+import random
 
 # Import non-standard packages
 import regex
@@ -24,10 +25,10 @@ if (__name__ == "__main__"):
     sys.path.append(os.path.normpath(os.path.join(SCRIPT_DIR, PACKAGE_PARENT)))
     
     from algorithm import SingleSequenceAlgorithm, PairedSequenceAlgorithm, BatchedSingleSequenceAlgorithm
-    from nucleotides import rc
+    from nucleotides import rc, disambiguate_iupac
 else:
     from .algorithm import SingleSequenceAlgorithm, PairedSequenceAlgorithm, BatchedSingleSequenceAlgorithm
-    from ..nucleotides import rc
+    from ..nucleotides import rc, disambiguate_iupac
 
 class Doench2014(SingleSequenceAlgorithm):
     def __init__(self):
@@ -253,64 +254,161 @@ class Azimuth(BatchedSingleSequenceAlgorithm):
         """Penalize any score less than 60"""
         return 1.0/(1+1.17**(50-x))
     
-    def calculate(self, batch, *args, **kwargs):
-        queries = []
-        skips = {}
+    # Not currently used
+    def fix_flank(self, upstream='', downstream=''):
+        # if upstream is missing any values, then it must be filled with 'Ns'
+        #   '' becomes 'NNNN'
+        # 'AC' becomes 'NNAC'
+        # same with downstream
+        
+        # upstream needs 4 nt sequence
+        us = upstream
+        while(len(us) < 4):
+            us = 'N' + us
+        
+        # downstream needs 3 nt sequence
+        ds = downstream
+        while(len(ds) < 3):
+            ds = ds + 'N'
+        
+        return us, ds
+    
+    def calculate(self, batch, *args, disambiguate=False, batch_size=50000, disambiguate_samples=512, **kwargs):
+        queries2 = [] # (index, calculate=True/False, (seq1, seq2, ...))
+        
+        #if ("disambiguate" in kwargs):
+        #    disambiguate = kwargs["disambiguate"]
+        #else:
+        #    disambiguate = False
+        #if ("batch_size" in kwargs):
+        #    batch_size = kwargs["batch_size"]
+        #else:
+        #    batch_size = 50000
+        #if ("disambiguate_samples" in kwargs):
+        #    disambiguate_samples = max(1, int(kwargs["disambiguate_samples"]))
+        #else:
+        #    disambiguate_samples = 512
         
         # unpack the input sequences
         for i, query in enumerate(batch):
             sequence, target, pam, upstream, downstream = query
             built_query = self.build_query(target, pam, upstream, downstream)
-            m = regex.search('[^ACGT]', built_query)
-            if m:
-                skips[i] = built_query
+            built_query = built_query.upper()
+            
+            # Check if a non-cannonical nt is found            
+            #m = regex.search('[^ACGT]', built_query)
+            m = regex.findall('[^ACGT]', built_query)
+            if (len(m) > 0):
+                # If so, then we either disambiguate or we skip
+                # Disambiguate
+                if (disambiguate and (len(m) <= 10)):
+                    disamb_query = disambiguate_iupac(built_query)
+                    disamb_sample = random.sample(disamb_query, min(len(disamb_query), disambiguate_samples))
+                    for ds in disamb_sample:
+                        queries2.append([i, True, ds, 0.0])
+                
+                #if should_skip:
+                else:
+                    queries2.append([i, False, built_query, 0.0])
+                
             else:
-                queries.append(built_query)
+                queries2.append([i, True, built_query, 0.0])
         
         # Obtain path of currently-running file
         SCRIPT_DIR = os.path.dirname(os.path.realpath(os.path.join(os.getcwd(), os.path.expanduser(__file__))))
         WRAPPER_PATH = os.path.join(SCRIPT_DIR, "azimuth_wrapper.py")
         # Should use args.python2_path
         
-        batch_size = 50000
+        #print("queries2", queries2)
         
-        o_scores = []
-        line_count = 0
-        if (len(queries) > 0):
-            for batch_start in range(0, len(queries), batch_size):
-                command_list = ['python', WRAPPER_PATH] + queries[batch_start:batch_start+batch_size]
-                
+        batch_list = []
+        batch_count = 0
+        for bi, q in enumerate(queries2):
+            if (batch_count % batch_size == 0):
+                batch_list.append([])
+            if q[1]:
+                batch_list[-1].append(q[2])
+                batch_count += 1
+        
+        batch_scores = []
+        for current_batch in batch_list:
+            if (len(current_batch) > 0):
+            #for batch_start in range(0, len(queries2), batch_size):
+            #    current_batch = queries2[batch_start:batch_start+batch_size]
+            #    command_list = ['python', WRAPPER_PATH] + [ x[2] for x in current_batch if x[1] ]
+                command_list = ['python', WRAPPER_PATH] + current_batch
                 #with open(error_file, 'w+') as flo:
                 #    cp = subprocess.run(command_list, shell=False, check=True, stdout=flo, stderr=subprocess.STDOUT)
+                #print(command_list)
                 cp = subprocess.run(command_list, shell=False, check=True, stdout=subprocess.PIPE)
                 output = cp.stdout.decode()
                 
-                #print("batch", batch_start)
-                for line in output.splitlines():
-                    #print(line)
-                    if not line.startswith('No model file specified'):
-                        while line_count in skips:
-                            o_scores.append(0.0)
-                            line_count += 1
-                        i_seq, i_score = line.split(" ")
-                        o_scores.append(100*float(i_score))
-                        line_count += 1
-        for i in range(len(batch)-line_count):
-            o_scores.append(0.0)
+                for line in output.splitlines()[1:]: #skip first line --> line.startswith('No model file specified')
+                    i_seq, i_score = line.split(" ")
+                    batch_scores.append(100*float(i_score))
+                
+        # Deal with skipped queries
+        queries2_iter = iter(queries2)
+        #batch_scores_iter = iter(batch_scores)
+        #for s in batch_scores_iter:
+        for s in batch_scores:
+            q = next(queries2_iter)
+            #s = next(batch_scores_iter)
+            
+            while (q[1] == False):
+                q = next(queries2_iter)
+            
+            q[3] = s
         
-        return o_scores
+        # Average scores of queries from same origin
+        o_scores2 = []
+        q_prev = None
+        q_sum = 0
+        q_count = 0
+        for q in queries2:
+            if q_prev:
+                if (q_prev[0] == q[0]):
+                    q_sum += q[3]
+                    q_count += 1
+                else:
+                    o_scores2.append(q_sum/q_count)
+                    q_sum = q[3]
+                    q_count = 1
+            else:
+                q_sum = q[3]
+                q_count = 1
+            q_prev = q
+        
+        if (q_count > 0):
+            o_scores2.append(q_sum/q_count)
+        
+        #print("==ASSERT==")
+        #print("len(o_scores2) =", len(o_scores2), "len(batch) =", len(batch))
+        #for a in o_scores2:
+        #    print(a)
+        #for a in batch:
+        #    print(a)
+        assert len(o_scores2) == len(batch)
+        
+        # Old outline for how the data is stored
+        # i  process seqs        scores         score
+        # 0  True    ('a', 'a')  (10.0, 11.0)   10.5
+        # 1  True    ('a',)      (8.0)           8.0
+        # 2  False   ('a')       (0.0)           0.0
+        
+        return o_scores2
     
-    def build_query(self, seq, pam, upstream='', downstream=''):
+    def build_query(self, seq, pam, upstream='', downstream='', missing='N'):
         # us     seq                pam  ds
         # ACAG CTGATCTCCAGATATGACCA|TGG GTT
         # CAGC TGATCTCCAGATATGACCAT|GGG TTT
         # CCAG AAGTTTGAGCCACAAACCCA|TGG TCA
         
-        new = ['-'] * 30
-        for i, nt in enumerate(pam):
+        new = [missing] * 30
+        for i, nt in enumerate(pam[:6]):
             new[24+i] = nt
 
-        for i, nt in enumerate(seq[::-1]):
+        for i, nt in enumerate(seq[:-25:-1]):
             new[24-1-i] = nt
 
         for i, nt in enumerate(upstream[::-1]):
@@ -411,6 +509,8 @@ def test():
     i = ('',   'AACATCAACTCTACCTAACG', 'CGG', 'CCGA', 'AACA')
     j = ('',   'GTTAGCGGTATGTATATGTG', 'TGG', 'GGGA', 'CTCA')
     k = ('', 'CTCAACATGGTATGTATATGTG', 'TGG', 'TCGA', 'TTCA')
+    l = ('',   'GGCATGCGCCATCGCCGGAC', 'NNN', 'NNNN', 'NNN')
+    m = ('',   'GGCATGCGCCATCGCCGGAN', 'NNN', 'NNNN', 'NNN')
     
     print("=== Doench2014 ===")
     C = Doench2014()
@@ -433,9 +533,13 @@ def test():
     
     print("=== Azimuth ===")
     C = Azimuth()
+    print(C.calculate([l])) # [0.0]
+    print(C.calculate([l], disambiguate=True)) # [41.94695886685016]
+    print(C.calculate([m], disambiguate=True)) # [0]
     print(C.calculate([g])) # [0.0]
     print(C.calculate([h])) # [0.0]
     print(C.calculate([g, h, i])) # [0.0, 0.0, 68.10224199640001]
+    print(C.calculate([g, h, i], disambiguate=True)) # [47.92785688539728, 68.47839267067128, 68.10224199640001]
 
 if (__name__ == "__main__"):
     test()
