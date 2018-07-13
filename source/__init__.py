@@ -22,6 +22,7 @@ from . import nucleotides
 from . import scores
 from . import algorithms
 from . import aligners
+from . import oligos
 
 # Create the logger
 #logger = logging.getLogger(__name__)
@@ -1874,7 +1875,7 @@ class main(object):
         args = self.parse_arguments()
         
         # Get timestamp for analysis beginning
-        start = time.time()
+        start_time = time.time()
         
         if hasattr(args, 'folder'):
             # Create the project directory if it doesn't exist
@@ -1895,7 +1896,7 @@ class main(object):
         if hasattr(args, 'folder'):
             # Print time taken for program to complete
             logging.info('{} finished'.format(__program__))
-            logging.info('Runtime: {}s'.format(time.time()-start))
+            logging.info('Runtime: {}s'.format(time.time()-start_time))
         
     def _glossary(self, args):
         """Print the Glossary"""
@@ -2061,7 +2062,7 @@ class main(object):
         # OnTargetMotif.motifs   list of on-target motifs
         # OffTargetMotif.motifs  list of off-target motifs
         
-        # Add 'selected_aligner' to hold the actual aligner object
+        # Add 'args.selected_aligner' to hold the actual aligner object
         for a in aligners.aligners:
             if (a.name == args.aligner):
                 args.selected_aligner = a
@@ -2258,6 +2259,31 @@ class main(object):
     
     def _confirm(self, args):
         print("Design conformation primers here.")
+        
+        # Add 'args.selected_oligo' to hold the actual aligner object
+        for o in oligos.oligos:
+            if (o.name == args.oligo):
+                args.selected_oligo = o
+                break
+        
+        #args.fasta
+        #args.dDNAs
+        #args.number_pcr_conditions
+        #args.oligo
+        primer_pairs = args.selected_oligo.scan_sequence(seq)
+        
+        # use local alignment to find where left- and right- homology arms of each dDNA are in the genome
+        # genome     ─genome┐┌─us_homology─┐┌─feature─┐┌─ds_homology─┐┌genome─
+        # dDNA               ┌─us_homology─┐┌──*tag*──┐┌─ds_homology─┐
+        
+        # dDNA    ATCA.CG.ATAC
+        # dDNA   (ATCA).*(ATAC)
+        # genome AGTCAGCATCAGACGCGACTCAGCGCGGAGCATCTATCAGCCGCGAAATGATATACGCGCTCTGTGTGAATTAACACATATAGAGAAAAGCGCCTGATTATATATCTCTCGGTGTGCGCGATGGGGACTAG
+        #               ATCA-----------------------------------------ATAC
+        #                                           ATCA-------------ATAC
+        
+        
+        
     
     def _parser_general(self):
         '''general parser'''
@@ -2471,11 +2497,11 @@ class main(object):
         required_group = parser_evaluate.add_argument_group('required arguments')
         required_group.add_argument("--fasta", required=True, nargs="+", metavar="*.fasta", type=str,
             help="FASTA files with contigs to find unique gRNA sites. Input FASTA \
-                must not be compressed. User can decide whether ambiguous bases can \
-                be chosen for gRNA sites. All FASTA sequences should have unique \
-                primary headers (everything between the '>' symbol and the first \
-                whitespace should be unique). You should include FASTA of the genome \
-                and any plasmids.")
+            must not be compressed. User can decide whether ambiguous bases can \
+            be chosen for gRNA sites. All FASTA sequences should have unique \
+            primary headers (everything between the '>' symbol and the first \
+            whitespace should be unique). You should include FASTA of the genome \
+            and any plasmids.")
         required_group.add_argument("--gff", required=True, metavar="*.gff", type=str,
             help="GFF file specifying chromosomal features that should be \
                  multiplexed together.")
@@ -2814,7 +2840,7 @@ class main(object):
     
     def _parser_confirm(self, subparsers):
         ''' "confirm" parser '''
-        __confirm_description__ = "Design primers for confirming whether each step of genome engineering is successful or not."
+        __confirm_description__ = "Design primers for confirming whether each step of genome engineering is successful or not. This does not design multiplexable primers."
         __confirm_help__ = "Design primers for confirming whether each step of genome engineering is successful or not."
         parser_confirm = subparsers.add_parser('confirm',
             description=__confirm_description__,
@@ -2833,19 +2859,48 @@ class main(object):
             version='{__program__} {__version__} (revision {__revision__})'.format(**globals()))
         
         # Add mandatory arguments
+        # Add required arguments
+        required_group = parser_confirm.add_argument_group('required arguments')
+        required_group.add_argument("--fasta", required=True, nargs="+", metavar="*.fasta", type=str,
+            help="FASTA files with contigs to find unique gRNA sites. Input FASTA \
+            must not be compressed. User can decide whether ambiguous bases can \
+            be chosen for gRNA sites. All FASTA sequences should have unique \
+            primary headers (everything between the '>' symbol and the first \
+            whitespace should be unique). You should include FASTA of the genome \
+            and any plasmids.")
+        
+        required_group.add_argument("--dDNAs", required=True, nargs="+", metavar="*.fasta", type=str,
+            help="A dDNA FASTA file for each subsequent CRISPR/Cas transformation. \
+            Typically, the first is KO, and the second is KI. However, any number \
+            of serial genome engineering experiments can be specified.")
+        
         # Add optional arguments
+        parser_confirm.add_argument("--number_pcr_conditions", type=int, default=None,
+            help="Number of PCR conditions to develop primers for. All amplicons \
+            within each condition will have similar size (nt) and melting temperatures. \
+            If unspecified, will default to the number of target features.")
+        
+        oligo_choices = [x.name for x in oligos.oligos]
+        parser_confirm.add_argument("--oligo", type=str, choices=oligo_choices, default='Primer3',
+            help="Program to perform thermodynamic calculations.")
+        
+        # PCR conditions:
+        #  - primer_size (min, max)
+        #  - monovalent_cation_concentration
+        #  - divalent_cation_concentration
+        #  - amplicon_size (min, max)
+        #  - template_concentration
+        #  - dNTP_concentration
+        #  - temperature (25 usually)
+        #  - max_tm_difference
+        #  - melting_temperature (min, max)
+        #  - max_3prime_homology_length
+        #  - min_delta_g
+        #  - gc (min, max)
+        #  - gc_clamp_length (min, max)
+        #  - max_run_length
         
         return parser_confirm
-        
-        # subparsers
-        #  addtag confirm       Design primers for confirming whether each step genome engineering is successful or not
-        #                       Design primers for ko/ki confirmation (NOT FEATURE-MULTIPLEX AWARE)
-        #   --fasta FASTA       Genome sequence
-        #   --dDNAs FASTA ...   A dDNA FASTA file for each subsequent CRISPR/Cas transformation.
-        #                       Typically, the first is KO, and the second is KI. However, any
-        #                       Number of serial genome engineering experiments can be specified.
-        #   --number_pcr_conditions INT    Number of PCR conditions to develop primers for.
-        #                                  All amplicons within each condition will have similar size in nt
     
     def parse_arguments(self):
         '''
