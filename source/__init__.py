@@ -2266,11 +2266,12 @@ class main(object):
                 args.selected_oligo = o
                 break
         
-        #args.fasta
-        #args.dDNAs
+        genome_contigs = utils.load_multiple_fasta_files(args.fasta)
+        
+        rounds = utils.load_fasta_files_into_list(args.dDNAs)
+        
         #args.number_pcr_conditions
-        #args.oligo
-        primer_pairs = args.selected_oligo.scan_sequence(seq)
+        
         
         # use local alignment to find where left- and right- homology arms of each dDNA are in the genome
         # genome     ─genome┐┌─us_homology─┐┌─feature─┐┌─ds_homology─┐┌genome─
@@ -2282,8 +2283,47 @@ class main(object):
         #               ATCA-----------------------------------------ATAC
         #                                           ATCA-------------ATAC
         
+        results = []
+        for r, dDNA_contigs in enumerate(rounds):
+            print(r)
+            for dDNA_name, dDNA_seq in dDNA_contigs.items():
+                print(dDNA_name, flush=True)
+                C = nucleotides.build_dDNA_regex(dDNA_seq)
+                print('compiled', flush=True)
+                for contig_name, contig_seq in genome_contigs.items():
+                    print(contig_name, flush=True)
+                    
+                    # Finds most (but not all) of the possible places the dDNA could integrate
+                    for m in C.finditer(contig_seq, overlapped=True):
+                        print(m)
+                        
+                        
+                        # Measuring wild-type alleles
+                        feature_sequence = m.group(1) # The capturing group holds the non-flanking DNA (i.e. the feature that is disrupted)
+                        upstream_sequence = contig_seq[m.start()-500:m.start()]
+                        downstream_sequence = contig_seq[m.end():m.end()+500]
+                        
+                        
+                        #primer_pairs = args.selected_oligo.scan_sequence(seq) # <---- replace with correct stuff
+                        #----> Need a sanity check to test for how unique each generated primer is across the genome <-----
+                        fseq = None
+                        rseq = None
+                        fpos = None
+                        rpos = None
+                        size = None
+                        tm = None
+                        
+                        results.append([r, args.dDNAs[r], dDNA_name, contig_name, fseq, fpos, rseq, rpos, size, tm])
         
-        
+        # Output
+        # Round   Filename       Contig     Mapping   Fseq           Fpos    Rseq         Rpos    size    tm
+        # 0       genome.fasta   -          chr1      ACAAAGGCTAGG   12000   GTGATCGAAG   14000   2000    61.2
+        # 1       dDNA1.fasta    feature1   chr1      GCAAATCAAAG    11000   CGCTGCATACC  13000   2000    60.8
+        # 1       dDNA1.fasta    feature2   chr1      CCATAGCCCAGC   12345   CACAGGTGC    12300   123     58.6
+        headers = ['Round', 'Filename', 'Contig', 'Mapping', 'Fseq', 'Fpos', 'Rseq', 'Rpos', 'size', 'tm']
+        print('\t'.join(headers))
+        for sline in results:
+            print('\t'.join(map(str, sline)))
     
     def _parser_general(self):
         '''general parser'''
@@ -2883,6 +2923,9 @@ class main(object):
         oligo_choices = [x.name for x in oligos.oligos]
         parser_confirm.add_argument("--oligo", type=str, choices=oligo_choices, default='Primer3',
             help="Program to perform thermodynamic calculations.")
+        
+        # Nucleotide matching stuff
+        #  - number errors (for fuzzy regex)
         
         # PCR conditions:
         #  - primer_size (min, max)

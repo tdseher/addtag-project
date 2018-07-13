@@ -139,6 +139,19 @@ def load_indexed_fasta_files(filenames):
         fasta_index[len(fasta_index)] = filename
     return fasta_index, contig_index, contig_sequences
 
+def load_fasta_files_into_list(filenames):
+    rounds = []
+    
+    for filename in filenames:
+        ci, cs = load_fasta_file(filename)
+        
+        seqs = {}
+        for index, name in ci.items():
+            seqs[name] = cs[index]
+        rounds.append(seqs)
+    
+    return rounds
+
 def load_multiple_fasta_files(filenames):
     """
     Load multiple FASTA files

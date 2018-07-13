@@ -557,6 +557,116 @@ def motif_conformation(sequence, spacers, pams, side):
         else:
             return None
 
+def build_dDNA_regex_comp2(dDNA, minimum_length=2):
+    """incomplete"""
+    seqs = []
+    l = len(dDNA)
+    
+    left_seq = ''
+    left_count = 0
+    left_iter = iter(dDNA)
+    for li in range(minimum_length):
+        try:
+            left_count += 1
+            left_seq += next(left_iter)
+        except StopIteration:
+            pass
+    
+    while(left_count <= l):
+        right_seq = ''
+        right_count = 0
+        right_iter = iter(dDNA[::-1])
+        for ri in range(minimum_length):
+            try:
+                right_count += 1
+                right_seq = next(right_iter) + right_seq
+            except StopIteration:
+                pass
+        
+        while(right_count < l-left_count):
+            print('left_count=', left_count, 'left_seq=', left_seq, 'right_count=', right_count, 'right_seq=', right_seq)
+            try:
+                right_count += 1
+                right_seq = next(right_iter) + right_seq
+                seqs.append((left_seq, right_seq))
+            except StopIteration:
+                pass
+        
+        try:
+            left_count += 1
+            left_seq += next(left_iter)
+            
+        except StopIteration:
+            #left_count += 1
+            seqs.append((dDNA, ''))
+        
+    return seqs
+
+def build_dDNA_regex_comp1(dDNA):
+    """Starts at length=0 for both left and right"""
+    seqs = []
+    l = len(dDNA)
+    
+    left_seq = ''
+    left_count = 0
+    left_iter = iter(dDNA)
+    
+    while(left_count <= l):
+        right_seq = ''
+        right_count = 0
+        right_iter = iter(dDNA[::-1])
+        
+        while(right_count < l-left_count):
+            #print('left_count=', left_count, 'left_seq=', left_seq, 'right_count=', right_count, 'right_seq=', right_seq)
+            try:
+                right_count += 1
+                right_seq = next(right_iter) + right_seq
+                seqs.append((left_seq, right_seq))
+            except StopIteration:
+                pass
+        
+        try:
+            left_count += 1
+            left_seq += next(left_iter)
+            
+        except StopIteration:
+            #left_count += 1
+            seqs.append((dDNA, ''))
+        
+    return seqs
+        
+def split_dDNA_flanks(dDNA):
+    """Starts at length=1 at for both left and right"""
+    seqs = []
+    l = len(dDNA)
+    
+    left_seq = ''
+    for i, left_nt in enumerate(dDNA):
+        left_seq += left_nt
+        
+        right_seq = ''
+        for j, right_nt in enumerate(dDNA[::-1]):
+            if (l-j-1 > i):
+                right_seq = right_nt + right_seq
+                seqs.append((left_seq, right_seq))
+    return seqs
+
+def filter_dDNA_flanks(lists, minimum_length=40):
+    seqs = []
+    for left, right in lists:
+        if ((len(left) >= minimum_length) and (len(right) >= minimum_length)):
+            seqs.append((left, right))
+    return seqs
+
+def build_dDNA_regex(dDNA):
+    splits = filter_dDNA_flanks(split_dDNA_flanks(dDNA))
+    flags=regex.ENHANCEMATCH | regex.IGNORECASE
+    
+    pattern = '|'.join([left+'(.{,2000})'+right for left, right in splits]) # '(.*)' is too slow
+    
+    compiled_regex = regex.compile(pattern, flags=flags)
+    return compiled_regex
+
 def test():
     """Code to test the classes and functions in 'source/nucleotides.py'"""
     
