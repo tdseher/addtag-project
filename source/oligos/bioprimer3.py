@@ -126,3 +126,21 @@ primer_cl.psizeopt = 200
 
 primer_cl()
 
+def test():
+    """Code to test the classes and functions in 'source/oligos/_unafold.py'"""
+    
+    C = BioPrimer3()
+    print("===", C.name, "===")
+    seq = 'TTCGTGTAGGATCACACCCGTTCCAAGATGTATAATCAGGAGACTCTTACGGTTACGAGGGACCCTCATCCAAGGACTCTAGGTGCAAAGTAACCGGTGG' # 2 pairs
+    
+    primer_pairs = C.scan_sequence(seq)
+    for pp in primer_pairs:
+        #print(pp, pp.forward_primer.strand, pp.reverse_primer.strand)
+        print(pp)
+    
+    print(seq)
+    for pp in primer_pairs:
+        print(' '*pp.forward_primer.position + pp.get_formatted())
+
+if (__name__ == "__main__"):
+    test()

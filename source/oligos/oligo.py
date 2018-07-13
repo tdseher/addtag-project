@@ -2,17 +2,66 @@
 
 """AddTag Copyright (c) 2016 Thaddeus D. Seher & Aaron Hernday"""
 
-# source/oligos/primer.py
+# source/oligos/oligo.py
 
 # Import standard packages
-#import sys
-#import os
-#import random
+import sys
+import os
+import inspect
 
-# import non-standard package
-#import regex
+# Treat modules in PACKAGE_PARENT as in working directory
+if ((__name__ == "__main__") or (os.path.basename(inspect.stack()[-1][1]) in ['_primer3.py', '_unafold.py'])): # or __name__ == 'unafold'):
+    # Relative path for package to import
+    PACKAGE_PARENT = '..'
+    # Obtain path of currently-running file
+    SCRIPT_DIR = os.path.dirname(os.path.realpath(os.path.join(os.getcwd(), os.path.expanduser(__file__))))
+    # Convert to absolute path, and add to the PYTHONPATH
+    sys.path.append(os.path.normpath(os.path.join(SCRIPT_DIR, PACKAGE_PARENT)))
+    
+    from nucleotides import rc
+else:
+    from ..nucleotides import rc
+
+class Oligo(object): # Name of the subclass
+    """
+    General class that should be subclassed when adding a new thermodynamics
+    calculation program.
+    """
+    def __init__(self, 
+        name,
+        author,
+        year,
+        citation=None,
+    ):
+        """
+        Specify general information regarding this new instance of the 
+        Oligo class.
+        """
+        self.name = name             # Unique name for the Oligo subprocess (str). No other Oligo objects should have this name.
+        self.author = author         # Author of the algorithm (str)
+        self.year = year             # Year algorithm published (int)
+        self.citation = citation     # Citation (None/str)
+    
+    def scan_sequence(self, *args, **kwargs):
+        """
+        Defines interface for calculation.
+        Overload this method.
+        """
+        return None
+    
+    def __repr__(self):
+        """
+        Return the string representation of the Oligo
+        """
+        return self.__class__.__name__ + '(' + ', '.join(['name='+repr(self.name), 'author='+repr(self.author), 'year='+repr(self.year)]) + ')'
+
 
 class Primer(object):
+    """
+    Class to store general information on an oligonucleotide sequence.
+    Specifically, it stores the program-specific conformations and deltaGs
+    as attributes.
+    """
     def __init__(self, sequence, position, strand, o_hairpin, o_self_dimer, o_reverse_complement, gc, checks=None):
         self.sequence = sequence
         self.position = position
@@ -51,6 +100,9 @@ class Primer(object):
         return self.__class__.__name__ + '(' + ', '.join('='.join(map(str, x)) for x in zip(labs, vals)) + ')'
 
 class PrimerPair(object):
+    """
+    Class that stores 2 Primer objects and their heterodimer thermodynamic calculations.
+    """
     def __init__(self, forward_primer_object, reverse_primer_object, o_heterodimer=None, checks=None):
         self.forward_primer = forward_primer_object
         self.reverse_primer = reverse_primer_object
@@ -85,6 +137,12 @@ class PrimerPair(object):
     def get_gcs(self):
         return (round(self.forward_primer.gc, 2), round(self.reverse_primer.gc, 2))
     
+    def get_formatted(self):
+        interspace = self.reverse_primer.position - self.forward_primer.position - len(self.forward_primer.sequence)
+        return self.forward_primer.sequence + '-'*interspace + rc(self.reverse_primer.sequence)
+        #print(' '*self.forward_primer.position + fp.sequence)
+        #print(' '*self.reverse_primer.position + rc(rp.sequence))
+    
     def __repr__(self):
         labs = ['seq', 'amplicon_size', 'Tm', 'GC', 'min(dG)']
         vals = [
@@ -96,3 +154,14 @@ class PrimerPair(object):
         ]
             
         return self.__class__.__name__ + '(' + ', '.join('='.join(map(str, x)) for x in zip(labs, vals)) + ')'
+
+def lr_justify(left_text, right_text, width=140):
+    if (len(left_text)+len(right_text) < width):
+        text = ('{:>'+str(width)+'}').format(right_text)
+        return left_text + text[len(left_text):]
+    else:
+        half = width//2 - 1
+        if (len(right_text) > half):
+            return left_text[:half] + '.'*(width-half-half) + right_text[-half:]
+        else:
+            return left_text[:width-len(right_text)-3] + '.'*3 + right_text

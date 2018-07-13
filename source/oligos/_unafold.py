@@ -1,33 +1,25 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
 """AddTag Copyright (c) 2016 Thaddeus D. Seher & Aaron Hernday"""
 
-# source/oligos/unafold.py
+# source/oligos/_unafold.py
 
 # Import standard packages
 import sys
-import math
 import os
 import subprocess
-import inspect
 
-# import non-standard package
+# Import non-standard packages
 import regex
 
-#################################
-#s = inspect.stack()
-#print(len(s))
-#for i in range(len(s)):
-#    print(i, s[i][1])
-#print(s[0][1]) # Current file
-#print(s[1][1]) # file that called this file?   <frozen importlib._bootstrap>
-#print(s[-1][1]) # oligos.py
-#print(os.path.expanduser(__file__))
-#################################
+# import included AddTag-specific modules
+if (__name__ == "__main__"):
+    from oligo import Oligo, Primer, PrimerPair, lr_justify
+else:
+    from .oligo import Oligo, Primer, PrimerPair, lr_justify
 
 # Treat modules in PACKAGE_PARENT as in working directory
-if ((__name__ == "__main__") or (os.path.basename(inspect.stack()[-1][1]) == 'oligos.py')): # or __name__ == 'unafold'):
+if (__name__ == "__main__"):
     # Relative path for package to import
     PACKAGE_PARENT = '..'
     # Obtain path of currently-running file
@@ -38,6 +30,198 @@ if ((__name__ == "__main__") or (os.path.basename(inspect.stack()[-1][1]) == 'ol
     from nucleotides import rc
 else:
     from ..nucleotides import rc
+
+debug = False
+
+class UNAFold(Oligo):
+    def __init__(self):
+        super().__init__("UNAFold", "Markham, et al", 2008,
+            citation="Markham, et al. UNAFold: Software for Nucleic Acid Folding and Hybridization. Bioinformatics: Structure, Function and Applications. Humana Press. p.3-31 (2008)."
+        )
+    
+    def scan_sequence(self, seq, primer_size=(20,24), amplicon_size=(50,60)):
+        # sliding window for F and R
+        good_forward = []
+        good_reverse = []
+        for p_len in range(primer_size[0], primer_size[1]+1):
+            if debug:
+                print(seq)
+            for pos in range(len(seq) - p_len+1):
+                pf = seq[pos:pos+p_len]
+                
+                # Check pf (constraints) & (self, homodimer, rc) to see if it is good.
+                pf_results, o_a, o_aa, o_ar, pf_gc = self.check_potential_primer(pf)
+                
+                if self.summarize(pf_results):
+                    good_forward.append(Primer(sequence=pf, position=pos, strand='+', o_hairpin=o_a, o_self_dimer=o_aa, o_reverse_complement=o_ar, gc=pf_gc, checks=pf_results))
+                
+                if debug:
+                    print(lr_justify(
+                        ' '*pos + pf,
+                        'fwd '+str(pf_results)
+                    ))
+                
+                pr = rc(pf)
+                # check pr (constraints) & (self, homodimer, rc) to see if it is good.
+                pr_results, o_b, o_bb, o_br, pr_gc = self.check_potential_primer(pr)
+                            
+                if self.summarize(pr_results):
+                    good_reverse.append(Primer(sequence=pr, position=pos, strand='-', o_hairpin=o_b, o_self_dimer=o_bb, o_reverse_complement=o_br, gc=pr_gc, checks=pr_results))
+                
+                if debug:
+                    print(lr_justify(
+                        ' '*pos + pr,
+                        'rev '+str(pr_results)
+                    ))
+        
+        # Filter pairs by amplicon size
+        good_pairs = []
+        for gf in good_forward:
+            for gr in good_reverse:
+                pp = PrimerPair(gf, gr, o_heterodimer=None, checks=None)
+                
+                if (amplicon_size[0] <= pp.get_amplicon_size() <= amplicon_size[1]):
+                    het_results, o_ab = self.check_potential_primer_pair(gf.sequence, gr.sequence, min(gf.o_reverse_complement).melting_temperature, min(gr.o_reverse_complement).melting_temperature)
+                    if self.summarize(het_results):
+                        pp.o_heterodimer = o_ab
+                        pp.checks = het_results
+                        good_pairs.append(pp)
+        
+        return good_pairs
+    
+    def summarize(self, results):
+        return all(x for x in results if (x != None))
+    
+    def get_3prime_homology_length(self, seq1, seq2, max_3prime_length=5):
+        rc2 = rc(seq2)
+        match_length_list = [0]
+        
+        for s1l in range(1, max_3prime_length+1):
+            matches = regex.findall(seq1[-s1l:], rc2)
+            if (len(matches) > 0):
+                match_length_list.append(s1l)
+            #print(s1l, matches)
+        for s2l in range(1, max_3prime_length+1):
+            matches = regex.findall(rc2[:s2l], seq1)
+            if (len(matches) > 0):
+                match_length_list.append(s2l)
+            #print(s2l, matches)
+        
+        return max(match_length_list)
+
+    def check_potential_primer_pair(self, seq1, seq2, tm1, tm2, thorough=False, folder='/dev/shm', max_tm_difference=2.0, max_3prime_homology_length=3, min_delta_g=-3.0):
+        max_tm_difference_passed = None
+        max_3prime_homology_length_passed = None
+        min_delta_g_passed = None
+        
+        # The difference in Tms should be as small as possible
+        if (max_tm_difference != None):
+            max_tm_difference_passed = abs(tm1-tm2) <= max_tm_difference
+        
+        # 3' ends of primers should NOT be complementary
+        # As even a little dimerization will inhibit target annealing
+        if (max_3prime_homology_length != None):
+            max_3prime_homology_length_passed = self.get_3prime_homology_length(seq1, seq2, max_3prime_homology_length+1) <= max_3prime_homology_length
+            
+            # seq1 5'-ACAATACGAC-3'
+            #               ||||
+            #       seq2 3'-GCTGTTAAG-5' <-rev- 5'-GAATTGTCG-3    --rc-> CGACAATTC
+            #                                    
+        
+        results = [max_tm_difference_passed, max_3prime_homology_length_passed, min_delta_g_passed]
+        
+        o = None
+        
+        # if previous tests all pass
+        # Calculate heterodimer delta-G
+        if (thorough or self.summarize(results)):
+            if (min_delta_g != None):
+                o = Structure.calculate_simple(folder, seq1, seq2)
+                min_delta_g_passed = min_delta_g <= min(o).delta_G
+        
+        results = [max_tm_difference_passed, max_3prime_homology_length_passed, min_delta_g_passed]
+        
+        return results, o
+        
+
+    def check_potential_primer(self, seq, thorough=False, folder='/dev/shm', length=(17,28), last5gc_count=(1,3), gc_clamp_length=(1,2), gc=(0.4,0.6), max_run_length=4, min_delta_g=-3.0, tm=(55,65)):
+        """
+        seq - ACGT sequence should be 5' to 3'
+        """
+        length_passed = None
+        last5gc_count_passed = None
+        gc_clamp_length_passed = None
+        gc_passed = None
+        max_run_length_passed = None
+        min_delta_g_passed = None
+        tm_passed = None
+        
+        # Check length of primer
+        # primer length should be 17-28 nt long
+        if (length != None):
+            length_passed = length[0] <= len(seq) <= length[1]
+        
+        # Does the last 5 nt of the sequence have 1-3 C/G bases?
+        # should avoid runs of 3-or-more Cs and Gs in 3' end
+        if (last5gc_count != None):
+            C_count = seq[-5:].count('C')
+            G_count = seq[-5:].count('G')
+            last5gc_count_passed = last5gc_count[0] <= C_count+G_count <= last5gc_count[1]
+        
+        # Does the 3' end of the sequence have the sequence 
+        # 3' GC clamp
+        if (gc_clamp_length != None):
+            i = -1
+            gcl = 0
+            while (seq[i] in ['G', 'C']):
+                i -= 1
+                gcl += 1
+            
+            gc_clamp_length_passed = gc_clamp_length[0] <= gcl <= gc_clamp_length[1]
+        
+        gc_freq = None
+        # %GC should be between 40-60
+        if (gc != None):
+            C_count = seq.count('C')
+            G_count = seq.count('G')
+            gc_freq = (C_count+G_count)/len(seq)
+            gc_passed = gc[0] <= gc_freq <= gc[1]
+        
+        # Primers with long runs of a single base should generally be avoided as they can misprime
+        if (max_run_length != None):
+            matches = list(regex.finditer(r'(.)\1*', seq))
+            max_run = 0
+            for m in matches:
+                max_run = max(max_run, len(m.group()))
+            max_run_length_passed = max_run <= max_run_length
+        
+        results = [length_passed, last5gc_count_passed, gc_clamp_length_passed, gc_passed, max_run_length_passed, min_delta_g_passed, tm_passed]
+        
+        o1 = None
+        o2 = None
+        o3 = None
+        
+        if (thorough or self.summarize(results)):
+            # min delta-G should be -3.0
+            if (min_delta_g != None):
+                # Calculate hairpin delta-G
+                o1 = Structure.calculate_simple(folder, seq)
+                
+                # Calculate homodimer delta-G
+                o2 = Structure.calculate_simple(folder, seq, seq)
+                
+                min_delta_g_passed = min_delta_g <= min(min(o1).delta_G, min(o2).delta_G)
+            
+            # Tm (against reverse_complement) should be between 50-70 or 55-65
+            if (tm != None):
+                # Calculate reverse-complement delta-G and Tm
+                o3 = Structure.calculate_simple(folder, seq, rc(seq))
+            
+                tm_passed = tm[0] <= min(o3).melting_temperature <= tm[1]
+            
+        results = [length_passed, last5gc_count_passed, gc_clamp_length_passed, gc_passed, max_run_length_passed, min_delta_g_passed, tm_passed]
+        
+        return results, o1, o2, o3, gc_freq
 
 class Structure(object):
     def __init__(self, seq1, seq2, delta_G, delta_H, delta_S, melting_temperature, sodium, magnesium, temperature, concentration):
@@ -168,6 +352,11 @@ class Structure(object):
     
     @classmethod
     def calculate_simple(cls, folder_p, seq1, seq2=None, sodium=0.05, magnesium=0.0, temperature=25, concentration=0.00000025, output_basename=None):
+        """
+        Writes files to temp folder 'folder_p'
+        If 1 input sequence, then UNAFold is run on seq1 only
+        If 2 input sequences, then UNAFold run on seq1+seq2
+        """
         # Make temporary folder
         folder = os.path.join(folder_p, 'oligos')
         os.makedirs(folder, exist_ok=True)
@@ -229,19 +418,20 @@ class Structure(object):
         return float_string
 
 def test():
-    """Code to test the functions and classes"""
+    """Code to test the classes and functions in 'source/oligos/_unafold.py'"""
     
-    a, b, aa, bb, ab, ra, rb = Structure.calculate_full('/home/thaddeus/primertest', 'GAGGCTGTTGAGGGTACTAATG', 'GAATCGATATCGACGCGGCG')
-    print(sorted(a)) # [Structure(dG=0.3, dH=-11.1, dS=-38.24, Tm=17.1), Structure(dG=0.38, dH=-11.4, dS=-39.51, Tm=15.4), Structure(dG=0.58, dH=-18.3, dS=-63.33, Tm=15.8), Structure(dG=1.23, dH=-20.8, dS=-73.88, Tm=8.4)]
-    print(sorted(b)) # [Structure(dG=-1.53, dH=-25.5, dS=-80.39, Tm=44.0)]
-    print(sorted(aa)) # [Structure(dG=-3.51, dH=-29.1, dS=-85.82, Tm=-22.3), Structure(dG=-3.09, dH=-42.0, dS=-130.5, Tm=-11.8)]
-    print(sorted(bb)) # [Structure(dG=-9.86, dH=-60.2, dS=-168.83, Tm=29.3), Structure(dG=-9.68, dH=-76.8, dS=-225.12, Tm=27.6)]
-    print(sorted(ab)) # [Structure(dG=-2.28, dH=-29.9, dS=-92.65, Tm=-35.1), Structure(dG=-1.69, dH=-22.7, dS=-70.46, Tm=-53.7), Structure(dG=-1.43, dH=-50.9, dS=-165.93, Tm=-17.2)]
-    print(sorted(ra)) # [Structure(dG=-24.87, dH=-169.3, dS=-484.42, Tm=54.1)]
-    print(sorted(rb)) # [Structure(dG=-26.52, dH=-166.5, dS=-469.51, Tm=58.2)]
+    C = UNAFold()
+    print("===", C.name, "===")
+    seq = 'TTCGTGTAGGATCACACCCGTTCCAAGATGTATAATCAGGAGACTCTTACGGTTACGAGGGACCCTCATCCAAGGACTCTAGGTGCAAAGTAACCGGTGG' # 2 pairs
     
-    a = Structure.calculate_simple('/home/thaddeus/primertest', 'GAGGCTGTTGAGGGTACTAATG')
-    print(a)
+    primer_pairs = C.scan_sequence(seq)
+    for pp in primer_pairs:
+        #print(pp, pp.forward_primer.strand, pp.reverse_primer.strand)
+        print(pp)
+    
+    print(seq)
+    for pp in primer_pairs:
+        print(' '*pp.forward_primer.position + pp.get_formatted())
 
 if (__name__ == "__main__"):
     test()
