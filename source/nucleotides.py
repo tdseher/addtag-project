@@ -6,6 +6,7 @@
 
 # List general Python imports
 import sys
+import random
 import difflib
 import logging
 
@@ -42,6 +43,9 @@ class SlidingWindow(object):
         seq = self.sequence[s:e]
         self.position += self.step
         return s, e, seq
+
+def random_sequence(length=100):
+    return ''.join(random.choice(['A', 'C', 'G', 'T']) for k in range(length))
 
 def rc(seq, kind="dna"):
     """Returns the reverse-complement of a string containing DNA or RNA characters"""
