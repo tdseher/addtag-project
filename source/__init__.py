@@ -2483,11 +2483,40 @@ class main(object):
         ''' "search" parser '''
         # Searches input FASTA for DNA, and outputs a GFF file for use as input for 'generate'
         
-        __search_description__ = "Search input FASTA for DNA sequence, and output a GFF file for use as input to 'generate'"
+        __search_description__ = """\
+Search input FASTA for DNA sequence, and output a GFF file for use as input
+for the 'generate' subroutine.
+"""
         __search_help__ = "Search for positions of DNA in FASTA to make GFF file."
+        __search_epilog__ = """\
+example:
+  Running AddTag with the following arguments:
+   $ python3 {__program__} search --fasta genome.fasta --query AGTCGCCAAC
+     CCAATTAGGAG > search.gff
+  
+  Will produce a GFF3 output file 'search.gff' like the following:
+     chr1A	addtag	search	928299	928308	.	-	.	ID=search_0_0
+     chr1B	addtag	search	928338	928347	.	-	.	ID=search_0_1
+     chr4A	addtag	search	3652	3661	.	-	.	ID=search_0_2
+     chr4B	addtag	search	3652	3661	.	-	.	ID=search_0_3
+     chr3A	addtag	search	819381	819391	.	+	.	ID=search_1_0
+     chr3B	addtag	search	819367	819377	.	+	.	ID=search_1_1
+
+  You can use the '--identifier' option, as follows:
+   $ python3 {__program__} search --fasta genome.fasta --query AGTCGCCAAC
+     CCAATTAGGAG --identifier feature1 feature2 > search.gff
+  
+  This assigns the identifier to each query:
+     chr1A	addtag	search	928299	928308	.	-	.	ID=feature1_0
+     chr1B	addtag	search	928338	928347	.	-	.	ID=feature1_1
+     chr4A	addtag	search	3652	3661	.	-	.	ID=feature1_2
+     chr4B	addtag	search	3652	3661	.	-	.	ID=feature1_3
+     chr3A	addtag	search	819381	819391	.	+	.	ID=feature2_0
+     chr3B	addtag	search	819367	819377	.	+	.	ID=feature2_1
+"""
         parser_search = subparsers.add_parser('search',
             description=__search_description__,
-            #epilog=__feature_epilog__,
+            epilog=__search_epilog__,
             formatter_class=CustomHelpFormatter,
             help=__search_help__
         )
@@ -2512,14 +2541,14 @@ class main(object):
             and any plasmids.")
         
         required_group.add_argument("--query", required=True, nargs="+", metavar="SEQUENCE", type=str,
-            help="Sequence to search")
+            help="One or more sequences to search.")
         
         # Add optional arguments
         parser_search.add_argument("--identifier", metavar="FEATURE", type=str, nargs="+",
-            help="Identifier for input query sequences")
+            help="Identifier for input query sequences.")
         
         parser_search.add_argument("--tag", metavar="TAG", type=str, default="ID",
-            help="GFF3 attribute tag")
+            help="GFF3 attribute tag.")
         
         return parser_search
     
