@@ -1998,7 +1998,64 @@ class main(object):
         # End
     
     def _feature(self, args):
-        print("Search GFF here.")
+        """
+        Search GFF attribute field.
+        Allow for fuzzy matches depending on the length of the input.
+        If a match is found, then try to match the 'Gene', 'ID', 'Parent',
+        etc tags to other features.
+        Prints lines from input GFF that match.
+        """
+        
+        matched_lines = set()
+        includes = []
+        
+        # Search initial queries
+        
+        with open(args.gff, 'r') as flo:
+            for i, line in enumerate(flo):
+                line = line.rstrip()
+                obj = Feature.parse_gff_line(line)
+                if obj:
+                    for q in args.query:
+                        if args.allow_errors:
+                            errors = len(q)//4
+                            q_pattern = '(?:'+q+'){e<='+str(errors)+'}'
+                        else:
+                            q_pattern = q
+                        #for k in link_tags:
+                        #    if k in obj.attributes:
+                        for k in obj.attributes:
+                                m = regex.search(q_pattern, obj.attributes[k], flags=regex.IGNORECASE)
+                                if m:
+                                    #print(m)
+                                    #matched_lines.add((line, 0))
+                                    matched_lines.add(line)
+                                    includes.append({ tag_key: obj.attributes[tag_key] for tag_key in args.linked_tags if tag_key in obj.attributes })
+                                    break
+        #for line in sorted(matched_lines):
+        #    print(line)
+        #for inc in includes:
+        #    print(inc)
+        # search linked attributes
+        with open(args.gff, 'r') as flo:
+            for i, line in enumerate(flo):
+                line = line.rstrip()
+                obj = Feature.parse_gff_line(line)
+                if obj:
+                    for inc in includes:
+                        for k, v in inc.items():
+                            #errors = len(q)//4
+                            #inc_pattern = '(?:'+v+'){e<='+str(errors)'}'
+                            inc_pattern = v
+                            if k in obj.attributes:
+                                m = regex.search(inc_pattern, obj.attributes[k], flags=regex.IGNORECASE)
+                                if m:
+                                    #matched_lines.add((line, 1))
+                                    matched_lines.add(line)
+                                    break
+        
+        for line in sorted(matched_lines):
+            print(line)
     
     def _evaluate(self, args):
         '''UNDER DEVELOPMENT'''
@@ -2511,8 +2568,8 @@ example:
     
     def _parser_feature(self, subparsers):
         ''' "feature" parser '''
-        __feature_description__ = "Search features for specific gene name or id."
-        __feature_help__ = "Search features for specific gene name or id."
+        __feature_description__ = "Search GFF features for specific text."
+        __feature_help__ = "Search GFF features for specific text."
         parser_feature = subparsers.add_parser('feature',
             description=__feature_description__,
             #epilog=__feature_epilog__,
@@ -2530,7 +2587,22 @@ example:
             version='{__program__} {__version__} (revision {__revision__})'.format(**globals()))
         
         # Add mandatory arguments
+        required_group = parser_feature.add_argument_group('required arguments')
+        required_group.add_argument("--gff", required=True, metavar="*.gff", type=str,
+            help="GFF file specifying chromosomal features that will be searched.")
+        
+        required_group.add_argument("--query", required=True, nargs="+", metavar="TEXT",
+            type=str, help="One or more words to search for within the GFF file.")
+        
         # Add optional arguments
+        parser_feature.add_argument("--linked_tags", metavar="TAG", nargs="*",
+            type=str, default=['ID', 'Name', 'Alias', 'Parent', 'Gene'],
+            help="If a feature is found that matches the query, include other \
+            features that have similar values for these tags.")
+        
+        parser_feature.add_argument("--allow_errors", action="store_true",
+            default=False, help="Include matches with minor differences from the query.")
+        
         return parser_feature
     
     def _parser_evaluate(self, subparsers):
