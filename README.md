@@ -118,8 +118,8 @@ $ man ./addtag.1
 ### Scoring algorithms ###
 Scoring algorithms have been broken down into two general types.
 
- * Scores that compare a potential spacer to a model trained on empirical data (Azimuth, Chari, Doench-2014, GC, Housden, Moreno-Mateos, Wang)
- * Scores that compare a potential spacer to a target using a model (CFD, Distance, Hsu-Zhang, Linear)
+ * `SingleSequenceAlgorithm` objects calculate scores by comparing a potential spacer to a model trained on empirical data (Azimuth, Chari, Doench-2014, GC, Housden, Moreno-Mateos, Wang)
+ * `PairedSequenceAlgorithm` instances generate scores that compare a potential spacer to a target using a model (CFD, Distance, Hsu-Zhang, Linear)
 
 Adding a new scoring algorithm is as simple as subclassing the above type, and adding it to a `*.py` file in the `source/algorithms/` subdirectory. AddTag will automatically calculate the score on every generated spacer.
 
@@ -129,6 +129,11 @@ We welcome any pull requests to widen the repertoire of scoring algorithms avail
 AddTag comes with wrappers for several alignment programs. Depending on your experimental design and computing system, you may decide to use an aligner with no included wrapper. To implement your own, create a subclass of `Aligner`, and put it in a `*.py` file in the `source/aligners/` subdirectory. AddTag will automatically make that aligner available for you.
 
 Share your code with us so we can make it available to all AddTag users.
+
+### Thermodynamics calculations ###
+Several wrappers to popular oligonucleotide conformation, free energy, and melting temperature calculation programs are included. You can add your own by subclassing the `Oligo` class, and then adding its `*.py` file to the `source/oligos` subdirectory.
+
+If you create your own wrapper, please submit a pull request so we can add it to the next version of the software.
 
 ### Who do I talk to? ###
 
