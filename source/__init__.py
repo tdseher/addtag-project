@@ -1874,19 +1874,15 @@ class main(object):
         # Obtain command line arguments and parse them
         args = self.parse_arguments()
         
+        self.process_general_arguments(args)
+        
         # Get timestamp for analysis beginning
         start_time = time.time()
-        
-        if hasattr(args, 'folder'):
-            # Create the project directory if it doesn't exist
-            os.makedirs(args.folder, exist_ok=True)
-        
-            # Create the logger
-            logging.basicConfig(filename=os.path.join(args.folder, 'log.txt'), level=logging.INFO, format='%(message)s') # format='%(levelname)s %(asctime)s: %(message)s'
         
         # Echo the command line parameters to STDOUT and the log
         print(args, flush=True)
         
+        # Print arguments to log
         if hasattr(args, 'folder'):
             logging.info(args)
         
@@ -2044,39 +2040,6 @@ class main(object):
     
     def _generate(self, args):
         """Perform complete CRISPR/Cas analysis for input"""
-        
-        # Old colde for compiling regex for motifs
-        ## Note that any logging these functions perform will not be written to disk,
-        ## as no 'handler' has been specified.
-        #args.parsed_motifs = []
-        #args.compiled_motifs = []
-        #for motif in args.motifs:
-        #    spacers, pams, side = self.parse_motif(motif) # Parse the motif
-        #    args.parsed_motifs.append((spacers, pams, side)) # Add to args
-        #    args.compiled_motifs.append(nucleotides.compile_motif_regex(spacers, pams, side, anchored=False)) # Add to args
-        
-        # populate --off_target_motifs with --motifs if None
-        #if (args.off_target_motifs == None):
-        #    args.off_target_motifs = args.motifs
-        
-        # Parse the on-target motifs
-        for motif in args.motifs:
-            OnTargetMotif(motif)
-        
-        # Parse the off-target motifs
-        for motif in set(args.off_target_motifs).difference(args.motifs): # These motifs are exclusive to off-target list
-            OffTargetMotif(motif)
-        
-        # Motif.motifs           list of ALL motifs, both on-target and off-target?  <-- not implemented yet
-        # OnTargetMotif.motifs   list of on-target motifs
-        # OffTargetMotif.motifs  list of off-target motifs
-        
-        # Add 'args.selected_aligner' to hold the actual aligner object
-        for a in aligners.aligners:
-            if (a.name == args.aligner):
-                args.selected_aligner = a
-                break
-        
         #contigs = utils.load_fasta_file(args.fasta[0]) # To do --> Do this for all FASTA files, then merge them into the same dictionary
         
         # Load the FASTA file specified on the command line
@@ -2268,12 +2231,6 @@ class main(object):
     
     def _confirm(self, args):
         print("Design conformation primers here.")
-        
-        # Add 'args.selected_oligo' to hold the actual aligner object
-        for o in oligos.oligos:
-            if (o.name == args.oligo):
-                args.selected_oligo = o
-                break
         
         genome_contigs = utils.load_multiple_fasta_files(args.fasta)
         
@@ -3065,6 +3022,59 @@ example:
         
         # Return the parsed arguments
         return args
+    
+    def process_general_arguments(self, args):
+        """Perform ubiquitous argument parsing things"""
+        if hasattr(args, 'folder'):
+            # Create the project directory if it doesn't exist
+            os.makedirs(args.folder, exist_ok=True)
+        
+            # Create the logger, and have it write to 'folder/log.txt'
+            logging.basicConfig(filename=os.path.join(args.folder, 'log.txt'), level=logging.INFO, format='%(message)s') # format='%(levelname)s %(asctime)s: %(message)s'
+        
+        if hasattr(args, 'aligner'):
+            # Add 'args.selected_aligner' to hold the actual aligner object
+            for a in aligners.aligners:
+                if (a.name == args.aligner):
+                    args.selected_aligner = a
+                    break
+        
+        if hasattr(args, 'oligo'):
+            # Add 'args.selected_oligo' to hold the actual oligo object
+            for o in oligos.oligos:
+                if (o.name == args.oligo):
+                    args.selected_oligo = o
+                    break
+        
+        ############################# Motif stuff ##############################
+        # Old colde for compiling regex for motifs
+        ## Note that any logging these functions perform will not be written to disk,
+        ## as no 'handler' has been specified.
+        #args.parsed_motifs = []
+        #args.compiled_motifs = []
+        #for motif in args.motifs:
+        #    spacers, pams, side = self.parse_motif(motif) # Parse the motif
+        #    args.parsed_motifs.append((spacers, pams, side)) # Add to args
+        #    args.compiled_motifs.append(nucleotides.compile_motif_regex(spacers, pams, side, anchored=False)) # Add to args
+        
+        # populate --off_target_motifs with --motifs if None
+        #if (args.off_target_motifs == None):
+        #    args.off_target_motifs = args.motifs
+        
+        if hasattr(args, 'motifs'):
+            # Parse the on-target motifs
+            for motif in args.motifs:
+                OnTargetMotif(motif)
+        
+        if hasattr(args, 'off_target_motifs'):
+            # Parse the off-target motifs
+            for motif in set(args.off_target_motifs).difference(args.motifs): # These motifs are exclusive to off-target list
+                OffTargetMotif(motif)
+        
+        # Motif.motifs           list of ALL motifs, both on-target and off-target?  <-- not implemented yet
+        # OnTargetMotif.motifs   list of on-target motifs
+        # OffTargetMotif.motifs  list of off-target motifs
+        ########################################################################
     
     def filter_features(self, features, selection):
         """
