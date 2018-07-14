@@ -1939,6 +1939,15 @@ class main(object):
             print('  Truncated:', x.truncated)
             print('')
     
+    def _oligos(self, args):
+        """Print information about the supported oligos"""
+        for x in oligos.oligos:
+            print('==========', x.name, '==========')
+            print('     Author:', x.author)
+            print('       Year:', x.year)
+            print('   Citation:', x.citation)
+            print('')
+    
     def _search(self, args):
         """
         Search input FASTA for arbitrary IUPAC sequence
@@ -2444,6 +2453,31 @@ class main(object):
         # Add optional arguments
         
         return parser_aligners
+    
+    def _parser_oligos(self, subparsers):
+        ''' "oligos" parser '''
+        __oligos_description__ = "Show list of all supported oligonucleotide thermodynamics property programs."
+        __oligos_help__ = "Show list of all supported oligonucleotide thermodynamics property programs."
+        parser_oligos = subparsers.add_parser('oligos',
+            description=__oligos_description__,
+            #epilog=__oligos_epilog__,
+            formatter_class=CustomHelpFormatter,
+            help=__oligos_help__
+        )
+        parser_oligos.set_defaults(func=self._oligos)
+        
+        # Change the help text of the "-h" flag
+        parser_oligos._actions[0].help='Show this help message and exit.'
+        
+        # Special version action optional argument
+        parser_oligos.add_argument("-v", "--version", action='version',
+            help="Show program's version number and exit.",
+            version='{__program__} {__version__} (revision {__revision__})'.format(**globals()))
+        
+        # Add mandatory arguments
+        # Add optional arguments
+        
+        return parser_oligos
     
     def _parser_search(self, subparsers):
         ''' "search" parser '''
@@ -2956,6 +2990,7 @@ class main(object):
         parser_motifs = self._parser_motifs(subparsers)
         parser_algorithms = self._parser_algorithms(subparsers)
         parser_aligners = self._parser_aligners(subparsers)
+        parser_oligos = self._parser_oligos(subparsers)
         parser_search = self._parser_search(subparsers)
         parser_feature = self._parser_feature(subparsers)
         parser_evaluate = self._parser_evaluate(subparsers)
