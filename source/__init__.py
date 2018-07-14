@@ -2554,8 +2554,8 @@ example:
             whitespace should be unique). You should include FASTA of the genome \
             and any plasmids.")
         
-        required_group.add_argument("--query", required=True, nargs="+", metavar="SEQUENCE", type=str,
-            help="One or more sequences to search.")
+        required_group.add_argument("--query", required=True, nargs="+", metavar="SEQUENCE",
+            type=str, help="One or more sequences to search.")
         
         # Add optional arguments
         parser_search.add_argument("--identifier", metavar="FEATURE", type=str, nargs="+",
