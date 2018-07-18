@@ -2063,8 +2063,8 @@ class main(object):
         genome_index_file = args.selected_aligner.index(genome_fasta_file, os.path.basename(genome_fasta_file), args.folder, args.processors)
         dDNA_index_file = args.selected_aligner.index(dDNA_file, os.path.basename(dDNA_file), args.folder, args.processors)
         
-        q2gDNA_align_file = args.selected_aligner.align(ex_query_file, genome_index_file, 'excision-query-2-gDNA.sam', args.folder, args.processors)
-        q2exdDNA_align_file = args.selected_aligner.align(ex_query_file, ex_dDNA_index_file, 'excision-query-2-excision-dDNA.sam', args.folder, args.processors)
+        q2gDNA_align_file = args.selected_aligner.align(ex_query_file, genome_index_file, 'excision-query-2-gDNA.'+args.selected_aligner.output, args.folder, args.processors)
+        q2exdDNA_align_file = args.selected_aligner.align(ex_query_file, ex_dDNA_index_file, 'excision-query-2-excision-dDNA.'+args.selected_aligner.output, args.folder, args.processors)
         
         ExcisionTarget.load_alignment(q2gDNA_align_file, args, contig_sequences)
         ExcisionTarget.load_alignment(q2exdDNA_align_file, args, ExcisionDonor.get_contig_dict())
@@ -2178,8 +2178,8 @@ class main(object):
         
         # Use selected alignment program to find all matches in the genome and dDNAs
         #ex_genome_align_file = align(ex_query_file, genome_index_file, args)
-        exq2gDNA_align_file = args.selected_aligner.align(ex_query_file, genome_index_file, 'excision-query-2-gDNA.sam', args.folder, args.processors)
-        exq2exdDNA_align_file = args.selected_aligner.align(ex_query_file, ex_dDNA_index_file, 'excision-query-2-excision-dDNA.sam', args.folder, args.processors)
+        exq2gDNA_align_file = args.selected_aligner.align(ex_query_file, genome_index_file, 'excision-query-2-gDNA.'+args.selected_aligner.output, args.folder, args.processors)
+        exq2exdDNA_align_file = args.selected_aligner.align(ex_query_file, ex_dDNA_index_file, 'excision-query-2-excision-dDNA.'+args.selected_aligner.output, args.folder, args.processors)
         
         #print("ExcisionTarget before SAM parsing")
         #for et_seq, et_obj in ExcisionTarget.sequences.items():
@@ -2210,9 +2210,9 @@ class main(object):
         
         # Use selected alignment program to find all matches in the genome and dDNAs
         #re_align_file = align(re_query_file, genome_index_file, args)
-        req2gDNA_align_file = args.selected_aligner.align(re_query_file, genome_index_file, 'reversion-query-2-gDNA.sam', args.folder, args.processors)
-        req2exdDNA_align_file = args.selected_aligner.align(re_query_file, ex_dDNA_index_file, 'reversion-query-2-excision-dDNA.sam', args.folder, args.processors)
-        req2redDNA_align_file = args.selected_aligner.align(re_query_file, re_dDNA_index_file, 'reversion-query-2-reversion-dDNA.sam', args.folder, args.processors)
+        req2gDNA_align_file = args.selected_aligner.align(re_query_file, genome_index_file, 'reversion-query-2-gDNA.'+args.selected_aligner.output, args.folder, args.processors)
+        req2exdDNA_align_file = args.selected_aligner.align(re_query_file, ex_dDNA_index_file, 'reversion-query-2-excision-dDNA.'+args.selected_aligner.output, args.folder, args.processors)
+        req2redDNA_align_file = args.selected_aligner.align(re_query_file, re_dDNA_index_file, 'reversion-query-2-reversion-dDNA.'+args.selected_aligner.output, args.folder, args.processors)
         
         # Load the SAM files and add Alignments to ReversionTarget sequences
         ReversionTarget.load_alignment(req2gDNA_align_file, args, contig_sequences)
