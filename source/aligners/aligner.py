@@ -47,15 +47,19 @@ class Aligner(object): # Name of the subclass
         
     def index(self, fasta, output_filename, output_folder, threads, *args, **kwargs):
         """
-        Returns the path of the index generated
+        Run the program process to index the subject.
+        Returns the path of the index generated.
+        
+        Overload this method.
         """
         return ''
     
     def align(self, query, subject, output_filename, output_folder, threads, *args, **kwargs):
         """
         Align the query file to the subject file.
+        Returns the path of the alignment generated (usually, the SAM file).
         
-        Returns the path of the alignment generated (usually, the SAM file)
+        Overload this method.
         """
         # Example 
         #options = OrderedDict([
@@ -135,14 +139,52 @@ class Aligner(object): # Name of the subclass
         logger.info('output: {!r}'.format(output_filename))
         return output_filename
     
+    def load_record(self, flo, *args, **kwargs):
+        """
+        Takes an open file like object as input.
+        Outputs a Record object representing the alignment.
+        
+        Overload this method.
+        """
+        return None
+    
     def load(self, filename, filetype, *args, **kwargs):
         """
         Parses alignment output and returns list of lists readable by AddTag
         [[contig, start, end, orientation, sequence], ...]
         """
         if (filetype == 'sam'):
+            # SAM is TAB-delimited. Apart from the header lines, which are
+            # started with the '@' symbol, each alignment line consists of:
+            #
+            # Col  Field  Description
+            #   0  QNAME  Query (pair) NAME
+            #   1  FLAG   bitwise FLAG
+            #   2  RNAME  Reference sequence NAME
+            #   3  POS    1-based leftmost POSition/coordinate of clipped sequence
+            #   4  MAPQ   MAPping Quality (Phred-scaled)
+            #   5  CIAGR  extended CIGAR string
+            #   6  MRNM   Mate Reference sequence NaMe ('=' if same as RNAME)
+            #   7  MPOS   1-based Mate POSistion
+            #   8  ISIZE  Inferred insert SIZE
+            #   9  SEQ    query SEQuence on the same strand as the reference
+            #  10  QUAL   query QUALity (ASCII-33 gives the Phred base quality)
+            #  11  OPT    variable OPTional fields in the format TAG:VTYPE:VALUE
             pass
         elif (filetype == 'blastn'):
+            # Col  Field     Description
+            #   0  qaccver   Query accesion.version
+            #   1  saccver   Subject accession.version
+            #   2  pident    Percentage of identical matches
+            #   3  length    Alignment length
+            #   4  mismatch  Number of mismatches
+            #   5  gapopen   Number of gap openings
+            #   6  qstart    Start of alignment in query
+            #   7  qend      End of alignment in query
+            #   8  sstart    Start of alignment in subject
+            #   9  send      End of alignment in subject
+            #  10  evalue    Expect value
+            #  11  bitscore  Bit score
             pass
         elif (filetype == 'casoffinder'):
             pass
@@ -154,3 +196,31 @@ class Aligner(object): # Name of the subclass
         Return the string representation of the Aligner
         """
         return self.__class__.__name__ + '(' + ', '.join(['name='+repr(self.name), 'author='+repr(self.author), 'year='+repr(self.year)]) + ')'
+
+class Record(object):
+    def __init__(self,
+            query_name, subject_name,
+            query_sequence, subject_sequence,
+            query_position, subject_position,
+            query_length, subject_length,
+            flags, cigar, score):
+        
+        self.query_name = query_name
+        self.subject_name = subject_name
+        
+        self.query_sequence = query_sequence
+        self.subject_sequence = subject_sequence
+        
+        self.query_position = query_position
+        self.subject_position = subject_position
+        
+        self.query_length = query_length
+        self.subject_length = subject_length
+        
+        self.flags = flags
+        self.cigar = cigar
+        self.score = score
+        
+    def __repr__(self):
+        """Return string representation of the Record"""
+        return self.__class__.__name__ + '(' + ', '.join(['query='+self.query_name+':'+'..'.join(map(str, self.query_position)), 'subject='+self.subject_name+':'+'..'.join(map(str, self.subject_position))]) + ')'

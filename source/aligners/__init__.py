@@ -14,8 +14,8 @@ from .aligner import Aligner
 # Import all Algorithm subclasses defined in python files within this same folder
 exclusions = [
     '__init__.py',
-#    'addtag.py',
-    'blastplus.py',
+    'addtag.py',
+#    'blastplus.py',
     'blat.py',
     'bowtie.py',
 #    'bowtie2.py',

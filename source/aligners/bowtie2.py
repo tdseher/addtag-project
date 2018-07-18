@@ -19,9 +19,9 @@ import regex
 #from .. import utils
 
 if (__name__ == "__main__"):
-    from aligner import Aligner
+    from aligner import Aligner, Record
 else:
-    from .aligner import Aligner
+    from .aligner import Aligner, Record
 
 # Treat modules in PACKAGE_PARENT as in working directory
 if (__name__ == "__main__"):
@@ -32,9 +32,9 @@ if (__name__ == "__main__"):
     # Convert to absolute path, and add to the PYTHONPATH
     sys.path.append(os.path.normpath(os.path.join(SCRIPT_DIR, PACKAGE_PARENT)))
     
-    from utils import flatten
+    from cigarstrings import sam_orientation, cigar2query_position, cigar2query_aligned_length, cigar2subject_aligned_length
 else:
-    from ..utils import flatten
+    from ..cigarstrings import sam_orientation, cigar2query_position, cigar2query_aligned_length, cigar2subject_aligned_length
 
 class Bowtie2(Aligner):
     def __init__(self):
@@ -73,7 +73,7 @@ class Bowtie2(Aligner):
             (index_file, None),
         ])
         
-        return self.process('bowtie2-build', index_file, options)        
+        return self.process('bowtie2-build', index_file, options)
     
     def align(self, query, subject, output_filename, output_folder, threads, *args, **kwargs):
         """
@@ -130,9 +130,77 @@ class Bowtie2(Aligner):
                                             # Default: 'L,-0.6,-0.6'
                                             # Switching to 'L,-0.9,-0.9' returns roughly 9 times
                                             # more alignments than the default
+            ('--xeq', None), # Use '='/'X', instead of 'M', to specify matches/mismatches in CIGAR string
         ])
         
         return self.process('bowtie2', output_filename_path, options)
+    
+    #def load_file(self, filename, *args, **kwargs):
+    #    """
+    #    Function to prepare an iterator for the SAM file
+    #    """
+    #    # Each line is a separate record
+    #    self.open_file = open(filename, 'r')
+    
+    def load_record(self, flo, *args, **kwargs):
+        """
+        Loads the next record of the SAM file.
+        
+        Since SAM files have one record per line, and one line per record,
+        Just iterate until a valid line is found, then parse it.
+        
+        Returns:
+         None if the file is complete
+         Or a Record object
+        """
+        
+        # Sequence Alignment/Map (SAM) format is TAB-delimited. Apart from the
+        # header lines, which are started with the '@' symbol, each alignment line
+        # consists of:
+        #   Col  Field  Description
+        #     0  QNAME  Query template/pair NAME
+        #     1  FLAG   bitwise FLAG
+        #     2  RNAME  Reference sequence NAME
+        #     3  POS    1-based leftmost POSition/coordinate of clipped sequence
+        #     4  MAPQ   MAPping Quality (Phred-scaled)
+        #     5  CIAGR  extended CIGAR string
+        #     6  MRNM   Mate Reference sequence NaMe ('=' if same as RNAME)
+        #     7  MPOS   1-based Mate POSistion
+        #     8  TLEN   inferred Template LENgth (insert size)
+        #     9  SEQ    query SEQuence on the same strand as the reference
+        #    10  QUAL   query QUALity (ASCII-33 gives the Phred base quality)
+        #   11+  OPT    variable OPTional fields in the format TAG:VTYPE:VALUE
+        
+        # Code to decompress a *.bam file should go here
+        
+        # Define a non-existing record that will be replaced
+        record = None
+        
+        # Loop through lines in SAM file until a valid, complete record is found
+        record_found = False
+        while (record_found == False):
+            try:
+                line = next(flo)
+                if not line.startswith('@'):
+                    sline = line.rstrip().split("\t")
+                    if ((len(sline) > 5) and (sline[2] != '*')):
+                        record = sline
+                        record_found = True
+            except StopIteration:
+                break
+        
+        # Process the record if found
+        if record:
+            record = Record(
+                record[0], record[2], # query_name, subject_name,
+                record[9], None, # query_sequence, subject_sequence,
+                cigar2query_position(record[5]), (int(record[3])-1, int(record[3])-1+cigar2subject_aligned_length(record[5])), # query_position, subject_position,
+                cigar2query_aligned_length(record[5]), cigar2subject_aligned_length(record[5]), # query_length, subject_length,
+                int(record[1]), record[5], record[4] # flags, cigar, score
+            )
+        
+        # Return the processed record, otherwise None if the file is complete
+        return record
 
 def test():
     """Code to test the Bowtie2 Aligner subclass"""
@@ -151,6 +219,12 @@ def test():
     alignment_path = A.align(query, index_path, 'myoutput.sam', folder, 16)
     print(index_path)
     print(alignment_path)
+    
+    with open(alignment_path, 'r') as flo:
+        record = True
+        while (record != None):
+            record = A.load_record(flo)
+            print(record)
 
 if (__name__ == '__main__'):
     test()

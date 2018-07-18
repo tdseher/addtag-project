@@ -71,8 +71,13 @@ class GC(SingleSequenceAlgorithm):
             for j in ['G', 'g', 'C', 'c']:
                 if j in k:
                     gc += 1.0/len(k)
-        
-        return 100*gc/len(seq)
+        ####### Temporary workaround (should be removed) #######
+        if (len(seq) == 0):
+            return 0.0
+        else:
+            return 100*gc/len(seq)
+        ########################################################
+        #return 100*gc/len(seq)
 
 def test():
     a = ('', 'AAAATTAACTATAGGTAAAG', 'TGG', '', '')

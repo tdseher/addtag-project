@@ -169,7 +169,7 @@ example:
 """.format(**locals())
 
 class Alignment(object):
-    """Class primarily representing a SAM alignment"""
+    """Class representing an alignment"""
     __slots__ = [
         'sequence',
         'target',
@@ -585,70 +585,64 @@ class Target(object):
     indices = {} # key = exTarget-102, value = ExcisionTarget/ReversionTarget object
     
     @classmethod
-    def load_sam(cls, filename, args, contigs, sep=':'):
+    def load_alignment(cls, filename, args, contigs):
         """
-        Read in SAM file.
+        Read in alinment file (SAM/BLASTN).
         sep is the separator for the header. Positions are converted to 0-index
         Creates a list of Sequence objects
         """
         
-        # Sequence Alignment/Map (SAM) format is TAB-delimited. Apart from the
-        # header lines, which are started with the '@' symbol, each alignment line
-        # consists of:
-        #   Col  Field  Description
-        #   1    QNAME  Query template/pair NAME
-        #   2    FLAG   bitwise FLAG
-        #   3    RNAME  Reference sequence NAME
-        #   4    POS    1-based leftmost POSition/coordinate of clipped sequence
-        #   5    MAPQ   MAPping Quality (Phred-scaled)
-        #   6    CIAGR  extended CIGAR string
-        #   7    MRNM   Mate Reference sequence NaMe ('=' if same as RNAME)
-        #   8    MPOS   1-based Mate POSistion
-        #   9    TLEN   inferred Template LENgth (insert size)
-        #   10   SEQ    query SEQuence on the same strand as the reference
-        #   11   QUAL   query QUALity (ASCII-33 gives the Phred base quality)
-        #   12+  OPT    variable OPTional fields in the format TAG:VTYPE:VALUE
-        
         # Code to decompress a *.bam file should go here
-        
         with open(filename, 'r') as flo:
-            for line in flo:
-                if not line.startswith('@'):
-                    sline = line.rstrip().split("\t")
-                    if ((len(sline) > 5) and (sline[2] != '*')):
-                        target = cls.indices[sline[0]] # key=exTarget-519
-                        
-                        # Get orientation
-                        alignment_orientation = utils.sam_orientation(int(sline[1]))
-                        
-                        # Get alignment position
-                        alignment_contig = sline[2]
-                        alignment_start = int(sline[3])-1
-                        alignment_end = int(sline[3])-1+utils.cigar_length(sline[5])
-                        
-                        # Reverse-complement if needed
-                        alignment_contig_sequence = contigs[alignment_contig]
-                        alignment_sequence = alignment_contig_sequence[alignment_start:alignment_end]
-                        alignment_upstream = alignment_contig_sequence[alignment_start-10:alignment_start]
-                        alignment_downstream = alignment_contig_sequence[alignment_end:alignment_end+10]
-                        actual_sequence = sline[9]
-                        if (alignment_orientation == '-'):
-                            alignment_sequence = nucleotides.rc(alignment_sequence)
-                            alignment_upstream, alignment_downstream = nucleotides.rc(alignment_downstream), nucleotides.rc(alignment_upstream)
-                            actual_sequence = nucleotides.rc(actual_sequence)
-                        
-                        target.add_alignment(
-                            args,
-                            alignment_sequence, # aligned_sequence (as when matched with reference, thus may be revcomp of initial query)
-                            alignment_contig, # aligned_contig
-                            alignment_start, # aligned_start
-                            alignment_end, # aligned_end
-                            alignment_orientation, # aligned_orientation (+/-)
-                            alignment_upstream,
-                            alignment_downstream,
-                        )
+            record = None
+            while True:
+                record = args.selected_aligner.load_record(flo)
+                if (record == None):
+                    break
+                else:
+                    # Record(
+                    #     query_name, subject_name,
+                    #     query_sequence, subject_sequence,
+                    #     query_position, subject_position,
+                    #     query_length, subject_length,
+                    #     flags, cigar, score
+                    # )
+                    
+                    target = cls.indices[record.query_name] # key=exTarget-519
+                    
+                    # Get orientation
+                    alignment_orientation = utils.sam_orientation(record.flags)
+                    
+                    # Get alignment position
+                    alignment_contig = record.subject_name
+                    alignment_start, alignment_end = record.subject_position
+                    
+                    # Reverse-complement if needed
+                    alignment_contig_sequence = contigs[alignment_contig]
+                    alignment_sequence = alignment_contig_sequence[alignment_start:alignment_end]
+                    alignment_upstream = alignment_contig_sequence[alignment_start-10:alignment_start]
+                    alignment_downstream = alignment_contig_sequence[alignment_end:alignment_end+10]
+                    #actual_sequence = record.query_sequence # Should be column: 9, SEQ, query SEQuence on the same strand as the reference
+                    if (alignment_orientation == '-'):
+                        alignment_sequence = nucleotides.rc(alignment_sequence)
+                        alignment_upstream, alignment_downstream = nucleotides.rc(alignment_downstream), nucleotides.rc(alignment_upstream)
+                        #actual_sequence = nucleotides.rc(actual_sequence)
+                    
+                    # No actual check made here to see if length of query matches length of subject, and they still conform to motif.
+                    # This is done inside the 'target.add_alignment()' method
+                    
+                    target.add_alignment(
+                        args,
+                        alignment_sequence, # aligned_sequence (as when matched with reference, thus may be revcomp of initial query)
+                        alignment_contig, # aligned_contig
+                        alignment_start, # aligned_start
+                        alignment_end, # aligned_end
+                        alignment_orientation, # aligned_orientation (+/-)
+                        alignment_upstream,
+                        alignment_downstream,
+                    )
         
-        logging.info(cls.__name__ + ' SAM file parsed: {!r}'.format(filename))
+        logging.info(cls.__name__ + ' alignment file parsed: {!r}'.format(filename))
     
     @classmethod
     def generate_query_fasta(cls, filename, sep=':'):
@@ -2070,11 +2064,11 @@ class main(object):
         genome_index_file = args.selected_aligner.index(genome_fasta_file, os.path.basename(genome_fasta_file), args.folder, args.processors)
         dDNA_index_file = args.selected_aligner.index(dDNA_file, os.path.basename(dDNA_file), args.folder, args.processors)
         
-        q2gDNA_sam_file = args.selected_aligner.align(ex_query_file, genome_index_file, 'excision-query-2-gDNA.sam', args.folder, args.processors)
-        q2exdDNA_sam_file = args.selected_aligner.align(ex_query_file, ex_dDNA_index_file, 'excision-query-2-excision-dDNA.sam', args.folder, args.processors)
+        q2gDNA_align_file = args.selected_aligner.align(ex_query_file, genome_index_file, 'excision-query-2-gDNA.sam', args.folder, args.processors)
+        q2exdDNA_align_file = args.selected_aligner.align(ex_query_file, ex_dDNA_index_file, 'excision-query-2-excision-dDNA.sam', args.folder, args.processors)
         
-        ExcisionTarget.load_sam(q2gDNA_sam_file, args, contig_sequences)
-        ExcisionTarget.load_sam(q2exdDNA_sam_file, args, ExcisionDonor.get_contig_dict())
+        ExcisionTarget.load_alignment(q2gDNA_align_file, args, contig_sequences)
+        ExcisionTarget.load_alignment(q2exdDNA_align_file, args, ExcisionDonor.get_contig_dict())
         
         # Calculate off-target/guide scores for each algorithm
         logging.info("ExcisionTarget after SAM parsing and off-target scoring")
@@ -2184,17 +2178,17 @@ class main(object):
         re_dDNA_index_file = args.selected_aligner.index(re_dDNA_file, os.path.basename(re_dDNA_file), args.folder, args.processors)
         
         # Use selected alignment program to find all matches in the genome and dDNAs
-        #ex_genome_sam_file = align(ex_query_file, genome_index_file, args)
-        exq2gDNA_sam_file = args.selected_aligner.align(ex_query_file, genome_index_file, 'excision-query-2-gDNA.sam', args.folder, args.processors)
-        exq2exdDNA_sam_file = args.selected_aligner.align(ex_query_file, ex_dDNA_index_file, 'excision-query-2-excision-dDNA.sam', args.folder, args.processors)
+        #ex_genome_align_file = align(ex_query_file, genome_index_file, args)
+        exq2gDNA_align_file = args.selected_aligner.align(ex_query_file, genome_index_file, 'excision-query-2-gDNA.sam', args.folder, args.processors)
+        exq2exdDNA_align_file = args.selected_aligner.align(ex_query_file, ex_dDNA_index_file, 'excision-query-2-excision-dDNA.sam', args.folder, args.processors)
         
         #print("ExcisionTarget before SAM parsing")
         #for et_seq, et_obj in ExcisionTarget.sequences.items():
         #    print(et_obj)
         
         # Load the SAM files and add Alignments to ExcisionTarget sequences
-        ExcisionTarget.load_sam(exq2gDNA_sam_file, args, contig_sequences)
-        ExcisionTarget.load_sam(exq2exdDNA_sam_file, args, ExcisionDonor.get_contig_dict())
+        ExcisionTarget.load_alignment(exq2gDNA_align_file, args, contig_sequences)
+        ExcisionTarget.load_alignment(exq2exdDNA_align_file, args, ExcisionDonor.get_contig_dict())
         
         # Calculate off-target/guide scores for each algorithm
         logging.info("ExcisionTarget after SAM parsing and off-target scoring")
@@ -2216,15 +2210,15 @@ class main(object):
         excision_spacers_file = ExcisionTarget.generate_spacers_fasta(os.path.join(args.folder, 'excision-spacers.fasta'))
         
         # Use selected alignment program to find all matches in the genome and dDNAs
-        #re_sam_file = align(re_query_file, genome_index_file, args)
-        req2gDNA_sam_file = args.selected_aligner.align(re_query_file, genome_index_file, 'reversion-query-2-gDNA.sam', args.folder, args.processors)
-        req2exdDNA_sam_file = args.selected_aligner.align(re_query_file, ex_dDNA_index_file, 'reversion-query-2-excision-dDNA.sam', args.folder, args.processors)
-        req2redDNA_sam_file = args.selected_aligner.align(re_query_file, re_dDNA_index_file, 'reversion-query-2-reversion-dDNA.sam', args.folder, args.processors)
+        #re_align_file = align(re_query_file, genome_index_file, args)
+        req2gDNA_align_file = args.selected_aligner.align(re_query_file, genome_index_file, 'reversion-query-2-gDNA.sam', args.folder, args.processors)
+        req2exdDNA_align_file = args.selected_aligner.align(re_query_file, ex_dDNA_index_file, 'reversion-query-2-excision-dDNA.sam', args.folder, args.processors)
+        req2redDNA_align_file = args.selected_aligner.align(re_query_file, re_dDNA_index_file, 'reversion-query-2-reversion-dDNA.sam', args.folder, args.processors)
         
         # Load the SAM files and add Alignments to ReversionTarget sequences
-        ReversionTarget.load_sam(req2gDNA_sam_file, args, contig_sequences)
-        ReversionTarget.load_sam(req2exdDNA_sam_file, args, ExcisionDonor.get_contig_dict())
-        ReversionTarget.load_sam(req2redDNA_sam_file, args, ReversionDonor.get_contig_dict())
+        ReversionTarget.load_alignment(req2gDNA_align_file, args, contig_sequences)
+        ReversionTarget.load_alignment(req2exdDNA_align_file, args, ExcisionDonor.get_contig_dict())
+        ReversionTarget.load_alignment(req2redDNA_align_file, args, ReversionDonor.get_contig_dict())
         
         # Calculate off-target/guide scores for each algorithm
         logging.info("ReversionTarget after SAM parsing and off-target scoring")
