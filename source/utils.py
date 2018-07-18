@@ -46,8 +46,8 @@ def cigar_length(cigar):
     #  * For mRNA-to-genome alignment, an N operation represents an intron. For other types of alignments, the interpretation of N is not defined.
     #  * Sum of lengths of the M/I/S/=/X operations shall equal the length of SEQ.
     
-    #m = regex.findall(r'(\d+)[MISP=X]', cigar)
-    m = regex.findall(r'(\d+)[MDSP=X]', cigar)
+    #m = regex.findall(r'(\d+)[MISP=X]', cigar) # This was giving incorrect lengths...
+    m = regex.findall(r'(\d+)[MDSP=X]', cigar) # This was giving correct lengths, even though it violates spec
     return sum(map(int, m))
 
 def sam_orientation(field):
