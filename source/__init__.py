@@ -2004,7 +2004,6 @@ class main(object):
         includes = []
         
         # Search initial queries
-        
         with open(args.gff, 'r') as flo:
             for i, line in enumerate(flo):
                 line = line.rstrip()
@@ -2564,9 +2563,19 @@ example:
         ''' "feature" parser '''
         __feature_description__ = "Search GFF features for specific text."
         __feature_help__ = "Search GFF features for specific text."
+        __feature_epilog__ = """\
+example:
+  In general, you can search all feature attributes for text as follows:
+   $ python3 {__program__} feature --gff genome.gff --query HSP90 > features.gff
+"""
+#  If you want to limit your search to specific tags, then you could use
+#  these parameters:
+#   $ python3 {__program__} feature --gff genome.gff --query Gene=GAL4 > features.gff
+#"""
+
         parser_feature = subparsers.add_parser('feature',
             description=__feature_description__,
-            #epilog=__feature_epilog__,
+            epilog=__feature_epilog__,
             formatter_class=CustomHelpFormatter,
             help=__feature_help__
         )
