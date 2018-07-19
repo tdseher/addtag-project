@@ -77,6 +77,7 @@ class BlastPlus(Aligner):
             ('-outfmt', 6), # Use BLAST+ tabular output format
             ('-out', output_filename_path), # Path to the output '*.blastn' file to generate
             ('-word_size', 11), # Word size for wordfinder algorithm (length of best perfect match)
+            ('-dust', 'no'), # Filter query sequence with DUST (Format: 'yes', 'level window linker', or 'no' to disable)
         ])
         
         return self.process('blastn', output_filename_path, options)
@@ -127,13 +128,15 @@ class BlastPlus(Aligner):
         if record:
             
             flags = 0
+            smin, smax = sorted(map(int, record[8:10]))
+            smin -= 1
             if (int(record[8]) > int(record[9])):
                 flags |= 16
             
             record = Record(
                 record[0], record[1], # query_name, subject_name,
                 None, None, # query_sequence, subject_sequence,
-                (int(record[6])-1, int(record[7])), (int(record[8])-1, int(record[9])), # query_position, subject_position,
+                (int(record[6])-1, int(record[7])), (smin, smax), # query_position, subject_position,
                 abs(int(record[7])-int(record[6])), abs(int(record[9])-int(record[8])), # query_length, subject_length,
                 flags, None, record[11] # flags, cigar, score
             )
