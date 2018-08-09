@@ -133,14 +133,14 @@ outputs:
   folder/log.txt                    Log of important program operations
   folder/aligner-index/*            Index of input FASTA created by aligner
   folder/excision-query.fasta       FASTA file of candidate knock-out spacers
-  folder/excision-query.sam         SAM file for alignment of candidate spacers
+  folder/excision-query.OUT         SAM/BLASTn alignment of candidate spacers
   folder/excision-query.err         STDOUT/STDERR from alignment
   folder/excision-spacers.fasta     Spacer sequences with scores
   folder/excision-constructs.fasta  Construct sequences to be synthesized
   folder/excision-dDNAs.fasta       dDNA sequences to be synthesized for
                                     knock-out
   folder/reversion-query.fasta      FASTA file of candidate knock-in spacers
-  folder/reversion-query.sam        SAM file for alignment of candidate spacers
+  folder/reversion-query.OUT        SAM/BLASTn alignment of candidate spacers
   folder/reversion-query.err        STDOUT/STDERR from alignment
   folder/reversion-spacers.fasta    Spacer sequences with scores
   folder/reversion-constructs.fasta Construct sequences to be synthesized
