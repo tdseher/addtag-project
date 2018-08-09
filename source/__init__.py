@@ -23,6 +23,7 @@ from . import scores
 from . import algorithms
 from . import aligners
 from . import oligos
+#from . import evalues
 
 # Create the logger
 #logger = logging.getLogger(__name__)
@@ -594,9 +595,11 @@ class Target(object):
         
         # Code to decompress a *.bam file should go here
         with open(filename, 'r') as flo:
+            args.selected_aligner.current_file = filename
             record = None
             while True:
                 record = args.selected_aligner.load_record(flo)
+                #logging.info(record)
                 if (record == None):
                     break
                 else:
@@ -605,7 +608,7 @@ class Target(object):
                     #     query_sequence, subject_sequence,
                     #     query_position, subject_position,
                     #     query_length, subject_length,
-                    #     flags, cigar, score
+                    #     flags, cigar, score, evalue, length
                     # )
                     
                     target = cls.indices[record.query_name] # key=exTarget-519

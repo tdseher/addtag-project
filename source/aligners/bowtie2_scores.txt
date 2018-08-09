@@ -1,0 +1,53 @@
+# Scoring matrix of log-likelihood ratios with weights for
+# transitions/transversions, gap penalties, etc
+# query	subject	type	score
+# Matches
+A	A		2
+C	C		2
+G	G		2
+T	T		2
+# Bowtie2 scales mismatches linearly by their Phred scores
+# By default, the scores range from -2 to -6
+# Here, we set them to their maximum penalty (most-negative)
+# Additionally, Bowtie2 does not penalize transversions more than transitions.
+# Transitions (Purines: A<->G, Pyrimidines: C<->T)
+# Purines
+A	G		-6
+G	A		-6
+# Pyrimidines
+C	T		-6
+T	C		-6
+# Transversions
+# Weak
+A	T		-6
+T	A		-6
+# Strong
+C	G		-6
+G	C		-6
+# Amino
+A	C		-6
+C	A		-6
+# Keto
+G	T		-6
+T	G		-6
+# Insertions
+-	A	open	-5
+-	C	open	-5
+-	G	open	-5
+-	T	open	-5
+-	A	extend	-3
+-	C	extend	-3
+-	G	extend	-3
+-	T	extend	-3
+# Deletions
+A	-	open	-5
+C	-	open	-5
+G	-	open	-5
+T	-	open	-5
+A	-	extend	-3
+C	-	extend	-3
+G	-	extend	-3
+T	-	extend	-3
+# Gaps should never be aligned to each other
+-	-	open	-5
+-	-	extend	-3

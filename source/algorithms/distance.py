@@ -616,6 +616,17 @@ def test():
     
     # ~-----AAATTTGC score=-70 <-- This is the optimal alignment
     # CGCCTTA~-----C
+    
+    print('=======================================')
+    # ACGGTTAACCA  matches    -> +9  final score -> +3
+    # ||||  |||||  gap open   -> -4
+    # ACGG~-AACCA  gap extend -> -2
+    a = GlobalAlignment.align('ACGGTTAACCA', 'ACGGAACCA', SCORES)
+    print(a.align1)
+    print(a.align2)
+    print(a.bitscore)
+    print(a.score_extremes(SCORES))
+    print(a.score_extremes(SCORES, gaps=True), 'gaps')
 
 if (__name__ == "__main__"):
     test()

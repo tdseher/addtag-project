@@ -203,7 +203,7 @@ class Record(object):
             query_sequence, subject_sequence,
             query_position, subject_position,
             query_length, subject_length,
-            flags, cigar, score):
+            flags, cigar, score, evalue, length):
         
         self.query_name = query_name
         self.subject_name = subject_name
@@ -220,7 +220,13 @@ class Record(object):
         self.flags = flags
         self.cigar = cigar
         self.score = score
+        self.evalue = evalue
+        self.length = length
         
     def __repr__(self):
         """Return string representation of the Record"""
-        return self.__class__.__name__ + '(' + ', '.join(['query='+self.query_name+':'+'..'.join(map(str, self.query_position)), 'subject='+self.subject_name+':'+'..'.join(map(str, self.subject_position))]) + ')'
+        return self.__class__.__name__ + '(' + ', '.join([
+            'query='+self.query_name+':'+'..'.join(map(str, self.query_position)),
+            'subject='+self.subject_name+':'+'..'.join(map(str, self.subject_position))
+            #'evalue='+str(self.evalue)
+            ]) + ')'

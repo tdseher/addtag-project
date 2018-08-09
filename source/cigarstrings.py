@@ -2,7 +2,7 @@
 
 """AddTag Copyright (c) 2016 Thaddeus D. Seher & Aaron Hernday"""
 
-# source/aligners/bowtie2.py
+# source/cigarstrings.py
 
 # List general Python imports
 
@@ -29,17 +29,18 @@ import regex
 #  * For mRNA-to-genome alignment, an N operation represents an intron. For other types of alignments, the interpretation of N is not defined.
 #  * Sum of lengths of the M/I/S/=/X operations shall equal the length of SEQ.
 
-def get_errors(cigar):
+def cigar_errors(cigar):
     """
-    Returns the number of mismatches, insertions, deletions, and errors
-    Only works for specific CIGARS containing =/X instead of M
+    Returns the number of matches, mismatches, insertions, deletions, and errors
+    Only works for specific CIGARS containing '=' or 'X' instead of 'M'
     as defined by the CIGAR string.
     """
+    matches = 0
     mismatches = 0
     insertions = 0
     deletions = 0
     
-    m = regex.findall(r'(\d*)([IDX])', cigar)
+    m = regex.findall(r'(\d*)([=IDX])', cigar)
     for quant, char in m:
         if quant:
             q = int(quant)
@@ -51,9 +52,74 @@ def get_errors(cigar):
             deletions += q
         elif (char == 'X'):
             mismatches += q
+        elif (char == '='):
+            matches += q
     errors = mismatches + insertions + deletions
     
-    return mismatches, insertions, deletions, errors
+    return matches, mismatches, insertions, deletions, errors
+
+def matrix_averages(scores):
+    '''
+    Returns:
+     * Average score of entire matrix
+     * Average match score
+     * Average mismatch score
+     * Average insertion score
+     * Average deletion score
+    '''
+    total_s = 0
+    total_n = 0
+    
+    match_s = 0
+    match_n = 0
+    
+    mismatch_s = 0
+    mismatch_n = 0
+    
+    ins_s = 0
+    ins_n = 0
+    
+    del_s = 0
+    del_n = 0
+    
+    for k, v in scores.items():
+        # These are invalid so we can ignore them
+        if ((len(k) == 3) and (k[0] == k[1])):
+            continue # Skip this entry
+        
+        total_s += v
+        total_n += 1
+        
+        # k[0] is the query
+        # k[1] is the subject
+        if (len(k) == 2):
+            if (k[0] == k[1]):
+                match_s += v
+                match_n += 1
+            else:
+                mismatch_s += v
+                mismatch_n += 1
+        else: # (len(k) == 3)
+            if (k[0] == '-'): # The query is missing these, so these are deletions
+                del_s += v
+                del_n += 1
+            elif (k[1] == '-'): # The subject is missing these, so these are insertions
+                ins_s += v
+                ins_n += 1
+    
+    # entire_table_average, match_average, mismatch_average, insertion_average, deletion_average
+    return match_s/match_n, mismatch_s/mismatch_n, ins_s/ins_n, del_s/del_n, total_s/total_n
+
+def cigar2score(cigar, score_matrix):
+    """
+    Returns the score of the alignment, given the cigar string.
+    """
+    # matches, mismatches, insertions, deletions, errors = cigar_errors(cigar)
+    # avg_match, avg_mismatch, avg_ins, avg_del, avg_total = matrix_averages(score_matrix)
+    counts = cigar_errors(cigar)[:4] # remove errors total
+    scores = matrix_averages(score_matrix)[:4] # remove total
+    
+    return sum(a*b for a,b in zip(counts, scores))
 
 def cigar2query_position(cigar):
     """
@@ -203,10 +269,19 @@ def decode_sam_flags(field, kind='str'):
 def test():
     q = "AAA--AAATCCC"
     s = "AGACGAAA-CCC"
-    alignment2cigar(q, s) # '3M2D3M1I3M'
-    alignment2cigar(q, s, abbreviated=True) # '3M2D3MI3M'
-    alignment2cigar(q, s, specific=True) # '1=1X1=2D3=1I3='
-    alignment2cigar(q, s, specific=True, abbreviated=True) # '=X=2D3=I3='
+    print(alignment2cigar(q, s)) # '3M2D3M1I3M'
+    print(alignment2cigar(q, s, abbreviated=True)) # '3M2D3MI3M'
+    print(alignment2cigar(q, s, specific=True)) # '1=1X1=2D3=1I3='
+    print(alignment2cigar(q, s, specific=True, abbreviated=True)) # '=X=2D3=I3='
+    print(cigar_errors('=X=2D3=I3='))
+    
+    import evalues
+    score_matrix = evalues.load_scores('algorithms/distance_scores.txt')
+    print(cigar2score('=X=2D3=I3=', score_matrix))
+    
+    score_matrix = evalues.load_scores('aligners/bowtie2_scores.txt')
+    print(cigar2score('1X1=1X1=1X7=1X3=1X5=1X', score_matrix))
+    print(cigar2score('23=', score_matrix))
 
 if (__name__ == '__main__'):
     test()

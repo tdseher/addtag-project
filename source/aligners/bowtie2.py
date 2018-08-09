@@ -32,9 +32,13 @@ if (__name__ == "__main__"):
     # Convert to absolute path, and add to the PYTHONPATH
     sys.path.append(os.path.normpath(os.path.join(SCRIPT_DIR, PACKAGE_PARENT)))
     
-    from cigarstrings import sam_orientation, cigar2query_position, cigar2query_aligned_length, cigar2subject_aligned_length
+    from cigarstrings import sam_orientation, cigar2query_position, cigar2query_aligned_length, cigar2subject_aligned_length, cigar2score
+    from utils import old_load_fasta_file
+    from evalues import EstimateVariables, load_scores
 else:
-    from ..cigarstrings import sam_orientation, cigar2query_position, cigar2query_aligned_length, cigar2subject_aligned_length
+    from ..cigarstrings import sam_orientation, cigar2query_position, cigar2query_aligned_length, cigar2subject_aligned_length, cigar2score
+    from ..utils import old_load_fasta_file
+    from ..evalues import EstimateVariables, load_scores
 
 class Bowtie2(Aligner):
     def __init__(self):
@@ -44,6 +48,9 @@ class Bowtie2(Aligner):
             output='sam',
             truncated=False,
         )
+        self.score_matrix = {}
+        self.ev = {}
+        self.current_file = None
     
     def index(self, fasta, output_filename, output_folder, threads, *args, **kwargs):
         """
@@ -51,7 +58,16 @@ class Bowtie2(Aligner):
         
         The indexed FASTA will be stored in 'folder'.
         The 'fasta' basename will be used as both 'folder' and index name.
+        
+        Additionally, compute the Karlin-Altschul statistics parameters
+        necessary for E-value calculations
         """
+        
+        # Karlin-Altschul calculations
+        score_matrix = load_scores(os.path.join(os.path.dirname(__file__), 'bowtie2_scores.txt'))
+        scontigs = old_load_fasta_file(fasta)
+        ev = EstimateVariables(score_matrix, scontigs)
+        
         # threads=(os.cpu_count() or 1)
         
         # Find the FASTA basename
@@ -72,8 +88,12 @@ class Bowtie2(Aligner):
             (fasta, None),
             (index_file, None),
         ])
+        outpath = self.process('bowtie2-build', index_file, options)
         
-        return self.process('bowtie2-build', index_file, options)
+        self.ev[outpath] = ev
+        self.score_matrix[outpath] = score_matrix
+        
+        return outpath
     
     def align(self, query, subject, output_filename, output_folder, threads, *args, **kwargs):
         """
@@ -84,7 +104,6 @@ class Bowtie2(Aligner):
         
         Returns the path of the SAM file generated
         """
-        
         output_filename_path = os.path.join(output_folder, output_filename)
         options = OrderedDict([
             ('-p', threads), # Number of processors to use
@@ -133,7 +152,12 @@ class Bowtie2(Aligner):
             ('--xeq', None), # Use '='/'X', instead of 'M', to specify matches/mismatches in CIGAR string
         ])
         
-        return self.process('bowtie2', output_filename_path, options)
+        outpath = self.process('bowtie2', output_filename_path, options)
+        
+        self.ev[outpath] = self.ev[subject]
+        self.score_matrix[outpath] = self.score_matrix[subject]
+        
+        return outpath
     
     #def load_file(self, filename, *args, **kwargs):
     #    """
@@ -191,12 +215,16 @@ class Bowtie2(Aligner):
         
         # Process the record if found
         if record:
+            ev = self.ev[self.current_file]
+            score_matrix = self.score_matrix[self.current_file]
+            cigar_score = cigar2score(record[5], score_matrix)
+            evalue = ev.calculate_evalue(cigar_score, record[9])
             record = Record(
                 record[0], record[2], # query_name, subject_name,
                 record[9], None, # query_sequence, subject_sequence,
                 cigar2query_position(record[5]), (int(record[3])-1, int(record[3])-1+cigar2subject_aligned_length(record[5])), # query_position, subject_position,
                 cigar2query_aligned_length(record[5]), cigar2subject_aligned_length(record[5]), # query_length, subject_length,
-                int(record[1]), record[5], record[4] # flags, cigar, score
+                int(record[1]), record[5], float(record[4]), evalue, None # flags, cigar, score, evalue, length
             )
         
         # Return the processed record, otherwise None if the file is complete

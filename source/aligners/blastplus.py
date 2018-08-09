@@ -138,7 +138,7 @@ class BlastPlus(Aligner):
                 None, None, # query_sequence, subject_sequence,
                 (int(record[6])-1, int(record[7])), (smin, smax), # query_position, subject_position,
                 abs(int(record[7])-int(record[6])), abs(int(record[9])-int(record[8])), # query_length, subject_length,
-                flags, None, record[11] # flags, cigar, score
+                flags, None, float(record[11]), float(record[10]), int(record[3]) # flags, cigar, score, evalue, length
             )
         
         # Return the processed record, otherwise None if the file is complete

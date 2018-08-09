@@ -122,9 +122,7 @@ def build_iupac_score(single_scoring):
     return iupac_scoring
 
 def load_scores(file_path, sep="\t"):
-    """Load the PAM scors defined by Doench et al (2016)
-    These represent the 'NGG' scores, excluding the 'N'
-    """
+    """Load the alignment scores"""
     scoring = {}
     with open(file_path, 'r') as flo:
         for line in flo:
