@@ -49,7 +49,8 @@ class Doench2014(SingleSequenceAlgorithm):
         return self.score(target, pam, upstream, downstream)
     
     def score(self, seq, pam, upstream='', downstream=''):
-        """Function to calculate the sgRNA on-target efficacy score,
+        """
+        Function to calculate the sgRNA on-target efficacy score,
         as defined in Doench et al 2014
           seq = the gRNA sequence
           pam = the PAM sequence
@@ -141,7 +142,8 @@ class Doench2016(PairedSequenceAlgorithm):
     
     #def calculate(self, seq1, seq2, pam, *args, **kwargs):
     def score(self, seq1, seq2, pam, max_length=20):
-        """Calculate the CFD score for a given gRNA and off-target sequence.
+        """
+        Calculate the CFD score for a given gRNA and off-target sequence.
         
         Input oligonucleotides must be aligned with no gaps, and contain
         ONLY A, C, G, & T residues:
@@ -456,7 +458,8 @@ def load_mismatch_scores(file_path, sep="\t", approximation=False):
     return mismatch_scores
 
 def load_pam_scores(file_path, sep="\t", approximation=False):
-    """Load the PAM scors defined by Doench et al (2016)
+    """
+    Load the PAM scors defined by Doench et al (2016)
     These represent the 'NGG' scores, excluding the 'N'
     """
     pam_scores = {}
@@ -474,7 +477,8 @@ def load_pam_scores(file_path, sep="\t", approximation=False):
     return pam_scores
 
 def load_old_scores(file_path, sep="\t"):
-    """Function to open and parse the tab-delimited 'params' file for
+    """
+    Function to open and parse the tab-delimited 'params' file for
     Doench et al (2014), and return a list of tuples"""
     params = []
     with open(file_path, 'r') as flo:
