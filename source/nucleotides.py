@@ -44,8 +44,18 @@ class SlidingWindow(object):
         self.position += self.step
         return s, e, seq
 
-def random_sequence(length=100):
-    return ''.join(random.choice(['A', 'C', 'G', 'T']) for k in range(length))
+#def random_sequence(length=100):
+#    return ''.join(random.choice(['A', 'C', 'G', 'T']) for k in range(length))
+
+def random_sequence(length=100, compositions=None):
+    '''
+    Expects kmer=1
+    if None defined, then
+    compositions = {'A':0.25, 'C':0.25, 'G':0.25, 'T':0.25}
+    '''
+    if (compositions == None):
+        compositions = {'A':0.25, 'C':0.25, 'G':0.25, 'T':0.25}
+    return ''.join(random.choices(['A', 'C', 'G', 'T'], weights=[compositions['A'], compositions['C'], compositions['G'], compositions['T']], k=length))
 
 def rc(seq, kind="dna"):
     """Returns the reverse-complement of a string containing DNA or RNA characters"""
