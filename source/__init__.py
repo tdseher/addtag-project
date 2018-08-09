@@ -1272,9 +1272,18 @@ class Motif(object):
         # Still need to implement:
         #  Identify gRNA pairs on opposite strands appropriate for "nickase" Cas9
         #  allow for PAM-out and PAM-in orientations
-        #  --motifs, where '.' is any non-spacer nucleotide
-        #    'CCN<N{17,20}.{13,18}N{17,20}>NGG'     # PAM-out
-        #    'N{17,20}>NGG.{13,18}CCN<N{17,20}'     # PAM-in
+        #  --motifs, where '.' is any non-spacer nucleotide (from the "Dimeric CRISPR RNA-guided FokI nucleases for highly specific genome editing" paper)
+        #    'CCN<N{20}.{13,18}N{20}>NGG'     # PAM-out
+        #    'N{20}>NGG.{13,18}CCN<N{20}'     # PAM-in
+        #
+        # The FokI-dCas9 restriction site can cut anywhere between either PAM
+        # site (for PAM-out). It typically cuts with a 3' overhang
+        # (Targeting individual subunits of the FokI restriction endonuclease to specific DNA strands):
+        #   5'-.../.... ...-3'
+        #   3'-... ....\...-5'
+        #
+        # Maybe this? It isn't perfect, but it lets the user specify the cut sites.
+        #   'CCN<N{20}.{5,9}/....\.{9,5}N{20}>NGG' # One quantifier counts up while the other counts down?
         
         gt_count = motif.count('>')
         lt_count = motif.count('<')
