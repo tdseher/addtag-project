@@ -45,6 +45,33 @@ class Oligo(object): # Name of the subclass
     def scan_sequence(self, *args, **kwargs):
         """
         Defines interface for calculation.
+        
+        Overload this method.
+        """
+        return None
+    
+    def scan(self, seq, side, *args, **kwargs):
+        """
+        Pass in a sequence, then either design left/forward primers
+        or design right/reverse primers.
+        Returns list of decent primers.
+        
+        Overload this method.
+        """
+        if (side in ['left', 'forward']):
+            pass
+        elif (side in ['right', 'reverse']):
+            pass
+        
+        return None
+    
+    def pair(self, forward_list, reverse_list, *args, **kwargs):
+        """
+        Builds valid sets of left/forward and right/reverse primers.
+        Typically, it checks that the Tm of each pair are within a few degrees,
+        the amplicon length is within desired parameters, and there are no
+        low energy secondary structures.
+        
         Overload this method.
         """
         return None
