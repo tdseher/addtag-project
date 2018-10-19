@@ -3686,7 +3686,7 @@ description:
                 key1s = ','.join(map(str, key1))
                 translations = None
                 
-                sline = [gene, feature, key0s, translations, weight, othz, otcfd, azimuth, obj.name, obj.spacer+'|'+obj.pam, exdonors]
+                sline = [gene, feature, key0s, translations, weight, othz, otcfd, azimuth, obj.name, obj.spacer+'>'+obj.pam, exdonors] # should automatically determine the direction of the SPACER>PAM based on the motif
                 
                 if (weight >= args.min_weight_reported):
                     if (len(outputs.get(key1s, [])) < args.max_number_sequences_reported):
@@ -3727,7 +3727,7 @@ description:
                 
                 redonors = ','.join(x.name for x in red_list)
                 
-                sline = [gene, csfeatures, weight, othz, otcfd, azimuth, obj.name, obj.spacer+'|'+obj.pam, redonors]
+                sline = [gene, csfeatures, weight, othz, otcfd, azimuth, obj.name, obj.spacer+'>'+obj.pam, redonors] # should automatically determine the direction of the SPACER>PAM based on the motif
                 
                 if (weight >= args.min_weight_reported):
                     if (len(outputs) < args.max_number_sequences_reported):
