@@ -13,6 +13,8 @@ import time
 import logging
 import random
 import pickle
+import math
+import copy
 
 # Import non-standard packages
 import regex
@@ -2467,68 +2469,810 @@ class main(object):
         # ,,,,,,,,,nnnnnnnnnnnnnnnnnn111nnnnnnnnnnnnnnnnnnn............
         # ,,,,,,,,,aaa222aaa...........................................
         # ,,,,,,,,,mmmmmmmmmm--------111-------mmmmmmmmmmmm............ the dDNA is expanded to include the wt region in between both of these features
+        
+    def make_primer_set(self, args, qname, us_seq, ds_seq, insert_seq, feature_seq, q_hih_seq, s_ush_seq, q_ush_seq, s_dsh_seq, q_dsh_seq):
+        tm_max_difference = 4.0
+        amplicon_size = (200, 900)
+        tm_range = (52, 64)
+        primer_length_range = (19,32)
+        min_delta_g = -5.0
+        
+        subset_size = 100 # 200 # Temporary size limit for the number of primers that go into the pair() function
+        # primer group:
+        #          feature: Fo      + Rf
+        #          feature:      Ff +      Ro
+        # optional-feature:      Ff + Rf
+        #           insert: Fo      + Ri
+        #           insert:      Fi +      Ro
+        #           insert: Fo      +      Ro
+        # optional-insert:       Fi + Ri
+        
+        # Save the sequence regions
+        sseq_upstream = us_seq[-max(amplicon_size):]
+        sseq_downstream = ds_seq[:max(amplicon_size)]
+        sseq_insert = insert_seq
+        sseq_feature = feature_seq
+        
+        # Make lists of primers for each region
+        logging.info('Scanning the 4 regions (upstream, downstream, feature, insert) for 6 sets of primers')
+        
+        # try:
+        #     logging.info('Loading primers from region+direction...')
+        #     
+        #     upstream_F   = load_object('upstream_F_'+qname+'.pickle')
+        #     downstream_R = load_object('downstream_R_'+qname+'.pickle')
+        #     feature_F    = load_object('feature_F_'+qname+'.pickle')
+        #     feature_R    = load_object('feature_R_'+qname+'.pickle')
+        #     insert_F     = load_object('insert_F_'+qname+'.pickle')
+        #     insert_R     = load_object('insert_R_'+qname+'.pickle')
+        #     
+        # except FileNotFoundError:
+        logging.info('Calculating primers found in each region+direction...')
+        temp_folder = os.path.join('/dev/shm/addtag', os.path.basename(args.folder))
+        
+        logging.info('Number of primers found in each region+direction:')
+        upstream_F   = args.selected_oligo.scan(sseq_upstream,   'left',  primer_size=primer_length_range, tm_range=tm_range, min_delta_g=min_delta_g, folder=temp_folder)
+        logging.info('  len(upstream_F) = {}'.format(len(upstream_F)))
+        
+        downstream_R = args.selected_oligo.scan(sseq_downstream, 'right', primer_size=primer_length_range, tm_range=tm_range, min_delta_g=min_delta_g, folder=temp_folder)
+        logging.info('  len(downstream_R) = {}'.format(len(downstream_R)))
+        
+        feature_F    = args.selected_oligo.scan(sseq_feature,    'left',  primer_size=primer_length_range, tm_range=tm_range, min_delta_g=min_delta_g, folder=temp_folder)
+        logging.info('  len(feature_F) = {}'.format(len(feature_F)))
+        
+        feature_R    = args.selected_oligo.scan(sseq_feature,    'right', primer_size=primer_length_range, tm_range=tm_range, min_delta_g=min_delta_g, folder=temp_folder)
+        logging.info('  len(feature_R) = {}'.format(len(feature_R)))
+        
+        insert_F     = args.selected_oligo.scan(sseq_insert,     'left',  primer_size=primer_length_range, tm_range=tm_range, min_delta_g=min_delta_g, folder=temp_folder)
+        logging.info('  len(insert_F) = {}'.format(len(insert_F)))
+        
+        insert_R     = args.selected_oligo.scan(sseq_insert,     'right', primer_size=primer_length_range, tm_range=tm_range, min_delta_g=min_delta_g, folder=temp_folder)
+        logging.info('  len(insert_R) = {}'.format(len(insert_R)))
+        #     
+        #     logging.info('Saving: primers found in each region+direction')
+        #     save_object(upstream_F,   'upstream_F_'+qname+'.pickle')
+        #     save_object(downstream_R, 'downstream_R_'+qname+'.pickle')
+        #     save_object(feature_F,    'feature_F_'+qname+'.pickle')
+        #     save_object(feature_R,    'feature_R_'+qname+'.pickle')
+        #     save_object(insert_F,     'insert_F_'+qname+'.pickle')
+        #     save_object(insert_R,     'insert_R_'+qname+'.pickle')
+        
+        # Sort each set of region+direction primers
+        upstream_F = sorted(upstream_F, key=lambda x: x.weight, reverse=True)
+        downstream_R = sorted(downstream_R, key=lambda x: x.weight, reverse=True)
+        feature_F = sorted(feature_F, key=lambda x: x.weight, reverse=True)
+        feature_R = sorted(feature_R, key=lambda x: x.weight, reverse=True)
+        insert_F = sorted(insert_F, key=lambda x: x.weight, reverse=True)
+        insert_R = sorted(insert_R, key=lambda x: x.weight, reverse=True)
+        
+        # Select the best subset of primers so the pairing doesn't take too long
+        # This will cap the maximum number of primer pairs for each region span
+        # to be 100 x 100 = 10,000
+        upstream_F = upstream_F[:subset_size]
+        downstream_R = downstream_R[:subset_size]
+        feature_F = feature_F[:subset_size]
+        feature_R = feature_R[:subset_size]
+        insert_F = insert_F[:subset_size]
+        insert_R = insert_R[:subset_size]
+        logging.info('upstream_F: skipping {}/{} calculated primers'.format(max(0, len(upstream_F)-subset_size), len(upstream_F)))
+        logging.info('downstream_R: skipping {}/{} calculated primers'.format(max(0, len(downstream_R)-subset_size), len(downstream_R)))
+        logging.info('feature_F: skipping {}/{} calculated primers'.format(max(0, len(feature_F)-subset_size), len(feature_F)))
+        logging.info('feature_R: skipping {}/{} calculated primers'.format(max(0, len(feature_R)-subset_size), len(feature_R)))
+        logging.info('insert_F: skipping {}/{} calculated primers'.format(max(0, len(insert_F)-subset_size), len(insert_F)))
+        logging.info('insert_R: skipping {}/{} calculated primers'.format(max(0, len(insert_R)-subset_size), len(insert_R)))
+        
+        # Pseudocode:
+        #   create list to hold 6-set of primers, and their joint weight
+        #   make all upstream_F downstream_R pairs, and weigh them
+        #   starting with the best upstream_F and downstream_R pairs:
+        #       pair upstream_F with all feature_R
+        #       pair upstream_F with all insert_R
+        #       pair all feature_F with downstream_R
+        #       pair all insert_F with downstream_R
+        #       calculate joint weight (product of all pair weights)
+        #       add 6-set with joint weight to list
+        #   select the best-weighted 6-set
+        
+        # Make all upstream_F downstream_R pairs, and then weigh them
+        # Sort all primer pairs such that the ones with greatest weight are first in the list
+        
+        # try:
+        #     logging.info('Loading: uf_dr_paired_primers')
+        #     uf_dr_paired_primers = load_object('uf_dr_paired_primers_'+qname+'.pickle')
+        # except FileNotFoundError:
+        
+        ###### Old version ######
+        #logging.info('Calculating: uf_dr_paired_primers (amplicon across insert)...')
+        #uf_dr_paired_primers = sorted(
+        #    args.selected_oligo.pair(upstream_F, downstream_R, amplicon_size=amplicon_size, tm_max_difference=tm_max_difference, intervening=len(q_hih_seq), min_delta_g=min_delta_g, folder=temp_folder),
+        #    key=lambda x: x.get_joint_weight(), reverse=True)
+        #logging.info('         len(uf_dr_paired_primers) = {}'.format(len(uf_dr_paired_primers)))
+        ###### End old version ######
+        
+        logging.info('Calculating: uf_dr_paired_primers...')
+        uf_dr_paired_primers = sorted(
+            args.selected_oligo.pair(upstream_F, downstream_R, amplicon_size=(amplicon_size[0]-len(s_ush_seq)-len(s_dsh_seq), amplicon_size[1]-len(s_ush_seq)-len(s_dsh_seq)), tm_max_difference=tm_max_difference, intervening=0, min_delta_g=min_delta_g, folder=temp_folder),
+            key=lambda x: x.get_joint_weight(), reverse=True)
+        logging.info('         len(uf_dr_paired_primers) = {}'.format(len(uf_dr_paired_primers)))
+        #     
+        #     logging.info('Saving: uf_dr_paired_primers')
+        #     save_object(uf_dr_paired_primers, 'uf_dr_paired_primers_'+qname+'.pickle')
+        # 
+        # try:
+        #     logging.info('Loading: uf_fr_paired_primers')
+        #     uf_fr_paired_primers = load_object('uf_fr_paired_primers_'+qname+'.pickle')
+        # except FileNotFoundError:
+        logging.info('Calculating: uf_fr_paired_primers...')
+        uf_fr_paired_primers = sorted(
+            args.selected_oligo.pair(upstream_F, feature_R, amplicon_size=amplicon_size, tm_max_difference=tm_max_difference, intervening=len(s_ush_seq), min_delta_g=min_delta_g, folder=temp_folder),
+            key=lambda x: x.get_joint_weight(), reverse=True)
+        logging.info('         len(uf_fr_paired_primers) = {}'.format(len(uf_fr_paired_primers)))
+        #     
+        #     logging.info('Saving: uf_fr_paired_primers')
+        #     save_object(uf_fr_paired_primers, 'uf_fr_paired_primers_'+qname+'.pickle')
+        # 
+        # try:
+        #     logging.info('Loading: uf_ir_paired_primers')
+        #     uf_ir_paired_primers = load_object('uf_ir_paired_primers_'+qname+'.pickle')
+        # except:
+        logging.info('Calculating: uf_ir_paired_primers...')
+        uf_ir_paired_primers = sorted(
+            args.selected_oligo.pair(upstream_F, insert_R, amplicon_size=amplicon_size, tm_max_difference=tm_max_difference, intervening=len(q_ush_seq), min_delta_g=min_delta_g, folder=temp_folder),
+            key=lambda x: x.get_joint_weight(), reverse=True)
+        logging.info('         len(uf_ir_paired_primers) = {}'.format(len(uf_ir_paired_primers)))
+        #     
+        #     logging.info('Saving: uf_ir_paired_primers')
+        #     save_object(uf_ir_paired_primers, 'uf_ir_paired_primers_'+qname+'.pickle')
+        # 
+        # try:
+        #     logging.info('Loading: ff_dr_paired_primers')
+        #     ff_dr_paired_primers = load_object('ff_dr_paired_primers_'+qname+'.pickle')
+        # except:
+        logging.info('Calculating: ff_dr_paired_primers...')
+        ff_dr_paired_primers = sorted(
+            args.selected_oligo.pair(feature_F, downstream_R, amplicon_size=amplicon_size, tm_max_difference=tm_max_difference, intervening=len(s_dsh_seq), min_delta_g=min_delta_g, folder=temp_folder),
+            key=lambda x: x.get_joint_weight(), reverse=True)
+        logging.info('         len(ff_dr_paired_primers) = {}'.format(len(ff_dr_paired_primers)))
+        #     
+        #     logging.info('Saving: ff_dr_paired_primers')
+        #     save_object(ff_dr_paired_primers, 'ff_dr_paired_primers_'+qname+'.pickle')
+        # 
+        # try:
+        #     logging.info('Loading: if_dr_paired_primers')
+        #     if_dr_paired_primers = load_object('if_dr_paired_primers_'+qname+'.pickle')
+        # except:
+        logging.info('Calculating: if_dr_paired_primers...')
+        if_dr_paired_primers = sorted(
+            args.selected_oligo.pair(insert_F, downstream_R, amplicon_size=amplicon_size, tm_max_difference=tm_max_difference, intervening=len(q_dsh_seq), min_delta_g=min_delta_g, folder=temp_folder),
+            key=lambda x: x.get_joint_weight(), reverse=True)
+        logging.info('         len(if_dr_paired_primers) = {}'.format(len(if_dr_paired_primers)))
+        #     
+        #     logging.info('Saving: if_dr_paired_primers')
+        #     save_object(if_dr_paired_primers, 'if_dr_paired_primers_'+qname+'.pickle')
+        
+        def nsum(n):
+            return n*(n+1)/2
+        
+        def rank_order(x, reverse=False, shift=0):
+            return [y+shift for y in sorted(range(len(x)), key=x.__getitem__, reverse=reverse)]
+        
+        def rank(x, reverse=False, shift=0):
+            return [z[0]+shift for z in sorted(enumerate(sorted(enumerate(x), key=lambda w: w[1], reverse=reverse)), key=lambda y: y[1][0])]
+        
+        def rank_dist(x):
+            s = nsum(len(x))
+            return [y/s for y in rank(x, reverse=False, shift=1)]
+        
+        def product(x):
+            z = 1
+            for y in x:
+                z *= y
+            return z
+        
+        def random_choices(population, weights, k=1):
+            """
+            Return a k sized list of population elements chosen with replacement.
+            """
+            weight_sum = sum(weights)
+            choices = zip(population, weights)
+            values = []
+            for i in range(k):
+                r = random.uniform(0, weight_sum)
+                upto = 0
+                for c, w in choices:
+                    if upto + w >= r:
+                        values.append(c)
+                        break
+                    upto += w
+                else:
+                    values.append(random.choice(population))
+            return values
+        
+        def filter_primer_pairs(pairs, forward=None, reverse=None):
+            ooo = []
+            
+            if (forward and reverse):
+                for pp in pairs:
+                    if ((pp.forward_primer.sequence == forward.sequence) and (pp.reverse_primer.sequence == reverse.sequence)):
+                        ooo.append(pp)
+            elif forward:
+                for pp in pairs:
+                    if (pp.forward_primer.sequence == forward.sequence):
+                        ooo.append(pp)
+            elif reverse:
+                for pp in pairs:
+                    if (pp.reverse_primer.sequence == reverse.sequence):
+                        ooo.append(pp)
+            else:
+                ooo = pairs
+            
+            return ooo
+        
+        def random_primer_by_weight_old(pairs, forward=None, reverse=None):
+            ooo = filter_primer_pairs(pairs, forward, reverse)
+            
+            if (len(ooo) == 0):
+                return None
+            elif ('choices' in random.__all__):
+                return random.choices(ooo, [x.get_joint_weight() for x in ooo])[0]
+            else:
+                return random_choices(ooo, [x.get_joint_weight() for x in ooo])[0]
+        
+        def random_primer_by_weight(pairs):
+            if (len(pairs) == 0):
+                return None
+            elif ('choices' in random.__all__):
+                return random.choices(pairs, [x.get_joint_weight() for x in pairs])[0]
+            else:
+                return random_choices(pairs, [x.get_joint_weight() for x in pairs])[0]
+        
+        # Build a set of random, best ones
+        starting_max = 1000
+        starting_count = 0
+        
+        # Create lists to hold 5-set of primer pairs, and their joint weight
+        starting_set = [] # initial set
+        finished_set = [] # final set
+        
+        uf_dr_iterator = iter(uf_dr_paired_primers)
+        
+        if ((starting_max != None) and (len(uf_dr_paired_primers) > starting_max)):
+            logging.info('uf_dr_paired_primers: skipping {}/{} calculated primer pairs'.format(max(0, len(uf_dr_paired_primers)-starting_max), len(uf_dr_paired_primers)))
+        
+        while (starting_count < starting_max):
+            # Increment the count
+            starting_count += 1
+            
+            # Create random 6-sets, with each pair's probability determined by its joint weight
+            #uf_dr_pair = random_primer_by_weight(uf_dr_paired_primers) # comment this out to prevent random sampling of this one
+            try:
+                uf_dr_pair = next(uf_dr_iterator)
+            except StopIteration:
+                break
+            
+            sources = [
+                filter_primer_pairs(uf_fr_paired_primers, forward=uf_dr_pair.forward_primer),
+                filter_primer_pairs(uf_ir_paired_primers, forward=uf_dr_pair.forward_primer),
+                filter_primer_pairs(ff_dr_paired_primers, reverse=uf_dr_pair.reverse_primer),
+                filter_primer_pairs(if_dr_paired_primers, reverse=uf_dr_pair.reverse_primer)
+            ]
+            
+            logging.info('loop {}: length of sources: '.format(starting_count) + str([len(x) for x in sources]))
+            
+            uf_fr_pair = random_primer_by_weight(sources[0])
+            uf_ir_pair = random_primer_by_weight(sources[1])
+            ff_dr_pair = random_primer_by_weight(sources[2])
+            if_dr_pair = random_primer_by_weight(sources[3])
+            
+            #if None in [uf_dr_pair, uf_fr_pair, ff_dr_pair]:
+            #    logging.info("'None' in [uf_dr_pair, uf_fr_pair, ff_dr_pair] --> skipping to next...")
+            #    continue
+            
+            set4 = [uf_fr_pair, uf_ir_pair, ff_dr_pair, if_dr_pair]
+            
+            group = [
+                uf_dr_pair.forward_primer,
+                uf_dr_pair.reverse_primer,
+                uf_fr_pair.reverse_primer if uf_fr_pair else None,
+                uf_ir_pair.reverse_primer if uf_ir_pair else None,
+                ff_dr_pair.forward_primer if ff_dr_pair else None,
+                if_dr_pair.forward_primer if if_dr_pair else None
+            ]
+            
+            group_weight = args.selected_oligo.group_weight(group)
+            joint_weight = group_weight * product(x.get_joint_weight() for x in [uf_dr_pair]+set4 if x)
+            starting_set.append((joint_weight, [uf_dr_pair]+set4))
+            
+            logging.info('loop {}: starting_set: '.format(starting_count) + str(starting_set[-1]))
+            
+            # iteratively improve until a local maxima is found
+            # By continually swapping out the least-weighted component primer
+            min_weight_delta = 0.0000000001
+            weight_delta = 1
+            while(weight_delta > min_weight_delta):
+                # Select the component primer with the worst weight
+                # excluding uf and dr
+                swappables = [
+                    set4[0].reverse_primer if set4[0] else None, # uf_fr_pair
+                    set4[1].reverse_primer if set4[1] else None, # uf_ir_pair
+                    set4[2].forward_primer if set4[2] else None, # ff_dr_pair
+                    set4[3].forward_primer if set4[3] else None  # if_dr_pair
+                ]
+                #swappables = [s for s in swappables if s]
+                
+                # Get list of indices from smallest weight to largest weight
+                wi_order = rank_order([x.weight if (x != None) else math.inf for x in swappables])
+                #worst_index = wi_order[0]
+                
+                #worst = swappables[worst_index]
+                #worst.weight
+                
+                # start at the worst, and go to the next-worst, then next, then next
+                for wi in wi_order:
+                    new_set4 = set4[:] #[uf_fr_pair, uf_ir_pair, ff_dr_pair, if_dr_pair]
+                    
+                    # Swap the worst-performing primer with its best alternative
+                    #for source_pp in sources[worst_index]:
+                    for source_pp in sources[wi]:
+                        
+                        #new_set4[worst_index] = source_pp
+                        new_set4[wi] = source_pp
+                        
+                        new_group = [
+                            uf_dr_pair.forward_primer,
+                            uf_dr_pair.reverse_primer,
+                            new_set4[0].reverse_primer if new_set4[0] else None,
+                            new_set4[1].reverse_primer if new_set4[1] else None,
+                            new_set4[2].forward_primer if new_set4[2] else None,
+                            new_set4[3].forward_primer if new_set4[3] else None
+                        ]
+                        
+                        new_group_weight = args.selected_oligo.group_weight(new_group)
+                        new_joint_weight = new_group_weight * product(x.get_joint_weight() for x in [uf_dr_pair]+new_set4 if x)
+                        
+                        if (new_joint_weight > joint_weight):
+                            logging.info('                 set: ' + str((new_joint_weight, [uf_dr_pair]+new_set4)))
+                            
+                            weight_delta = new_joint_weight - joint_weight
+                            
+                            # replace values for next iteration
+                            set4 = new_set4
+                            joint_weight = new_joint_weight
+                            break
+                    else:
+                        weight_delta = 0
+                    
+                    if (weight_delta > 0):
+                        break
+            
+            # Does not re-calculate 'pp.weight', thus the amplicon_size will not be further penalized
+            # However, the 'pp.get_amplicon_size()' will accurately reflect the updated 'pp.intervening' length
+            uf_insert_dr_pair = copy.deepcopy(uf_dr_pair)
+            uf_insert_dr_pair.intervening = len(q_hih_seq)
+            uf_feature_dr_pair = copy.deepcopy(uf_dr_pair)
+            uf_feature_dr_pair.intervening = len(s_ush_seq)+len(sseq_feature)+len(s_dsh_seq)
+            
+            #finished_set.append((joint_weight, [uf_dr_pair]+set4)) # Originally, only a single copy of 'uf_dr_pair'
+            finished_set.append((joint_weight, [uf_insert_dr_pair, uf_feature_dr_pair]+set4)) # two copies of 'uf_dr_pair'
+        
+        # Suzanne suggests
+        # 1) start with best from sorted list of uf_dr_pairs
+        # 2) run the optimization a finite number of times, or until the delta drops below a certain amount
+        #    by swapping worst component
+        #
+        
+        return starting_set, finished_set
+    
+    def calculate_amplicons(self, args, primer_sets, contigs):
+        """
+        Calculates number of amplicons for each primer set
+        """
+        greek_labels = {
+            1: 'haploid', # mono
+            2: 'diploid',
+            3: 'triploid',
+            4: 'tetraploid',
+            5: 'pentaploid',
+            6: 'hexaploid',
+            7: 'heptaploid', # septaploid
+            8: 'octaploid',
+            9: 'ennaploid',
+            10: 'decaploid',
+        }
+        
+        #output_list = []
+        for ps in primer_sets:
+            # [[('Ca22chr3A_C_albicans_SC5314-r0[exDonor-42]', 943006, 943997, 991), ('Ca22chr3B_C_albicans_SC5314-r0[exDonor-42]', 942984, 943975, 991)], None, [], None, []]
+            # uf_dr_pair, uf_fr_pair, uf_ir_pair, ff_dr_pair, if_dr_pair = ps
+            amp_sets = []
+            for pp in ps:
+                if (pp != None):
+                    amp_sets.append(args.selected_oligo.simulate_amplification(pp, contigs))
+                else:
+                    amp_sets.append(None)
+            
+            amp_lengths = [len(a) for pp, a in zip(ps, amp_sets) if pp]
+            if (len(set(amp_lengths)) == 1):
+                for n, label in greek_labels.items():
+                    #if all([ len(a)==n for pp, a in zip(ps, amp_sets) if pp ]):
+                    if (amp_lengths[0] == n):
+                        ploidy = label + ' (' + str(n) + 'n)'
+                        break
+                else:
+                    ploidy = 'polyploid' + ' (' + str(amp_lengths[0]) + 'n)'
+            else:
+                ploidy = 'ambiguous'
+                
+            # # Requires there to be only 1 amplification
+            # if all([ len(a)==1 for pp, a in zip(ps, amp_sets) if pp ]):
+            #     ploidy = 'haploid'
+            # 
+            # # Requires there to be only 2 amplifications
+            # elif all([ len(a)==2 for pp, a in zip(ps, amp_sets) if pp ]):
+            #     ploidy = 'diploid'
+            #     
+            # # Allows for any number of amplifications
+            # else:
+            #     ploidy = 'polyploid'
+            
+            print((ploidy, amp_sets), flush=True)
+            #output_list.append((ploidy, amp_sets))
+        
+        #return output_list
     
     def _confirm(self, args):
-        print("Design conformation primers here.")
+        print("Design confirmation primers here.")
         
         genome_contigs = utils.load_multiple_fasta_files(args.fasta)
         
+        # Merge input FASTA files into a single one
+        genome_fasta_file = utils.write_merged_fasta(genome_contigs, os.path.join(args.folder, 'genome.fasta'))
+        
+        # Make an iterator for the rounds
         rounds = utils.load_fasta_files_into_list(args.dDNAs)
+        
+        # Set intended amplicon size range
+        #amplicon_size = (400, 700) # definition moved to make_primer_set() function
+        
+        # Hard-coded melting temp range (should be adjustable via command line in the future)
+        #tm_range = (53, 57) # definition moved to make_primer_set() function
+        
+        # Require primer pairs to be within 2 degrees Celcius from each other
+        #tm_max_difference = 3.0 # definition moved to make_primer_set() function
+        
+        # Allow for alignments to omit up to 3 nt at edges (of homology regions)
+        permitted_edge = 3
+            
+        # Order in which primer lengths should be interrogated, starting from the left
+        # (18 doesn't work reliably with UNAFold)
+        #primer_sizes = [20, 21, 19, 22, 23, 18, 24, 25, 26]
         
         #args.number_pcr_conditions
         
         
-        # use local alignment to find where left- and right- homology arms of each dDNA are in the genome
-        # genome     ─genome┐┌─us_homology─┐┌─feature─┐┌─ds_homology─┐┌genome─
-        # dDNA               ┌─us_homology─┐┌──*tag*──┐┌─ds_homology─┐
-        
-        # dDNA    ATCA.CG.ATAC
-        # dDNA   (ATCA).*(ATAC)
-        # genome AGTCAGCATCAGACGCGACTCAGCGCGGAGCATCTATCAGCCGCGAAATGATATACGCGCTCTGTGTGAATTAACACATATAGAGAAAAGCGCCTGATTATATATCTCTCGGTGTGCGCGATGGGGACTAG
-        #               ATCA-----------------------------------------ATAC
-        #                                           ATCA-------------ATAC
-        
-        results = []
         for r, dDNA_contigs in enumerate(rounds):
-            print(r)
-            for dDNA_name, dDNA_seq in dDNA_contigs.items():
-                print(dDNA_name, flush=True)
-                C = nucleotides.build_dDNA_regex(dDNA_seq)
-                print('compiled', flush=True)
-                for contig_name, contig_seq in genome_contigs.items():
-                    print(contig_name, flush=True)
-                    
-                    # Finds most (but not all) of the possible places the dDNA could integrate
-                    for m in C.finditer(contig_seq, overlapped=True):
-                        print(m)
+            logging.info('Working on round {}'.format(r))
+            
+            # Build an index of the genome+dDNA(prev)
+            genome_index_file = args.selected_aligner.index(genome_fasta_file, os.path.basename(genome_fasta_file), args.folder, args.processors)
+            
+            # Write current dDNA to FASTA
+            dDNA_fasta_file = utils.write_merged_fasta(dDNA_contigs, os.path.join(args.folder, 'dDNA-r'+str(r)+'.fasta'))
+            
+            # We align dDNA against the genome+dDNA(prev)
+            dDNA_align_file = args.selected_aligner.align(dDNA_fasta_file, genome_index_file, 'dDNA-r'+str(r)+'-2-gDNA.'+args.selected_aligner.output, args.folder, args.processors)
+            
+            # We parse the alignment to find the foreign DNA as well
+            # as the left- and right- flanking regions
+            # genome  ...............................
+            # dDNA            ......XXXXXX.....
+            invalid_records = set()
+            records = {}
+            with open(dDNA_align_file, 'r') as flo:
+                record = None
+                while True:
+                    record = args.selected_aligner.load_record(flo)
+                    if (record == None):
+                        break
+                    else:
+                        # Process the record
+                        # Require certain e-value and length for a "significant" alignment
+                        if ((record.evalue <= args.max_evalue) and (record.length >= args.min_length)):
+                            # Require alignment to occur at the termini of the query (either at the extreme beginning, or extreme end)
+                            #if ((record.query_position[0] < permitted_edge) or (record.query_position[1] > len(dDNA_contigs[record.query_name])-permitted_edge)):
+                            #    records.setdefault((record.query_name, record.subject_name), []).append(record)
+                            qs_pair = (record.query_name, record.subject_name)
+                            if ((record.query_position[0] < permitted_edge) or (record.query_position[1] > len(dDNA_contigs[record.query_name])-permitted_edge)):
+                                if (qs_pair not in records):
+                                    records[qs_pair] = [None, None]
+                            
+                            # Arrange the records according to their flanking: records[(qname, sname)] = [left_record, right_record]
+                            if (record.query_position[0] < permitted_edge): # left
+                                if (records[qs_pair][0] == None):
+                                    records[qs_pair][0] = record
+                                else:
+                                    logging.info(str(qs_pair) + ' has too many valid alignments')
+                                    invalid_records.add(qs_pair)
+                            
+                            elif (record.query_position[1] > len(dDNA_contigs[record.query_name])-permitted_edge): # right
+                                if (records[qs_pair][1] == None):
+                                    records[qs_pair][1] = record
+                                else:
+                                    logging.info(str(qs_pair) + ' has too many valid alignments')
+                                    invalid_records.add(qs_pair)
+            
+            logging.info("before filtering:")
+            for kkk, vvv in records.items():
+                logging.info("  "+str(kkk) + " " + str(vvv))
+            
+            # Queue for removal the (query, subject) pairs that only have 1 of the 2 required alignments
+            for qs_pair, record_pair in records.items():
+                if (None in record_pair):
+                    invalid_records.add(qs_pair)
+            
+            # Remove the (query, subject) pairs that had too many valid alignments
+            for bad_key in invalid_records:
+                records.pop(bad_key)
+                logging.info('Removing invalid record: ' + str(bad_key))
+            
+            logging.info("after filtering:")
+            for kkk, vvv in records.items():
+                logging.info("  "+str(kkk) + " " + str(vvv))
+            
+            queries_analyzed = []
+            name_changes = {}
+            updated_contigs = {}
+            # Every time there is a significant alignment, only simulate the proper cross-overs
+            # Go through records from right-most to left-most in the genome (The chromosome shouldn't matter)
+            # We assume no record pairs overlap
+            record_order = sorted(records, key=lambda x: records[x][0].subject_position, reverse=True)
+            #for i, ((qname, sname), record_list) in enumerate(records.items()):
+            for i, qs_pair in enumerate(record_order):
+                qname, sname = qs_pair
+                record_list = records[qs_pair]
+                if (len(record_list) == 2): # each should have only one upstream and one downstream homology region <--- Can comment this condition out as it is already accounted for
+                    if (record_list[0].flags & 16 == record_list[1].flags & 16): # Each homology region should have identical strand orientation
+                        logging.info('Working on {} vs {}'.format(qname, sname))
+                        print("crossover:", i, qname, sname, record_list)
+                        
+                        # Identify which record is upstream, and which is downstream (by query)
+                        us_record, ds_record = sorted(record_list, key=lambda x: x.query_position)
+                        
+                        #new_name = sname+'-r'+str(r) # Add round number to the contig header
+                        name_changes.setdefault(sname, []).append(qname)
+                        
+                        # Calculate new insert sequence (with homology arms) from dDNA
+                        q_hih_seq = dDNA_contigs[qname][us_record.query_position[0]:ds_record.query_position[1]] # us-homology + insert + ds-homology (should be entire contig)
+                        
+                        # Calculate new insert sequence (excluding homology arms) from dDNA
+                        insert_seq = dDNA_contigs[qname][us_record.query_position[1]:ds_record.query_position[0]] # insert
+                        
+                        # Get the up/down-stream homology regions for the dDNA (not the chromosome)
+                        q_ush_seq = dDNA_contigs[qname][us_record.query_position[0]:us_record.query_position[1]]
+                        q_dsh_seq = dDNA_contigs[qname][ds_record.query_position[0]:ds_record.query_position[1]]
+                        
+                        if (us_record.flags & 16): # Reverse complement if necessary
+                            logging.info('  us_record is reverse complemented')
+                            # We must reverse-complement these dDNA substrings so their orientation matches the genome
+                            q_hih_seq = nucleotides.rc(q_hih_seq)
+                            insert_seq = nucleotides.rc(insert_seq)
+                            q_ush_seq, q_dsh_seq = nucleotides.rc(q_dsh_seq), nucleotides.rc(q_ush_seq)
+                            
+                            # Calculate new upstream & downstream chromosome arms (swap us/ds for subject) (excludes homology arms)
+                            us_seq = genome_contigs[sname][:ds_record.subject_position[0]]
+                            ds_seq = genome_contigs[sname][us_record.subject_position[1]:]
+                            
+                            # Extract the feature sequence (excluding homology arms)
+                            feature_seq = genome_contigs[sname][ds_record.subject_position[1]:us_record.subject_position[0]]
+                            fs_start, fs_end = ds_record.subject_position[1], us_record.subject_position[0]
+                            
+                            # Get the up/down-stream homology regions for the chromosome (not the dDNA)
+                            s_ush_seq = genome_contigs[sname][ds_record.subject_position[0]:ds_record.subject_position[1]]
+                            s_dsh_seq = genome_contigs[sname][us_record.subject_position[0]:us_record.subject_position[1]]
+                            sush_start, sush_end = ds_record.subject_position[0], ds_record.subject_position[1]
+                            sdsh_start, sdsh_end = us_record.subject_position[0], us_record.subject_position[1]
+                        else: # not reverse-complemented
+                            # Calculate new upstream & downstream chromosome arms (excludes homology arms)
+                            us_seq = genome_contigs[sname][:us_record.subject_position[0]]
+                            ds_seq = genome_contigs[sname][ds_record.subject_position[1]:]
+                            
+                            # Extract the feature sequence (excluding homology arms)
+                            feature_seq = genome_contigs[sname][us_record.subject_position[1]:ds_record.subject_position[0]]
+                            fs_start, fs_end = us_record.subject_position[1], ds_record.subject_position[0]
+                            
+                            # Get the up/down-stream homology regions for the chromosome (not the dDNA)
+                            s_ush_seq = genome_contigs[sname][us_record.subject_position[0]:us_record.subject_position[1]]
+                            s_dsh_seq = genome_contigs[sname][ds_record.subject_position[0]:ds_record.subject_position[1]]
+                            sush_start, sush_end = us_record.subject_position[0], us_record.subject_position[1]
+                            sdsh_start, sdsh_end = ds_record.subject_position[0], ds_record.subject_position[1]
                         
                         
-                        # Measuring wild-type alleles
-                        feature_sequence = m.group(1) # The capturing group holds the non-flanking DNA (i.e. the feature that is disrupted)
-                        upstream_sequence = contig_seq[m.start()-500:m.start()]
-                        downstream_sequence = contig_seq[m.end():m.end()+500]
+                        #### Code to print parsed regions ###
+                        logging.info('   genome      us_seq ' +          us_seq[-1000:])
+                        logging.info('   genome   s_ush_seq ' + ' '*(len(us_seq[-1000:]))    + s_ush_seq)
+                        logging.info('   genome feature_seq ' + ' '*(len(us_seq[-1000:]) + len(s_ush_seq))    + feature_seq)
+                        logging.info('   genome   s_dsh_seq ' + ' '*(len(us_seq[-1000:]) + len(s_ush_seq) + len(feature_seq))    + s_dsh_seq)
+                        logging.info('   genome      ds_seq ' + ' '*(len(us_seq[-1000:]) + len(s_ush_seq) + len(feature_seq) + len(s_dsh_seq)) + ds_seq[:1000])
                         
+                        logging.info('     dDNA             ' + ' '*(len(us_seq[-1000:])) + dDNA_contigs[qname])
+                        logging.info('     dDNA   q_hih_seq ' + ' '*(len(us_seq[-1000:])) + q_hih_seq)
+                        logging.info('     dDNA   q_ush_seq ' + ' '*(len(us_seq[-1000:]))    + q_ush_seq)
+                        logging.info('     dDNA  insert_seq ' + ' '*(len(us_seq[-1000:]) + len(q_ush_seq))    + insert_seq)
+                        logging.info('     dDNA   q_dsh_seq ' + ' '*(len(us_seq[-1000:]) + len(q_ush_seq) + len(insert_seq))    + q_dsh_seq)
+                        #####################################
                         
-                        #primer_pairs = args.selected_oligo.scan_sequence(seq) # <---- replace with correct stuff
-                        #----> Need a sanity check to test for how unique each generated primer is across the genome <-----
-                        fseq = None
-                        rseq = None
-                        fpos = None
-                        rpos = None
-                        size = None
-                        tm = None
+                        if ((r not in args.skip_round) and (qname not in queries_analyzed)): # only run this once for each qname (aka once for each haplotype):
+                            initial_pair_list, final_pair_list = self.make_primer_set(args, qname, us_seq, ds_seq, insert_seq, feature_seq, q_hih_seq, s_ush_seq, q_ush_seq, s_dsh_seq, q_dsh_seq)
+                            
+                            # No need to print anymore
+                            #print("Initial pair list")
+                            #for ipl in initial_pair_list:
+                            #    print(ipl)
+                            #
+                            #print("Final pair list")
+                            #for fpl in final_pair_list:
+                            #    print(fpl)
+                            
+                            print("Best 10 sets of primers:")
+                            best_final_pair_list = sorted(final_pair_list, reverse=True)[:10]
+                            for bfpl_i, (bfpl_weight, bfpl) in enumerate(best_final_pair_list):
+                                # Order with bfpl:
+                                #  0 uf_insert_dr_pair
+                                #  1 uf_feature_dr_pair
+                                #  2 uf_fr_pair
+                                #  3 uf_ir_pair
+                                #  4 ff_dr_pair
+                                #  5 if_dr_pair
+                                print('weight =', bfpl_weight)
+                                print('PrimerPair list =', bfpl)
+                                print('Region lengths =', [' '.join(str(mpp_v) for mpp_v in [mpp.forward_primer.template_length, mpp.forward_primer.position, mpp.intervening, mpp.reverse_primer.position, len(mpp.reverse_primer.sequence)]) if mpp else None for mpp in bfpl])
+                                
+                                label_list = [
+                                    'us_region',
+                                    'us_homology',
+                                    'feature',
+                                    'ds_homology',
+                                    'ds_region'
+                                ]
+                                sequence_list = [
+                                    us_seq[-900:], # Not quite accurate size <--- need to change this eventually
+                                    s_ush_seq,
+                                    feature_seq,
+                                    s_dsh_seq,
+                                    ds_seq[:900] # Not quite accurate size <--- need to change this eventually,
+                                ]
+                                pp_labels_list = ['uf-dr PrimerPair', 'uf-fr PrimerPair', 'ff-dr PrimerPair']
+                                pp_list = [bfpl[1], bfpl[2], bfpl[4]]
+                                aln_out = make_labeled_primer_alignments(label_list, sequence_list, sname, pp_labels_list, pp_list, shifts=True)
+                                
+                                for oline in aln_out:
+                                    print(oline)
+                                for pplab, pp in zip(pp_labels_list, pp_list):
+                                    print(pplab, pp)
+                                
+                                
+                                label_list = [
+                                    'us_region',
+                                    'us_homology',
+                                    'insert',
+                                    'ds_homology',
+                                    'ds_region'
+                                ]
+                                sequence_list = [
+                                    us_seq[-900:], # Not quite accurate size <--- need to change this eventually
+                                    q_ush_seq,
+                                    insert_seq,
+                                    q_dsh_seq,
+                                    ds_seq[:900] # Not quite accurate size <--- need to change this eventually,
+                                ]
+                                pp_labels_list = ['uf-dr PrimerPair', 'uf-ir PrimerPair', 'if-dr PrimerPair']
+                                pp_list = [bfpl[0], bfpl[3], bfpl[5]]
+                                aln_out = make_labeled_primer_alignments(label_list, sequence_list, sname, pp_labels_list, pp_list, shifts=True)
+                                
+                                for oline in aln_out:
+                                    print(oline)
+                                for pplab, pp in zip(pp_labels_list, pp_list):
+                                    print(pplab, pp)
+                                
+                                print('\n\n')
+                                
+                                ############ Code to write to annotations to Genbank flat file ############
+                                colors = {
+                                    'grey': '#DDDDDD',
+                                    'gray': '#DDDDDD',
+                                    'blue': '#43D3F2',
+                                    'bblue': '#72A2BA',
+                                    'dblue': '#9EAFD2',
+                                }
+                                if not (None in [bfpl[1], bfpl[2], bfpl[4]]):
+                                    # The original genome
+                                    amplicon_size = (200, 900) # Needs to be the same as in the 'make_primer_set()' function
+                                    segment_start, segment_end = max(0, fs_start-2000), min(len(genome_contigs[sname]), fs_end+2000)
+                                    genome_segment = genome_contigs[sname][segment_start:segment_end]
+                                    fs_strand = '+' # Hard-code to '+' strand (Cannot be inferred from input DNA)
+                                    gb = utils.GenBankFile(sname + ':' + str(segment_start+1) + '-' + str(segment_end), genome_segment) # chr:start-end
+                                    #gb.add_annotation('source', 0, len(genome_segment), '+', organism=args.fasta, mol_type='genomic DNA')
+                                    gb.add_annotation('feature', fs_start-segment_start, fs_end-segment_start, fs_strand, label='feature', ApEinfo_revcolor=colors['grey'], ApEinfo_fwdcolor=colors['grey'])
+                                    gb.add_annotation('homology', sush_start-segment_start, sush_end-segment_start, '+', label='us_homology', ApEinfo_revcolor=colors['dblue'], ApEinfo_fwdcolor=colors['dblue'])
+                                    gb.add_annotation('homology', sdsh_start-segment_start, sdsh_end-segment_start, '-', label='ds_homology', ApEinfo_revcolor=colors['dblue'], ApEinfo_fwdcolor=colors['dblue'])
+                                    # feature-template: bfpl[1], bfpl[2], bfpl[4]]
+                                    segment_uf_pos = sush_start - max(amplicon_size) + bfpl[1].forward_primer.position - segment_start
+                                    gb.add_annotation('primer', segment_uf_pos, segment_uf_pos + len(bfpl[1].forward_primer.sequence), '+', label='uf_primer', ApEinfo_revcolor=colors['blue'], ApEinfo_fwdcolor=colors['blue'])
+                                    segment_dr_pos = sdsh_end + bfpl[1].reverse_primer.position - segment_start
+                                    gb.add_annotation('primer', segment_dr_pos, segment_dr_pos + len(bfpl[1].reverse_primer.sequence), '-', label='dr_primer', ApEinfo_revcolor=colors['blue'], ApEinfo_fwdcolor=colors['blue'])
+                                    segment_fr_pos = fs_start-segment_start+bfpl[2].reverse_primer.position
+                                    gb.add_annotation('primer', segment_fr_pos, segment_fr_pos + len(bfpl[2].reverse_primer.sequence), '-', label='fr_primer', ApEinfo_revcolor=colors['blue'], ApEinfo_fwdcolor=colors['blue'])
+                                    segment_ff_pos = fs_start-segment_start+bfpl[4].forward_primer.position
+                                    gb.add_annotation('primer', segment_ff_pos, segment_ff_pos + len(bfpl[4].forward_primer.sequence), '+', label='ff_primer', ApEinfo_revcolor=colors['blue'], ApEinfo_fwdcolor=colors['blue'])
+                                    
+                                    gb.add_annotation('amplicon', segment_uf_pos, segment_dr_pos + len(bfpl[1].reverse_primer.sequence), '+', label='uf_dr_amplicon', ApEinfo_revcolor=colors['bblue'], ApEinfo_fwdcolor=colors['bblue'])
+                                    gb.add_annotation('amplicon', segment_uf_pos, segment_fr_pos + len(bfpl[2].forward_primer.sequence), '+', label='uf_fr_amplicon', ApEinfo_revcolor=colors['bblue'], ApEinfo_fwdcolor=colors['bblue'])
+                                    gb.add_annotation('amplicon', segment_ff_pos, segment_dr_pos + len(bfpl[1].reverse_primer.sequence), '+', label='ff_dr_amplicon', ApEinfo_revcolor=colors['bblue'], ApEinfo_fwdcolor=colors['bblue'])
+                                    
+                                    gb.write(os.path.join(args.folder, 'r'+str(r)+'-feature-pp-'+str(bfpl_i)+'.gb')) # pp_labels_list[-1]
+                                
+                                if not (None in [bfpl[0], bfpl[3], bfpl[5]]):
+                                    # the insert-genome
+                                    genome_segment = us_seq[-900:] + q_ush_seq + insert_seq + q_dsh_seq + ds_seq[:900]
+                                    new_name = sname+'-r'+str(r)+'['+','.join(name_changes[sname])+']'
+                                    gb = utils.GenBankFile(new_name, genome_segment) # chr:start-end
+                                    #gb.add_annotation('source', 0, len(genome_segment), '+', organism=args.fasta, mol_type='genomic DNA')
+                                    gb.add_annotation('insert', len(us_seq[-900:])+len(q_ush_seq), len(us_seq[-900:])+len(q_ush_seq)+len(insert_seq), '+', label='insert', ApEinfo_revcolor=colors['grey'], ApEinfo_fwdcolor=colors['grey'])
+                                    gb.add_annotation('homology', len(us_seq[-900:]), len(us_seq[-900:])+len(q_ush_seq), '+',  label='us_homology', ApEinfo_revcolor=colors['dblue'], ApEinfo_fwdcolor=colors['dblue'])
+                                    gb.add_annotation('homology', len(us_seq[-900:])+len(q_ush_seq)+len(insert_seq), len(us_seq[-900:])+len(q_ush_seq)+len(insert_seq)+len(q_dsh_seq), '-',  label='ds_homology', ApEinfo_revcolor=colors['dblue'], ApEinfo_fwdcolor=colors['dblue'])
+                                    # insert-template: [bfpl[0], bfpl[3], bfpl[5]]
+                                    segment_uf_pos = bfpl[0].forward_primer.position
+                                    gb.add_annotation('primer', segment_uf_pos, segment_uf_pos+ len(bfpl[0].forward_primer.sequence), '+', label='uf_primer', ApEinfo_revcolor=colors['blue'], ApEinfo_fwdcolor=colors['blue'])
+                                    segment_dr_pos = len(us_seq[-900:]) + len(q_ush_seq) + len(insert_seq) + len(q_dsh_seq) + bfpl[0].reverse_primer.position
+                                    gb.add_annotation('primer', segment_dr_pos, segment_dr_pos + len(bfpl[0].reverse_primer.sequence), '-', label='dr_primer', ApEinfo_revcolor=colors['blue'], ApEinfo_fwdcolor=colors['blue'])
+                                    segment_ir_pos = len(us_seq[-900:]) + len(q_ush_seq) + bfpl[3].reverse_primer.position
+                                    gb.add_annotation('primer', segment_ir_pos, segment_ir_pos + len(bfpl[3].reverse_primer.sequence), '-', label='ir_primer', ApEinfo_revcolor=colors['blue'], ApEinfo_fwdcolor=colors['blue'])
+                                    segment_if_pos = len(us_seq[-900:]) + len(q_ush_seq) + bfpl[5].forward_primer.position
+                                    gb.add_annotation('primer', segment_if_pos, segment_if_pos + len(bfpl[5].forward_primer.sequence), '+', label='if_primer', ApEinfo_revcolor=colors['blue'], ApEinfo_fwdcolor=colors['blue'])
+                                    
+                                    gb.add_annotation('amplicon', segment_uf_pos, segment_dr_pos + len(bfpl[0].reverse_primer.sequence), '+', label='uf_dr_amplicon', ApEinfo_revcolor=colors['bblue'], ApEinfo_fwdcolor=colors['bblue'])
+                                    gb.add_annotation('amplicon', segment_uf_pos, segment_ir_pos + len(bfpl[3].forward_primer.sequence), '+', label='uf_ir_amplicon', ApEinfo_revcolor=colors['bblue'], ApEinfo_fwdcolor=colors['bblue'])
+                                    gb.add_annotation('amplicon', segment_if_pos, segment_dr_pos + len(bfpl[0].reverse_primer.sequence), '+', label='if_dr_amplicon', ApEinfo_revcolor=colors['bblue'], ApEinfo_fwdcolor=colors['bblue'])
+                                    
+                                    gb.write(os.path.join(args.folder, 'r'+str(r)+'-insert-pp-'+str(bfpl_i)+'.gb')) # pp_labels_list[-1]
+                                
+                                ############ Code to write to annotations to Genbank flat file ############
+                            
+                            # Do synthetic PCR on just the 10 best pair sets
+                            print("Number of amplicons for the 10 best primer sets (before genome modification)", flush=True)
+                            self.calculate_amplicons(args, [x[1][1:] for x in best_final_pair_list], genome_contigs) # the '[1:]' in 'x[1][1:]' is to search only one of the 2 uf_dr_pair copies
+                            #for apl in self.calculate_amplicons(args, [x[1] for x in final_pair_list], genome_contigs):
+                            #    print(apl)
+                            
+                            queries_analyzed.append(qname)
+                        else:
+                            print("Skipping primer calculations for round={}, qname={}, sname={}".format(r, qname, sname))
                         
-                        results.append([r, args.dDNAs[r], dDNA_name, contig_name, fseq, fpos, rseq, rpos, size, tm])
-        
-        # Output
-        # Round   Filename       Contig     Mapping   Fseq           Fpos    Rseq         Rpos    size    tm
-        # 0       genome.fasta   -          chr1      ACAAAGGCTAGG   12000   GTGATCGAAG   14000   2000    61.2
-        # 1       dDNA1.fasta    feature1   chr1      GCAAATCAAAG    11000   CGCTGCATACC  13000   2000    60.8
-        # 1       dDNA1.fasta    feature2   chr1      CCATAGCCCAGC   12345   CACAGGTGC    12300   123     58.6
-        headers = ['Round', 'Filename', 'Contig', 'Mapping', 'Fseq', 'Fpos', 'Rseq', 'Rpos', 'size', 'tm']
-        print('\t'.join(headers))
-        for sline in results:
-            print('\t'.join(map(str, sline)))
+                        # Replace entry in 'genome_contigs' dict with the new cross-over contig
+                        # This probably doesn't work with multiple targeted engineering events on the same chromosome
+                        genome_contigs[sname] = us_seq + q_hih_seq + ds_seq # <---------------------- this should be done in the 'r' outer loop (earlier draft)
+                        # this messes with calling self.calculate_amplicons() for each query-subject pair.
+                        
+                        ##### alternate #####
+                        # This code only works for a single-locus per chromosome! <------ need to update this so it works for multiple loci per chromosome
+                        #updated_contigs[sname] = us_seq + q_hih_seq + ds_seq
+                        ### end alternate ###
+                        
+                else:
+                    print(qname, 'vs', sname, 'has', len(record_list), 'regions of homology (2 needed)')
+            
+            # Rename the contigs based on the modifications
+            # This code only works for a single-locus per chromosome! <------ need to update this so it works for multiple loci per chromosome
+            for sname in name_changes:
+                new_name = sname+'-r'+str(r)+'['+','.join(name_changes[sname])+']'
+                genome_contigs[new_name] = genome_contigs.pop(sname)
+                ##### alternate #####
+                #genome_contigs.pop(sname)
+                #genome_contigs[new_name] = updated_contigs[sname]
+                ### end alternate ###
+            
+            # Replace the 'genome_fasta_file' variable with the new, engineered sequences
+            genome_fasta_file = utils.write_merged_fasta(genome_contigs, os.path.join(args.folder, 'genome-r'+str(r)+'.fasta'))
     
     def _parser_general(self):
         '''general parser'''
@@ -3254,15 +3998,38 @@ description:
             Typically, the first is KO, and the second is KI. However, any number \
             of serial genome engineering experiments can be specified.")
         
+        required_group.add_argument("--folder", required=True, metavar="FOLDER",
+            type=str, help="Path of folder to store generated files.")
+        
         # Add optional arguments
-        parser_confirm.add_argument("--number_pcr_conditions", type=int, default=None,
+        parser_confirm.add_argument("--processors", metavar="N", type=int, default=(os.cpu_count() or 1),
+            help="Number of processors to use when performing pairwise sequence alignments.")
+        
+        aligner_choices = [x.name for x in aligners.aligners]
+        parser_confirm.add_argument("--aligner", type=str, choices=aligner_choices, default='blastn',
+            help="Program to calculate pairwise alignments. Please note that the 'addtag' internal aligner is very slow.")
+        
+        parser_confirm.add_argument("--number_pcr_conditions", metavar="N", type=int, default=None,
             help="Number of PCR conditions to develop primers for. All amplicons \
             within each condition will have similar size (nt) and melting temperatures. \
             If unspecified, will default to the number of target features.")
         
+        parser_confirm.add_argument("--primers", nargs="+", metavar="*.fasta", type=str, default=[],
+            help="A FASTA file for each round containing primer sequences that \
+            must be used for that round. Usually, these correspond to flanktags.")
+        
         oligo_choices = [x.name for x in oligos.oligos]
-        parser_confirm.add_argument("--oligo", type=str, choices=oligo_choices, default='Primer3',
+        parser_confirm.add_argument("--oligo", type=str, choices=oligo_choices, default='UNAFold',
             help="Program to perform thermodynamic calculations.")
+        
+        parser_confirm.add_argument("--max_evalue", metavar="N", type=float, default=0.001,
+            help="The maximum accepted alignment E-value to consider a recombination.")
+        
+        parser_confirm.add_argument("--min_length", metavar="N", type=int, default=35,
+            help="The minimum accepted alignment length to consider a recombination.")
+        
+        parser_confirm.add_argument("--skip_round", metavar="N", nargs="+", type=int, default=[],
+            help="Skip primer calculations for these rounds.")
         
         # Nucleotide matching stuff
         #  - number errors (for fuzzy regex)
