@@ -190,19 +190,31 @@ class Primer(object):
     Specifically, it stores the program-specific conformations and deltaGs
     as attributes.
     """
-    def __init__(self, sequence, position, strand, o_hairpin, o_self_dimer, o_reverse_complement, gc, checks=None):
+    def __init__(self, sequence, position, template_length, strand, o_hairpin, o_self_dimer, o_reverse_complement, gc=None, checks=None):
         self.sequence = sequence
         self.position = position
+        self.template_length = template_length
         self.strand = strand
         self.o_hairpin = o_hairpin
         self.o_self_dimer = o_self_dimer
         self.o_reverse_complement = o_reverse_complement
-        self.gc = gc
+        if (gc == None):
+            self.gc = self.get_gc()
+        else:
+            self.gc = gc
         if (checks == None):
             self.checks = []
         else:
             self.checks = checks
         self.weight = self.get_weight()
+    
+    def get_gc(self):
+        if (self.gc != None):
+            return self.gc
+        else:
+            C_count = seq.count('C')
+            G_count = seq.count('G')
+            return (C_count+G_count)/len(seq)
     
     def get_tm(self):
         if (self.o_reverse_complement.__class__.__name__ == 'ThermoResult'):
@@ -255,10 +267,11 @@ class PrimerPair(object):
     """
     Class that stores 2 Primer objects and their heterodimer thermodynamic calculations.
     """
-    def __init__(self, forward_primer_object, reverse_primer_object, o_heterodimer=None, checks=None):
+    def __init__(self, forward_primer_object, reverse_primer_object, o_heterodimer=None, checks=None, intervening=0):
         self.forward_primer = forward_primer_object
         self.reverse_primer = reverse_primer_object
         self.o_heterodimer = o_heterodimer
+        self.intervening = intervening
         if (checks == None):
             self.checks = []
         else:
@@ -280,9 +293,16 @@ class PrimerPair(object):
             return min(self.forward_primer.get_min_delta_G(), self.reverse_primer.get_min_delta_G())
     
     def get_amplicon_size(self):
-        start = self.forward_primer.position
-        end = self.reverse_primer.position+len(self.reverse_primer.sequence)
-        return end-start
+        #                      missing vvvv
+        #  forward     ............--->....
+        #  intervening                     .........
+        #  reverse                                  ........<---...
+        
+        # Old code that is incorrect
+        #start = self.forward_primer.position
+        #end = self.forward_primer.position + self.intervening + self.reverse_primer.position + len(self.reverse_primer.sequence)
+        #return end-start
+        return self.forward_primer.template_length - self.forward_primer.position + self.intervening + self.reverse_primer.position + len(self.reverse_primer.sequence)
     
     def get_tms(self):
         return (self.forward_primer.get_tm(), self.reverse_primer.get_tm())
@@ -291,8 +311,10 @@ class PrimerPair(object):
         return (round(self.forward_primer.gc, 2), round(self.reverse_primer.gc, 2))
     
     def get_formatted(self):
-        interspace = self.reverse_primer.position - self.forward_primer.position - len(self.forward_primer.sequence)
-        return self.forward_primer.sequence + '-'*interspace + rc(self.reverse_primer.sequence)
+        ####### This needs to be re-done (it isn't correct) ####### <---- I made changes, so it needs to be re-checked
+        #interspace = self.reverse_primer.position - (self.intervening + self.forward_primer.position + len(self.forward_primer.sequence))
+        interspace = self.forward_primer.template_length - self.forward_primer.position - len(self.forward_primer.sequence) + self.intervening + self.reverse_primer.position
+        return self.forward_primer.sequence + '·'*interspace + rc(self.reverse_primer.sequence)
         #print(' '*self.forward_primer.position + fp.sequence)
         #print(' '*self.reverse_primer.position + rc(rp.sequence))
     
