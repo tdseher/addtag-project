@@ -2765,7 +2765,7 @@ example:
     
     def _parser_evaluate(self, subparsers):
         ''' "evaluate" parser '''
-        __evaluate_description__ = 'Evaluate pre-designed CRISPR/Cas oligonucleotide sequences.'
+        __evaluate_description__ = 'description:\n  Evaluate pre-designed CRISPR/Cas oligonucleotide sequences.'
         __evaluate_help__ = "Evaluate pre-designed CRISPR/Cas oligonucleotide sequences."
         parser_evaluate = subparsers.add_parser('evaluate',
             description=__evaluate_description__,
@@ -2840,7 +2840,6 @@ example:
         #                        >feature1 R
         #                        NNNNNNNNNNNNNNNNNNNN
         
-        
         parser_evaluate.add_argument("--motifs", metavar="MOTIF", nargs="+", type=str,
             default=["N{20}>NGG"],
             help="Find only targets with these 'SPACER>PAM' motifs, written from \
@@ -2853,13 +2852,11 @@ example:
             default=[],
             help="Defaults to the same as the on-target motif. Definition syntax is identical.")
         
-        
-        
         return parser_evaluate
     
     def _parser_generate(self, subparsers):
         ''' "generate" parser '''
-        __generate_description__ = "Design full sets of oligonucleotide sequences for CRISPR/Cas genome engineering experiment."
+        __generate_description__ = "description:\n  Design full sets of oligonucleotide sequences for CRISPR/Cas genome engineering experiment."
         __generate_help__ = "Design full sets of oligonucleotide sequences for CRISPR/Cas genome engineering experiment."
         parser_generate = subparsers.add_parser('generate',
             description=__generate_description__,
@@ -2908,7 +2905,7 @@ example:
         #    help="The length range of the 'target'/'spacer'/gRNA site")
         # Replacement for --pams and --target_lengths with this:
         parser_generate.add_argument("--motifs", metavar="MOTIF", nargs="+", type=str,
-            default=["N{20}>NGG"],
+            default=["N{17}|N{3}>NGG"],
             help="Find only targets with these 'SPACER>PAM' motifs, written from \
             5' to 3'. '>' points toward PAM. IUPAC ambiguities accepted. '{a,b}' \
             are quantifiers. '/' is a sense strand cut, '\\' is an antisense strand \
@@ -3002,12 +2999,12 @@ example:
         #    help="The uniqueness of final donor DNA compared to the rest of the genome")
         #parser.add_argument("--min_donor_errors", metavar="N", type=int, default=3,
         #    help="The uniqueness of final donor DNA compared to the rest of the genome")
-        parser_generate.add_argument("--revert_upstream_homology", nargs=2, metavar=("MIN", "MAX"), type=int, default=[300,300],
+        parser_generate.add_argument("--revert_upstream_homology", nargs=2, metavar=("MIN", "MAX"), type=int, default=[300,600],
             help="Range of homology lengths acceptable for knock-in dDNAs, inclusive.")
-        parser_generate.add_argument("--revert_downstream_homology", nargs=2, metavar=("MIN", "MAX"), type=int, default=[300,300],
+        parser_generate.add_argument("--revert_downstream_homology", nargs=2, metavar=("MIN", "MAX"), type=int, default=[300,600],
             help="Range of homology lengths acceptable for knock-in dDNAs, inclusive.")
-        parser_generate.add_argument("--revert_donor_lengths", nargs=2, metavar=('MIN', 'MAX'), type=int, default=[0, 100000],
-            help="Range of lengths acceptable for knock-in dDNAs.")
+        #parser_generate.add_argument("--revert_donor_lengths", nargs=2, metavar=('MIN', 'MAX'), type=int, default=[0, 100000],
+        #    help="Range of lengths acceptable for knock-in dDNAs.")
     #    parser.add_argument("--min_donor_distance", metavar="N", type=int, default=36,
     #        help="The minimum distance in bp a difference can exist from the edge of donor DNA") # homology with genome
         #parser_generate.add_argument("--max_consecutive_ts", metavar="N", type=int, default=4, # Moved to prefilter algorithm
@@ -3029,6 +3026,9 @@ example:
         parser_generate.add_argument("--aligner", type=str, choices=aligner_choices, default='bowtie2',
             help="Program to calculate pairwise alignments. Please note that the 'addtag' internal aligner is very slow.")
         
+        oligo_choices = [x.name for x in oligos.oligos]
+        parser_generate.add_argument("--oligo", type=str, choices=oligo_choices, default='UNAFold',
+            help="Program to perform thermodynamic calculations.")
         
         prefilter_choices = [C.name for C in algorithms.single_algorithms + algorithms.paired_algorithms + algorithms.batched_single_algorithms if C.prefilter]
         parser_generate.add_argument("--prefilters", nargs='+', type=str,
@@ -3088,11 +3088,11 @@ example:
             choices=['mintag', 'addtag', 'unitag', 'bartag'],
             help="'mintag' are unique us/i/ds junction targets specific to each feature. \
             'addtag' are unique targets for each feature. \
-            'unitag' is a single and uniform, unique target for ALL features. \
+            'unitag' is a single invariant, unique target for ALL features. \
             'bartag' are unique barcodes for each feature (does not guarantee targets).")
         
         parser_generate.add_argument("--ki-gRNA", action='store_true', default=False,
-            help="Design gRNAs to target either the dDNA. \
+            help="Design gRNAs to target the ko-dDNA. \
             Defaults to True if '--ko-dDNA mintag' is specified.")
         
         parser_generate.add_argument("--ki-dDNA", nargs='?', type=str, default=None,
@@ -3130,7 +3130,11 @@ example:
     
     def _parser_confirm(self, subparsers):
         ''' "confirm" parser '''
-        __confirm_description__ = "Design primers for confirming whether each step of genome engineering is successful or not. This does not design multiplexable primers."
+        __confirm_description__ = """\
+description:
+  Design primers for confirming whether each step of genome engineering is
+  successful or not. This does not design multiplexable primers.
+"""
         __confirm_help__ = "Design primers for confirming whether each step of genome engineering is successful or not."
         parser_confirm = subparsers.add_parser('confirm',
             description=__confirm_description__,
