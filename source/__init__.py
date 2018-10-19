@@ -2556,7 +2556,7 @@ class main(object):
     
     def _parser_glossary(self, subparsers):
         ''' "glossary" parser '''
-        __glossary_description__ = "Show glossary of common CRISPR/Cas terms, then exit."
+        __glossary_description__ = "description:\n  Show glossary of common CRISPR/Cas terms, then exit."
         __glossary_help__ = "Show glossary of common CRISPR/Cas terms, then exit."
         parser_glossary = subparsers.add_parser('glossary',
             description=__glossary_description__,
@@ -2580,7 +2580,7 @@ class main(object):
     
     def _parser_motifs(self, subparsers):
         ''' "motifs" parser '''
-        __motifs_description__ = "Show list of common CRISPR/Cas SPACER>PAM arrangements, then exit."
+        __motifs_description__ = "description:\n  Show list of common CRISPR/Cas SPACER>PAM arrangements, then exit."
         __motifs_help__ = "Show list of common CRISPR/Cas SPACER>PAM arrangements, then exit."
         parser_motifs = subparsers.add_parser('motifs',
             description=__motifs_description__,
@@ -2604,7 +2604,7 @@ class main(object):
     
     def _parser_algorithms(self, subparsers):
         ''' "algorithms" parser '''
-        __algorithms_description__ = "Show list of all implemented gRNA evaluation algorithms."
+        __algorithms_description__ = "description:\n  Show list of all implemented gRNA evaluation algorithms."
         __algorithms_help__ = "Show list of all implemented gRNA evaluation algorithms."
         parser_algorithms = subparsers.add_parser('algorithms',
             description=__algorithms_description__,
@@ -2629,7 +2629,7 @@ class main(object):
     
     def _parser_aligners(self, subparsers):
         ''' "aligners" parser '''
-        __aligners_description__ = "Show list of all supported alignment programs."
+        __aligners_description__ = "description:\n  Show list of all supported alignment programs."
         __aligners_help__ = "Show list of all supported alignment programs."
         parser_aligners = subparsers.add_parser('aligners',
             description=__aligners_description__,
@@ -2654,7 +2654,7 @@ class main(object):
     
     def _parser_oligos(self, subparsers):
         ''' "oligos" parser '''
-        __oligos_description__ = "Show list of all supported oligonucleotide thermodynamics property programs."
+        __oligos_description__ = "description:\n  Show list of all supported oligonucleotide thermodynamics property programs."
         __oligos_help__ = "Show list of all supported oligonucleotide thermodynamics property programs."
         parser_oligos = subparsers.add_parser('oligos',
             description=__oligos_description__,
@@ -2682,8 +2682,9 @@ class main(object):
         # Searches input FASTA for DNA, and outputs a GFF file for use as input for 'generate'
         
         __search_description__ = """\
-Search input FASTA for DNA sequence, and output a GFF file for use as input
-for the 'generate' subroutine.
+description:
+  Search input FASTA for DNA sequence, and output a GFF file for use as input
+  for the 'generate' subroutine.
 """
         __search_help__ = "Search for positions of DNA in FASTA to make GFF file."
         __search_epilog__ = """\
@@ -2711,7 +2712,7 @@ example:
      chr4B	addtag	search	3652	3661	.	-	.	ID=feature1_3
      chr3A	addtag	search	819381	819391	.	+	.	ID=feature2_0
      chr3B	addtag	search	819367	819377	.	+	.	ID=feature2_1
-"""
+""".format(**globals())
         parser_search = subparsers.add_parser('search',
             description=__search_description__,
             epilog=__search_epilog__,
