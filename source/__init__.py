@@ -2200,6 +2200,41 @@ class main(object):
         for line in sorted(matched_lines):
             print(line)
     
+    def _extract(self, args):
+        """
+        Search input FASTA headers for arbitrary text
+        Print out headers+sequences that match
+        """
+        
+        # Build the regex pattern
+        q_patterns = []
+        for q in args.query:
+            if args.allow_errors:
+                errors = len(q)//4
+                q_pattern = '(?:'+q+'){e<='+str(errors)+'}'
+            else:
+                q_pattern = q
+            q_patterns.append(q_pattern)
+        
+        pattern = '|'.join(q_patterns)
+        
+        print_on = False
+        for fn in args.fasta:
+            with open(fn, 'r') as flo:
+                for line in flo:
+                    line = line.rstrip()
+                    if (len(line) > 0):
+                        if line.startswith('>'):
+                            m = regex.search(pattern, line, flags=regex.IGNORECASE | regex.ENHANCEMATCH) # regex.BESTMATCH
+                            if m:
+                                print_on = True
+                            else:
+                                print_on = False
+                        if print_on:
+                            print(line)
+        
+        # End _extract()
+    
     def _evaluate(self, args):
         '''UNDER DEVELOPMENT'''
         print("Perform the evaluation here.")
@@ -2764,6 +2799,54 @@ example:
         
         return parser_feature
     
+    def _parser_extract(self, subparsers):
+        ''' "extract" parser '''
+        
+        __extract_description__ = """\
+description:
+  Extracts selected sequences from input FASTA by matching their primary
+  sequence header (Everything between the '>' and the first whitespace), and
+  outputs in FASTA format.
+"""
+        __extract_help__ = "Search FASTA headers for specific text."
+        __extract_epilog__ = """\
+example:
+  Running AddTag with the following arguments:
+   $ python3 {__program__} extract --fasta excision-spacers.fasta
+   --query exTarget-33 exTarget-21 > extract.fasta
+""".format(**globals())
+        parser_extract = subparsers.add_parser('extract',
+            description=__extract_description__,
+            epilog=__extract_epilog__,
+            formatter_class=CustomHelpFormatter,
+            help=__extract_help__
+        )
+        parser_extract.set_defaults(func=self._extract)
+        
+        # Change the help text of the "-h" flag
+        parser_extract._actions[0].help='Show this help message and exit.'
+        
+        # Special version action optional argument
+        parser_extract.add_argument("-v", "--version", action='version',
+            help="Show program's version number and exit.",
+            version='{__program__} {__version__} (revision {__revision__})'.format(**globals()))
+        
+        # Add mandatory arguments
+        required_group = parser_extract.add_argument_group('required arguments')
+        required_group.add_argument("--fasta", required=True, nargs="+", metavar="*.fasta", type=str,
+            help="FASTA files with contigs. All FASTA sequences should have unique \
+            primary headers (everything between the '>' symbol and the first \
+            whitespace should be unique).")
+        
+        required_group.add_argument("--query", required=True, nargs="+", metavar="TEXT",
+            type=str, help="One or more words to search for within sequence headers.")
+        
+        # Add optional arguments
+        parser_extract.add_argument("--allow_errors", action="store_true",
+            default=False, help="Include matches with minor differences from the query.")
+        
+        return parser_extract
+    
     def _parser_evaluate(self, subparsers):
         ''' "evaluate" parser '''
         __evaluate_description__ = 'description:\n  Evaluate pre-designed CRISPR/Cas oligonucleotide sequences.'
@@ -3214,6 +3297,7 @@ description:
         parser_oligos = self._parser_oligos(subparsers)
         parser_search = self._parser_search(subparsers)
         parser_feature = self._parser_feature(subparsers)
+        parser_extract = self._parser_extract(subparsers)
         parser_evaluate = self._parser_evaluate(subparsers)
         parser_generate = self._parser_generate(subparsers)
         parser_confirm = self._parser_confirm(subparsers)
