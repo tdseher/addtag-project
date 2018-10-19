@@ -111,6 +111,41 @@ class Oligo(object): # Name of the subclass
         
         return w
     
+    def get_3prime_complementation_length(self, seq1, seq2, max_3prime_search_length=5):
+        """
+        Calculates the length of 3' complementation for both sequences up to
+        max_3prime_length.
+        
+        Counts length of complementation where the 3' end of one sequence could
+        bind to another sequence.
+        
+        Finds sequences like this, where the terminal 3' end of both sequences
+        are complements of each other:
+          seq1 5'-ACAATACGAC-3'
+                        ||||
+          seq2       3'-GCTGTTAAG-5'
+        
+        And also sequences like this, where the terminal 3' end of one sequence
+        is complemented on the inside of the other sequence:
+          seq1 5'-GCTCTAAGATCACA-3'
+                            ||||
+          seq2      3'-CCTGGGTGTGAACT-5'
+        """
+        # Reverse--NOT reverse complement
+        #rev2 = seq2[::-1]
+        rev2 = rc(seq2)
+        match_length = 0
+        
+        for i in range(max_3prime_search_length, 0, -1):
+            if regex.search(seq1[-i:], rev2):
+                match_length = i
+                break
+            if regex.search(rev2[:i], seq1):
+                match_length = i
+                break
+        
+        return match_length
+    
     def __repr__(self):
         """
         Return the string representation of the Oligo

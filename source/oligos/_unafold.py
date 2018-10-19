@@ -136,28 +136,15 @@ class UNAFold(Oligo):
     
     def summarize(self, results):
         return all(x for x in results if (x != None))
-    
-    def get_3prime_homology_length(self, seq1, seq2, max_3prime_length=5):
-        rc2 = rc(seq2)
-        match_length_list = [0]
-        
-        for s1l in range(1, max_3prime_length+1):
-            matches = regex.findall(seq1[-s1l:], rc2)
-            if (len(matches) > 0):
-                match_length_list.append(s1l)
-            #print(s1l, matches)
-        for s2l in range(1, max_3prime_length+1):
-            matches = regex.findall(rc2[:s2l], seq1)
-            if (len(matches) > 0):
-                match_length_list.append(s2l)
-            #print(s2l, matches)
-        
-        return max(match_length_list)
 
-    def check_potential_primer_pair(self, seq1, seq2, tm1, tm2, thorough=False, folder='/dev/shm', max_tm_difference=2.0, max_3prime_homology_length=3, min_delta_g=-3.0):
+    def check_potential_primer_pair(self, seq1, seq2, tm1, tm2, amplicon_size, thorough=False, folder='/dev/shm/addtag', max_tm_difference=2.0, max_3prime_complementation_length=3, min_delta_g=-5.0, amplicon_size_range=(300,700)):
+        amplicon_size_passed = None
         max_tm_difference_passed = None
-        max_3prime_homology_length_passed = None
+        max_3prime_complementation_length_passed = None
         min_delta_g_passed = None
+        
+        if (amplicon_size_passed != None):
+            amplicon_size_passed = amplicon_size_range[0] <= amplicon_size <= amplicon_size_range[1]
         
         # The difference in Tms should be as small as possible
         if (max_tm_difference != None):
@@ -165,15 +152,10 @@ class UNAFold(Oligo):
         
         # 3' ends of primers should NOT be complementary
         # As even a little dimerization will inhibit target annealing
-        if (max_3prime_homology_length != None):
-            max_3prime_homology_length_passed = self.get_3prime_homology_length(seq1, seq2, max_3prime_homology_length+1) <= max_3prime_homology_length
-            
-            # seq1 5'-ACAATACGAC-3'
-            #               ||||
-            #       seq2 3'-GCTGTTAAG-5' <-rev- 5'-GAATTGTCG-3    --rc-> CGACAATTC
-            #                                    
+        if (max_3prime_complementation_length != None):
+            max_3prime_complementation_length_passed = self.get_3prime_complementation_length(seq1, seq2, max_3prime_search_length=max_3prime_complementation_length+1) <= max_3prime_complementation_length
         
-        results = [max_tm_difference_passed, max_3prime_homology_length_passed, min_delta_g_passed]
+        results = [amplicon_size_passed, max_tm_difference_passed, max_3prime_complementation_length_passed, min_delta_g_passed]
         
         o = None
         
