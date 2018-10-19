@@ -9,9 +9,12 @@ import sys
 import os
 import subprocess
 import math
+import logging
 
 # Import non-standard packages
 import regex
+
+logger = logging.getLogger(__name__)
 
 # import included AddTag-specific modules
 if (__name__ == "__main__"):
