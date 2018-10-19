@@ -459,6 +459,11 @@ class ExcisionDonor(Donor):
     
     @classmethod
     def generate_alignments(cls):
+        # Eventually, this function should return something like the following:
+        #                                                                  ┌insert
+        #                 ┌──────────────────ds homology─────────────────┐┌┴┐┌──────────────────us homology──────────────────┐
+        # exDonor-42 dDNA ACCATAACGTTTACTTGTTTAATATGCTATTGATATCTATATTTTTTTCCCTATGTGTAGTGCTTGTATATGCGTGTGTGATGAGAATAAGATGAATAGA
+        # pam<spacer gRNA                                                 CCCTATGTGTAGTGCTTGTATAT
         for ind, obj in cls.indices.items():
             logging.info(obj.name)
             segment_string = ''
@@ -731,7 +736,7 @@ class Target(object):
                 sequence = nucleotides.rc(sequence)
             
             #for i in range(len(args.parsed_motifs)):
-            for mymotif in OnTargetMotif.motifs:
+            for mymotif in OnTargetMotif.motifs: # <------ Do I need to add OffTargetMotif.motifs here as well?
                 #spacers, pams, side = args.parsed_motifs[i]
                 spacers, pams, side = mymotif.parsed_list
                 #compiled_regex = args.compiled_motifs[i]
@@ -1050,7 +1055,7 @@ class ExcisionTarget(Target):
     def search_all_features(cls, args, contigs):
         for feature_name, f in Feature.features.items():
             contig_sequence = contigs[f.contig]
-            ef = f.expand_feature(args, contig_sequence)
+            ef = f.expand_feature(args, contig_sequence) # Need to improve this: expanded feature should have a "parent" feature
             
             # Search for targets in the feature
             feature_sequence = contig_sequence[ef.start:ef.end]
@@ -1571,8 +1576,8 @@ class Feature(object):
                 contig = sline[0]
                 source = sline[1]
                 feature_type = sline[2]
-                start = int(sline[3])-1
-                end = int(sline[4])
+                start = int(sline[3])-1 # Should always be true: start <= end 
+                end = int(sline[4]) # Should always be true: start <= end
                 score = sline[5]
                 strand = sline[6]
                 frame = None
@@ -1885,10 +1890,10 @@ class main(object):
         # Get timestamp for analysis beginning
         start_time = time.time()
         
-        # Echo the command line parameters to STDOUT and the log
-        print(args, flush=True)
+        # Echo the command line parameters to STDOUT
+        #print(args, flush=True)
         
-        # Print arguments to log
+        # Print command line parameters (arguments) to log file
         if hasattr(args, 'folder'):
             logging.info(args)
         
@@ -2001,7 +2006,7 @@ class main(object):
                     attributes = args.tag+'='+args.identifier[i] + '_' + str(j)
                     print("\t".join(str(x) for x in [contig_id, source, feature_type, start, end, score, strand, frame, attributes]))
                     j += 1
-        # End
+        # End _search()
     
     def _feature(self, args):
         """
@@ -2161,6 +2166,12 @@ class main(object):
                 # Otherwise, generate KI dDNA that are wild type
                 pass
         
+        
+        # Code here (maybe as part of ExcisionTarget.search_all_features()), should expand features
+        # if necessary. How?
+        #   Look to see if the us/ds homology regions flanking the feature are identical.
+        #     If they are identical, then this would be a homozygous dDNA
+        #     If they are different, then this would be an allele-specific (heterozygous) dDNA
         
         # Search features within contigs for targets that match the motifs
         # Old code (without feature expansion) ExcisionTarget.get_targets(args, contig_sequences, features)
