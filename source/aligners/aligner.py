@@ -211,8 +211,8 @@ class Record(object):
         self.query_sequence = query_sequence
         self.subject_sequence = subject_sequence
         
-        self.query_position = query_position
-        self.subject_position = subject_position
+        self.query_position = query_position # (start, end)
+        self.subject_position = subject_position # (start, end)
         
         self.query_length = query_length
         self.subject_length = subject_length
