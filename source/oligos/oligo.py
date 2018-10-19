@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
 """AddTag Copyright (c) 2016 Thaddeus D. Seher & Aaron Hernday"""
 
@@ -7,7 +8,11 @@
 # Import standard packages
 import sys
 import os
+import math
 import inspect
+
+# Import non-standard packages
+import regex
 
 # Treat modules in PACKAGE_PARENT as in working directory
 if ((__name__ == "__main__") or (os.path.basename(inspect.stack()[-1][1]) in ['_primer3.py', '_unafold.py'])): # or __name__ == 'unafold'):
@@ -21,6 +26,24 @@ if ((__name__ == "__main__") or (os.path.basename(inspect.stack()[-1][1]) in ['_
     from nucleotides import rc
 else:
     from ..nucleotides import rc
+
+def logistic_up(x, upslope=8, up=0, height=1.0):
+    return height/(1+upslope**(-x+up))
+
+def logistic_down(x, downslope=8, down=0, height=1.0):
+    return height/(1+downslope**(x-down))
+
+def logistic_updown(x, upslope, up, downslope, down, height=1.0):
+    return height * logistic_up(x, upslope, up, 1.0) * logistic_down(x, downslope, down, 1.0)
+
+def normal_pdf(x, mean=0, std=1):
+    return math.exp((x-mean)**2/(-2*std**2))/(2*math.pi*std**2)**0.5
+
+def gamma(z):
+    return math.factorial(z-1)
+
+def gamma_pdf(x, shape, scale=1):
+    return (x**(shape-1) * math.exp(-x/scale))/(scale**shape * gamma(shape))
 
 class Oligo(object): # Name of the subclass
     """
@@ -76,6 +99,18 @@ class Oligo(object): # Name of the subclass
         """
         return None
     
+    def group_weight(self, primers, *args, **kwargs):
+        w = 1.0
+        
+        # Weigh by Tm
+        temps = [p.get_tm() for p in primers if p] # will not include any p == None
+        mean_temp = sum(temps)/len(temps) # mean Tm
+        #print('temps =', temps, file=sys.stderr)
+        for i, tm in enumerate(temps):
+            w *= logistic_updown(tm-mean_temp, 5, -2.5, 5, 2.5)
+        
+        return w
+    
     def __repr__(self):
         """
         Return the string representation of the Oligo
@@ -101,6 +136,7 @@ class Primer(object):
             self.checks = []
         else:
             self.checks = checks
+        self.weight = self.get_weight()
     
     def get_tm(self):
         if (self.o_reverse_complement.__class__.__name__ == 'ThermoResult'):
@@ -113,6 +149,29 @@ class Primer(object):
             return min(self.o_hairpin.dg, self.o_self_dimer.dg)/1000
         else:
             return min(self.o_hairpin + self.o_self_dimer).delta_G
+    
+    def get_weight(self, *args, **kwargs):
+        """
+        Use logistic multiplier to weigh each Primer component
+        """
+        # Begin weight calculation with maximum score
+        w = 1.0
+        
+        # Weigh by sequence length (logarithmic, with optimal at 25)
+        #w *= gamma_pdf(len(self.sequence), shape=25, scale=1)
+        w *= logistic_updown(len(self.sequence), upslope=3, up=17, downslope=1.7, down=30)
+        
+        # weigh by %GC
+        #w *= normal_pdf(self.gc, mean=0.5, std=0.07)
+        w *= logistic_updown(self.gc*100, upslope=1.7, up=40, downslope=1.7, down=60)
+        
+        # Weigh by minimum delta-G
+        w *= logistic_up(self.get_min_delta_G(), upslope=3, up=-4)
+        
+        # Weigh by Tm
+        # skip
+        
+        return w
     
     def __repr__(self):
         labs = ['seq', 'pos', 'strand', 'Tm', 'GC', 'min(dG)']
@@ -138,6 +197,7 @@ class PrimerPair(object):
             self.checks = []
         else:
             self.checks = checks
+        self.weight = self.get_weight()
     
     def get_min_delta_G(self):
         if self.o_heterodimer:
@@ -169,6 +229,28 @@ class PrimerPair(object):
         return self.forward_primer.sequence + '-'*interspace + rc(self.reverse_primer.sequence)
         #print(' '*self.forward_primer.position + fp.sequence)
         #print(' '*self.reverse_primer.position + rc(rp.sequence))
+    
+    def get_weight(self, *args, **kwargs):
+        """
+        Use logistic multiplier to weigh the PrimerPair
+        """
+        w = 1.0
+        
+        # Weigh by amplicon size
+        w *= logistic_updown(self.get_amplicon_size(), 1.03, 400, 1.03, 700)
+        
+        # Weigh by minimum delta-G
+        w *= logistic_up(self.get_min_delta_G(), upslope=3, up=-4)
+        
+        # Weigh by Tm difference
+        def diff(x,y):
+            return x-y
+        w *= logistic_updown(diff(*self.get_tms()), 5, -2.5, 5, 2.5)
+        
+        return w
+    
+    def get_joint_weight(self):
+        return self.weight * self.forward_primer.weight * self.reverse_primer.weight
     
     def __repr__(self):
         labs = ['seq', 'amplicon_size', 'Tm', 'GC', 'min(dG)']
