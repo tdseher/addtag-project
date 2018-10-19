@@ -928,9 +928,6 @@ class Target(object):
             print('Cannot add alignment:', aligned_sequence, aligned_contig, aligned_start, aligned_end, aligned_orientation, file=sys.stderr)
     
     def split_spacer_pam(self, sequence, args):
-        r_spacer = None
-        r_pam = None
-        r_motif = None
         #for i in range(len(args.parsed_motifs)):
         for motif in OnTargetMotif.motifs:
             #spacers, pams, side = args.parsed_motifs[i]
@@ -938,30 +935,27 @@ class Target(object):
             #compiled_regex = args.compiled_motifs[i]
             m = nucleotides.motif_conformation2(sequence, side, motif.compiled_regex)
             
-            # If the motif matches, then return it
+            # If the motif matches, then return it immediately
             if m:
-                r_spacer = m[0]
-                r_pam = m[1]
-                #r_motif = args.motifs[i]
-                r_motif = motif
-                break
-            # If the motif does not match, then fudge it for this motif
-            # This will return the last-fudged motif, and not necessarily the best-fudged motif
-            # Will need to improve this code later
-            else:
-                if (side == '>'):
-                    l = max(map(len, pams))
-                    r_spacer = sequence[:-l]
-                    r_pam = sequence[-l:]
-                    #r_motif = args.motifs[i]
-                    r_motif = motif
-                elif (side == '<'):
-                    l = max(map(len, pams))
-                    r_spacer = seq[:l]
-                    r_pam = seq[l:]
-                    #r_motif = args.motifs[i]
-                    r_motif = motif
-        return r_spacer, r_pam, r_motif
+                return m[0], m[1], motif # spacer, pam, motif
+        
+        for motif in OffTargetMotif.motifs:
+            spacers, pams, side = motif.parsed_list
+            m = nucleotides.motif_conformation2(sequence, side, motif.compiled_regex)
+            if m:
+                return m[0], m[1], motif
+    
+        # If the motif does not match, then fudge it for an off-target/on-target motif
+        # This will return the last-fudged motif, and not necessarily the best-fudged motif
+        # *MAY* need to improve this code later
+        for motif in (OnTargetMotif.motifs + OffTargetMotif.motifs)[::-1]:
+            spacers, pams, side = motif.parsed_list
+            if (side == '>'):
+                l = max(map(len, pams))
+                return sequence[:-l], sequence[-l:], motif # spacer, pam, motif
+            else: #elif (side == '<'):
+                l = max(map(len, pams))
+                return seq[:l], seq[l:], motif # spacer, pam, motif
     
     def get_features(self):
         """Return (sorted) list of all feature names this Target maps to"""
@@ -3395,7 +3389,7 @@ description:
         
         if hasattr(args, 'off_target_motifs'):
             # Parse the off-target motifs
-            for motif in set(args.off_target_motifs).difference(args.motifs): # These motifs are exclusive to off-target list
+            for motif in set(args.off_target_motifs).difference(args.motifs): # off-target motifs don't overlap with on-target ones
                 OffTargetMotif(motif)
         
         # Motif.motifs           list of ALL motifs, both on-target and off-target?  <-- not implemented yet
