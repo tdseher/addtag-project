@@ -4040,3 +4040,81 @@ def load_object(name, path='/dev/shm/addtag'):
     with open(os.path.join(path, name), 'rb') as flo:
         data = pickle.load(flo)
     return data
+
+def make_alignment_labels(labels, lengths, edges_open=False):
+    """
+    Prints multi-line set of exclusive sequences and their labels
+    
+    Example:
+      print_alignment_labels(['us region', 'label', 'us homology', 'insert',
+          'ds homology', 'ds region'], [8, 5, 15, 3, 15, 10])
+       ┌us region
+       │       ┌label              ┌insert           ┌ds region
+      ┌┴─────┐┌┴──┐┌─us homology─┐┌┴┐┌─ds homology─┐┌┴───────┐
+    """
+    lines = ['']
+    for i, (label, slen) in enumerate(zip(labels, lengths)):
+        
+        # Modify the labels
+        if (len(label)+2 > slen):
+            if (slen == 0):
+                if (len(label) > 0):
+                    corner = '┌'
+                else:
+                    corner = ''
+            elif (slen == 1):
+                if (len(label) > 0):
+                    corner = '┌'
+                else:
+                    corner = ''
+            else:
+                corner = ' ┌'
+            #for j in range(1, len(lines)):
+            for j in range(len(lines)-1, 0, -1):
+                if (len(lines[j]) <= len(lines[0])):
+                    lines[j] += ' '*(len(lines[0])-len(lines[j])) + corner+label
+                    break
+            else:
+                if (len(lines) > 1):
+                    new_line = ''
+                    for k in range(0, len(lines[0])):
+                        if (lines[-1][k] in ['┌', '│', '¦']):
+                            if lines[0][k] in ['│', '┤', '┴']:
+                                new_line += '│'
+                            else:
+                                new_line += '¦'
+                        else:
+                            new_line += ' '
+                    if (lengths[i-1] == 0):
+                        if (slen == 0):
+                            corner = '┌'
+                        else:
+                            corner = '¦┌'
+                    lines.append(new_line + corner+label)
+                else:
+                    lines.append(' '*len(lines[0]) + corner+label)
+        
+        # Modify lines[0]
+        if (slen == 0):
+            pass
+        elif (slen == 1):
+            if (len(label) > 0):
+                lines[0] += '│'
+            else:
+                lines[0] += '╥'
+        elif (slen == 2):
+            if (len(label) > 0):
+                lines[0] += '┌┤'
+            else:
+                lines[0] += '┌┐'
+        elif (len(label)+2 > slen):
+            lines[0] += '┌┴'+'─'*(slen-3)+'┐'
+        else:
+            line = '┌'+'─'*(slen-2)+'┐'
+            pos = slen//2-len(label)//2
+            lines[0] += line[:pos] + label + line[pos+len(label):]
+    
+    #for line in lines[1:]:
+    #    print(line)
+    #print(lines[0])
+    return lines[1:] + [lines[0]]
