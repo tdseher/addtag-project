@@ -43,7 +43,16 @@ class UNAFold(Oligo):
             citation="Markham, et al. UNAFold: Software for Nucleic Acid Folding and Hybridization. Bioinformatics: Structure, Function and Applications. Humana Press. p.3-31 (2008)."
         )
     
-    def scan(self, seq, side, *args, primer_size=(18,26), **kwargs):
+    def scan(self, seq, side, *args, primer_size=(18,26), tm_range=(55,65), min_delta_g=-5.0, **kwargs):
+        # Code to temporarily limit number of primers computed set to None to disable
+        subset_size = 4000 # 9000
+        
+        # Total number of primers that will be scanned
+        n_max = sum(len(seq)-x+1 for x in range(primer_size[0], primer_size[1]+1))
+        if (n_max < 0):
+            n_max = 0
+        n_count = 0
+        
         good_primers = []
         if (side in ['left', 'forward']):
             for p_len in range(primer_size[0], primer_size[1]+1):
@@ -51,38 +60,70 @@ class UNAFold(Oligo):
                     pf = seq[pos:pos+p_len]
                     
                     # Check pf (constraints) & (self, homodimer, rc) to see if it is good.
-                    pf_results, o_a, o_aa, o_ar, pf_gc = self.check_potential_primer(pf)
+                    pf_results, o_a, o_aa, o_ar, pf_gc = self.check_potential_primer(pf, tm=tm_range, min_delta_g=min_delta_g, **kwargs)
                     
                     if self.summarize(pf_results):
-                        good_primers.append(Primer(sequence=pf, position=pos, strand='+', o_hairpin=o_a, o_self_dimer=o_aa, o_reverse_complement=o_ar, gc=pf_gc, checks=pf_results))
+                        good_primers.append(Primer(sequence=pf, position=pos, template_length=len(seq), strand='+', o_hairpin=o_a, o_self_dimer=o_aa, o_reverse_complement=o_ar, gc=pf_gc, checks=pf_results))
+                    
+                    n_count += 1
+                    
+                    #if (n_count % 1000 == 0):
+                logging.info('Primer: {}/{}'.format(n_count, n_max))
+                if ((subset_size != None) and (n_count >= subset_size)): ##### Temporary early break for testing purposes ##### Should remove eventually
+                    logging.info('  left primer: skipping {}/{} potential primers'.format(max(0, n_max-n_count), n_max))
+                    break
         
         elif (side in ['right', 'reverse']):
             for p_len in range(primer_size[0], primer_size[1]+1):
                 for pos in range(len(seq)-p_len+1):
                     pr = rc(seq[pos:pos+p_len])
                     # check pr (constraints) & (self, homodimer, rc) to see if it is good.
-                    pr_results, o_b, o_bb, o_br, pr_gc = self.check_potential_primer(pr)
+                    pr_results, o_b, o_bb, o_br, pr_gc = self.check_potential_primer(pr, tm=tm_range, min_delta_g=min_delta_g, **kwargs)
                                 
                     if self.summarize(pr_results):
-                        good_primers.append(Primer(sequence=pr, position=pos, strand='-', o_hairpin=o_b, o_self_dimer=o_bb, o_reverse_complement=o_br, gc=pr_gc, checks=pr_results))
+                        good_primers.append(Primer(sequence=pr, position=pos, template_length=len(seq), strand='-', o_hairpin=o_b, o_self_dimer=o_bb, o_reverse_complement=o_br, gc=pr_gc, checks=pr_results))
+                    
+                    n_count += 1
+                    
+                    #if (n_count % 1000 == 0):
+                logging.info('Primer: {}/{}'.format(n_count, n_max))
+                if ((subset_size != None) and (n_count >= subset_size)): ##### Temporary early break for testing purposes ##### Should remove eventually
+                    logging.info('  right primer: skipping {}/{} potential primers'.format(max(0, n_max-n_count), n_max))
+                    break
                 
         return good_primers
     
-    def pair(self, good_forwards, good_reverses, *args, amplicon_size=(250,300), **kwargs):
+    def pair(self, good_forwards, good_reverses, *args, amplicon_size=(300,700), tm_max_difference=3.0, intervening=0, min_delta_g=-5.0, **kwargs):
         # Filter pairs by amplicon size
+        count = 0
+        max_count = len(good_forwards) * len(good_reverses)
+        
         good_pairs = []
         for gf in good_forwards:
             for gr in good_reverses:
-                pp = PrimerPair(gf, gr, o_heterodimer=None, checks=None)
+                pp = PrimerPair(gf, gr, o_heterodimer=None, checks=None, intervening=intervening)
                 
-                if (amplicon_size[0] <= pp.get_amplicon_size() <= amplicon_size[1]):
-                    het_results, o_ab = self.check_potential_primer_pair(gf.sequence, gr.sequence, min(gf.o_reverse_complement).melting_temperature, min(gr.o_reverse_complement).melting_temperature)
-                    if self.summarize(het_results):
-                        pp.o_heterodimer = o_ab
-                        pp.checks = het_results
-                        good_pairs.append(pp)
+                #if (amplicon_size[0] <= pp.get_amplicon_size() <= amplicon_size[1]):
+                het_results, o_ab = self.check_potential_primer_pair(
+                    gf.sequence,
+                    gr.sequence,
+                    min(gf.o_reverse_complement).melting_temperature,
+                    min(gr.o_reverse_complement).melting_temperature,
+                    pp.get_amplicon_size(),
+                    max_tm_difference=tm_max_difference,
+                    min_delta_g=min_delta_g,
+                    amplicon_size_range=amplicon_size,
+                    **kwargs
+                )
+                if self.summarize(het_results):
+                    pp.o_heterodimer = o_ab
+                    pp.checks = het_results
+                    good_pairs.append(pp)
+                count += 1
+                if (count % 1000 == 0):
+                    logging.info('Primer pairs: {}/{}'.format(count, max_count))
         
-        return good_pairs
+        return good_pairs # unsorted
     
     def scan_sequence(self, seq, primer_size=(20,24), amplicon_size=(50,60)):
         """
@@ -169,12 +210,12 @@ class UNAFold(Oligo):
                 o = Structure.new_calculate_simple(folder, seq1, seq2)
                 min_delta_g_passed = min_delta_g <= min(o).delta_G
         
-        results = [max_tm_difference_passed, max_3prime_homology_length_passed, min_delta_g_passed]
+        results = [amplicon_size_passed, max_tm_difference_passed, max_3prime_complementation_length_passed, min_delta_g_passed]
         
         return results, o
         
 
-    def check_potential_primer(self, seq, thorough=False, folder='/dev/shm', length=(17,28), last5gc_count=(1,3), gc_clamp_length=(1,2), gc=(0.4,0.6), max_run_length=4, min_delta_g=-3.0, tm=(55,65)):
+    def check_potential_primer(self, seq, thorough=False, folder='/dev/shm/addtag', length=(17,28), last5gc_count=(1,3), gc_clamp_length=(1,2), gc=(0.25,0.75), max_run_length=4, min_delta_g=-5.0, tm=(55,65)):
         """
         seq - ACGT sequence should be 5' to 3'
         """
@@ -471,7 +512,7 @@ class Structure(object):
         return float_string
     
     @staticmethod
-    def nnn_parse_ct(filename):
+    def parse_ct_file(filename):
         """
         Check each pair to determine if it's a homo- or heterodimer
         """
@@ -621,7 +662,7 @@ class Structure(object):
         #ct-energy --NA=DNA --sodium=0.05 --magnesium=0.0 --temperature=25 --verbose A.ct | ct-energy-det.pl --mode text
         
         number_structures = len(deltaH_list)
-        homodimer_list = cls.nnn_parse_ct(os.path.join(folder, prefix+'.ct')) # Check each pair to determine if it's a homo- or heterodimer
+        homodimer_list = cls.parse_ct_file(os.path.join(folder, prefix+'.ct')) # Check each pair to determine if it's a homo- or heterodimer
         #deltaH_list = [-32.4, -49.8]
         #deltaG_list = [-3.43067, -2.56959]
         deltaS_list = []
