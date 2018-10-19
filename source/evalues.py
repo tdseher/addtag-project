@@ -346,7 +346,7 @@ def calculate_k(matrix, my_lambda, H):
         else:
             return r
     
-    def score_porbabilities_of_length(sp, previous_permuted_sp, low, high, divisor, length, rounding=2):
+    def score_probabilities_of_length(sp, previous_permuted_sp, low, high, divisor, length, rounding=2):
         '''
         This is an iterative function that permutes through every possible
         score combination of 'length'. It will return a dict with the probability of
@@ -355,9 +355,9 @@ def calculate_k(matrix, my_lambda, H):
         For example:
           sp = {-3: 0.6, -1: 0.1, 0: 0.1, 2: 0.2}
           spj = sp
-          spj = score_porbabilities_of_length(sp, spj, min(sp), max(sp), 1, 1)
+          spj = score_probabilities_of_length(sp, spj, min(sp), max(sp), 1, 1)
                 {-3: 0.6, -2: 0.0, -1: 0.1, 0: 0.1, 1: 0.0, 2: 0.2}
-          spj = score_porbabilities_of_length(sp, spj, min(sp), max(sp), 1, 2)
+          spj = score_probabilities_of_length(sp, spj, min(sp), max(sp), 1, 2)
                 {-6: 0.36, -5: 0.0, -4: 0.12, -3: 0.12, -2: 0.01, -1: 0.26, 0: 0.01, 1: 0.04, 2: 0.04, 3: 0.0, 4: 0.04}
         '''
         # Populate as empty
@@ -393,7 +393,7 @@ def calculate_k(matrix, my_lambda, H):
             #min_cum_score += low
             
             # Calculate Pj(i)
-            spj = score_porbabilities_of_length(sp, spj, low, high, divisor, j)
+            spj = score_probabilities_of_length(sp, spj, low, high, divisor, j)
             
             sum1 = 0.0 # The sum of the probability of negative score of length j
             sum2 = 0.0 # The sum of the probability of positive scores of length j
