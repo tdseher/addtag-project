@@ -146,6 +146,37 @@ class Oligo(object): # Name of the subclass
         
         return match_length
     
+    def simulate_amplification(self, primer_pair, contigs, amplicon_range=(10,5000)):
+        """
+        Simulate a PCR experiment, and return all the predicted amplicons.
+        Does not predict chimeric (template-jumping) amplification.
+        """
+        regex_1F = regex.compile('('+primer_pair.forward_primer.sequence+'){s<=1}', flags=regex.IGNORECASE)
+        regex_1R = regex.compile('('+rc(primer_pair.reverse_primer.sequence)+'){s<=1}', flags=regex.IGNORECASE)
+        regex_2F = regex.compile('('+primer_pair.reverse_primer.sequence+'){s<=1}', flags=regex.IGNORECASE)
+        regex_2R = regex.compile('('+rc(primer_pair.forward_primer.sequence)+'){s<=1}', flags=regex.IGNORECASE)
+        
+        amplicons = []
+        for name, sequence in contigs.items():
+            starts, stops = [], []
+            for m in regex_1F.finditer(sequence):
+                starts.append(m)
+            for m in regex_1R.finditer(sequence):
+                stops.append(m)
+            for m in regex_2F.finditer(sequence):
+                starts.append(m)
+            for m in regex_2R.finditer(sequence):
+                stops.append(m)
+            
+            for start_m in starts:
+                for stop_m in stops:
+                    start = start_m.start()
+                    stop = stop_m.end()
+                    size = stop - start
+                    if (amplicon_range[0] <= size <= amplicon_range[1]):
+                        amplicons.append((name, start, stop, size)) # 0-indexed
+        return amplicons
+    
     def __repr__(self):
         """
         Return the string representation of the Oligo
