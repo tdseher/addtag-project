@@ -4041,6 +4041,35 @@ def load_object(name, path='/dev/shm/addtag'):
         data = pickle.load(flo)
     return data
 
+def make_labeled_primer_alignments(label_list, sequence_list, contig_name, primer_pair_label_list, primer_pair_list, shifts=None):
+    
+    lengths = [len(x) for x in sequence_list]
+    output = make_alignment_labels(label_list, lengths)
+    output_names = ['' for x in output]
+    
+    output_names.append(contig_name)
+    output.append(''.join(sequence_list))
+    
+    for i, (pp_label, pp) in enumerate(zip(primer_pair_label_list, primer_pair_list)):
+        output_names.append(pp_label)
+        if (shifts == None):
+            output.append(' '*pp.forward_primer.position + pp.get_formatted())
+        else: # Need to improve this so it uses shifts for real
+            if pp:
+                if (i in [0, 1]):
+                    output.append(' '*pp.forward_primer.position + pp.get_formatted())
+                elif (i == 2):
+                    output.append(' '*(lengths[0]+lengths[1]) + ' '*pp.forward_primer.position + pp.get_formatted()) # NOT elegant AT ALL
+            else:
+                output.append('None')
+    
+    n = max(len(x) for x in output_names)
+    lines = []
+    for i in range(len(output)):
+        lines.append(output_names[i].ljust(n, ' ') + ' ' + output[i])
+    
+    return lines
+
 def make_alignment_labels(labels, lengths, edges_open=False):
     """
     Prints multi-line set of exclusive sequences and their labels
