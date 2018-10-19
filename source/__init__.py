@@ -2197,8 +2197,12 @@ class main(object):
                                     matched_lines.add(line)
                                     break
         
+        if args.header:
+            print('# '+'\t'.join(['seqid', 'source', 'feature', 'start', 'end', 'score', 'strand', 'frame', 'attribute']))
+        
         for line in sorted(matched_lines):
             print(line)
+        # End _feature()
     
     def _extract(self, args):
         """
@@ -2753,13 +2757,13 @@ example:
     
     def _parser_feature(self, subparsers):
         ''' "feature" parser '''
-        __feature_description__ = "Search GFF features for specific text."
+        __feature_description__ = "description:\n  Search GFF features for specific text."
         __feature_help__ = "Search GFF features for specific text."
         __feature_epilog__ = """\
 example:
   In general, you can search all feature attributes for text as follows:
    $ python3 {__program__} feature --gff genome.gff --query HSP90 > features.gff
-"""
+""".format(**globals())
 #  If you want to limit your search to specific tags, then you could use
 #  these parameters:
 #   $ python3 {__program__} feature --gff genome.gff --query Gene=GAL4 > features.gff
@@ -2797,6 +2801,9 @@ example:
         
         parser_feature.add_argument("--allow_errors", action="store_true",
             default=False, help="Include matches with minor differences from the query.")
+        
+        parser_feature.add_argument("--header", action="store_true",
+            default=False, help="Begin output with a commented line containing field names.")
         
         return parser_feature
     
