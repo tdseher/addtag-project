@@ -12,11 +12,70 @@ import datetime
 import logging
 import subprocess
 import textwrap
+import time
 
 # Import non-standard packages
 import regex
 
 logger = logging.getLogger(__name__)
+
+class GenBankFile(object):
+    def __init__(self, name, sequence, molecule='ds-DNA', shape='linear'):
+        self.name = name
+        self.sequence = sequence
+        self.length = str(len(sequence)) + ' bp'
+        self.molecule = molecule
+        self.shape = shape
+        
+        now = time.localtime()
+        months = ['UNK', 'JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
+        self.date = '{}-{}-{}'.format(now.tm_mday, months[now.tm_mon], now.tm_year)
+        self.annotations = []
+        
+    def add_annotation(self, feature, start, end, strand, **kwargs):
+        """
+        features:
+          assembly_gap, C_region, CDS, centromere, D-loop, D_segment, exon,
+          gap, gene, iDNA, intron, J_segment, mat_peptide, misc_binding,
+          misc_difference, misc_feature, misc_recomb, misc_RNA, misc_structure,
+          mobile_element, modified_base, mRNA, ncRNA, N_region, old_sequence,
+          operon, oriT, polyA_site, precursor_RNA, prim_transcript, primer_bind,
+          propeptide, protein_bind, regulatory, repeat_region, rep_origin, rRNA,
+          S_region, sig_peptide, source, stem_loop, STS, telomere, tmRNA,
+          transit_peptide, tRNA, unsure, V_region, V_segment, variation,
+          3'UTR, 5'UTR
+        
+        start < end
+        """
+        self.annotations.append([feature, start, end, strand, kwargs])
+    def write(self, filename):
+        with open(filename, 'w') as flo:
+            print('LOCUS       ' + self.name.ljust(24, ' ') + ' ' + self.length + ' ' + self.molecule + '     ' + self.shape + '     ' + self.date, file=flo)
+            print('DEFINITION  .', file=flo)
+            print('FEATURES             Location/Qualifiers', file=flo)
+            for a in self.annotations:
+                feature, start, end, strand, details = a
+                location = str(start+1) + '..' + str(end) # convert to 1-based index
+                if (strand == '-'):
+                    location = 'complement(' + location + ')'
+                print('     ' + feature.ljust(16, ' ') + location, file=flo)
+                for dkey, dvalue in details.items():
+                    if isinstance(dvalue, str):
+                        print('                     /' + dkey + '="' + dvalue + '"', file=flo)
+                    else:
+                        print('                     /' + dkey + '=' + str(dvalue), file=flo)
+                #print('                     /label="' + label + '"', file=flo)
+                #print('                     /ApEinfo_revcolor='+color, file=flo)
+                #print('                     /ApEinfo_fwdcolor='+color, file=flo)
+            print('ORIGIN', file=flo)
+            n = 10
+            m = 6
+            sep_seqs = [self.sequence[i:i+n] for i in range(0, len(self.sequence), n)]
+            for i in range(0, len(sep_seqs), m):
+                print(str(i*n+1).rjust(9) + ' ' + ' '.join(sep_seqs[i:i+m]), file=flo)
+                    
+            print('//', file=flo)
+        
 
 def flatten(iterable, remove_none=False):
     """Make a flat list out of a list of lists"""
