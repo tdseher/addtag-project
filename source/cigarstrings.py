@@ -23,10 +23,11 @@ import regex
 #   =    7 sequence match
 #   X    8 sequence mismatch
 #
-# Notes
+# Notes:
 #  * H can only be present as the first and/or last operation.
 #  * S may only have H operations between them and the ends of the CIGAR string.
-#  * For mRNA-to-genome alignment, an N operation represents an intron. For other types of alignments, the interpretation of N is not defined.
+#  * For mRNA-to-genome alignment, an N operation represents an intron.
+#    For other types of alignments, the interpretation of N is not defined.
 #  * Sum of lengths of the M/I/S/=/X operations shall equal the length of SEQ.
 
 def cigar_errors(cigar):
@@ -59,14 +60,14 @@ def cigar_errors(cigar):
     return matches, mismatches, insertions, deletions, errors
 
 def matrix_averages(scores):
-    '''
+    """
     Returns:
      * Average score of entire matrix
      * Average match score
      * Average mismatch score
      * Average insertion score
      * Average deletion score
-    '''
+    """
     total_s = 0
     total_n = 0
     
@@ -233,7 +234,10 @@ def sam_orientation(field):
         return '+'
 
 def decode_sam_flags(field, kind='str'):
-    """Decodes the bit flag column in SAM output into a string or list of characters"""
+    """
+    Decodes the bit flag column in SAM output into a string or list
+    of characters.
+    """
     # Flag    Hexadecimal   Binary Decimal  FlagChar  Description                                       New Description
     # 0x0000  0x0                0       0            read maps?
     # 0x0001  0x1                1       1  p         the read is paired in sequencing                  template having multiple segments in sequencing
@@ -267,6 +271,9 @@ def decode_sam_flags(field, kind='str'):
         return list_flags
 
 def test():
+    """
+    Test the functions in this script.
+    """
     q = "AAA--AAATCCC"
     s = "AGACGAAA-CCC"
     print(alignment2cigar(q, s)) # '3M2D3M1I3M'
