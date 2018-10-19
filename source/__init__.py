@@ -816,8 +816,9 @@ class Target(object):
                     'alignments=' + str(len([a for a in obj.alignments if a.postfilter])) + '/' + str(len(obj.alignments)),
                     'on-target=' + str(round(obj.score['Azimuth'], 2)),
                     'off-target=' + str(round(obj.off_targets['Hsu-Zhang'], 2)),
+                    'pam=' + obj.pam
                 ]), file=flo)
-                print(sequence, file=flo)
+                print(obj.spacer, file=flo)
         logging.info(cls.__name__ + ' spacers FASTA generated: {!r}'.format(filename))
         return filename
     
