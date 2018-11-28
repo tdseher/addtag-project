@@ -190,7 +190,7 @@ class Primer(object):
     Specifically, it stores the program-specific conformations and deltaGs
     as attributes.
     """
-    def __init__(self, sequence, position, template_length, strand, o_hairpin, o_self_dimer, o_reverse_complement, gc=None, checks=None):
+    def __init__(self, sequence, position, template_length, strand, o_hairpin, o_self_dimer, o_reverse_complement, gc=None, checks=None, name=None):
         self.sequence = sequence
         self.position = position
         self.template_length = template_length
@@ -207,6 +207,7 @@ class Primer(object):
         else:
             self.checks = checks
         self.weight = self.get_weight()
+        self.name = name
     
     def get_gc(self):
         if (self.gc != None):
@@ -338,7 +339,11 @@ class PrimerPair(object):
         return w
     
     def get_joint_weight(self):
-        return self.weight * self.forward_primer.weight * self.reverse_primer.weight
+        # If the sequences are identical, then use only one weight
+        if (self.forward_primer.sequence == self.reverse_primer.sequence):
+            return self.weight * ((self.forward_primer.weight + self.reverse_primer.weight)/2)
+        else:
+            return self.weight * self.forward_primer.weight * self.reverse_primer.weight
     
     def __repr__(self):
         labs = ['seq', 'amplicon_size', 'Tm', 'GC', 'min(dG)']
