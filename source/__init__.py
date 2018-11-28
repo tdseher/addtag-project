@@ -1061,6 +1061,11 @@ class Target(object):
     
     @classmethod
     def get_targets(cls, args, sequence):
+        """
+        Tries to match all OnTargetMotif motifs to the input sequence
+        ANYWHERE in the sequence
+        Returns list of matches (as a tuple) from all OnTargetMotif motifs.
+        """
         targets = set()
         #for seq_i, sequence in enumerate(dDNAs):
         for orientation in ['+', '-']:
