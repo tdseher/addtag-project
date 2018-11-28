@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
 """AddTag Copyright (c) 2016 Thaddeus D. Seher & Aaron Hernday"""
 
@@ -43,9 +44,29 @@ class UNAFold(Oligo):
             citation="Markham, et al. UNAFold: Software for Nucleic Acid Folding and Hybridization. Bioinformatics: Structure, Function and Applications. Humana Press. p.3-31 (2008)."
         )
     
-    def scan(self, seq, side, *args, primer_size=(18,26), tm_range=(55,65), min_delta_g=-5.0, **kwargs):
+    def scan(self, seq, side, *args, primer_size=(18,26), tm_range=(55,65), min_delta_g=-5.0, us_seq='', ds_seq='', min_junction_overlap=(4,8), **kwargs):
+        # 'min_junction_overlap' allows for primers to span into the us/ds sequences
+        #           uuuuuIIIIddddd
+        #              └primer┘
+        # 
+        # min_junction_overlap = (
+        #    minimum nt of primer that CANNOT be on the 5' flanking sequence (us_seq for forward primer),
+        #    minimum nt of primer that CANNOT be on the 3' flanking sequence (ds_seq for forward primer)
+        # )
+        # 
+        # Example of min_junction_overlap=(1,3) (for forward primer)
+        #     us_seq    GTAAAGAAGG             10 nt
+        #     seq                 CC            2 nt
+        #     ds_seq                CCAAATTA    8 nt
+        #                         ┌1 nt overlap
+        #     primers         FFFFF 
+        #                      FFFFF
+        #                       FFFFF
+        #     4 primers          FFFFF
+        #                        └─┴3 nt overlap
+        
         # Code to temporarily limit number of primers computed set to None to disable
-        subset_size = 4000 # 9000
+        subset_size = 5000 #2000 # 9000
         
         # Total number of primers that will be scanned
         n_max = sum(len(seq)-x+1 for x in range(primer_size[0], primer_size[1]+1))
@@ -56,8 +77,17 @@ class UNAFold(Oligo):
         good_primers = []
         if (side in ['left', 'forward']):
             for p_len in range(primer_size[0], primer_size[1]+1):
-                for pos in range(len(seq)-p_len+1):
-                    pf = seq[pos:pos+p_len]
+                # Include the flanking regions
+                l_seq = us_seq[len(us_seq) - (p_len-min_junction_overlap[0]):]
+                r_seq = ds_seq[:max(0, p_len-min_junction_overlap[1])]
+                
+                j_seq = l_seq + seq + r_seq
+                
+                #for pos in range(len(seq)-p_len+1):
+                #    pf = seq[pos:pos+p_len]
+                for i in range(len(j_seq)-p_len+1):
+                    pos = i-len(l_seq) # Position on sequence (can take negative number if hanging off the edge)
+                    pf = j_seq[i:i+p_len]
                     
                     # Check pf (constraints) & (self, homodimer, rc) to see if it is good.
                     pf_results, o_a, o_aa, o_ar, pf_gc = self.check_potential_primer(pf, tm=tm_range, min_delta_g=min_delta_g, **kwargs)
@@ -75,8 +105,18 @@ class UNAFold(Oligo):
         
         elif (side in ['right', 'reverse']):
             for p_len in range(primer_size[0], primer_size[1]+1):
-                for pos in range(len(seq)-p_len+1):
-                    pr = rc(seq[pos:pos+p_len])
+                # Include the flanking regions
+                l_seq = us_seq[len(us_seq) - (p_len-min_junction_overlap[1]):]
+                r_seq = ds_seq[:max(0, p_len-min_junction_overlap[0])]
+                
+                j_seq = l_seq + seq + r_seq
+                
+                #for pos in range(len(seq)-p_len+1):
+                #    pr = rc(seq[pos:pos+p_len])
+                for i in range(len(j_seq)-p_len+1):
+                    pos = i-len(l_seq) # Position on sequence (can take negative number if hanging off the edge)
+                    pr = rc(j_seq[i:i+p_len])
+                    
                     # check pr (constraints) & (self, homodimer, rc) to see if it is good.
                     pr_results, o_b, o_bb, o_br, pr_gc = self.check_potential_primer(pr, tm=tm_range, min_delta_g=min_delta_g, **kwargs)
                                 
