@@ -44,6 +44,206 @@ class SlidingWindow(object):
         self.position += self.step
         return s, e, seq
 
+def kmer_distribution(kmer):
+    """Returns a dictionary that is a kmer distribution, with all values set to 0.0"""
+    dist = {}
+    for i in range(kmer):
+        dist = __kmer_distribution_helper(dist)
+    return dist
+
+def __kmer_distribution_helper(ddd):
+    """Helper function for kmer_distribution"""
+    new = {}
+    bases = ['A','C','G','T']
+    for i in bases:
+        if (len(ddd) > 0):
+            for d in ddd:
+                new[d + i] = 0.0 # 0.0 for floats
+        else:
+            new[i] = 0.0 # 0.0 for floats
+    return new
+
+def make_mirrored_kmer_dist(kmer_length):
+    return_dict = {}
+    ddd = {}
+    kmers = sorted(kmer_distribution(kmer_length))
+    for k in kmers:
+        rk = rc(k)
+        if not ((k in ddd) and (rk in ddd)):
+            ddd[k] = 1
+            ddd[rk] = 2
+            
+            temp_list = [0]
+            return_dict[k] = temp_list
+            return_dict[rk] = temp_list
+        #else:
+        #   ddd[k] += 4
+    return return_dict
+
+def reduce_mirrored_kmer_dist(dist):
+    f_added = {}
+    for f in sorted(dist):
+        if not (rc(f)+' '+f in f_added):
+            f_added[f+' '+rc(f)] = dist[f][0]
+    return f_added
+
+def normalize_reduced_dist(dist):
+    return_dist = {}
+    # The following two measures are the same:
+    #   print sum(dist.values())
+    #   print (((len(seq) - kmer_size) / step_size) + 1)
+    if (sum(dist.values()) > 0):
+        for k in dist:
+            #return_dist[k] = (1.0 * dist[k]) / (((len(seq) - kmer_size) / step_size) + 1)
+            return_dist[k] = (1.0 * dist[k]) / sum(dist.values())
+    else:
+        return_dist = dist
+    return return_dist
+
+def normalize_dist(dist):
+    return_dist = {}
+    # The following two measures are the same:
+    #   print sum(dist.values())
+    #   print (((len(seq) - kmer_size) / step_size) + 1)
+    dist_sum = sum(dist.values())
+    if (sum(dist.values()) > 0):
+        for k in dist:
+            #return_dist[k] = (1.0 * dist[k]) / (((len(seq) - kmer_size) / step_size) + 1)
+            return_dist[k] = float(dist[k]) / dist_sum
+    else:
+        return_dist = dist
+    return return_dist
+
+def get_seq_list_dist_stranded(seqs, step_size, kmer_size):
+    kmers = kmer_distribution(kmer_size)
+    for seq in seqs:
+        pos = 0
+        while (pos <= len(seq) - kmer_size):
+            try:
+                kmers[seq[pos:pos+kmer_size]] += 1
+            except KeyError: # has iupac ambiguity code
+                good_kmers = fix_kmer(seq[pos:pos+kmer_size])
+                for i in good_kmers:
+                    kmers[i] += 1.0 / len(good_kmers)
+            pos += step_size
+    return normalize_dist(kmers)
+
+def get_seq_list_dist(seqs, step_size, kmer_size):
+    kmers = make_mirrored_kmer_dist(kmer_size)
+    for seq in seqs:
+        pos = 0
+        while (pos <= len(seq) - kmer_size):
+            try:
+                kmers[seq[pos:pos+kmer_size]][0] += 1
+            except KeyError: # has iupac ambiguity code
+                good_kmers = fix_kmer(seq[pos:pos+kmer_size])
+                for i in good_kmers:
+                    kmers[i][0] += 1.0 / len(good_kmers)
+            pos += step_size
+    return normalize_dist(reduce_mirrored_kmer_dist(kmers))
+
+def get_seq_dist(seq, step_size, kmer_size):
+    kmers = make_mirrored_kmer_dist(kmer_size)
+    pos = 0
+    while (pos <= len(seq) - kmer_size):
+        try:
+            kmers[seq[pos:pos+kmer_size]][0] += 1
+        except KeyError: # has iupac ambiguity code
+            good_kmers = fix_kmer(seq[pos:pos+kmer_size])
+            for i in good_kmers:
+                kmers[i][0] += 1.0 / len(good_kmers)
+        pos += step_size
+    return normalize_reduced_dist(reduce_mirrored_kmer_dist(kmers))
+
+
+def fix_kmer(bad_kmer):
+    # bad_kmer = ANCN
+    iupac = {
+        'r': ['a', 'g'],
+        'y': ['c', 't'],
+        'm': ['a', 'c'],
+        'k': ['g', 't'],
+        'w': ['a', 't'],
+        's': ['c', 'g'],
+        'b': ['c', 'g', 't'],
+        'd': ['a', 'g', 't'],
+        'h': ['a', 'c', 't'],
+        'v': ['a', 'c', 'g'],
+        'n': ['a', 'c', 'g', 't'],
+        
+        'R': ['A', 'G'],
+        'Y': ['C', 'T'],
+        'M': ['A', 'C'],
+        'K': ['G', 'T'],
+        'W': ['A', 'T'],
+        'S': ['C', 'G'],
+        'B': ['C', 'G', 'T'],
+        'D': ['A', 'G', 'T'],
+        'H': ['A', 'C', 'T'],
+        'V': ['A', 'C', 'G'],
+        'N': ['A', 'C', 'G', 'T'],
+    }
+    fixed_kmers = ['']
+    for char in bad_kmer:
+        if char in ['a','c','g','t','A','C','G','T']:
+            for nc in range(len(fixed_kmers)):
+                fixed_kmers[nc] += char
+        else:
+            # split
+            for ool in range(len(fixed_kmers)):
+                for num in range(len(iupac[char]) - 1):
+                    fixed_kmers.append(fixed_kmers[ool])
+            fixed_kmers = sorted(fixed_kmers)
+            #print "split", fixed_kmers
+            # add
+            for pp in range(len(fixed_kmers)):
+                fixed_kmers[pp] += iupac[char][pp % len(iupac[char])]
+        #print "step", fixed_kmers
+    return fixed_kmers
+
+def complement_kmer_distribution(dist):
+    """
+    Input: dictionary with keys like this "ACAT ATGT" and values with floats.
+    sum(dist.values()) should equal 1. This means that the input distribution is normalized
+    """
+    # If 0 is present, then shift all values by minimum
+    cdist = {}
+    if 0 in dist.values():
+        minv = min([x for x in dist.values() if x > 0])
+        for k,v in dist.items():
+            cdist[k] = v+minv
+    else:
+        for k,v in dist.items():
+            cdist[k] = v
+    
+    s = sum([1.0/x for x in cdist.values()])
+    for k,v in cdist.items():
+        cdist[k] = (1.0/v)/s
+    
+    return cdist
+
+def sequence_likelihood(seq, dist, step_size=1):
+    """
+    Computes the likelihood of the sequence given the kmer distribution.
+    Output likelihood highly contingent on sequence length
+    """
+    kmers = {}
+    kmer_size = 0
+    for k, v in dist.items():
+        k1, k2 = k.split(' ')
+        kmers[k1] = v
+        kmers[k2] = v
+        kmer_size = len(k1)
+    
+    score = 0
+    
+    # sliding window
+    for i in range(0, len(seq)-kmer_size+1, step_size):
+        score += kmers[seq[i:i+kmer_size]]
+    
+    return score
+    
+
 #def random_sequence(length=100):
 #    return ''.join(random.choice(['A', 'C', 'G', 'T']) for k in range(length))
 
@@ -111,9 +311,9 @@ def permute_genotypes(genes, y=''):
             #     if e.args:
             #         yield e.args[0]
 
-def lcs(string1, string2):
+def lcs(string1, string2, autojunk=False):
     """Find the longest common substring between two strings"""
-    matcher = difflib.SequenceMatcher(None, string1, string2, True)
+    matcher = difflib.SequenceMatcher(None, string1, string2, autojunk)
     match = matcher.find_longest_match(0, len(string1), 0, len(string2))
     # Match(a=0, b=15, size=9)
     return match
@@ -697,6 +897,70 @@ def test():
     print("=== count_errors ===")
     
     print("=== split_target_sequence ===")
+    
+    print("=== kmer distribution ===")
+    seq = '''\
+        GAGTCACGCCAATCACAAATTCCTTTGAAAAACTTGATTCGACCACATTCACAAGTTTGA
+        TTGATTTGAAAAACTTGATTCGACACCATCCTGCTGTCCATCCGTGAGCCACACAGATTC
+        AGAATTGAGTCGCTGACTAAGCGGTTAGACATACGTGATATTCACCGACTTTGAGAGTCC
+        CACTAATCGGCTAGACATACGTAAATTACATAGCTCCCTCCAATACACACCCTACTTACT
+        ATTGTCTTTTTTTAACTTTTTCGTAATCTCTACCCATAAAAATACACTTTCCCTCCAAAT
+        CTCTAATTTACAACTCAACTGAACTTTAATTAACCTCTACTGCCTTAATTTAAGCTTATT
+        TCTTGTCTATCAGCTGTTTCTGTTTCACCATTTTCACAACTTCTCCCCTAGGTGACATTT
+        TTTTCTGCTGATTTTTTCTCAAATTCAGCCCAAAAAACTTAAACCAAAACTCAAAATTAC
+        AACGCAAACTCTATTTAGAGTGCCCCTACTACCCCTACTGAGTCTTATTTTGAGTTTACC
+        ACCGATTTCTGTGCTCCTCCTGTCTCCAGATTTCCGGTCTTCGTTCTTTTTTCGATCGAA
+        AACTTTGTAAAACTAAACTAAAAAATTCACTCCATTTGACCAACAAASTGCTCAAAATCA
+        GACCAGGCTCACTGCTTCTGCTTTGTCCCTAAAGATTACAAAAGCTACGCTGCAAAAGAA
+        CTTAAAATTGCGTTCCATTATAATCTATACACACCCATCTCCTGCTATCACTTCACCTCA
+        CGTCCTCCCTGCGCTTGTCCATCCGTGAGTTCAACTACCGCCTCCCTCTTCCCTTGTCCA
+        CCCGTGATTCGCCAGTCCCTGGCTCTCCATCTTCCACAGATCCTTCACTTGCTTTCCATT
+        GACTATCTTCTTCTCTTGCCCTAGCTTTTGATTTCCATATTCCTTCAACCATTGTACTAA
+        CTCTCTCTTTACTCTGTGCTTAACTACTATCTCTCTGATCACCTGGCCTGGCGTTATTCT
+        ATTTCCAGTTTTTTTTTTTTTCATTGATCCAACACAACTTCAACTCCCATTCGCTCGGCT
+        CTTGACCCCCTTATCCATTCTCTCAGTACTTCCCGATCCCTTTTGTTCTTCATTACCCTT
+        TTCTCTGTCTTGCCCTGCTACCCATCCGTGATTYTCCAGCRCTGTTCACTCCCACGTCCC
+        CGCTGTTGATTGACATTTCCAATTTCACTGACTTTGTTCCCCTACTTTTGCTCACATTTT
+        TCTGTTCTCAAACTCCTCTCTTGAATTCTCAGCTTGCTGTGTCTCCTTCTTGCCATTACA
+        ACTGCTTTTCTTCACTTGCTTCCTTCTGCTTTGACAACACTGATCATTGACTTGATTTCA
+        TTACTTTTCACAAACCCAGTTTCTAGCTCTATTGACTTCCTCTGCTATCCAGATTTCAAA
+        CTTCTTATTGTAACAGTTATAACTGCGTTCTTCATCTCATCTAATTGATTGATTTGTTGT
+        CGTTGAAGAAAAGTGATATTTTTTGACCAGCACATTTCTTGTCCAACTTTTTTTCGATGW
+        CTTCTCCACACTTTTCTGCCACGTTTTCCCTATTTTTTTTGCCACGTCAGAAAAAAAAAA
+        ATTTTTTTCACCACTTTTCTTCCCACCGCCAACAACACCAATGATGTTCTACCTGCCAGA
+        GTGCCAGTTCTACATATGTTCCGATTTCCTAGCTCTTCAGATTCAGCAACTCCAACTACC
+        AATTTTTGAATTCCCACAATCCAACTAATTCCCCGCCATCTTGCMAACTCAGTCCACAAT
+        TTCTGTCCAACYACAAATTTTCAAACTGCAACAACTGTCACTGCCACATGCTATTCAACC
+        GGCAAACAWACGAARCTGTAATGATTTCAACAACTGCCATTGATCACTCATTTATCAACC
+        ACCAAACACAGCAGCGCAACAGCTTCCACAGTTCTTGTTGCCACGATTTCGGCAACTACG
+    '''
+    seq = seq.replace('\n', '').replace(' ', '')
+    kmer_step_size = 1
+    kmer_length = 4
+    dist = get_seq_dist(seq, kmer_step_size, kmer_length)
+    print('N', 'kmer', 'rc()', 'palindrome', 'frequency', 'count')
+    for i, (k, v) in enumerate(dist.items()):
+        m = regex.match(r'(.)(.)(.)(.) \1\2\3\4',k)
+        print(i, k, 'palindrome' if m else '          ', v, v*(len(seq)-kmer_length+1))
+    print('sum =', sum(dist.values()))
+    
+    print('=== CDIST ===')
+    cdist = complement_kmer_distribution(dist)
+    print('N', 'kmer', 'rc()', 'palindrome', 'frequency')
+    for i, (k, v) in enumerate(cdist.items()):
+        m = regex.match(r'(.)(.)(.)(.) \1\2\3\4',k)
+        print(i, k, 'palindrome' if m else '          ', v)
+    print('sum =', sum(cdist.values()))
+    
+    seqs = [
+        'AGCTACGAGCATCAGGACTACGG',
+        'GTCAGACTAGCGACATATATAGG',
+        'CCAGTAGAGAATAGAGCCTAGAC',
+        'CCATCGAACTACCCTCTCTCAAC'
+    ]
+    for s in seqs:
+        print(s, sequence_likelihood(s, dist), sequence_likelihood(s, cdist))
+    
     
 
 if (__name__ == '__main__'):

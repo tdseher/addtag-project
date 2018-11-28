@@ -26,6 +26,7 @@ from . import scores
 from . import algorithms
 from . import aligners
 from . import oligos
+from . import bartag
 #from . import evalues
 
 # Create the logger
@@ -390,7 +391,7 @@ class ExcisionDonor(Donor):
     #     return sorted(targets) # becomes a list
     
     @classmethod
-    def exhaustive_site_search(cls, args, f, contig_sequence, orientation):
+    def mintag_exhaustive_site_search(cls, args, f, contig_sequence, orientation):
         """
         Method for generating all potential mAT given the us/ds trims and
         insert size. Also called "Brute force" method
@@ -432,9 +433,150 @@ class ExcisionDonor(Donor):
                                     
                                     for t in new_targets:
                                         # Target is a tuple: (orientation, start, end, upstream, downstream, sequence, side, spacer, pam, motif)
-                                        # If it is not one of the two failure states, then add it
+                                        # If it is not one of the two failure states, then add it (that is, it MUST overlap the junction)
                                         if not ((t[2] < len(upstream)) or (t[1] >= len(upstream) + len(mAT))):
                                             cls(f.name, f.contig, orientation, dDNA, (start1, end1), mAT, (start2, end2), spacer=t)
+    
+    @classmethod
+    def bartag(cls, args, f, contig_sequence, orientation, bartags):
+        """
+        Method for generating dDNA with bartags.
+        Does not check for ki-gRNA target sequences.
+        
+        This code is run once for each feature
+        Does not respect:
+          args.excise_upstream_homology
+          args.excise_downstream_homology
+          args.excise_upstream_feature_trim
+          args.excise_downstream_feature_trim
+          args.excise_insert_lengths
+          args.excise_donor_lengths
+        """
+        
+        # Use this instead of 'args.excise_donor_lengths'
+        slen = 100
+        
+        # when insert_length = 0, then the kmers are [''] (single element, empty string)
+        for bartag in bartags:
+            # Add this bartag dDNA substring to the center of the up/down-stream DNA
+            # dDNA = upstream[-slen//2-(-len(bartag)//2):] + bartag + downstream[:slen//2-len(bartag)//2]
+            # start1=15, start2=5
+            # dDNA = sequence[15+(-slen//2-(-len(bartag)//2)):15] + bartag + sequence[5:5+(slen//2-len(bartag)//2)]
+            us_start, us_end = f.start+(-slen//2-(-len(bartag)//2)), f.start
+            ds_start, ds_end = f.end, f.end+(slen//2-len(bartag)//2)
+            upstream = contig_sequence[us_start:us_end]
+            downstream = contig_sequence[ds_start:ds_end]
+            dDNA = upstream + bartag + downstream
+            
+            # We don't calculate targets
+            #new_targets = Target.get_targets(args, dDNA) # [(orientation, start, end, filt_seq, side, filt_spacer, filt_pam), ...]
+            
+            # We create the new ExcisionDonor object (with no spacers)
+            cls(f.name, f.contig, orientation, dDNA, (us_start, us_end), bartag, (ds_start, ds_end), spacer=None)
+    
+    @classmethod
+    def addtag(cls, args, f, contig_sequence, orientation):
+        """
+        Method for generating dDNAs with complete SPACER+PAM targeting sites
+        with flanking homology arms
+        """
+        # Use this instead of 'args.excise_donor_lengths'
+        slen = 100
+        
+        genome_composition = nucleotides.get_seq_dist(contig_sequence, 1, 4) # step_size=1, kmer_size=4
+        
+        for m in OnTargetMotif.motifs: # <------ Do I need to add OffTargetMotif.motifs here as well?
+            addtag_seqs = [] # holds at most, 10x1000= 10000 sequences
+            
+            # Keep generating and testing addtags until the score raises above the arbitrary threshold of 0.9
+            # Or until the maximum number of batches have been run
+            max_batches = 10
+            current_batch = 0
+            best_score = 0
+            while ((best_score < 0.9) and (current_batch < max_batches)):
+                current_batch+= 1
+                # Generate batches of 1000 addtags:
+                addtag_batch = []
+                for i in range(1000):
+                    # Generate a pseudorandom motif
+                    addtag_batch.append(m.generate_sequence(compositions=genome_composition, complement=True, samples=100))
+                
+                # Write the addtag sequences to a file, and align them to the genome
+                #### This happens in 'main()' ####
+                
+                # Calculate the scores of the addtag sequences
+                #### This happens in 'main()' ####
+                
+                # Add the batched oligos to the list of all generated ones
+                addtag_seqs += addtag_batch
+                
+                best_score = 0
+            
+            # Only keep the top N best (i.e. 100)
+            #for addtag in sorted(addtag_seqs, key=lambda x: x.score, reverse=True)[:100]:
+            # Since we haven't scored these yet, then let's just keep all of them
+            for addtag in addtag_seqs:
+                # Get the contig locations of the homology regions
+                us_start, us_end = f.start+(-slen//2-(-len(addtag)//2)), f.start
+                ds_start, ds_end = f.end, f.end+(slen//2-len(addtag)//2)
+                
+                # Get the sequences for the homology regions
+                upstream = contig_sequence[us_start:us_end]
+                downstream = contig_sequence[ds_start:ds_end]
+                
+                # Stitch together the homology regions with the addtag (exogenous gRNA target)
+                dDNA = upstream + addtag + downstream
+                
+                ##### Extra condition: ADDTAG must NOT be present in any of the ki-dDNAs #####
+                
+                # The target must match the 'addtag' sequence completely
+                targets = Target.get_targets(args, dDNA) # [(orientation, start, end, filt_seq, side, filt_spacer, filt_pam), ...]
+                
+                for t in targets:
+                    #                     0            1      2    3         4           5         6     7       8    9
+                    # Target is a tuple: (orientation, start, end, upstream, downstream, sequence, side, spacer, pam, motif)
+                    # The target must match the addtag start and end positions within the dDNA exactly
+                    if ((t[1] == len(upstream)) and (t[2] == len(upstream)+len(addtag))):
+                        # Add this candidate dDNA to the list of all candidate dDNAs
+                        cls(f.name, f.contig, orientation, dDNA, (us_start, us_end), addtag, (ds_start, ds_end), spacer=t)
+        #### End 'addtag()' ####
+    
+    @classmethod
+    def unitag(cls, args, f, contig_sequence, orientation, unitag):
+        """
+        Method for generating dDNAs with complete SPACER+PAM targeting sites
+        with flanking homology arms
+        
+        This function assumes the input 'unitag' has already been calculated
+        """
+        # Use this instead of 'args.excise_donor_lengths'
+        slen = 100
+        
+        # Get the contig locations of the homology regions
+        us_start, us_end = f.start+(-slen//2-(-len(unitag)//2)), f.start
+        ds_start, ds_end = f.end, f.end+(slen//2-len(unitag)//2)
+        
+        # Get the sequences for the homology regions
+        upstream = contig_sequence[us_start:us_end]
+        downstream = contig_sequence[ds_start:ds_end]
+        
+        # Stitch together the homology regions with the addtag (exogenous gRNA target)
+        dDNA = upstream + unitag + downstream
+        
+        ##### Extra condition: UNITAG must NOT be present in any of the ki-dDNAs #####
+        
+        # The target must match the 'addtag' sequence completely
+        # This will search all OnTargetMotif motifs
+        targets = Target.get_targets(args, dDNA) # [(orientation, start, end, filt_seq, side, filt_spacer, filt_pam), ...]
+        
+        for t in targets:
+            #                     0            1      2    3         4           5         6     7       8    9
+            # Target is a tuple: (orientation, start, end, upstream, downstream, sequence, side, spacer, pam, motif)
+            # The target must match the addtag start and end positions within the dDNA exactly
+            if ((t[1] == len(upstream)) and (t[2] == len(upstream)+len(unitag))):
+                # Add this candidate dDNA to the list of all candidate dDNAs
+                cls(f.name, f.contig, orientation, dDNA, (us_start, us_end), unitag, (ds_start, ds_end), spacer=t)
+        #### End 'unitag()' ####
     
     @classmethod
     def generate_donors(cls, args, contigs):
@@ -443,22 +585,77 @@ class ExcisionDonor(Donor):
         [upstream homology][unique gRNA][downstream homology]
         that excises the target feature
         """
-        # Generate the full set of potential dDNAs
-        for feature_name, f in Feature.features.items():
-        #for feature in features:
-            #contig, start, end, strand = features[feature]
-            # start & end are 0-based indices, inclusive/exclusive
+        
+        # Behave differently depending on user input (mintag/addtag/unitag/bartag)
+        if (args.ko_dDNA == 'mintag'):
+            # Generate the full set of potential dDNAs
+            for feature_name, f in Feature.features.items():
+            #for feature in features:
+                #contig, start, end, strand = features[feature]
+                # start & end are 0-based indices, inclusive/exclusive
+                
+                # assumes start < end
+                # DNA 5' of feature is upstream
+                # DNA 3' of feature is downstream
+                
+                contig_sequence = contigs[f.contig]
+                orientation = '+' # ????? what is this for? I don't remember
+                
+                # For each potential dDNA, evaluate how good it is
+                #cls.mintag_exhaustive_site_search(args, feature, contig, start, end, strand, contig_sequence, orientation)
+                cls.mintag_exhaustive_site_search(args, f, contig_sequence, orientation)
             
-            # assumes start < end
-            # DNA 5' of feature is upstream
-            # DNA 3' of feature is downstream
+        elif (args.ko_dDNA == 'addtag'): ######################## NEED TO ADD FLANKTAG PROCESSING ########################
+            # Generate one unique tag for each feature (same take for homologs)
+            # using the complement of the DNA sequence composition for the organism
             
-            contig_sequence = contigs[f.contig]
-            orientation = '+' # ????? what is this for? I don't remember
+            for feature_name, f in Feature.features.items():
+                contig_sequence = contigs[f.contig]
+                orientation = '+' # I forgot what this is for
+                cls.addtag(args, f, contig_sequence, orientation)
             
-            # For each potential dDNA, evaluate how good it is
-            #cls.exhaustive_site_search(args, feature, contig, start, end, strand, contig_sequence, orientation)
-            cls.exhaustive_site_search(args, f, contig_sequence, orientation)
+        elif (args.ko_dDNA == 'unitag'): ######################## NEED TO ADD FLANKTAG PROCESSING ########################
+            # Generate a single tag that is the same for all features
+            
+            # Generate a random tag (that is the complement sequence composition)
+            # Evaluate all the tags
+            # Pick the best tag
+            # Add that best tag to all dDNAs
+            
+            # Pick an arbitrary motif (this is just the first-defined one)
+            m = OnTargetMotif.motifs[0] # <------ Do I need to add OffTargetMotif.motifs here as well?
+            
+            # Create a single, random unitag according to the chosen motif (for testing)
+            unitag = m.generate_sequence(compositions=genome_composition, complement=True, samples=100)
+            
+            # Create the dDNAs using the chosen unitag
+            for feature_name, f in Feature.features.items():
+                contig_sequence = contigs[f.contig]
+                orientation = '+' # I forgot what this is for
+                cls.unitag(args, f, contig_sequence, orientation, unitag)
+        
+        elif (args.ko_dDNA == 'bartag'): ######################## NEED TO ADD FLANKTAG PROCESSING ########################
+            # if number of features x number of bartags > 200, then exit with warning
+            if (args.bartag_number * len(Feature.features) > 200):
+                raise Exception("Too many features or bartags. Must be <= 200.\nYou have: features × bartags = " + str(len(Feature.features)) + " × " + str(args.bartag_number) + " = " + str(args.bartag_number * len(Feature.features)))
+            
+            # Generate up to 200 barcodes
+            logging.info('Calculating barcodes...')
+            barcodes, barcode_fail_n, barcode_success_n = bartag.generate_min_distance(args.bartag_motif, args.bartag_distance, max_successes=200)
+            logging.info('Found {} barcodes: {} fails, {} successes'.format(len(barcodes), barcode_fail_n, barcode_success_n))
+            
+            # Assign a barcode to each feature,
+            # Generate the dDNAs
+            bartag_assignments = {}
+            for feature_name, f in Feature.features.items():
+                # Add a barcodes equal to the number specified via the command line
+                bartag_assignment[feature_name] = [barcodes.pop() for i in range(args.bartag_number)]
+                
+                contig_sequence = contigs[f.contig]
+                orientation = '+' # I forgot what this is for
+                cls.bartag(args, f, contig_sequence, orientation, bartag_assignment[feature_name])
+        
+        #### End 'generate_donors()' ####
     
     @classmethod
     def generate_alignments(cls):
@@ -1663,6 +1860,30 @@ class Motif(object):
             pattern = '(?:' + sequence + ')' + fuzzy
         #logger.info('Built regex string: {!r}'.format(pattern))
         return pattern
+    
+    def generate_sequence(self, compositions=None, complement=False, samples=100):
+        """
+        Generate a random sequence according to input sequence composition
+        or with uniform composition of None.
+        """
+        
+        if compositions:
+            seqs = []
+            scores = []
+            for i in range(samples):
+                s = bartag.random_motif_sequence(self.motif_string)
+                seqs.append(s)
+                scores.append(nucleotides.sequence_likelihood(s, compositions)/len(s))
+            
+            #sorted_seqs = sorted(seqs, key=lambda x: seqs[x], reverse=not complement)
+            #return sorted_seqs[0]
+            if complement:
+                return min(zip(scores, seqs))[1]
+            else:
+                return max(zip(scores, seqs))[1]
+        else:
+            return bartag.random_motif_sequence(self.motif_string)
+        
 
 class Feature(object):
     features = {}
@@ -2307,32 +2528,28 @@ class main(object):
         ###########################################
         
         
-        if (args.ko_gRNA): # (True/False)
+        if (args.ko_gRNA): # Takes the values: (True/False)
             # Search for good targets within specified features
-            pass
-            
-        if (args.ko_dDNA): # (mintag/addtag/unitag/bartag)
-            if (args.ko_dDNA == 'mintag'):
-                pass
-            elif (args.ko_dDNA == 'addtag'):
-                pass
-            elif (args.ko_dDNA == 'unitag'):
-                pass
-            elif (args.ko_dDNA == 'bartag'):
-                pass
-        
-        if (args.ki_gRNA): # (True/False)
+            # If no good target is found, then expand the feature
             pass
         
-        if (args.ki_dDNA != None): # (None/True/'*.fasta')
-            #if (len(args.ki_dDNA) == 1):
-            if isinstance(args.ki_dDNA, str):
-                # If a file is specified, then it has the knock-in DNA
-                # that should be stitched to flanking homology arms
-                pass
-            else:
-                # Otherwise, generate KI dDNA that are wild type
-                pass
+        # This code is performed in 'ExcisionDonor.generate_donors()'
+        # if (args.ko_dDNA): # (mintag/addtag/unitag/bartag)
+        #     if (args.ko_dDNA == 'mintag'):
+        #         pass
+        #     elif (args.ko_dDNA == 'addtag'):
+        #         pass
+        #     elif (args.ko_dDNA == 'unitag'):
+        #         pass
+        #     elif (args.ko_dDNA == 'bartag'):
+        #         pass
+        
+        
+        # Design gRNAs to target the ko-dDNA.
+        if (args.ki_gRNA): # Takes the values: (True/False)
+            pass
+        
+        
         
         
         # Code here (maybe as part of ExcisionTarget.search_all_features()), should expand features
@@ -2341,22 +2558,32 @@ class main(object):
         #     If they are identical, then this would be a homozygous dDNA
         #     If they are different, then this would be an allele-specific (heterozygous) dDNA
         
-        # Search features within contigs for targets that match the motifs
-        # Old code (without feature expansion) ExcisionTarget.get_targets(args, contig_sequences, features)
-        ExcisionTarget.search_all_features(args, contig_sequences)
+        if (args.ko_gRNA):
+            # Search features within contigs for targets that match the motifs
+            # Old code (without feature expansion) ExcisionTarget.get_targets(args, contig_sequences, features)
+            ExcisionTarget.search_all_features(args, contig_sequences)
         
-        # Write the query list to FASTA
-        ex_query_file = ExcisionTarget.generate_query_fasta(os.path.join(args.folder, 'excision-query.fasta'))
+            # Write the query list to FASTA
+            ex_query_file = ExcisionTarget.generate_query_fasta(os.path.join(args.folder, 'excision-query.fasta'))
         
         # Generate excision dDNAs and their associated reversion gRNA spacers
         ExcisionDonor.generate_donors(args, contig_sequences)
-        ReversionTarget.get_targets()
-        ex_dDNA_file = ExcisionDonor.generate_fasta(os.path.join(args.folder, 'excision-dDNAs.fasta')) # Program will fail with error if this file is empty...
-        re_query_file = ReversionTarget.generate_query_fasta(os.path.join(args.folder, 'reversion-query.fasta'))
         
-        # Generate reversion dDNAs and write them to FASTA
-        ReversionDonor.generate_donors(args, contig_sequences)
-        re_dDNA_file = ReversionDonor.generate_fasta(os.path.join(args.folder, 'reversion-dDNAs.fasta'))
+        if (args.ki_gRNA):
+            ReversionTarget.get_targets()
+        ex_dDNA_file = ExcisionDonor.generate_fasta(os.path.join(args.folder, 'excision-dDNAs.fasta')) # Program will fail with error if this file is empty...
+        
+        if (args.ki_gRNA):
+            re_query_file = ReversionTarget.generate_query_fasta(os.path.join(args.folder, 'reversion-query.fasta'))
+        
+        if (args.ki_dDNA != None): # args.ki_dDNA can take one of 3 possible values: (None/True/'*.fasta')
+            if isinstance(args.ki_dDNA, str): # If a file is specified, then it has the knock-in DNA that should be stitched to flanking homology arms
+                pass
+            else: # Otherwise, generate KI dDNA that are wild type
+                
+                # Generate reversion dDNAs and write them to FASTA
+                ReversionDonor.generate_donors(args, contig_sequences)
+                re_dDNA_file = ReversionDonor.generate_fasta(os.path.join(args.folder, 'reversion-dDNAs.fasta'))
         
         # Merge input FASTA files into a single one
         genome_fasta_file = utils.write_merged_fasta(contig_sequences, os.path.join(args.folder, 'genome.fasta'))
@@ -2365,78 +2592,86 @@ class main(object):
         #index_file = index_reference(args)
         genome_index_file = args.selected_aligner.index(genome_fasta_file, os.path.basename(genome_fasta_file), args.folder, args.processors)
         ex_dDNA_index_file = args.selected_aligner.index(ex_dDNA_file, os.path.basename(ex_dDNA_file), args.folder, args.processors)
-        re_dDNA_index_file = args.selected_aligner.index(re_dDNA_file, os.path.basename(re_dDNA_file), args.folder, args.processors)
+        if (args.ki_dDNA == True):
+            re_dDNA_index_file = args.selected_aligner.index(re_dDNA_file, os.path.basename(re_dDNA_file), args.folder, args.processors)
         
-        # Use selected alignment program to find all matches in the genome and dDNAs
-        #ex_genome_align_file = align(ex_query_file, genome_index_file, args)
-        exq2gDNA_align_file = args.selected_aligner.align(ex_query_file, genome_index_file, 'excision-query-2-gDNA.'+args.selected_aligner.output, args.folder, args.processors)
-        exq2exdDNA_align_file = args.selected_aligner.align(ex_query_file, ex_dDNA_index_file, 'excision-query-2-excision-dDNA.'+args.selected_aligner.output, args.folder, args.processors)
-        
-        #print("ExcisionTarget before SAM parsing")
-        #for et_seq, et_obj in ExcisionTarget.sequences.items():
-        #    print(et_obj)
-        
-        # Load the SAM files and add Alignments to ExcisionTarget sequences
-        ExcisionTarget.load_alignment(exq2gDNA_align_file, args, contig_sequences)
-        ExcisionTarget.load_alignment(exq2exdDNA_align_file, args, ExcisionDonor.get_contig_dict())
-        
-        # Calculate off-target/guide scores for each algorithm
-        logging.info("ExcisionTarget after SAM parsing and off-target scoring")
-        ##### Add short-circuit/heuristic #####
-        for et_seq, et_obj in ExcisionTarget.sequences.items():
-            et_obj.score_off_targets(args, homologs)
-            logging.info(et_obj)
-            for a in et_obj.alignments:
-                logging.info('  ' + str(a))
-        
-        # Batch calculate with new ExcisionTarget class
-        ExcisionTarget.score_batch()
-        
-        logging.info("ExcisionTarget after Azimuth calculation")
-        for et_seq, et_obj in ExcisionTarget.sequences.items():
-            logging.info(et_obj)
+        if (args.ko_gRNA):
+            # Use selected alignment program to find all matches in the genome and dDNAs
+            #ex_genome_align_file = align(ex_query_file, genome_index_file, args)
+            exq2gDNA_align_file = args.selected_aligner.align(ex_query_file, genome_index_file, 'excision-query-2-gDNA.'+args.selected_aligner.output, args.folder, args.processors)
+            exq2exdDNA_align_file = args.selected_aligner.align(ex_query_file, ex_dDNA_index_file, 'excision-query-2-excision-dDNA.'+args.selected_aligner.output, args.folder, args.processors)
+            
+            #print("ExcisionTarget before SAM parsing")
+            #for et_seq, et_obj in ExcisionTarget.sequences.items():
+            #    print(et_obj)
+            
+            # Load the SAM files and add Alignments to ExcisionTarget sequences
+            ExcisionTarget.load_alignment(exq2gDNA_align_file, args, contig_sequences)
+            ExcisionTarget.load_alignment(exq2exdDNA_align_file, args, ExcisionDonor.get_contig_dict())
+            
+            # Calculate off-target/guide scores for each algorithm
+            logging.info("ExcisionTarget after SAM parsing and off-target scoring")
+            ##### Add short-circuit/heuristic #####
+            for et_seq, et_obj in ExcisionTarget.sequences.items():
+                et_obj.score_off_targets(args, homologs)
+                logging.info(et_obj)
+                for a in et_obj.alignments:
+                    logging.info('  ' + str(a))
+            
+            # Batch calculate with new ExcisionTarget class
+            ExcisionTarget.score_batch()
+            
+            logging.info("ExcisionTarget after Azimuth calculation")
+            for et_seq, et_obj in ExcisionTarget.sequences.items():
+                logging.info(et_obj)
         
         # Generate the FASTA with the final scores
         excision_spacers_file = ExcisionTarget.generate_spacers_fasta(os.path.join(args.folder, 'excision-spacers.fasta'))
         
         # Use selected alignment program to find all matches in the genome and dDNAs
         #re_align_file = align(re_query_file, genome_index_file, args)
-        req2gDNA_align_file = args.selected_aligner.align(re_query_file, genome_index_file, 'reversion-query-2-gDNA.'+args.selected_aligner.output, args.folder, args.processors)
-        req2exdDNA_align_file = args.selected_aligner.align(re_query_file, ex_dDNA_index_file, 'reversion-query-2-excision-dDNA.'+args.selected_aligner.output, args.folder, args.processors)
-        req2redDNA_align_file = args.selected_aligner.align(re_query_file, re_dDNA_index_file, 'reversion-query-2-reversion-dDNA.'+args.selected_aligner.output, args.folder, args.processors)
+        if (args.ki_gRNA):
+            req2gDNA_align_file = args.selected_aligner.align(re_query_file, genome_index_file, 'reversion-query-2-gDNA.'+args.selected_aligner.output, args.folder, args.processors)
+            req2exdDNA_align_file = args.selected_aligner.align(re_query_file, ex_dDNA_index_file, 'reversion-query-2-excision-dDNA.'+args.selected_aligner.output, args.folder, args.processors)
+        if (args.ki_dDNA == True):
+            req2redDNA_align_file = args.selected_aligner.align(re_query_file, re_dDNA_index_file, 'reversion-query-2-reversion-dDNA.'+args.selected_aligner.output, args.folder, args.processors)
         
         # Load the SAM files and add Alignments to ReversionTarget sequences
-        ReversionTarget.load_alignment(req2gDNA_align_file, args, contig_sequences)
-        ReversionTarget.load_alignment(req2exdDNA_align_file, args, ExcisionDonor.get_contig_dict())
-        ReversionTarget.load_alignment(req2redDNA_align_file, args, ReversionDonor.get_contig_dict())
+        if (args.ki_gRNA):
+            ReversionTarget.load_alignment(req2gDNA_align_file, args, contig_sequences)
+            ReversionTarget.load_alignment(req2exdDNA_align_file, args, ExcisionDonor.get_contig_dict())
+        if (args.ki_dDNA == True):
+            ReversionTarget.load_alignment(req2redDNA_align_file, args, ReversionDonor.get_contig_dict())
         
-        # Calculate off-target/guide scores for each algorithm
-        logging.info("ReversionTarget after SAM parsing and off-target scoring")
-        # Somehow need to prioritize sequences for scoring.
-        # Sequences with best diversity should be scored first.
-        # If calculation time runs out, then just stop.
-        # Should time each feature separately?
-        ##### Subroutine #####
-        #start_time = time.time()
-        #if (time.time() - start_time >= args.max_time):
-        #    logging.info('Site search terminated due to time constraints.')
-        #    return
-        ##### Subroutine #####
-        for re_seq, re_obj in ReversionTarget.sequences.items():
-            re_obj.score_off_targets(args, homologs)
-            logging.info(re_obj)
-            for a in re_obj.alignments:
-                logging.info('  ' + str(a))
         
-        # Batch calculate with new ReversionTarget class
-        ReversionTarget.score_batch()
-        
-        logging.info("ReversionTarget after Azimuth calculation")
-        for rt_seq, rt_obj in ReversionTarget.sequences.items():
-            logging.info(rt_obj)
-        
-        # Generate the FASTA with the final scores
-        reversion_spacers_file = ReversionTarget.generate_spacers_fasta(os.path.join(args.folder, 'reversion-spacers.fasta'))
+        if (args.ki_gRNA):
+            # Calculate off-target/guide scores for each algorithm
+            logging.info("ReversionTarget after SAM parsing and off-target scoring")
+            # Somehow need to prioritize sequences for scoring.
+            # Sequences with best diversity should be scored first.
+            # If calculation time runs out, then just stop.
+            # Should time each feature separately?
+            ##### Subroutine #####
+            #start_time = time.time()
+            #if (time.time() - start_time >= args.max_time):
+            #    logging.info('Site search terminated due to time constraints.')
+            #    return
+            ##### Subroutine #####
+            for re_seq, re_obj in ReversionTarget.sequences.items():
+                re_obj.score_off_targets(args, homologs)
+                logging.info(re_obj)
+                for a in re_obj.alignments:
+                    logging.info('  ' + str(a))
+            
+            # Batch calculate with new ReversionTarget class
+            ReversionTarget.score_batch()
+            
+            logging.info("ReversionTarget after Azimuth calculation")
+            for rt_seq, rt_obj in ReversionTarget.sequences.items():
+                logging.info(rt_obj)
+            
+            # Generate the FASTA with the final scores
+            reversion_spacers_file = ReversionTarget.generate_spacers_fasta(os.path.join(args.folder, 'reversion-spacers.fasta'))
         
         # Test code to generate alignments
         ExcisionDonor.generate_alignments()
@@ -3798,7 +4033,7 @@ example:
         parser_generate.add_argument("--excise_donor_lengths", nargs=2, metavar=('MIN', 'MAX'), type=int, default=[100, 100],
             help="Range of lengths acceptable for knock-out dDNAs, inclusive.")
         parser_generate.add_argument("--excise_insert_lengths", nargs=2, metavar=("MIN", "MAX"), type=int, default=[0,3],
-            help="Range for inserted DNA lengths, inclusive (mini-AddTag, mAT). \
+            help="Range for inserted DNA lengths, inclusive (mintag). \
             If MIN < 0, then regions of dDNA homology (outside the feature) will be removed.")
         parser_generate.add_argument("--excise_feature_edge_distance", metavar="N", type=int, default=0,
             help="If positive, gRNAs won't target any nucleotides within this distance \
@@ -3829,9 +4064,9 @@ example:
         #    help="The uniqueness of final donor DNA compared to the rest of the genome")
         #parser.add_argument("--min_donor_errors", metavar="N", type=int, default=3,
         #    help="The uniqueness of final donor DNA compared to the rest of the genome")
-        parser_generate.add_argument("--revert_upstream_homology", nargs=2, metavar=("MIN", "MAX"), type=int, default=[300,600],
+        parser_generate.add_argument("--revert_upstream_homology", nargs=2, metavar=("MIN", "MAX"), type=int, default=[200,400],
             help="Range of homology lengths acceptable for knock-in dDNAs, inclusive.")
-        parser_generate.add_argument("--revert_downstream_homology", nargs=2, metavar=("MIN", "MAX"), type=int, default=[300,600],
+        parser_generate.add_argument("--revert_downstream_homology", nargs=2, metavar=("MIN", "MAX"), type=int, default=[200,400],
             help="Range of homology lengths acceptable for knock-in dDNAs, inclusive.")
         #parser_generate.add_argument("--revert_donor_lengths", nargs=2, metavar=('MIN', 'MAX'), type=int, default=[0, 100000],
         #    help="Range of lengths acceptable for knock-in dDNAs.")
@@ -3886,11 +4121,15 @@ example:
             help="Maximum amount of time, in seconds, for each feature to spend calculating dDNAs.")
         
         
+        parser_generate.add_argument("--bartag_number", metavar="N", type=int, default=1,
+            help="Number of bartags per locus to generate. \
+            For efficiency's sake, a maximum 'features × bartags = 200' is enforced.")
         
-        parser_generate.add_argument("--bartag_motif", type=str, default='N{20}',
-            help="Structure of nucleotides that should be generated")
+        parser_generate.add_argument("--bartag_motif", metavar="MOTIF", type=str, default='N{10}',
+            help="Structure of nucleotides that should be generated. \
+            Longer oligonucleotide lengths take longer to calculate.")
         
-        parser_generate.add_argument("--bartag_distance", type=int, default=3,
+        parser_generate.add_argument("--bartag_distance", metavar="N", type=int, default=3,
             help="Minimum required edit distance between each bartag.")
         
         parser_generate.add_argument("--flanktags", nargs='+', action=ValidateFlanktags, type=str,
@@ -3918,7 +4157,7 @@ example:
             choices=['mintag', 'addtag', 'unitag', 'bartag'],
             help="'mintag' are unique us/i/ds junction targets specific to each feature. \
             'addtag' are unique targets for each feature. \
-            'unitag' is a single invariant, unique target for ALL features. \
+            'unitag' is a single, invariant target for ALL features. \
             'bartag' are unique barcodes for each feature (does not guarantee targets).")
         
         parser_generate.add_argument("--ki-gRNA", action='store_true', default=False,
