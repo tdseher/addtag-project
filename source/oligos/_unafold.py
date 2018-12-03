@@ -11,6 +11,7 @@ import os
 import subprocess
 import math
 import logging
+import copy
 
 # Import non-standard packages
 import regex
@@ -66,7 +67,7 @@ class UNAFold(Oligo):
         #                        └─┴3 nt overlap
         
         # Code to temporarily limit number of primers computed set to None to disable
-        subset_size = 5000 #2000 # 9000
+        subset_size = 5000 # 1000 # 9000
         
         # Total number of primers that will be scanned
         n_max = sum(len(seq)-x+1 for x in range(primer_size[0], primer_size[1]+1))
@@ -82,6 +83,11 @@ class UNAFold(Oligo):
                 r_seq = ds_seq[:max(0, p_len-min_junction_overlap[1])]
                 
                 j_seq = l_seq + seq + r_seq
+                
+                if (len(j_seq) != len(seq)):
+                    logging.info('l_seq = ' + l_seq)
+                    logging.info('  seq = ' + ' '*len(l_seq) + seq)
+                    logging.info('r_seq = ' + ' '*len(l_seq+seq) + r_seq)
                 
                 #for pos in range(len(seq)-p_len+1):
                 #    pf = seq[pos:pos+p_len]
@@ -111,6 +117,11 @@ class UNAFold(Oligo):
                 
                 j_seq = l_seq + seq + r_seq
                 
+                if (len(j_seq) != len(seq)):
+                    logging.info('l_seq = ' + l_seq)
+                    logging.info('  seq = ' + ' '*len(l_seq) + seq)
+                    logging.info('r_seq = ' + ' '*len(l_seq+seq) + r_seq)
+                
                 #for pos in range(len(seq)-p_len+1):
                 #    pr = rc(seq[pos:pos+p_len])
                 for i in range(len(j_seq)-p_len+1):
@@ -133,7 +144,7 @@ class UNAFold(Oligo):
                 
         return good_primers
     
-    def pair(self, good_forwards, good_reverses, *args, amplicon_size=(300,700), tm_max_difference=3.0, intervening=0, min_delta_g=-5.0, **kwargs):
+    def pair(self, good_forwards, good_reverses, *args, amplicon_size=(300,700), tm_max_difference=3.0, intervening=0, same_template=False, min_delta_g=-5.0, **kwargs):
         # Filter pairs by amplicon size
         count = 0
         max_count = len(good_forwards) * len(good_reverses)
@@ -141,14 +152,18 @@ class UNAFold(Oligo):
         good_pairs = []
         for gf in good_forwards:
             for gr in good_reverses:
-                pp = PrimerPair(gf, gr, o_heterodimer=None, checks=None, intervening=intervening)
+                cgf, cgr = copy.deepcopy(gf), copy.deepcopy(gr)
+                # Set their template lengths to 0 because they come from the same template
+                if same_template:
+                    cgf.template_length, cgr.template_length = 0, 0
+                pp = PrimerPair(cgf, cgr, o_heterodimer=None, checks=None, intervening=intervening)
                 
                 #if (amplicon_size[0] <= pp.get_amplicon_size() <= amplicon_size[1]):
                 het_results, o_ab = self.check_potential_primer_pair(
-                    gf.sequence,
-                    gr.sequence,
-                    min(gf.o_reverse_complement).melting_temperature,
-                    min(gr.o_reverse_complement).melting_temperature,
+                    cgf.sequence,
+                    cgr.sequence,
+                    min(cgf.o_reverse_complement).melting_temperature,
+                    min(cgr.o_reverse_complement).melting_temperature,
                     pp.get_amplicon_size(),
                     max_tm_difference=tm_max_difference,
                     min_delta_g=min_delta_g,

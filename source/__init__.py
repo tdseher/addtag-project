@@ -3351,7 +3351,7 @@ class main(object):
         group_links = [] # {}
         
         # Record calculated dDNA homology regions
-        dDNA_homology_seqs = {} # key=(dDNA_r, dDNA_contig, genome_contig), value=(s_ush_seq, s_dsh_seq)
+        #dDNA_homology_seqs = {} # key=(dDNA_r, dDNA_contig, genome_contig), value=(s_ush_seq, s_dsh_seq)
         
         # For each dDNA, do some operations
         for j, dDNA_filename in enumerate(args.dDNAs):
@@ -3407,63 +3407,118 @@ class main(object):
                         #new_name = sname+'-r'+str(r) # Add round number to the contig header
                         name_changes.setdefault(sname, []).append(qname)
                         
-                        # Populate dDNA_groups
-                        #if (r == 1):
-                        #    # If this is the first dDNA file, then just populate
-                        #    dDNA_groups.append([qname])
-                        
-                        scontig = genome_contigs_list[r][sname]
+                        # get the entire contig sequences
                         qcontig = dDNA_contigs_list[r][qname]
+                        scontig = genome_contigs_list[r][sname]
                         
-                        # Calculate new insert sequence (with homology arms) from dDNA
-                        q_hih_seq = qcontig[us_record.query_position[0]:ds_record.query_position[1]] # us-homology + insert + ds-homology (should be entire contig)
+                        # Get the QUERY homology coordinates
+                        qush_start, qush_end = us_record.query_position[0], us_record.query_position[1]
+                        qdsh_start, qdsh_end = ds_record.query_position[0], ds_record.query_position[1]
                         
-                        # Calculate new insert sequence (excluding homology arms) from dDNA
-                        insert_seq = qcontig[us_record.query_position[1]:ds_record.query_position[0]] # insert
-                        
-                        # Get the up/down-stream homology regions for the dDNA (not the chromosome)
-                        q_ush_seq = qcontig[us_record.query_position[0]:us_record.query_position[1]]
-                        q_dsh_seq = qcontig[ds_record.query_position[0]:ds_record.query_position[1]]
-                        
-                        if (us_record.flags & 16): # Reverse complement if necessary
+                        # Get the SUBJECT homology coordinates
+                        if (us_record.flags & 16): # Reverse complement means upstream/downstream are swapped
                             logging.info('  us_record is reverse complemented')
-                            # We must reverse-complement these dDNA substrings so their orientation matches the genome
-                            q_hih_seq = nucleotides.rc(q_hih_seq)
-                            insert_seq = nucleotides.rc(insert_seq)
-                            q_ush_seq, q_dsh_seq = nucleotides.rc(q_dsh_seq), nucleotides.rc(q_ush_seq)
-                            
-                            # Calculate new upstream & downstream chromosome arms (swap us/ds for subject) (excludes homology arms)
-                            us_seq = scontig[:ds_record.subject_position[0]]
-                            ds_seq = scontig[us_record.subject_position[1]:]
-                            
-                            # Extract the feature sequence (excluding homology arms)
-                            feature_seq = scontig[ds_record.subject_position[1]:us_record.subject_position[0]]
-                            fs_start, fs_end = ds_record.subject_position[1], us_record.subject_position[0]
-                            
-                            # Get the up/down-stream homology regions for the chromosome (not the dDNA)
-                            s_ush_seq = scontig[ds_record.subject_position[0]:ds_record.subject_position[1]]
-                            s_dsh_seq = scontig[us_record.subject_position[0]:us_record.subject_position[1]]
                             sush_start, sush_end = ds_record.subject_position[0], ds_record.subject_position[1]
                             sdsh_start, sdsh_end = us_record.subject_position[0], us_record.subject_position[1]
                         else: # not reverse-complemented
-                            # Calculate new upstream & downstream chromosome arms (excludes homology arms)
-                            us_seq = scontig[:us_record.subject_position[0]]
-                            ds_seq = scontig[ds_record.subject_position[1]:]
-                            
-                            # Extract the feature sequence (excluding homology arms)
-                            feature_seq = scontig[us_record.subject_position[1]:ds_record.subject_position[0]]
-                            fs_start, fs_end = us_record.subject_position[1], ds_record.subject_position[0]
-                            
-                            # Get the up/down-stream homology regions for the chromosome (not the dDNA)
-                            s_ush_seq = scontig[us_record.subject_position[0]:us_record.subject_position[1]]
-                            s_dsh_seq = scontig[ds_record.subject_position[0]:ds_record.subject_position[1]]
                             sush_start, sush_end = us_record.subject_position[0], us_record.subject_position[1]
                             sdsh_start, sdsh_end = ds_record.subject_position[0], ds_record.subject_position[1]
                         
                         
+                        
+                        ######## Get the sequences ########
+                        
+                        for seqloop in range(2):
+                            ######## Manage QUERY sequences ########
+                            
+                            # Calculate new insert sequence (with homology arms) from dDNA
+                            q_hih_seq = qcontig[qush_start:qdsh_end] # us-homology + insert + ds-homology (should be entire contig)
+                            
+                            # Calculate new insert sequence (excluding homology arms) from dDNA
+                            insert_seq = qcontig[qush_end:qdsh_start] # insert
+                            
+                            # Get the up/down-stream homology regions for the dDNA (not the chromosome)
+                            q_ush_seq = qcontig[qush_start:qush_end]
+                            q_dsh_seq = qcontig[qdsh_start:qdsh_end]
+                            
+                            if (us_record.flags & 16): # Reverse complement if necessary
+                                # We must reverse-complement these dDNA substrings so their orientation matches the genome
+                                q_hih_seq = nucleotides.rc(q_hih_seq)
+                                insert_seq = nucleotides.rc(insert_seq)
+                                q_ush_seq, q_dsh_seq = nucleotides.rc(q_dsh_seq), nucleotides.rc(q_ush_seq)
+                            
+                            ######## Manage SUBJECT sequences ########
+                            
+                            # Extract the feature sequence (excluding homology arms)
+                            feature_seq = scontig[sush_end:sdsh_start]
+                            
+                            # Calculate new upstream & downstream chromosome arms (swap us/ds for subject) (excludes homology arms)
+                            us_seq = scontig[:sush_start]
+                            ds_seq = scontig[sdsh_end:]
+                            
+                            # Get the up/down-stream homology regions for the chromosome (not the dDNA)
+                            s_ush_seq = scontig[sush_start:sush_end]
+                            s_dsh_seq = scontig[sdsh_start:sdsh_end]
+                            
+                            if (seqloop == 0):
+                                # Overview for making homology regions mutually exclusive
+                                #   No overlap
+                                #     q          ......111111111111......2222222222.....           none
+                                #     s      ....11111111111................222222222222.......    none
+                                #   query overlap
+                                #     q          ........1111111111XXX22222222.......              overlap
+                                #     s    .......11111111111111............222222222222.......    none
+                                #      q2        ........111111111122222222222.......
+                                #      s2  .......11111111111'''............222222222222.......
+                                #   subject overlap
+                                #     q          ......111111111111......2222222222.....           none
+                                #     s    ........11111111111111XXXXX2222222222222222....         overlap
+                                #      q2        ......1111111'''''......2222222222.....  
+                                #      s2  ........11111111111111222222222222222222222....
+                                #   query & subject overlap
+                                #     q          ........1111111111XXX22222222.......              overlap
+                                #     s    ........11111111111111XXXXX2222222222222222....         overlap
+                                #      q2        ........111111111122222222222.......
+                                #      s2  ........11111111111111222222222222222222222....
+                                
+                                # if both query and subject overlap
+                                if ((qdsh_start < qush_end) and (sdsh_start < sush_end)):
+                                    # No fancy calculations required. Just set the new coordinates
+                                    qush_end = qdsh_start
+                                    sush_end = sdsh_start
+                                # If query overlaps
+                                elif (qdsh_start < qush_end):
+                                    # Calculate the subject trim
+                                    q_overlap = qcontig[qdsh_start:qush_end] # Just the overlapping subsequence of the query alignments
+                                    if (us_record.flags & 16):
+                                        q_overlap = nucleotides.rc(q_overlap)
+                                    m = regex.search('(?:'+q_overlap+'){e<'+str(len(q_overlap)//2)+'}$', s_ush_seq, flags=regex.IGNORECASE|regex.BESTMATCH)
+                                    if m:
+                                        sush_end = sush_start + m.start()
+                                    
+                                    # Set the query upstream homology end
+                                    qush_end = qdsh_start
+                                # If subject overlaps
+                                elif (sdsh_start < sush_end):
+                                    # Calculate the query trim
+                                    s_overlap = scontig[sdsh_start:sush_end]
+                                    m = regex.search('(?:'+s_overlap+'){e<'+str(len(s_overlap)//2)+'}$', q_ush_seq, flags=regex.IGNORECASE|regex.BESTMATCH)
+                                    if m:
+                                        qush_end = qush_start + m.start()
+                                    
+                                    # Set the subject upstream homology end
+                                    sush_end = sdsh_start
+                                # If there is no overlap
+                                else:
+                                    # Exit this for loop because no coordinates were modified
+                                    # and there is no need to re-calculate the sequences
+                                    break
+                                
+                                # Otherwise, re-calculate all the sequences
+                        
                         # Record the dDNA homology regions for later reference
                         # Data structure limitation that each dDNA can only engineer a single locus per contig (i.e. this code needs improvement)
-                        dDNA_homology_seqs[(r, qname, sname)] = (s_ush_seq, s_dsh_seq)
+                        #dDNA_homology_seqs[(r, qname, sname)] = (s_ush_seq, s_dsh_seq)
                         
                         #########
                         # Replace entry in 'genome_contigs' dict with the new cross-over contig
@@ -3471,7 +3526,14 @@ class main(object):
                         #genome_contigs_list[r][sname] = us_seq + q_hih_seq + ds_seq # <---------------------- this should be done in the 'r' outer loop (earlier draft)
                         
                         # Keep the subject up/down-stream homology regions in case 2 engineered loci have overlapping homology arms
-                        genome_contigs_list[r][sname] = us_seq + s_ush_seq + insert_seq + s_dsh_seq + ds_seq
+                        # like this:
+                        #    site1            site2
+                        #   ...-----iii------...........
+                        #   .............------iii---...
+                        # The result would be:
+                        #   ...-----iii--------iii---...
+                        #genome_contigs_list[r][sname] = us_seq + s_ush_seq + insert_seq + s_dsh_seq + ds_seq # For some reason, this code doesn't properly incorporate dDNA into the genome
+                        genome_contigs_list[r][sname] = us_seq + q_hih_seq + ds_seq # Giving this a try
                         
                         # this messes with calling self.calculate_amplicons() for each query-subject pair.
                         
@@ -3482,8 +3544,8 @@ class main(object):
                         
                         # Add this parsed record data to the 'group_links'
                         # Key refers to dDNA file and contig name, value referes to gDNA file, contig name, and homology regions
-                        #group_links.setdefault((r, qname), []).append(Datum(r-1, sname, sush_start, sush_end, sdsh_start, sdsh_end))
-                        group_links.append(Datum(r, qname, r-1, sname, sush_start, sush_end, sdsh_start, sdsh_end, us_record.query_position[1], ds_record.query_position[0]))
+                        #group_links.append(Datum(r, qname, r-1, sname, sush_start, sush_end, sdsh_start, sdsh_end, us_record.query_position[1], ds_record.query_position[0]))
+                        group_links.append(Datum(r, qname, r-1, sname, sush_start, sush_end, sdsh_start, sdsh_end, qush_end, qdsh_start))
                         
                 else:
                     logging.info(qname + ' vs ' + sname + ' has ' + str(len(record_list)) + ' regions of homology (2 needed)')
@@ -4045,6 +4107,8 @@ class main(object):
                         #####################
                         # Cut code was here #
                         #####################
+                        
+                        # This code output GenBank '*.gb' files
             
     def calculate_them_primers(self, args, far_us_seq, far_ds_seq, insert_seqs):
         """
@@ -4055,7 +4119,7 @@ class main(object):
         primer_length_range = (19,32)
         min_delta_g = -5.0
         
-        subset_size = 140 #200 # Temporary size limit for the number of primers that go into the pair() function
+        subset_size = 100 #35 #200 # Temporary size limit for the number of primers that go into the pair() function
         
         logging.info('Scanning the regions (shared upstream (sF), shared downstream (sR), feature/insert (rN-oF,rN-oR,rN-iF,rN-iR) for all decent primers')
         
@@ -4071,6 +4135,8 @@ class main(object):
         logging.info('  len(sF_list) = {}'.format(len(sF_list)))
         logging.info('  sF: skipping {}/{} calculated primers'.format(max(0, len(sF_list)-subset_size), len(sF_list)))
         sF_list = sF_list[:subset_size]
+        # Need to add a condition that if (len(sF_list) < N), then it should re-evaluate the far-upstream region to try to get
+        # more sequence to search.
         
         logging.info("Scanning far downstream for 'sR' primers:")
         sR_list = sorted(
@@ -4081,6 +4147,8 @@ class main(object):
         logging.info('  len(sR_list) = {}'.format(len(sR_list)))
         logging.info('  sR: skipping {}/{} calculated primers'.format(max(0, len(sR_list)-subset_size), len(sR_list)))
         sR_list = sR_list[:subset_size]
+        # Need to add condition that if there aren't enough putative 'sR' primers, then the sR region is expanded
+        # Otherwise, the script can just end prematurely
         
         insert_list = []
         for ins in insert_seqs:
@@ -4116,6 +4184,8 @@ class main(object):
             key=lambda x: x.get_joint_weight(),
             reverse=True
         )
+        for pp in sF_sR_paired_primers:
+            pp.forward_primer.name, pp.reverse_primer.name = 'sF', 'sR'
         logging.info('  len(sF_sR_paired_primers) = {}'.format(len(sF_sR_paired_primers)))
         
         # pair_list[ins index] = [sF_oR_paired_primers, oF_sR_paired_primers, iF_iR_paired_primers]
@@ -4142,6 +4212,8 @@ class main(object):
                     key=lambda x: x.get_joint_weight(),
                     reverse=True
                 )
+                for pp in sF_oR_paired_primers:
+                    pp.forward_primer.name, pp.reverse_primer.name = 'sF', 'r'+str(ins.genome_r)+ins.type+'-oR'
                 logging.info('  len(sF_oR_paired_primers) = {}'.format(len(sF_oR_paired_primers)))
             
                 # rN-0F sR
@@ -4151,15 +4223,19 @@ class main(object):
                     key=lambda x: x.get_joint_weight(),
                     reverse=True
                 )
+                for pp in oF_sR_paired_primers:
+                    pp.forward_primer.name, pp.reverse_primer.name = 'r'+str(ins.genome_r)+ins.type+'-oF', 'sR'
                 logging.info('  len(oF_sR_paired_primers) = {}'.format(len(oF_sR_paired_primers)))
                 
                 # rN-iF rN-iR
                 logging.info("  Calculating: 'r"+str(ins.genome_r)+ins.type+"-iF' 'r"+str(ins.genome_r)+ins.type+"-iR' paired_primers...")
                 iF_iR_paired_primers = sorted(
-                    args.selected_oligo.pair(iF_list, iR_list, amplicon_size=amplicon_size, tm_max_difference=tm_max_difference, intervening=0, min_delta_g=min_delta_g, folder=temp_folder),
+                    args.selected_oligo.pair(iF_list, iR_list, amplicon_size=amplicon_size, tm_max_difference=tm_max_difference, intervening=0, same_template=True, min_delta_g=min_delta_g, folder=temp_folder),
                     key=lambda x: x.get_joint_weight(),
                     reverse=True
                 )
+                for pp in iF_iR_paired_primers:
+                    pp.forward_primer.name, pp.reverse_primer.name = 'r'+str(ins.genome_r)+ins.type+'-iF', 'r'+str(ins.genome_r)+ins.type+'-iR'
                 logging.info('  len(iF_iR_paired_primers) = {}'.format(len(iF_iR_paired_primers)))
                 
                 # Add calculated primer pairs to the list
@@ -4293,8 +4369,8 @@ class main(object):
             #uf_dr_pair = random_primer_by_weight(sF_sR_paired_primers) # comment this out to prevent random sampling of this one
             try:
                 sF_sR_pair = next(sF_sR_iterator)
-                sF_sR_pair.forward_primer.name = 'sF'
-                sF_sR_pair.reverse_primer.name = 'sR'
+                #sF_sR_pair.forward_primer.name = 'sF'
+                #sF_sR_pair.reverse_primer.name = 'sR'
             except StopIteration:
                 break
             
@@ -4307,9 +4383,9 @@ class main(object):
             for sF_oR_paired_primers, oF_sR_paired_primers, iF_iR_paired_primers, ins in pair_list:
                 # Add the 'oR' from 'sF-oR' pair
                 pp_sources.append(filter_primer_pairs(sF_oR_paired_primers, forward=sF_sR_pair.forward_primer))
-                for pp in pp_sources[-1]:
-                    if pp:
-                        pp.forward_primer.name, pp.reverse_primer.name = 'sF', 'r'+str(ins.genome_r)+ins.type+'-oR'
+                #for pp in pp_sources[-1]:
+                #    if pp:
+                #        pp.forward_primer.name, pp.reverse_primer.name = 'sF', 'r'+str(ins.genome_r)+ins.type+'-oR'
                 pp = random_primer_by_weight(pp_sources[-1]) # Pick a random primer by weight
                 pp_setN.append(pp) # Will be 'None' if 'pp_sources[-1]' is empty
                 if pp:
@@ -4319,9 +4395,9 @@ class main(object):
                 
                 # Add the 'oF' from 'oF-sR' pair
                 pp_sources.append(filter_primer_pairs(oF_sR_paired_primers, reverse=sF_sR_pair.reverse_primer))
-                for pp in pp_sources[-1]:
-                    if pp:
-                        pp.forward_primer.name, pp.reverse_primer.name = 'r'+str(ins.genome_r)+ins.type+'-oF', 'sR'
+                #for pp in pp_sources[-1]:
+                #    if pp:
+                #        pp.forward_primer.name, pp.reverse_primer.name = 'r'+str(ins.genome_r)+ins.type+'-oF', 'sR'
                 pp = random_primer_by_weight(pp_sources[-1]) # Pick a random primer by weight
                 pp_setN.append(pp) # Will be 'None' if 'pp_sources[-1]' is empty
                 if pp:

@@ -299,11 +299,9 @@ class PrimerPair(object):
         #  intervening                     .........
         #  reverse                                  ........<---...
         
-        # Old code that is incorrect
-        #start = self.forward_primer.position
-        #end = self.forward_primer.position + self.intervening + self.reverse_primer.position + len(self.reverse_primer.sequence)
-        #return end-start
-        return self.forward_primer.template_length - self.forward_primer.position + self.intervening + self.reverse_primer.position + len(self.reverse_primer.sequence)
+        # Assuming forward_primer and reverse_primer are separated by self.intervening (i.e. have different templates)
+        # If forward_primer and reverse_primer are on the same template, then this works if template_length=0
+        return (self.forward_primer.template_length - self.forward_primer.position) + self.intervening + (self.reverse_primer.position + len(self.reverse_primer.sequence))
     
     def get_tms(self):
         return (self.forward_primer.get_tm(), self.reverse_primer.get_tm())
