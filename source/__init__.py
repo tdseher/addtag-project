@@ -3123,8 +3123,11 @@ class main(object):
         ExcisionDonor.generate_alignments()
         
         # Pick out the best ones and print them out
-        self.get_best_table(args, homologs, feature2gene)
         self.log_results(args, homologs, n=5)
+        self.print_reTarget_results(args, homologs, feature2gene)
+        self.print_exTarget_results(args, homologs, feature2gene)
+        #print('======')
+        #self.get_best_table(args, homologs, feature2gene)
         
         # Existing pipeline - Want to mutate feature, and cut site within feature
         # ,,,,,,,,,,,,,,,,NNNNNNNNNNNNNNNNNNNN111NNN................... Feature to be mutated contains cut site 1
@@ -6087,6 +6090,130 @@ description:
         
         #return sorted(target_list, key=lambda x: rank(x.score['Azimuth'], x.off_targets['Hsu-Zhang'], x.off_targets['CFD']), reverse=True)
         return sorted(rank_list, key=lambda x: x[0], reverse=True)
+    
+    def print_reTarget_results(self, args, homologs, feature2gene):
+        """
+        Print to STDOUT the final output for the '_generate()' function.
+        Lists the best 'reTarget' and their corresponding 'exDonor' objects.
+        """
+        
+        header = ['gene', 'features', 'weight', 'reTarget name', 'reTarget sequence', 'OT:Hsu-Zhang', 'OT:CFD', 'Azimuth', 'exDonors', 'us-trim:mAT:ds-trim', 'feature:contig:strand:start..end', 'warnings']
+        print('\t'.join(header))
+        
+        results = []
+        # for weight, obj in self.rank_targets(ret_dict2[feature_homologs]):
+        #for rt in ReversionTarget.indices.items()
+        for weight, rt in self.rank_targets(ReversionTarget.indices.values()):
+            
+            genes = set()
+            features = set()
+            positions = []
+            
+            for l in rt.locations:
+                # (feature, contig, orientation, start, end, upstream, downstream)
+                genes.add(self.get_gene_from_feature(l[0], feature2gene))
+                features.add(Feature.features[l[0]].get_expand_parent().name)
+                positions.append(rt.format_location(l))
+            
+            
+            # Get the ExcisionDonor objects for this ki-spacer, and weigh them
+            ex_donors = self.rank_donors(rt.get_donors())
+            join_code = sorted(set(utils.flatten(map(lambda x: x[1].get_inserts_and_trims(), ex_donors))))
+            
+            genes = ','.join(sorted(genes))
+            features = ','.join(sorted(features))
+            positions = ','.join(positions)
+            ex_donors = ','.join([ x[1].name for x in sorted(ex_donors, key=lambda y: int(y[1].name.split('-')[1])) ])
+            join_code = ','.join('{}:{}:{}'.format(x[1], x[0], x[2]) for x in join_code)
+            
+            othz = round(rt.off_targets['Hsu-Zhang'], 2)
+            otcfd = round(rt.off_targets['CFD'], 2)
+            azimuth = round(rt.score['Azimuth'], 2)
+            
+            warnings = 'None'
+            
+            results.append([genes, features, weight, rt.name, rt.format_sequence(), othz, otcfd, azimuth, ex_donors, join_code, positions, warnings])
+        
+        for r in results:
+            print('\t'.join(map(str, r)))
+        
+    def print_exTarget_results(self, args, homologs, feature2gene):
+        """
+        Print to STDOUT the final output for the '_generate()' function.
+        Lists the best 'exTarget' and their corresponding 'reDonor' objects.
+        """
+        
+        # If '--ki-dDNA' is specified, then cPCR searches will be performed
+        # for each feature (parent and derived).
+        # Based on the primer pair weights, AND the 'exTarget' weights, the
+        # possible 'reDonor's can be given weights, which can be used to
+        # rank them
+        header = ['gene', 'features', 'weight', 'exTarget name', 'exTarget sequence', 'OT:Hsu-Zhang', 'OT:CFD', 'Azimuth', 'reDonors', 'None', 'feature:contig:strand:start..end', 'warnings']
+        print('\t'.join(header))
+        
+        results = []
+        
+        for weight, et in self.rank_targets(ExcisionTarget.indices.values()):
+        
+        #for feature in sorted(Feature.features):
+        #    et_list = []
+        #    for name, et in ExcisionTarget.indices.items():
+        #        if feature in et.get_location_features():
+        #            et_list.append(et)
+        #    
+        #    #rd_list = []
+        #    #for name, rd in ReversionDonor.indices.items():
+        #    #    if feature in rd.get_location_features():
+        #    #        rd_list.append(rd)
+        #    logging.info('---feature: {}'.format(feature))
+        #    logging.info('---et_list: {}'.format(et_list))
+        #    #logging.info('---rd_list: {}'.format(rd_list))
+        #    
+        #    # Print the top 20
+        #    for weight, et in self.rank_targets(et_list)[:20]:
+        #    logging.info('---weight, et: {}, {}'.format(weight, et))
+            
+            genes = set()
+            features = set()
+            positions = []
+            
+            for l in et.locations:
+                # (feature, contig, orientation, start, end, upstream, downstream)
+                genes.add(self.get_gene_from_feature(l[0], feature2gene))
+                features.add(Feature.features[l[0]].get_expand_parent().name)
+                positions.append(et.format_location(l))
+            
+            
+            # Get the ReversionDonor objects for this ko-gRNA, and weigh them
+            #re_donors = self.rank_donors(et.get_donors())
+            #re_donors = rd_list
+            re_donors = set()
+            for name, rd in ReversionDonor.indices.items():
+                obj_features = set(rd.get_features())
+                if (len(obj_features.intersection(et.get_features())) > 0):
+                    re_donors.add(rd)
+            #re_donors = sorted(re_donors, key=lambda x: int(x.name.split('-')[1]))
+            #re_donors = ','.join(x.name for x in re_donors)
+            re_donors = ','.join([ x.name for x in sorted(re_donors, key=lambda y: int(y.name.split('-')[1])) ])
+            
+            
+            genes = ','.join(sorted(genes))
+            features = ','.join(sorted(features))
+            positions = ','.join(positions)
+            #re_donors = ','.join([ x[1].name for x in sorted(re_donors, key=int(x[1].name.split('-')[1])) ])
+            
+            join_code = 'None'
+            
+            othz = round(et.off_targets['Hsu-Zhang'], 2)
+            otcfd = round(et.off_targets['CFD'], 2)
+            azimuth = round(et.score['Azimuth'], 2)
+            
+            warnings = 'None'
+            
+            results.append([genes, features, weight, et.name, et.format_sequence(), othz, otcfd, azimuth, re_donors, join_code, positions, warnings])
+        
+        for r in results:
+            print('\t'.join(map(str, r)))
     
     def get_best_table(self, args, homologs, feature2gene):
         """
