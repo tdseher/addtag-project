@@ -10,6 +10,8 @@ import os
 import math
 import fractions
 import random
+import logging
+logger = logging.getLogger(__name__)
 
 # Import non-standard packages
 import regex
@@ -26,9 +28,11 @@ if (__name__ == "__main__"):
     
     from algorithm import SingleSequenceAlgorithm, PairedSequenceAlgorithm, BatchedSingleSequenceAlgorithm
     from nucleotides import rc, disambiguate_iupac
+    from utils import which
 else:
     from .algorithm import SingleSequenceAlgorithm, PairedSequenceAlgorithm, BatchedSingleSequenceAlgorithm
     from ..nucleotides import rc, disambiguate_iupac
+    from ..utils import which
 
 class Doench2014(SingleSequenceAlgorithm):
     def __init__(self):
@@ -275,8 +279,10 @@ class Azimuth(BatchedSingleSequenceAlgorithm):
         
         return us, ds
     
-    def calculate(self, batch, *args, disambiguate=False, batch_size=50000, disambiguate_samples=512, **kwargs):
-        queries2 = [] # (index, calculate=True/False, (seq1, seq2, ...))
+    def calculate(self, batch, *args, disambiguate=False, disambiguate_samples=512, **kwargs):
+        # Old 'queries2' format: (index, calculate=True/False, (seq1, seq2, ...))
+        # New 'queries2' format: (index, calculate=True/False, sequence, default_score=0.0)
+        queries2 = []
         
         #if ("disambiguate" in kwargs):
         #    disambiguate = kwargs["disambiguate"]
@@ -290,6 +296,13 @@ class Azimuth(BatchedSingleSequenceAlgorithm):
         #    disambiguate_samples = max(1, int(kwargs["disambiguate_samples"]))
         #else:
         #    disambiguate_samples = 512
+        
+        if sys.platform.startswith('win'):
+            # Command line limit:   32768 characters = 2**15, /32=1024
+            batch_size = 1000
+        else:
+            # Command line limit: 2097152 characters = 2**21, /32=65536
+            batch_size = 10000
         
         # unpack the input sequences
         for i, query in enumerate(batch):
@@ -321,6 +334,22 @@ class Azimuth(BatchedSingleSequenceAlgorithm):
         WRAPPER_PATH = os.path.join(SCRIPT_DIR, "azimuth_wrapper.py")
         # Should use args.python2_path
         
+        PYTHON2 = 'python'
+        if sys.platform.startswith('win'):
+            if which('py.exe'):
+                PYTHON2 = 'py.exe'
+            else:
+                ppl = which('python.exe', full=True)
+                for pp in ppl:
+                    if 'python27' in pp.lower():
+                        PYTHON2 = pp
+                        break
+        #print('PYHTON2 =', PYTHON2)
+        
+        program_path_list = [PYTHON2, WRAPPER_PATH]
+        if (PYTHON2 == 'py.exe'):
+            program_path_list.insert(1, '-2')
+        
         #print("queries2", queries2)
         
         batch_list = []
@@ -329,7 +358,7 @@ class Azimuth(BatchedSingleSequenceAlgorithm):
             if (batch_count % batch_size == 0):
                 batch_list.append([])
             if q[1]:
-                batch_list[-1].append(q[2])
+                batch_list[-1].append(q[2]) # Append the sequence
                 batch_count += 1
         
         batch_scores = []
@@ -338,7 +367,10 @@ class Azimuth(BatchedSingleSequenceAlgorithm):
             #for batch_start in range(0, len(queries2), batch_size):
             #    current_batch = queries2[batch_start:batch_start+batch_size]
             #    command_list = ['python', WRAPPER_PATH] + [ x[2] for x in current_batch if x[1] ]
-                command_list = ['python', WRAPPER_PATH] + current_batch
+                #command_list = [PYTHON2, WRAPPER_PATH] + current_batch
+                command_list = program_path_list + current_batch
+                
+                #print('command_list =', command_list[:10], '...'+str(len(command_list)) if (len(command_list) > 10) else '')
                 #with open(error_file, 'w+') as flo:
                 #    cp = subprocess.run(command_list, shell=False, check=True, stdout=flo, stderr=subprocess.STDOUT)
                 #print(command_list)
@@ -358,6 +390,7 @@ class Azimuth(BatchedSingleSequenceAlgorithm):
             #s = next(batch_scores_iter)
             
             while (q[1] == False):
+                logger.info("Skipping Azimuth Calculation: {}".format(q))
                 q = next(queries2_iter)
             
             q[3] = s
@@ -515,6 +548,7 @@ def test():
     k = ('', 'CTCAACATGGTATGTATATGTG', 'TGG', 'TCGA', 'TTCA')
     l = ('',   'GGCATGCGCCATCGCCGGAC', 'NNN', 'NNNN', 'NNN')
     m = ('',   'GGCATGCGCCATCGCCGGAN', 'NNN', 'NNNN', 'NNN')
+    n = ('',   'GAAAATTGGCATAACCACCA', 'AGG', 'ACAAAATC', 'TCATTGC')
     
     print("=== Doench2014 ===")
     C = Doench2014()
@@ -544,6 +578,7 @@ def test():
     print(C.calculate([h])) # [0.0]
     print(C.calculate([g, h, i])) # [0.0, 0.0, 68.10224199640001]
     print(C.calculate([g, h, i], disambiguate=True)) # [47.92785688539728, 68.47839267067128, 68.10224199640001]
+    print(C.calculate([n])) # [70.237901082]
 
 if (__name__ == "__main__"):
     test()
