@@ -14,8 +14,10 @@ logger = logging.getLogger(__name__)
 import regex
 
 # import AddTag-specific packages
-from .. import utils
-from .. import nucleotides
+sys.path.append( os.path.join( os.path.dirname(__file__), os.path.pardir ) )
+import utils
+import nucleotides
+import cigarstrings
 
 def find_target_matches(compiled_regex, contigs, overlap=False):
     '''
@@ -29,25 +31,41 @@ def find_target_matches(compiled_regex, contigs, overlap=False):
     
     matches = []
     
+    # target AAACCC
+    #                               vvvvvv                    19:25
+    #    contig  GGGGGGGGGGGGAAAAAAAAAACCCGGGTTTTTTTTTTTTTT
+    #                       vvvvvv                            11:17 --> 42-17:42-11 --> 25:31
+    # rc(contig) AAAAAAAAAAAAAACCCGGGTTTTTTTTTTCCCCCCCCCCCC
+    
     for contig in contigs:
         # '+' orientation
         ref = contigs[contig]
         ref_len = len(ref)
         for m in compiled_regex.finditer(ref, overlapped=overlap):
-            s = m.start()
-            e = m.end()
-            matches.append([contig, s, e, '+', ref[s:e]])
+            #s = m.start()
+            #e = m.end()
+            #matches.append([contig, s, e, '+', ref[s:e]])
+            
+            cigar = cigarstrings.match2cigar(m, specific=True)
+            matches.append([contig, m.start(), m.end(), '+', m.group(0), cigar])
+        
         # '-' orientation
-        rc_ref = rc(contigs[contig])
-        rc_ref_len = len(rc_ref)
+        rc_ref = nucleotides.rc(ref)
         for m in compiled_regex.finditer(rc_ref, overlapped=overlap):
-            s = m.start()
-            e = m.end()
-            #print("match: ", s, e, m.groups(), rc_ref[s:e], ref[ref_len-e:ref_len-s], file=sys.stderr)
-            assert m.groups()[0] == rc_ref[s:e]
-            assert m.groups()[0] == rc(ref[ref_len-e:ref_len-s]) # m.groups()[0] should be what was matched...
-            assert ref_len == rc_ref_len
-            matches.append([contig, rc_ref_len-s, rc_ref_len-e, '-', rc_ref[s:e]])
+            #s = m.start()
+            #e = m.end()
+            ##print("match: ", s, e, m.groups(), rc_ref[s:e], ref[ref_len-e:ref_len-s], file=sys.stderr)
+            #assert m.groups()[0] == rc_ref[s:e]
+            #assert m.groups()[0] == rc(ref[ref_len-e:ref_len-s]) # m.groups()[0] should be what was matched...
+            #assert ref_len == rc_ref_len
+            #matches.append([contig, rc_ref_len-s, rc_ref_len-e, '-', rc_ref[s:e]])
+            
+            # Make the CIGAR string, and reverse it
+            cigar = cigarstrings.match2cigar(m, specific=True)
+            cigar = cigarstrings.reverse_cigar(cigar)
+            
+            matches.append([contig, ref_len-m.end(), ref_len-m.start(), '-', m.group(0), cigar])
+            
     logger.info("AddTag matching finished")
     
     return matches
@@ -59,24 +77,35 @@ def align(query_fasta, subject_fasta, folder=os.getcwd()):
     name = os.path.splitext(os.path.basename(query_fasta))[0]
     sam_file = os.path.join(folder, name + '.sam')
     
-    targets = utils.load_fasta_file(query_fasta)
-    contigs = utils.load_fasta_file(subject_fasta)
+    targets = utils.old_load_fasta_file(query_fasta)
+    contigs = utils.old_load_fasta_file(subject_fasta)
     #target = 'TCCGGTACAKTGAKTTGTAC'
     with open(sam_file, 'w') as flo:
-        for header in targets:
-            regex = nucleotides.build_regex(targets[header], max_errors=5)
+        for target_name, target_seq in targets.items():
+            regex = nucleotides.build_regex(target_seq, max_errors=5)
             matches = find_target_matches(regex, contigs, overlap=True)
             for m in matches:
-                print(m, file=flo)
+                #print(m, file=flo)
                 # This should print a SAM file
-                #for seq in nucleotides.disambiguate_iupac(m[4]):
-                #    print(seq, len(seq), hsuzhang.hsuzhang_score(target, seq))
+                
+                flags = 0
+                if (m[3] == '-'):
+                    flags |= 16
+                
+                mapq = 1
+                cigar = m[5]
+                qqual = 'I'*len(target_seq) # 'I' is chr(ord('!')+40)
+                print("\t".join(map(str, [target_name, flags, m[0], m[1]+1, mapq, cigar, '*', 0, 0, target_seq, qqual])), file=flo)
+                
+                # I don't think the query needs to be disambiguated
+                #for seq in nucleotides.disambiguate_iupac(m[4]): # Disambiguate the subject... (Don't need this)
+                #    print("\t".join(map(str, [target_name, flag, m[0], m[1]+1, mapq, cigar, '*', 0, 0, seq, len(seq), hsuzhang.hsuzhang_score(target, seq)])), file=flo)
 
 def test():
     """Code to test the classes and functions in 'source/nucleotides.py'"""
     
     print("=== align ===")
-    
+    align(r"D:\VirtualBox share\addtag-project\ADE2g\excision-query.fasta", r"D:\VirtualBox share\temp-genome.fasta", folder=r"D:\VirtualBox share")
     
 
 if (__name__ == '__main__'):

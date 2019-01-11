@@ -163,6 +163,93 @@ def cigar2subject_aligned_length(cigar):
     m = regex.findall(r'(\d*)[MDSP=X]', cigar)
     return sum(int(x) if x else 1 for x in m)
 
+def reverse_cigar(cigar):
+    """
+    Reverses the CIGAR string
+    """
+    new_cigar = ''
+    matches = [m.group(0) for m in regex.finditer(r'(\d*\D)', cigar)]
+    return ''.join(matches[::-1])
+
+def match2cigar(m, specific=False, abbreviated=False):
+    '''
+    Input is a 'regex.Match' object that uses fuzzy matching.
+    Outputs the CIGAR string describing the alignment.
+    'specific' is whether to use =/X for match/mismatch, or just M
+    'abbreviated' is whether to print the digit for non-repeated codes
+    
+    Returns incorrect output on certain regex (see regex-align-test.py).
+    Otherwise, it is pretty close to correct.
+    '''
+    subs = m.fuzzy_changes[0]
+    ins = m.fuzzy_changes[1]
+    dels = m.fuzzy_changes[2]
+    
+    cigar = ''
+    
+    i = m.start()
+    end = m.end()
+    while (i < end):
+        processed = False
+        
+        if i in subs:
+            cigar += 'X'
+            processed = True
+        if i in ins:
+            cigar += 'I'
+            processed = True
+        if i in dels:
+            cigar += 'D'
+            end += 1
+            processed = True
+        
+        if not processed:
+            cigar += '='
+        i += 1
+    
+    #### Idea I haven't tested ####
+    # repeats = 0
+    # while (i < end):
+    #     processed = False
+    #     
+    #     if i in subs:
+    #         cigar += 'X'
+    #         processed = True
+    #     if i in ins:
+    #         cigar += 'I'
+    #         processed = True
+    #     if i in dels:
+    #         cigar += 'D'
+    #         processed = True
+    #     if not processed:
+    #         cigar += '='
+    #     
+    #     if (repeats > 0):
+    #         repeats -= 1
+    #     else
+    #         i += 1
+    #### Idea I haven't tested ####
+    
+    if (specific == False):
+        new_cigar = ''
+        for c in cigar:
+            if c in ['X', '=']:
+                new_cigar += 'M'
+            else:
+                new_cigar += c
+        cigar = new_cigar
+    
+    # Consolodate consecutive repeating characters
+    new_cigar = ''
+    matches = regex.finditer(r'(.)\1*', cigar)
+    for m in matches:
+        if (abbreviated and (len(m.group()) == 1)):
+            new_cigar += m.group()[0]
+        else:
+            new_cigar += str(len(m.group())) + m.group()[0]
+    cigar = new_cigar
+    return cigar
+
 def alignment2cigar(query, subject, specific=False, abbreviated=False):
     """
     Input is two sequences of equal length.
