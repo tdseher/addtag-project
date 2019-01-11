@@ -4131,7 +4131,7 @@ class main(object):
         primer_length_range = (19,32)
         min_delta_g = -5.0
         
-        subset_size = 100 #35 #200 # Temporary size limit for the number of primers that go into the pair() function
+        subset_size = 1000 #35 #200 # Temporary size limit for the number of primers that go into the pair() function
         
         logging.info('Scanning the regions (shared upstream (sF), shared downstream (sR), feature/insert (rN-oF,rN-oR,rN-iF,rN-iR) for all decent primers')
         
@@ -4140,7 +4140,7 @@ class main(object):
         
         logging.info("Scanning far upstream for 'sF' primers:")
         sF_list = sorted(
-            args.selected_oligo.scan(far_us_seq, 'left', primer_size=primer_length_range, tm_range=tm_range, min_delta_g=min_delta_g, folder=temp_folder),
+            args.selected_oligo.scan(far_us_seq, 'left', primer_size=primer_length_range, tm_range=tm_range, min_delta_g=min_delta_g, folder=temp_folder, time_limit=args.primer_scan_limit),
             key=lambda x: x.weight,
             reverse=True
         )
@@ -4152,7 +4152,7 @@ class main(object):
         
         logging.info("Scanning far downstream for 'sR' primers:")
         sR_list = sorted(
-            args.selected_oligo.scan(far_ds_seq, 'right', primer_size=primer_length_range, tm_range=tm_range, min_delta_g=min_delta_g, folder=temp_folder),
+            args.selected_oligo.scan(far_ds_seq, 'right', primer_size=primer_length_range, tm_range=tm_range, min_delta_g=min_delta_g, folder=temp_folder, time_limit=args.primer_scan_limit),
             key=lambda x: x.weight,
             reverse=True
         )
@@ -4166,7 +4166,7 @@ class main(object):
         for ins in insert_seqs:
             logging.info("Scanning feature/insert for 'rN-oF', 'rN-oR', 'rN-iF', 'rN-iR' primers:")
             iF_list = sorted(
-                args.selected_oligo.scan(ins.seq, 'left',  primer_size=primer_length_range, tm_range=tm_range, min_delta_g=min_delta_g, folder=temp_folder, us_seq=ins.us_seq, ds_seq=ins.ds_seq),
+                args.selected_oligo.scan(ins.seq, 'left',  primer_size=primer_length_range, tm_range=tm_range, min_delta_g=min_delta_g, folder=temp_folder, us_seq=ins.us_seq, ds_seq=ins.ds_seq, time_limit=args.primer_scan_limit),
                 key=lambda x: x.weight,
                 reverse=True
             )
@@ -4175,7 +4175,7 @@ class main(object):
             iF_list = iF_list[:subset_size]
             
             iR_list = sorted(
-                args.selected_oligo.scan(ins.seq, 'right', primer_size=primer_length_range, tm_range=tm_range, min_delta_g=min_delta_g, folder=temp_folder, us_seq=ins.us_seq, ds_seq=ins.ds_seq),
+                args.selected_oligo.scan(ins.seq, 'right', primer_size=primer_length_range, tm_range=tm_range, min_delta_g=min_delta_g, folder=temp_folder, us_seq=ins.us_seq, ds_seq=ins.ds_seq, time_limit=args.primer_scan_limit),
                 key=lambda x: x.weight,
                 reverse=True
             )
@@ -4191,13 +4191,22 @@ class main(object):
         
         # Do the pair calculations that involve 'sF' and 'sR'
         logging.info("Calculating: 'sF' 'sR' paired primers...")
+        sF_sR_paired_primers = args.selected_oligo.pair(sF_list, sR_list, amplicon_size=(0, amplicon_size[1]), tm_max_difference=tm_max_difference, intervening=0, min_delta_g=min_delta_g, folder=temp_folder, time_limit=args.primer_pair_limit)
+        
+        for pp in sF_sR_paired_primers:
+            # Re-calculate the PrimerPair weights to prefer the smallest amplicon sizes
+            pp.weight = pp.get_weight(minimize=True)
+            
+            # Re-name the primers so when they are printed, they are easy to distinguish
+            pp.forward_primer.name = 'sF'
+            pp.reverse_primer.name = 'sR'
+        
+        # Sort by weight
         sF_sR_paired_primers = sorted(
-            args.selected_oligo.pair(sF_list, sR_list, amplicon_size=(0, amplicon_size[1]), tm_max_difference=tm_max_difference, intervening=0, min_delta_g=min_delta_g, folder=temp_folder),
+            sF_sR_paired_primers,
             key=lambda x: x.get_joint_weight(),
             reverse=True
         )
-        for pp in sF_sR_paired_primers:
-            pp.forward_primer.name, pp.reverse_primer.name = 'sF', 'sR'
         logging.info('  len(sF_sR_paired_primers) = {}'.format(len(sF_sR_paired_primers)))
         
         # pair_list[ins index] = [sF_oR_paired_primers, oF_sR_paired_primers, iF_iR_paired_primers]
@@ -4220,7 +4229,7 @@ class main(object):
                 # sF rN-oR
                 logging.info("  Calculating: 'sF' 'r"+str(ins.genome_r)+ins.type+"-oR' paired_primers...")
                 sF_oR_paired_primers = sorted(
-                    args.selected_oligo.pair(sF_list, iR_list, amplicon_size=amplicon_size, tm_max_difference=tm_max_difference, intervening=ins.fus_dist, min_delta_g=min_delta_g, folder=temp_folder),
+                    args.selected_oligo.pair(sF_list, iR_list, amplicon_size=amplicon_size, tm_max_difference=tm_max_difference, intervening=ins.fus_dist, min_delta_g=min_delta_g, folder=temp_folder, time_limit=args.primer_pair_limit),
                     key=lambda x: x.get_joint_weight(),
                     reverse=True
                 )
@@ -4231,7 +4240,7 @@ class main(object):
                 # rN-0F sR
                 logging.info("  Calculating: 'r"+str(ins.genome_r)+ins.type+"-oF' 'sR' paired_primers...")
                 oF_sR_paired_primers = sorted(
-                    args.selected_oligo.pair(iF_list, sR_list, amplicon_size=amplicon_size, tm_max_difference=tm_max_difference, intervening=ins.fds_dist, min_delta_g=min_delta_g, folder=temp_folder),
+                    args.selected_oligo.pair(iF_list, sR_list, amplicon_size=amplicon_size, tm_max_difference=tm_max_difference, intervening=ins.fds_dist, min_delta_g=min_delta_g, folder=temp_folder, time_limit=args.primer_pair_limit),
                     key=lambda x: x.get_joint_weight(),
                     reverse=True
                 )
@@ -4242,7 +4251,7 @@ class main(object):
                 # rN-iF rN-iR
                 logging.info("  Calculating: 'r"+str(ins.genome_r)+ins.type+"-iF' 'r"+str(ins.genome_r)+ins.type+"-iR' paired_primers...")
                 iF_iR_paired_primers = sorted(
-                    args.selected_oligo.pair(iF_list, iR_list, amplicon_size=amplicon_size, tm_max_difference=tm_max_difference, intervening=0, same_template=True, min_delta_g=min_delta_g, folder=temp_folder),
+                    args.selected_oligo.pair(iF_list, iR_list, amplicon_size=amplicon_size, tm_max_difference=tm_max_difference, intervening=0, same_template=True, min_delta_g=min_delta_g, folder=temp_folder, time_limit=args.primer_pair_limit),
                     key=lambda x: x.get_joint_weight(),
                     reverse=True
                 )
@@ -5116,11 +5125,15 @@ example:
             choices=postfilter_choices, default=['Errors'],
             help="Specific algorithms for determining gRNA goodness.")
         
+        parser_generate.add_argument("--primer_scan_limit", metavar="N", type=int, default=2*60,
+            help="Amount of time (in seconds) to limit each primer scan.")
+        
+        parser_generate.add_argument("--primer_pair_limit", metavar="N", type=int, default=5*60,
+            help="Amount of time (in seconds) to limit primer pairings.")
         
         # Temporary stopgap to make sure the calculations don't take too long
-        parser_generate.add_argument("--max_time", metavar="SECONDS", type=float, default=60,
-            help="Maximum amount of time, in seconds, for each feature to spend calculating dDNAs.")
-        
+        #parser_generate.add_argument("--max_time", metavar="SECONDS", type=float, default=60,
+        #    help="Maximum amount of time, in seconds, for each feature to spend calculating dDNAs.")
         
         parser_generate.add_argument("--bartag_number", metavar="N", type=int, default=1,
             help="Number of bartags per locus to generate. \
@@ -5261,6 +5274,12 @@ description:
             help="Number of PCR conditions to develop primers for. All amplicons \
             within each condition will have similar size (nt) and melting temperatures. \
             If unspecified, will default to the number of target features.")
+        
+        parser_confirm.add_argument("--primer_scan_limit", metavar="N", type=int, default=2*60,
+            help="Number of seconds to limit each primer scan.")
+        
+        parser_confirm.add_argument("--primer_pair_limit", metavar="N", type=int, default=5*60,
+            help="Amount of time (in seconds) to limit primer pairings.")
         
         parser_confirm.add_argument("--primers", nargs="+", metavar="*.fasta", type=str, default=[],
             help="A FASTA file for each round containing primer sequences that \
