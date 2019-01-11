@@ -19,22 +19,22 @@ All generated sequences can be designed as either strand-specific or strand-agno
  * Python >= 3.5.1 ([source](https://www.python.org/downloads/), [binaries](https://www.python.org/downloads/), [documentation](https://docs.python.org/3/))
     - regex module ([source](https://bitbucket.org/mrabarnett/mrab-regex), [whls](https://pypi.org/project/regex/), [documentation](https://pypi.org/project/regex/))
       
-      note: The easy way to install this is through `pip`.
-      
-      ```
-      $ pip3 install regex
-      ```
+        note: The easy way to install this is through `pip`.
+        
+        ```
+        $ pip3 install regex
+        ```
 
  * 3.0.0 > Python >= 2.7.10 ([source](https://www.python.org/downloads/), [binaries](https://www.python.org/downloads/), [documentation](https://docs.python.org/2/))
     - Azimuth module ([source](https://github.com/MicrosoftResearch/Azimuth), [documentation](https://www.microsoft.com/en-us/research/project/azimuth/))
       
-      note: requires python-tk to be installed.
-      
-      note: requires specific versions of scipy, numpy, matplotlib, nose, scikit-learn, pandas, biopython, pyparsing, cycler, six, pytz, python-dateutil, functools32, subprocess32. The easiest way to install it and take care of all dependencies is to use `pip`. This process assumes `git` is available in the `PATH` environmental variable.
-      
-      ```
-      $ pip2.7 install git+https://github.com/MicrosoftResearch/Azimuth.git
-      ```
+        note: requires python-tk to be installed.
+        
+        note: requires specific versions of scipy, numpy, matplotlib, nose, scikit-learn, pandas, biopython, pyparsing, cycler, six, pytz, python-dateutil, functools32, subprocess32. The easiest way to install it and take care of all dependencies is to use `pip`. This process assumes `git` is available in the `PATH` environmental variable.
+        
+        ```
+        $ pip2.7 install git+https://github.com/MicrosoftResearch/Azimuth.git
+        ```
 
  * For speed, we recommend at least one third-party pairwise nucleotide sequence alignment program.
     - BLAST+ >= 2.6.0 ([source](ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST), [binaries](ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST), [documentation](https://www.ncbi.nlm.nih.gov/books/NBK279690/))
@@ -48,18 +48,16 @@ All generated sequences can be designed as either strand-specific or strand-agno
     - UNAFold ([documentation](http://unafold.rna.albany.edu/))
     - primer3-py module ([source](https://github.com/libnano/primer3-py), [whls](https://pypi.org/project/primer3-py/), [documentation](https://libnano.github.io/primer3-py/))
       
-      note: The easy way to install this is through `pip`.
-      
-      ```
-      $ pip3 install primer3-py
-      ```
+        note: The easy way to install this is through `pip`.
+        
+        ```
+        $ pip3 install primer3-py
+        ```
 
  * Git >= 1.7.1 ([source, binaries](https://git-scm.com/downloads)) Certain AddTag functionality depends on Git.
  * If you are using the Windows operating system, before running AddTag, it is recommended to set the environmental variable `PYTHONIOENCODING` to `utf-8`, otherwise, STDOUT may not be written correctly to files.
    
-   ```
-   > set PYTHONIOENCODING=utf-8
-   ```
+    ```> set PYTHONIOENCODING=utf-8```
 
 ### Obtaining AddTag ###
 You can download the latest version of AddTag over HTTPS using `git` with the following command (replacing `username` with your BitBucket account name).
