@@ -12,6 +12,7 @@ import subprocess
 import math
 import logging
 import copy
+import time
 
 # Import non-standard packages
 import regex
@@ -67,7 +68,9 @@ class UNAFold(Oligo):
         #                        └─┴3 nt overlap
         
         # Code to temporarily limit number of primers computed set to None to disable
-        subset_size = 5000 # 1000 # 9000
+        #subset_size = 5000 # 1000 # 9000
+        
+        start_time = time.time() # Time in seconds
         
         # Total number of primers that will be scanned
         n_max = sum(len(seq)-x+1 for x in range(primer_size[0], primer_size[1]+1))
@@ -105,7 +108,8 @@ class UNAFold(Oligo):
                     
                     #if (n_count % 1000 == 0):
                 logging.info('Primer: {}/{}'.format(n_count, n_max))
-                if ((subset_size != None) and (n_count >= subset_size)): ##### Temporary early break for testing purposes ##### Should remove eventually
+                #if ((subset_size != None) and (n_count >= subset_size)): ##### Temporary early break for testing purposes ##### Should remove eventually
+                if ((time.time()-start_time) > time_limit):
                     logging.info('  left primer: skipping {}/{} potential primers'.format(max(0, n_max-n_count), n_max))
                     break
         
@@ -138,13 +142,19 @@ class UNAFold(Oligo):
                     
                     #if (n_count % 1000 == 0):
                 logging.info('Primer: {}/{}'.format(n_count, n_max))
-                if ((subset_size != None) and (n_count >= subset_size)): ##### Temporary early break for testing purposes ##### Should remove eventually
+                #if ((subset_size != None) and (n_count >= subset_size)): ##### Temporary early break for testing purposes ##### Should remove eventually
+                if ((time.time()-start_time) > time_limit):
                     logging.info('  right primer: skipping {}/{} potential primers'.format(max(0, n_max-n_count), n_max))
                     break
-                
+        
+        logging.info('                time elapsed: {}s'.format(time.time()-start_time))
+        
         return good_primers
     
-    def pair(self, good_forwards, good_reverses, *args, amplicon_size=(300,700), tm_max_difference=3.0, intervening=0, same_template=False, min_delta_g=-5.0, **kwargs):
+    def pair(self, good_forwards, good_reverses, *args, amplicon_size=(300,700), tm_max_difference=3.0, intervening=0, same_template=False, min_delta_g=-5.0, time_limit=60, **kwargs):
+        # Time how long the process takes
+        start_time = time.time()
+        
         # Filter pairs by amplicon size
         count = 0
         max_count = len(good_forwards) * len(good_reverses)
@@ -177,6 +187,16 @@ class UNAFold(Oligo):
                 count += 1
                 if (count % 1000 == 0):
                     logging.info('Primer pairs: {}/{}'.format(count, max_count))
+                    if ((time.time()-start_time) > time_limit):
+                        # Break the inner loop
+                        break
+            else:
+                # Continue if the inner loop wasn't broken
+                continue
+            # Since the inner loop was broken, break the outer loop
+            break
+        
+        logging.info('  pair: time elapsed: {}s'.format(time.time()-start_time))
         
         return good_pairs # unsorted
     
