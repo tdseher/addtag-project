@@ -3069,7 +3069,7 @@ class main(object):
             
             logging.info("ExcisionTarget after Azimuth calculation")
             for et_seq, et_obj in ExcisionTarget.sequences.items():
-                logging.info(et_obj)
+                logging.info(str(et_obj) + '\t' + '\t'.join(map(str, et_obj.locations)))
         
         # Generate the FASTA with the final scores
         excision_spacers_file = ExcisionTarget.generate_spacers_fasta(os.path.join(args.folder, 'excision-spacers.fasta'))
@@ -4056,6 +4056,9 @@ class main(object):
                 ds_seq = scontig[record.subject_position[1]:]
                 
                 s_hih_seq = scontig[record.subject_position[0]:record.subject_position[1]]
+                
+                # Do I need code here to ensure the us/ds homology regions are mutually exclusive?
+                ##### insert code here? #####
                 
                 sush_start, sush_end = record.subject_position[0], None
                 sdsh_start, sdsh_end = None, record.subject_position[1]
