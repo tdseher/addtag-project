@@ -1894,6 +1894,7 @@ class Motif(object):
 
 class Feature(object):
     features = {}
+    excluded_features = {}
     # Origin flags
     NONE=0
     INPUT=1
@@ -1947,7 +1948,7 @@ class Feature(object):
         return obj
     
     @classmethod
-    def load_gff_file(cls, filename, feature_types, selected_features, tag):
+    def load_gff_file(cls, filename, feature_types, excluded_feature_types, selected_features, tag):
         """
         Load General Feature Format (GFF) file into dict()
         One line per feature, each containing 9 columns of data, plus optional
@@ -2013,7 +2014,7 @@ class Feature(object):
                 line = line.rstrip()
                 obj = cls.parse_gff_line(line)
                 if obj:
-                    if obj.feature_type in feature_types:
+                    if ((obj.feature_type in feature_types) or ('all' in feature_types)):
                         obj.name = obj.attributes[tag]
                         
                         # Reduce the total number of features to just the ones indicated in the selection
@@ -2022,6 +2023,9 @@ class Feature(object):
                                 cls.features[obj.name] = obj
                         else:
                             cls.features[obj.name] = obj
+                    elif ((obj.feature_type in excluded_feature_types) or ('all' in excluded_feature_types)):
+                        obj.name = obj.attributes[tag]
+                        cls.excluded_features[obj.name] = obj
         
         #logger.info('GFF file parsed: {!r}'.format(filename))
     
@@ -2534,6 +2538,13 @@ class main(object):
             homologs, feature2gene = utils.load_homologs(args.homologs)
         else:
             homologs, feature2gene = None, None
+        
+        logging.info('Feature.features')
+        for f_name, f in sorted(Feature.features.items()):
+            logging.info("  {}:{}:{}:{}..{}".format(f.name, f.contig, f.strand, f.start, f.end))
+        logging.info('Feature.excluded_features')
+        for exf_name, f in sorted(Feature.excluded_features.items()):
+            logging.info("  {}:{}:{}:{}..{}".format(f.name, f.contig, f.strand, f.start, f.end))
         
         # Merge features?
         #features = merge_features(features)
@@ -5025,10 +5036,16 @@ example:
         #    help="Minimum distance from contig edge a site can be found")
         parser_generate.add_argument("--features", metavar="FEATURE", type=str, nargs="+", default=["gene"],
             help="Features to design gRNAs against. Must exist in GFF file. \
-            Examples: 'CDS', 'gene', 'mRNA', 'exon', 'intron', 'tRNA', 'rRNA'")
-        parser_generate.add_argument("--warning_features", metavar='FEATURE', nargs="+", type=str, default=['all'],
-            help="GFF tags that will trigger a warning if they overlap with the \
-            target feature. Examples: 'CDS', 'gene', 'mRNA', 'exon', 'intron', 'tRNA', 'rRNA'")
+            Examples: 'CDS', 'gene', 'mRNA', 'exon', 'intron', 'tRNA', 'rRNA'.\
+            The special 'all' feature type will include all listed features.")
+        #parser_generate.add_argument("--warning_features", metavar='FEATURE', nargs="+", type=str, default=['all'],
+        #    help="GFF tags that will trigger a warning if they overlap with the \
+        #    target feature. Examples: 'CDS', 'gene', 'mRNA', 'exon', 'intron', 'tRNA', 'rRNA'")
+        parser_generate.add_argument("--excluded_features", metavar='FEATURE', nargs='+', type=str, default=[],
+            help="Prevent feature expansion if it would overlap one of these features present in the GFF. \
+            Examples: 'CDS', 'gene', 'mRNA', 'exon', 'intron', 'tRNA', 'rRNA'.\
+            The special 'all' feature type will exclude all listed features \
+            except those specified by the '--features' option.")
         parser_generate.add_argument("--dDNA_gDNA_ratio", metavar="N", type=int, default=1000,
             help="Ratio of donor DNA to genomic DNA for calculating off-target scores")
         #parser_generate.add_argument("--target_gc", nargs=2, metavar=('MIN', 'MAX'), type=int, default=[25, 75],
