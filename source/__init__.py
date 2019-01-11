@@ -657,6 +657,41 @@ class ExcisionDonor(Donor):
                 orientation = '+' # I forgot what this is for
                 cls.bartag(args, f, contig_sequence, orientation, bartag_assignment[feature_name])
         
+        else: ######################## NEED TO ADD FLANKTAG PROCESSING ########################
+            # 'args.ko_dDNA' is the path to a FASTA file
+            logging.info('Processing ko-dDNA with FASTA as input.')
+            
+            # Load the FASTA file into memory
+            ko_contigs = utils.old_load_fasta_file(args.ko_dDNA)
+            
+            if (len(ko_contigs) == 1):
+                # If only a single sequence appears in FASTA file, then treat it as a unitag
+                tag = list(ko_contigs.values())[0]
+            
+                for feature_name, f in Feature.features.items():
+                    contig_sequence = contigs[f.contig]
+                    orientation = '+' # I forgot what this is for
+                    cls.unitag(args, f, contig_sequence, '+', tag)
+                    cls.unitag(args, f, contig_sequence, '+', nucleotides.rc(tag))
+            else:
+                # If there are multiple sequences in FASTA file, then
+                # cross-reference their primary sequence headers with
+                # the (parent) feature names and gene names (from homologs file)
+                for feature_name, f in Feature.features.items():
+                    fp = f.get_expand_parent() # short for 'feature_parent'
+                    try:
+                        if fp.name in ko_contigs:
+                            tag = ko_contigs[fp.name]
+                        else:
+                            tag = ko_contigs[feature2gene[fp.name]]
+                    except KeyError:
+                        raise Exception("The ko-dDNA file '{}' has no sequence with a primary header that matches '{}' or '{}'".format(args.ko_dDNA, fp.name, feature2gene[fp.name]))
+                    
+                    contig_sequence = contigs[f.contig]
+                    orientation = '+' # I forgot what this is for
+                    cls.unitag(args, f, contig_sequence, '+', tag) # Insert TAG in '+' orientation
+                    cls.unitag(args, f, contig_sequence, '+', nucleotides.rc(tag)) # Insert TAG in '-' orientation
+        
         #### End 'generate_donors()' ####
     
     @classmethod
