@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
 """AddTag Copyright (c) 2016 Thaddeus D. Seher & Aaron Hernday"""
 
@@ -256,6 +257,12 @@ def random_sequence(length=100, compositions=None):
     if (compositions == None):
         compositions = {'A':0.25, 'C':0.25, 'G':0.25, 'T':0.25}
     return ''.join(random.choices(['A', 'C', 'G', 'T'], weights=[compositions['A'], compositions['C'], compositions['G'], compositions['T']], k=length))
+
+def flip(text):
+    """Rotates the input text 180 degrees"""
+    a = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
+    f = 'ɐqɔpǝɟɓɥᴉſʞ┐ɯuodbɹsʇnʌʍxʎzⱯʚ'+'\u0186'+'pƎℲϑHIſʞ˥WNOԀÕᴚS┴ՈΛMXʎZ'
+    return text.translate(str.maketrans(a, f))[::-1]
 
 def rc(seq, kind="dna"):
     """Returns the reverse-complement of a string containing DNA or RNA characters"""
