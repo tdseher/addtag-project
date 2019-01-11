@@ -2753,8 +2753,8 @@ class main(object):
         ExcisionDonor.generate_alignments()
         
         # Pick out the best ones and print them out
-        self.get_best(args, homologs)
         self.get_best_table(args, homologs, feature2gene)
+        self.log_results(args, homologs, n=5)
         
         # Existing pipeline - Want to mutate feature, and cut site within feature
         # ,,,,,,,,,,,,,,,,NNNNNNNNNNNNNNNNNNNN111NNN................... Feature to be mutated contains cut site 1
@@ -5874,16 +5874,24 @@ description:
                 logging.info('No allele-specific spacers for targeting knocked-out ' + feature)
         
     
-    def get_best(self, args, homologs):
-        """Function that returns the best spacers and dDNAs for each feature"""
+    def log_results(self, args, homologs, n=None):
+        """Function that prints to the log file the best spacers and dDNAs for each feature"""
         
-        display_num = 5
+        logging.info('Log of best results...')
         
         # Print best ReversionTargets calculated and their corresponding ExcisionDonors
+        logging.info("Best 'ReversionTarget's calculated and their corresponding 'ExcisionDonor's...")
         ret_dict2 = self.get_reTarget_homologs(homologs)
         for k in ret_dict2:
             logging.info(str(k) + ' ' + str(len(ret_dict2[k])))
-            # Print the top 5
+            
+            # Get the value for N
+            if (n == None):
+                display_num = len(ret_dict2[k])
+            else:
+                display_num = n
+            
+            # Print the top N
             for rank, obj in self.rank_targets(ret_dict2[k])[:display_num]:
                 logging.info(' ' + str(rank) + ' ' + str(obj))
                 # Get the ExcisionDonor objects for this ki-spacer, and rank them
@@ -5894,6 +5902,7 @@ description:
                     logging.info('   ' + str(gap) + ' ' + str(exd_obj.get_trims()) + ' ' + str(exd_obj))
         
         # Print best ExcisionTargets (not necessarily homozygous) for each feature
+        logging.info("Best 'ExcisionTarget's for each feature...")
         # and the ReversionDonor
         for feature in sorted(Feature.features):
             logging.info(feature)
@@ -5901,6 +5910,14 @@ description:
             for name, obj in ExcisionTarget.indices.items():
                 if feature in obj.get_location_features():
                     et_list.append(obj)
+            
+            # Get the value for N
+            if (n == None):
+                display_num = len(et_list[k])
+            else:
+                display_num = n
+            
+            # Print the top N
             for rank, obj in self.rank_targets(et_list)[:display_num]:
                 logging.info('  ' + str(rank) + ' ' + str(obj))
             
