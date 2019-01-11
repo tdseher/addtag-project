@@ -268,7 +268,7 @@ class PrimerPair(object):
     """
     Class that stores 2 Primer objects and their heterodimer thermodynamic calculations.
     """
-    def __init__(self, forward_primer_object, reverse_primer_object, o_heterodimer=None, checks=None, intervening=0):
+    def __init__(self, forward_primer_object, reverse_primer_object, o_heterodimer=None, checks=None, *args, intervening=0, **kwargs):
         self.forward_primer = forward_primer_object
         self.reverse_primer = reverse_primer_object
         self.o_heterodimer = o_heterodimer
@@ -277,7 +277,7 @@ class PrimerPair(object):
             self.checks = []
         else:
             self.checks = checks
-        self.weight = self.get_weight()
+        self.weight = self.get_weight(**kwargs)
     
     def get_min_delta_G(self):
         if self.o_heterodimer:
@@ -324,7 +324,12 @@ class PrimerPair(object):
         w = 1.0
         
         # Weigh by amplicon size
-        w *= logistic_updown(self.get_amplicon_size(), 1.03, 400, 1.03, 700)
+        # If this is supposed to be a 'sF' 'sR' pair, then we want to minimize the amplicon size
+        # Otherwise, we want the amplicon size to be around 500 nt
+        if (("minimize" in kwargs) and kwargs["minimize"]):
+            w *= logistic_down(self.get_amplicon_size(), downslope=1.03, down=150)
+        else:
+            w *= logistic_updown(self.get_amplicon_size(), 1.03, 300, 1.03, 700)
         
         # Weigh by minimum delta-G
         w *= logistic_up(self.get_min_delta_G(), upslope=3, up=-4)
