@@ -6168,11 +6168,15 @@ description:
         
         # Print a table of allele-specific knock-in spacer and dDNA pairs
         ret_dict = self.get_reTarget_allele_specific()
-        for feature in sorted(ret_dict):
-            gene = feature2gene[feature] # Get the gene name
+        for feature_name in sorted(ret_dict):
+            #gene = feature2gene[feature] # Get the gene name
+            gene = self.get_gene_from_feature(feature_name, feature2gene)
+            
+            features_pos = ''
+            
             outputs = {}
             
-            for weight, obj in self.rank_targets(ret_dict[feature]):
+            for weight, obj in self.rank_targets(ret_dict[feature_name]):
                 othz = round(obj.off_targets['Hsu-Zhang'], 2)
                 otcfd = round(obj.off_targets['CFD'], 2)
                 azimuth = round(obj.score['Azimuth'], 2)
@@ -6188,7 +6192,7 @@ description:
                 key1s = ','.join(map(str, key1))
                 translations = None
                 
-                sline = [gene, feature, key0s, translations, weight, othz, otcfd, azimuth, obj.name, obj.spacer+'>'+obj.pam, exdonors] # should automatically determine the direction of the SPACER>PAM based on the motif
+                sline = [gene, feature_name, features_pos, key0s, translations, weight, othz, otcfd, azimuth, obj.name, obj.spacer+'>'+obj.pam, exdonors] # should automatically determine the direction of the SPACER>PAM based on the motif
                 
                 if (weight >= args.min_weight_reported):
                     if (len(outputs.get(key1s, [])) < args.max_number_sequences_reported):
@@ -6200,17 +6204,21 @@ description:
             
             # If there are no allele-specific records, then nothing is printed
             if (len(outputs) == 0):
-                logging.info('No allele-specific spacers for targeting knocked-out ' + feature)
+                logging.info('No allele-specific spacers for targeting knocked-out ' + feature_name)
         
         ########## Results table for cutting the wild-type genome (ExcisionTarget or ko-gRNA) ##########
+        logging.info("Results table for cutting the wild-type genome ('ExcisionTarget' or 'ko-gRNA')")
         
         # to add to header: contig:strand:start..end
-        header = ['gene', 'features', 'weight', 'OT:Hsu-Zhang', 'OT:CFD', 'Azimuth', 'exTarget name', 'exTarget sequence', 'reDonors']
+        header = ['gene', 'features', 'contig:strand:start..end', 'weight', 'OT:Hsu-Zhang', 'OT:CFD', 'Azimuth', 'exTarget name', 'exTarget sequence', 'reDonors']
         print('\t'.join(header))
         
         # Print the best homozygous ExcisionTargets for each feature set
         ext_dict2 = self.get_exTarget_homologs(homologs)
+        logging.info("len(ext_dict2) = {}".format(len(ext_dict2)))
+        
         for feature_homologs in sorted(ext_dict2):
+            logging.info('feature_homologs = {}'.format(feature_homologs))
             gene = feature2gene[feature_homologs[0]] # Get the gene name
             csfeatures = ','.join(feature_homologs) # Add the features as comma-separated list
             
@@ -6229,7 +6237,7 @@ description:
                 
                 redonors = ','.join(x.name for x in red_list)
                 
-                sline = [gene, csfeatures, weight, othz, otcfd, azimuth, obj.name, obj.spacer+'>'+obj.pam, redonors] # should automatically determine the direction of the SPACER>PAM based on the motif
+                sline = [gene, csfeatures, '', weight, othz, otcfd, azimuth, obj.name, obj.spacer+'>'+obj.pam, redonors] # should automatically determine the direction of the SPACER>PAM based on the motif
                 
                 if (weight >= args.min_weight_reported):
                     if (len(outputs) < args.max_number_sequences_reported):
@@ -6243,25 +6251,26 @@ description:
         
         # Print a table of allele-specific knock-out spacer and dDNA pairs
         ext_dict = self.get_exTarget_allele_specific()
-        for feature in sorted(ext_dict):
-            gene = feature2gene[feature] # Get the gene name
+        for feature_name in sorted(ext_dict):
+            #gene = feature2gene[feature] # Get the gene name
+            gene = self.get_gene_from_feature(feature_name, feature2gene)
             
             red_list = set()
             for name, obj in ReversionDonor.indices.items():
-                if feature in obj.get_location_features():
+                if feature_name in obj.get_location_features():
                     red_list.add(obj)
             red_list = sorted(red_list, key=lambda x: int(x.name.split('-')[1]))
             
             outputs = []
             
-            for weight, obj in self.rank_targets(ext_dict[feature]):
+            for weight, obj in self.rank_targets(ext_dict[feature_name]):
                 othz = round(obj.off_targets['Hsu-Zhang'], 2)
                 otcfd = round(obj.off_targets['CFD'], 2)
                 azimuth = round(obj.score['Azimuth'], 2)
                 
                 redonors = ','.join(x.name for x in red_list)
                 
-                sline = [gene, feature, weight, othz, otcfd, azimuth, obj.name, obj.spacer+'|'+obj.pam, redonors]
+                sline = [gene, feature_name, '', weight, othz, otcfd, azimuth, obj.name, obj.spacer+'|'+obj.pam, redonors]
                 
                 if (weight >= args.min_weight_reported):
                     if (len(outputs) < args.max_number_sequences_reported):
@@ -6272,7 +6281,7 @@ description:
             
             # If there are no allele-specific records, then nothing is printed
             if (len(outputs) == 0):
-                logging.info('No allele-specific spacers for targeting knocked-out ' + feature)
+                logging.info('No allele-specific spacers for targeting wild-type ' + feature_name)
         
     
     def log_results(self, args, homologs, n=None):
