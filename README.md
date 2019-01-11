@@ -109,12 +109,14 @@ $ git stash pop
 Each one of these methods may require your Atlassian login credentials.
 
 ### Program usage ###
-The following commands assume the current working directory is the AddTag folder `addtag-project/`. To view the program usage, you may run AddTag with the `--help` flag. This will print out command line parameter descriptions and examples.
+Because AddTag is being updated regularly, the most current feature set and usage can be viewed by running AddTag with the `--help` command line option.
+
+The following commands assume the current working directory is the AddTag folder `addtag-project/`. This will print out command line parameter descriptions and examples.
 ```sh
 $ ./addtag --help
 ```
 
-Additionally, you may view the included man page.
+Additionally, you may view the included man page, which is probably not up-to-date.
 ```sh
 $ man ./addtag.1
 ```
