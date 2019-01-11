@@ -2525,7 +2525,8 @@ class main(object):
         #features = utils.load_gff_file(args.gff, args.features, args.tag)
         # Filter features by what is selected
         #features = self.filter_features(features, args.selection)
-        Feature.load_gff_file(args.gff, args.features, args.selection, args.tag)
+        for gff_file in args.gff:
+            Feature.load_gff_file(gff_file, args.features, args.excluded_features, args.selection, args.tag)
         Feature.assert_features(args.selection, contig_sequences)
         
         # Make index of homologs
@@ -4958,9 +4959,9 @@ example:
             primary headers (everything between the '>' symbol and the first \
             whitespace should be unique). You should include FASTA of the genome \
             and any plasmids.")
-        required_group.add_argument("--gff", required=True, metavar="*.gff", type=str,
-            help="GFF file specifying chromosomal features that should be \
-            multiplexed together.")
+        required_group.add_argument("--gff", required=True, nargs="+", metavar="*.gff", type=str,
+            help="GFF files specifying chromosomal features that should be \
+            targeted (in multiplex) or excluded.")
         required_group.add_argument("--folder", required=True, metavar="FOLDER",
             type=str, help="Path of folder to store generated files.")
         
