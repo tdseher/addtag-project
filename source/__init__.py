@@ -2657,13 +2657,9 @@ class main(object):
             re_query_file = ReversionTarget.generate_query_fasta(os.path.join(args.folder, 'reversion-query.fasta'))
         
         if (args.ki_dDNA != None): # args.ki_dDNA can take one of 3 possible values: (None/True/'*.fasta')
-            if isinstance(args.ki_dDNA, str): # If a file is specified, then it has the knock-in DNA that should be stitched to flanking homology arms
-                pass
-            else: # Otherwise, generate KI dDNA that are wild type
-                
-                # Generate reversion dDNAs and write them to FASTA
-                ReversionDonor.generate_donors(args, contig_sequences)
-                re_dDNA_file = ReversionDonor.generate_fasta(os.path.join(args.folder, 'reversion-dDNAs.fasta'))
+            # Generate reversion dDNAs and write them to FASTA
+            ReversionDonor.generate_donors(args, contig_sequences, feature2gene)
+            re_dDNA_file = ReversionDonor.generate_fasta(os.path.join(args.folder, 'reversion-dDNAs.fasta'))
         
         # Merge input FASTA files into a single one
         genome_fasta_file = utils.write_merged_fasta(contig_sequences, os.path.join(args.folder, 'genome.fasta'))
@@ -5255,10 +5251,19 @@ example:
             Defaults to True if '--ko-dDNA mintag' is specified.")
         
         parser_generate.add_argument("--ki-dDNA", nargs='?', type=str, default=None,
-            metavar='*.fasta', const=True,
-            help="If only the option with no file is specified, then design wild type dDNA. \
-            If FASTA file is specified, then design dDNA to replace features with foreign sequences. \
-            The sequence header should have a 'TAG=*' field where 'TAG' is the tag specified with '--tag' option.")
+            metavar='*.fasta', const=True, # If no command-line argument follows, the value of const will be assumed instead.
+            help="If no file is specified, then design wild type dDNA. \
+            If a FASTA file is specified, then design dDNA to replace features \
+            with the sequences in this FASTA file. The primary sequence header \
+            should either be the TAG identifier for the feature to replace \
+            (specified by the '--tag' option) or the gene name (specified \
+            within the '--homologs' file).")
+        #    help="If no file is specified, then design wild type dDNA. \
+        #    If a FASTA file is specified, then design dDNA to replace features \
+        #    with the sequences in this FASTA file. The sequence header should \
+        #    have a 'TAG=FEATURE' field where 'TAG' is the tag specified with \
+        #    '--tag' option, and 'FEATURE' corresponds to the value of that \
+        #    'TAG' within the input GFF.")
         
         # subparsers
         #  addtag generate
