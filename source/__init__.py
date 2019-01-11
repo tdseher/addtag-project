@@ -282,7 +282,8 @@ class Donor(object):
         >id feature:contig:orientation:start1..end1:mAT:start2..end2 ...
         """
         with open(filename, 'w') as flo:
-            for sequence, obj in cls.sequences.items():
+            for sequence, obj in sorted(cls.sequences.items(), key=lambda x: int(x[1].name.split('-')[1])):
+            #for sequence, obj in cls.sequences.items():
                 #don_entry = tuple(["dDNA-"+str(i), feature, contig, '+', start1, start2, end1, end2, dDNA])
                 print(' '.join(['>'+obj.name, 'spacers='+str(len(obj.spacers))] + sorted([obj.format_location(x, sep) for x in obj.locations])), file=flo)
                 print(sequence, file=flo)
@@ -991,7 +992,7 @@ class Target(object):
         >exTarget-id feature:contig:orientation:start..end ...
         """
         with open(filename, 'w') as flo:
-            for sequence, obj in cls.sequences.items():
+            for sequence, obj in sorted(cls.sequences.items(), key=lambda x: int(x[1].name.split('-')[1])):
                 #for location in obj.locations:
                 #    print(' '.join(['>'+obj.format_location(location), obj.name]), file=flo)
                 #    print(sequence, file=flo)
