@@ -2172,29 +2172,40 @@ class CustomHelpFormatter(argparse.HelpFormatter):
 class ValidateFlanktags(argparse.Action):        
     def __call__(self, parser, args, values, option_string=None):
         # print '{n} {v} {o}'.format(n=args, v=values, o=option_string)
+        f = '--'+self.dest.replace('_', '-')
+        
         nmin = 1
         nmax = 2
         if not (nmin <= len(values) <= nmax):
-            raise argparse.ArgumentTypeError('argument --{f}: expected between {nmin} and {nmax} arguments'.format(f=self.dest, nmin=nmin, nmax=nmax))
+            #raise argparse.ArgumentTypeError('argument --{f}: expected between {nmin} and {nmax} arguments'.format(f=self.dest, nmin=nmin, nmax=nmax))
+            parser.error('argument {f}: expected between {nmin} and {nmax} arguments'.format(f=f, nmin=nmin, nmax=nmax))
         
         # If only 1 argument, then it is a filename
         if (len(values) == 1):
-            pass
+            # Look to see if the path exists and is a file (not a directory)
+            if not os.path.isfile(values[0]):
+                parser.error("argument {f}: no such file: '{p}'".format(f=f, p=values[0]))
         elif (len(values) == 2):
             # If 2 arguments, then the first is either "uniform" or "specific"
-            s0 = set(values[0])
-            valid_s0_values = {'uniform', 'specific'} # set
-            d0 = s0.difference(valid_s0_values)
-            if (len(d0) > 0):
-                raise ValueError('invalid design TYPE: %s (choose from {uniform,specific})' % d.pop())
+            if (values[0] not in ['uniform', 'specific']):
+                parser.error("argument {f}: invalid design TYPE: '{t}' (choose from 'uniform', 'specific')".format(f=f, t=values[0]))
             
-            s1 = set(values[1]) # in case there are duplicates, reduce them to a single occurrence with set()
-            valid_s1_values = {'single', 'paired'} # set
-            d1 = s1.difference(valid_s1_values)
-            if (len(d1) > 0):
-                raise ValueError('invalid design TYPE: %s (choose from {single,paired})' % d.pop())
+            if (vlaues[1] not in ['single', 'paired']):
+                parser.error("argument {f}: invalid design TYPE: '{t}' (choose from 'single', 'paired')".format(f=f, t=values[0]))
         
-        setattr(args, self.dest, list(s))
+        setattr(args, self.dest, values)
+
+class ValidateKodDNA(argparse.Action):
+    def __call__(self, parser, args, value, option_string=None):
+        # print '{n} {v} {o}'.format(n=args, v=values, o=option_string)
+        f = '--'+self.dest.replace('_', '-')
+        
+        if (value not in ['mintag', 'addtag', 'unitag', 'bartag']):
+            # Look to see if the path exists and is a file (not a directory)
+            if not os.path.isfile(value):
+                parser.error("argument {f}: no such file: '{p}'".format(f=f, p=value))
+        
+        setattr(args, self.dest, value)
 
 # class ValidateDesign(argparse.Action):        
 #     def __call__(self, parser, args, values, option_string=None):
@@ -5143,9 +5154,17 @@ example:
         parser_generate.add_argument("--ko-gRNA", action='store_true', default=False,
             help="Design gRNAs to target features in genome")
         
-        parser_generate.add_argument("--ko-dDNA", type=str, default=None,
-            choices=['mintag', 'addtag', 'unitag', 'bartag'],
-            help="'mintag' are unique us/i/ds junction targets specific to each feature. \
+        #parser_generate.add_argument("--ko-dDNA", type=str, default=None,
+        #    choices=['mintag', 'addtag', 'unitag', 'bartag'],
+        #    help="'mintag' are unique us/i/ds junction targets specific to each feature. \
+        #    'addtag' are unique targets for each feature. \
+        #    'unitag' is a single, invariant target for ALL features. \
+        #    'bartag' are unique barcodes for each feature (does not guarantee targets).")
+        
+        parser_generate.add_argument("--ko-dDNA", type=str, action=ValidateKodDNA,
+            metavar='{*.fasta,mintag,addtag,unitag,bartag}', default=None,
+            help="'*.fasta' is a FASTA file containing user-specified sequences. \
+            'mintag' are unique us/i/ds junction targets specific to each feature. \
             'addtag' are unique targets for each feature. \
             'unitag' is a single, invariant target for ALL features. \
             'bartag' are unique barcodes for each feature (does not guarantee targets).")
