@@ -46,7 +46,7 @@ class UNAFold(Oligo):
             citation="Markham, et al. UNAFold: Software for Nucleic Acid Folding and Hybridization. Bioinformatics: Structure, Function and Applications. Humana Press. p.3-31 (2008)."
         )
     
-    def scan(self, seq, side, *args, primer_size=(18,26), tm_range=(55,65), min_delta_g=-5.0, us_seq='', ds_seq='', min_junction_overlap=(4,8), **kwargs):
+    def scan(self, seq, side, *args, primer_size=(18,26), tm_range=(55,65), min_delta_g=-5.0, us_seq='', ds_seq='', min_junction_overlap=(4,8), time_limit=60, **kwargs):
         # 'min_junction_overlap' allows for primers to span into the us/ds sequences
         #           uuuuuIIIIddddd
         #              └primer┘
