@@ -2526,8 +2526,10 @@ class main(object):
         for et_seq, et_obj in ExcisionTarget.sequences.items():
             logging.info(et_obj)
         
+    def get_gene_from_feature(self, feature_name, feature2gene):
+        parent = Feature.features[feature_name].get_expand_parent().name
         
-        
+        return feature2gene[parent]
     
     def _generate(self, args):
         """Perform complete CRISPR/Cas analysis for input"""
