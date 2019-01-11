@@ -1027,6 +1027,15 @@ class Target(object):
         feature, contig, orientation, start, end, upstream, downstream = location
         return sep.join([feature, contig, orientation, '..'.join([str(start), str(end)])])
     
+    def format_sequence(self):
+        """
+        Returns nucleotides with proper 'SPACER>PAM' or 'PAM<SPACER' formatting.
+        """
+        if (self.side == '>'):
+            return self.spacer + '>' + self.pam
+        else:
+            return self.pam + '<' + self.spacer
+    
     def __init__(self, feature, contig, orientation, start, end, upstream, downstream, sequence, side, spacer, pam, motif, parsed_motif, add=True):
         """Create a structure for holding individual sequence information"""
         location = (feature, contig, orientation, start, end, upstream, downstream)
@@ -1167,12 +1176,13 @@ class Target(object):
         """Return (sorted) list of all feature names this Target maps to"""
         return sorted(set(x[0] for x in self.locations))
     
-    def get_contigs(self):
-        return sorted(set(x[1] for x in self.locations))
-    
     def get_location_features(self):
         """Return (sorted) list of all feature names this Target maps to"""
         return sorted(set(x[0] for x in self.locations))
+    
+    def get_contigs(self):
+        """Return (sorted) list of all contig names this Target maps to"""
+        return sorted(set(x[1] for x in self.locations))
     
     def get_parent(self):
         """Returns a parent tuple for an arbitrary location record"""
@@ -1359,7 +1369,7 @@ class Target(object):
         """Return a string containing a printable representation of the Target object."""
         return self.__class__.__name__ + '(' + ' '.join([
             self.name,
-            self.spacer + '|' + self.pam,
+            self.format_sequence(),
             'motif=' + self.motif,
             'locations=' + str(len(self.locations)),
             'alignments=' + str(len([a for a in self.alignments if a.postfilter])) + '/' + str(len(self.alignments))] +
@@ -1541,6 +1551,9 @@ class ExcisionTarget(Target):
     #                             # Maybe add to ReversionDonor here
     #         else:
     #             logging.info("The contig '{}' for feature '{}' is not in the input FASTA.".format(feature_contig, feature))
+    
+    #def get_donors(self):
+    #    return [ReversionDonor.indices[x] for x in self.get_contigs()]
 
 class ReversionTarget(Target):
     prefix = 'reTarget'
