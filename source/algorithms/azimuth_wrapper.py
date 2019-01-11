@@ -49,6 +49,7 @@ def test():
 
 def main():
     # All nucleotides must have length of 30
+    # Otherwise, exit the script with an error code
     for arg in sys.argv[1:]:
         if (len(arg) != 30):
             sys.exit(1)
