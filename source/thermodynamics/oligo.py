@@ -3,7 +3,7 @@
 
 """AddTag Copyright (c) 2016 Thaddeus D. Seher & Aaron Hernday"""
 
-# source/oligos/oligo.py
+# source/thermodynamics/oligo.py
 
 # Import standard packages
 import sys
@@ -295,9 +295,9 @@ class PrimerPair(object):
     
     def get_amplicon_size(self):
         #                      missing vvvv
-        #  forward     ............--->....
+        #  forward     ............===>....
         #  intervening                     .........
-        #  reverse                                  ........<---...
+        #  reverse                                  ........<===...
         
         # Assuming forward_primer and reverse_primer are separated by self.intervening (i.e. have different templates)
         # If forward_primer and reverse_primer are on the same template, then this works if template_length=0

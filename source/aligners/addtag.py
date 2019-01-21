@@ -34,7 +34,7 @@ def find_target_matches(compiled_regex, contigs, overlap=False):
     # target AAACCC
     #                               vvvvvv                    19:25
     #    contig  GGGGGGGGGGGGAAAAAAAAAACCCGGGTTTTTTTTTTTTTT
-    #                       vvvvvv                            11:17 --> 42-17:42-11 --> 25:31
+    #                       vvvvvv                            11:17 -to-> 42-17:42-11 -to-> 25:31
     # rc(contig) AAAAAAAAAAAAAACCCGGGTTTTTTTTTTCCCCCCCCCCCC
     
     for contig in contigs:

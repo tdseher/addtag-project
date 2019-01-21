@@ -16,4 +16,4 @@ import source
 
 # Execute program
 if (__name__ == "__main__"):
-    source.main()
+    source.Main()

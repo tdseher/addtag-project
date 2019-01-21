@@ -884,6 +884,113 @@ def build_dDNA_regex(dDNA):
     compiled_regex = regex.compile(pattern, flags=flags)
     return compiled_regex
 
+def make_labeled_primer_alignments(label_list, sequence_list, contig_name, primer_pair_label_list, primer_pair_list, shifts=None):
+    
+    lengths = [len(x) for x in sequence_list]
+    output = make_alignment_labels(label_list, lengths)
+    output_names = ['' for x in output]
+    
+    output_names.append(contig_name)
+    output.append(''.join(sequence_list))
+    
+    for i, (pp_label, pp) in enumerate(zip(primer_pair_label_list, primer_pair_list)):
+        output_names.append(pp_label)
+        if (shifts == None):
+            output.append(' '*pp.forward_primer.position + pp.get_formatted())
+        else: # Need to improve this so it uses shifts for real
+            if pp:
+                if (i in [0, 1]):
+                    output.append(' '*pp.forward_primer.position + pp.get_formatted())
+                elif (i == 2):
+                    output.append(' '*(lengths[0]+lengths[1]) + ' '*pp.forward_primer.position + pp.get_formatted()) # NOT elegant AT ALL
+            else:
+                output.append('None')
+    
+    n = max(len(x) for x in output_names)
+    lines = []
+    for i in range(len(output)):
+        lines.append(output_names[i].ljust(n, ' ') + ' ' + output[i])
+    
+    return lines
+
+def make_alignment_labels(labels, lengths, edges_open=False):
+    """
+    Prints multi-line set of exclusive sequences and their labels
+    
+    Example:
+      print_alignment_labels(['us region', 'label', 'us homology', 'insert',
+          'ds homology', 'ds region'], [8, 5, 15, 3, 15, 10])
+       ┌us region
+       │       ┌label              ┌insert           ┌ds region
+      ┌┴─────┐┌┴──┐┌─us homology─┐┌┴┐┌─ds homology─┐┌┴───────┐
+    """
+    lines = ['']
+    for i, (label, slen) in enumerate(zip(labels, lengths)):
+        
+        # Modify the labels
+        if (len(label)+2 > slen):
+            if (slen == 0):
+                if (len(label) > 0):
+                    corner = '┌'
+                else:
+                    corner = ''
+            elif (slen == 1):
+                if (len(label) > 0):
+                    corner = '┌'
+                else:
+                    corner = ''
+            else:
+                corner = ' ┌'
+            #for j in range(1, len(lines)):
+            for j in range(len(lines)-1, 0, -1):
+                if (len(lines[j]) <= len(lines[0])):
+                    lines[j] += ' '*(len(lines[0])-len(lines[j])) + corner+label
+                    break
+            else:
+                if (len(lines) > 1):
+                    new_line = ''
+                    for k in range(0, len(lines[0])):
+                        if (lines[-1][k] in ['┌', '│', '¦']):
+                            if lines[0][k] in ['│', '┤', '┴']:
+                                new_line += '│'
+                            else:
+                                new_line += '¦'
+                        else:
+                            new_line += ' '
+                    if (lengths[i-1] == 0):
+                        if (slen == 0):
+                            corner = '┌'
+                        else:
+                            corner = '¦┌'
+                    lines.append(new_line + corner+label)
+                else:
+                    lines.append(' '*len(lines[0]) + corner+label)
+        
+        # Modify lines[0]
+        if (slen == 0):
+            pass
+        elif (slen == 1):
+            if (len(label) > 0):
+                lines[0] += '│'
+            else:
+                lines[0] += '╥'
+        elif (slen == 2):
+            if (len(label) > 0):
+                lines[0] += '┌┤'
+            else:
+                lines[0] += '┌┐'
+        elif (len(label)+2 > slen):
+            lines[0] += '┌┴'+'─'*(slen-3)+'┐'
+        else:
+            line = '┌'+'─'*(slen-2)+'┐'
+            pos = slen//2-len(label)//2
+            lines[0] += line[:pos] + label + line[pos+len(label):]
+    
+    #for line in lines[1:]:
+    #    print(line)
+    #print(lines[0])
+    return lines[1:] + [lines[0]]
+
 def test():
     """Code to test the classes and functions in 'source/nucleotides.py'"""
     

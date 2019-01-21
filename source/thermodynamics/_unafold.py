@@ -3,7 +3,7 @@
 
 """AddTag Copyright (c) 2016 Thaddeus D. Seher & Aaron Hernday"""
 
-# source/oligos/_unafold.py
+# source/thermodynamics/_unafold.py
 
 # Import standard packages
 import sys
@@ -45,6 +45,48 @@ class UNAFold(Oligo):
         super().__init__("UNAFold", "Markham, et al", 2008,
             citation="Markham, et al. UNAFold: Software for Nucleic Acid Folding and Hybridization. Bioinformatics: Structure, Function and Applications. Humana Press. p.3-31 (2008)."
         )
+    
+    def weighted_scan(self, seq, side, *args, primer_sizes =(20, 21, 19, 22, 23, 18, 24, 25, 26), tm_range=(52, 68), **kwargs): ##### unfinished #####
+        """
+        New function to make list of all potential primers, but only
+        evaluate their 'weight' if they are good enough
+        """
+        good_primers = []
+        if (side in ['left', 'forward']):
+            for p_len in primer_sizes:
+                for pos in range(len(seq)-p_len+1):
+                    pf = seq[pos:pos+p_len]
+                    pf_results, o_a, o_aa, o_ar, pf_gc = self.check_potential_primer(pf, tm=tm_range)
+                    if self.summarize(pf_results):
+                        good_primers.append(Primer(sequence=pf, position=pos, strand='+', o_hairpin=o_a, o_self_dimer=o_aa, o_reverse_complement=o_ar, gc=pf_gc, checks=pf_results))
+        return good_primers
+    
+    def relaxing_scan(self, seq, side, *args, **kwargs): ##### unfinished #####
+        """
+        Repeatedly scans the region for primers. If no primers are found, then
+        the constraints are relaxed, and the region is scanned again.
+        Tries its best to find something.
+        """
+        range_primer_length = (18, 26)
+        range_tm = (55, 65)
+        min_delta_g = -3
+        range_last5gc_count =(1,3)
+        range_gc_clamp_length = (1,2)
+        range_gc = (0.25,0.75)
+        max_run_length = 4
+        
+        primer_set = []
+        max_retries = 10
+        retries = 0
+        while ((len(primer_set) == 0) and (retries < max_retries)):
+            primer_set = self.scan(seq, side, primer_size=range_primer_length, tm_range=range_tm)
+            range_primer_length[1] += 2
+            range_tm[0] -= 1
+            range_tm[1] += 1
+            range_gc[0] -= 0.05
+            range_gc[1] += 0.05
+            min_delta_g -= 1
+        return primer_set
     
     def scan(self, seq, side, *args, primer_size=(18,26), tm_range=(55,65), min_delta_g=-5.0, us_seq='', ds_seq='', min_junction_overlap=(4,8), time_limit=60, **kwargs):
         # 'min_junction_overlap' allows for primers to span into the us/ds sequences

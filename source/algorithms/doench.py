@@ -377,7 +377,7 @@ class Azimuth(BatchedSingleSequenceAlgorithm):
                 cp = subprocess.run(command_list, shell=False, check=True, stdout=subprocess.PIPE)
                 output = cp.stdout.decode()
                 
-                for line in output.splitlines()[1:]: #skip first line --> line.startswith('No model file specified')
+                for line in output.splitlines()[1:]: #skip first line: line.startswith('No model file specified')
                     i_seq, i_score = line.split(" ")
                     batch_scores.append(100*float(i_score))
                 

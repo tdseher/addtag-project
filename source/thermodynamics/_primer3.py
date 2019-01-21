@@ -2,7 +2,7 @@
 
 """AddTag Copyright (c) 2016 Thaddeus D. Seher & Aaron Hernday"""
 
-# source/oligos/_primer3.py
+# source/thermodynamics/_primer3.py
 
 # Import standard packages
 import sys

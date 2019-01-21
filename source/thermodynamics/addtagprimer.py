@@ -3,7 +3,7 @@
 
 """AddTag Copyright (c) 2016 Thaddeus D. Seher & Aaron Hernday"""
 
-# source/oligos/addtagprimer.py
+# source/thermodynamics/addtagprimer.py
 
 # Import standard packages
 import sys

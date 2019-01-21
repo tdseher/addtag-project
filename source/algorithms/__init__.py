@@ -11,6 +11,9 @@ from importlib import import_module
 # Import included AddTag-specific modules
 from .algorithm import Algorithm, SingleSequenceAlgorithm, PairedSequenceAlgorithm, BatchedSingleSequenceAlgorithm
 
+def suffix_strip(text, suffix):
+    return text[:-len(suffix)] if text.endswith(suffix) else text
+
 # Import all Algorithm subclasses defined in python files within this same folder
 exclusions = [
     '__init__.py',
@@ -26,7 +29,8 @@ exclusions = [
     'xu.py',
 ]
 path = os.path.dirname(os.path.abspath(__file__))
-files = [f.rstrip(".py") for f in os.listdir(path) if (f.endswith('.py') and (f not in exclusions))]
+#files = [f.rstrip(".py") for f in os.listdir(path) if (f.endswith('.py') and (f not in exclusions))]
+files = [suffix_strip(f, '.py') for f in os.listdir(path) if (f.endswith('.py') and (f not in exclusions))]
 
 for f in files:
     module = import_module('.'.join([__name__, f]))
