@@ -119,6 +119,16 @@ class ValidateKodDNA(argparse.Action):
         
         setattr(args, self.dest, value)
 
+class ValidateInternalPrimersRequired(argparse.Action):
+    def __call__(self, parser, args, values, option_string=None):
+        # print '{n} {v} {o}'.format(n=args, v=values, o=option_string)
+        f = '--'+self.dest
+        
+        if (2*len(args.dDNAs) != len(values)):
+            parser.error('argument {f}: expected {n} arguments'.format(f=f, n=2*len(args.dDNAs)))
+        
+        setattr(args, self.dest, values)
+
 # class ValidateDesign(argparse.Action):        
 #     def __call__(self, parser, args, values, option_string=None):
 #         # print '{n} {v} {o}'.format(n=args, v=values, o=option_string)

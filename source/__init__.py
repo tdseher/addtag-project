@@ -430,6 +430,11 @@ class Main(object):
         # OnTargetMotif.motifs   list of on-target motifs
         # OffTargetMotif.motifs  list of off-target motifs
         ########################################################################
+        
+        #if (hasattr(args, 'internal_primers_required') and hasattr(args, 'dDNAs')):
+        #    if args.internal_primers_required:
+        #        if (2*len(args.dDNAs) != len(args.internal_primers_required)):
+        #            parser.error('argument {f}: expected {n} arguments'.format(f='--internal_primers_required', n=2*len(args.dDNAs)))
     
     def filter_features(self, features, selection):
         """
