@@ -141,6 +141,9 @@ Several wrappers to popular oligonucleotide conformation, free energy, and melti
 
 If you create your own wrapper, please submit a pull request so we can add it to the next version of the software.
 
+### Citing AddTag ###
+If you use AddTag for your research, please cite us.
+
 ### Who do I talk to? ###
 
  * Aaron Hernday (PI leading the project)
