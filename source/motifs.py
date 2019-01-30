@@ -120,7 +120,7 @@ class Motif(object):
     # Cpf1 requires only a crRNA for activity and does not need a tracrRNA to
     # also be present.
     #
-    # Two Cp1-family proteins, AsCpf1 (from Acidaminococcus)
+    # Two Cpf1-family proteins, AsCpf1 (from Acidaminococcus)
     # and LbCpf1 (from Lachnospiraceae), have been shown to perform efficient
     # genome editing in human cells.
     #
