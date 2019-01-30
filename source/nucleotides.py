@@ -384,6 +384,51 @@ def filter_polyt(sequences, max_allowed=4):
     
     return list(filter(lambda x: 'T'*(max_allowed+1) not in x, sequences))
 
+def get_gc_freq(seq):
+    """
+    Ambiguity-aware %GC calculation
+    """
+    iupac = {
+        'a': 0.0,
+        'c': 1.0,
+        'g': 1.0,
+        't': 0.0,
+        'u': 0.0,
+        'r': 0.5,
+        'y': 0.5,
+        'm': 0.5,
+        'k': 0.5,
+        'w': 0.0,
+        's': 1.0,
+        'b': 2.0/3.0,
+        'd': 1.0/3.0,
+        'h': 1.0/3.0,
+        'v': 2.0/3.0,
+        'n': 0.5,
+        
+        'A': 0.0,
+        'C': 1.0,
+        'G': 1.0,
+        'T': 0.0,
+        'U': 0.0,
+        'R': 0.5,
+        'Y': 0.5,
+        'M': 0.5,
+        'K': 0.5,
+        'W': 0.0,
+        'S': 1.0,
+        'B': 2.0/3.0,
+        'D': 1.0/3.0,
+        'H': 1.0/3.0,
+        'V': 2.0/3.0,
+        'N': 0.5,
+    }
+    gc_count = 0
+    for s in seq:
+        gc_count += iupac[s]
+    
+    return gc_count/len(seq)
+
 # So far for DNA only
 def build_regex_pattern(iupac_sequence, max_substitutions=0, max_insertions=0, max_deletions=0, max_errors=0, capture=True):
     """
