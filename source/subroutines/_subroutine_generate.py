@@ -161,6 +161,11 @@ class GenerateParser(subroutine.Subroutine):
             help="Range of homology lengths acceptable for knock-out dDNAs, inclusive.")
         self.parser.add_argument("--excise_downstream_homology", nargs=2, metavar=("MIN", "MAX"), type=int, default=[47,50],
             help="Range of homology lengths acceptable for knock-out dDNAs, inclusive.")
+        self.parser.add_argument("--allowed_homology_errors", nargs=4, metavar = ("S", "I", "D", "E"), type=int, default=[0,0,0,0],
+            help="Maximum number of substitutions (S), insertions (I), \
+            deletions (D), or errors (E) to allow in homology regions of homologs. \
+            If a greater number exist between homologs, then the feature will be \
+            expanded until a homology region with appropriate length is found.")
         #
         #
         self.parser.add_argument("--excise_donor_lengths", nargs=2, metavar=('MIN', 'MAX'), type=int, default=[100, 100],
@@ -266,7 +271,7 @@ class GenerateParser(subroutine.Subroutine):
         
         self.parser.add_argument("--bartag_number", metavar="N", type=int, default=1,
             help="Number of bartags per locus to generate. \
-            For efficiency's sake, a maximum 'features x bartags = 200' is enforced.")
+            For efficiency's sake, a maximum 'features × bartags = 200' is enforced.")
         
         self.parser.add_argument("--bartag_motif", metavar="MOTIF", type=str, default='N{10}',
             help="Structure of nucleotides that should be generated. \
@@ -354,6 +359,15 @@ class GenerateParser(subroutine.Subroutine):
         #                       >seq1 ID=feature1
         #                       NNNNNNNNNNNNNNNNNNN
         #                       The entire feature will be replaced by this sequence
+        
+        self.parser.add_argument("--allele-specific-targets", action="store_true", default=False,
+            help="Only spacer sequences that diagnostically target alleles will be designed. \
+            With this option enabled, spacers will target polymorphisms in the feature. \
+            Otherwise, spacers will target invariant sites within the feautre.")
+        
+        self.parser.add_argument("--allele-specific-donors", action="store_true", default=False,
+            help="Homology arms of dDNAs should be unique for each homologous feature. \
+            Otherwise, the dDNA homology arms will target all homologous features.")
         
     def compute(self, args):
         """Perform complete CRISPR/Cas analysis for input"""
@@ -849,7 +863,7 @@ class GenerateParser(subroutine.Subroutine):
             for name, obj in ReversionDonor.indices.items():
                 if feature in obj.get_location_features():
                     red_list.append(obj)
-            for obj in red_list:
+            for obj in red_list: # In no particular order (ampF/ampR primers for reDonors DO have weights, however)
                 logging.info('  ' + str(obj))
     
     def rolling_picker(self):
