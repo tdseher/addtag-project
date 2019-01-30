@@ -18,13 +18,10 @@ def suffix_strip(text, suffix):
 exclusions = [
     '__init__.py',
     #'_primer3.py',
-    '_primer3_draft1',
     #'_unafold.py',
     'addtagprimer.py',
     'bioprimer3.py',
-    'oligos_draft1.py',
-    'primer.py',
-    'unafold_draft1.py',
+    'oligo.py',
 ]
 
 path = os.path.dirname(os.path.abspath(__file__))
@@ -36,5 +33,5 @@ for f in files:
 
 # Create an instance of each Aligner subclass, and add to this list
 oligos = []
-for C in Oligo.__subclasses__():
-    oligos.append(C())
+for O in Oligo.__subclasses__():
+    oligos.append(O())
