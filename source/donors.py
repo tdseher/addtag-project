@@ -89,6 +89,29 @@ class Donor(object):
             output_list.append('..'.join(map(str, x)))
         return sep.join(output_list)
     
+    def is_allele_specific(self):
+        """
+        Returns 'True' if there is only 1 'Feature' in 'self.locations'
+        Otherwise, returns 'False'.
+        """
+        if (len(self.get_features()) == 1):
+            return True
+        else:
+            return False
+    
+    def is_allele_agnostic(self, homologs):
+        """
+        Returns 'True' if all homolog features are within 'self.locations'.
+        Otherwise, returns 'False'.
+        """
+        f_set = set(self.get_features())
+        h_set = homologs[self.locations[0][0]]
+        
+        if (len(h_set.difference(f_set)) == 0):
+            return True
+        else:
+            return False
+    
     def get_features(self):
         """Return (sorted) list of all feature names this Donor maps to"""
         return sorted(set(x[0] for x in self.locations))
