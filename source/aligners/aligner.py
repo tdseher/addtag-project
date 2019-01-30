@@ -32,18 +32,20 @@ class Aligner(object): # Name of the subclass
         input='fasta',
         output='sam',
         truncated=False,
+        classification='pairwise'
     ):
         """
         Specify general information regarding this new instance of the 
         Aligner class.
         """
-        self.name = name           # Unique name for the algorithm (str). No other Aligner objects should have this name.
-        self.author = author       # Author of the algorithm (str)
-        self.year = year           # Year algorithm published (int)
-        self.citation = citation   # Citation (None, str)
-        self.input = input
-        self.output = output       # Designate the output format the alignment will be in, so AddTag can select the correct parser
-        self.truncated = truncated # Normally, the entire short read is locally aligned to the genome contigs. This tells the parser that what is reported in the SAM file in the 10th column is incomplete.
+        self.name = name                     # Unique name for the algorithm (str). No other Aligner objects should have this name.
+        self.author = author                 # Author of the algorithm (str)
+        self.year = year                     # Year algorithm published (int)
+        self.citation = citation             # Citation (None, str)
+        self.input = input                   # Format of expected input (STDIN, fasta, fastq, etc)
+        self.output = output                 # Designate the output format the alignment will be in, so AddTag can select the correct parser
+        self.truncated = truncated           # Normally, the entire short read is locally aligned to the genome contigs. This tells the parser that what is reported in the SAM file in the 10th column is incomplete.
+        self.classification = classification # Type ('high-throughput', 'pairwise', 'multiple-sequence', 'ht', 'pw', 'ms')
         
     def index(self, fasta, output_filename, output_folder, threads, *args, **kwargs):
         """

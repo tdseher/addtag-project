@@ -18,6 +18,7 @@ def suffix_strip(text, suffix):
 exclusions = [
     '__init__.py',
     'addtag.py',
+    'aligner.py'
 #    'blastplus.py',
     'blat.py',
     'bowtie.py',

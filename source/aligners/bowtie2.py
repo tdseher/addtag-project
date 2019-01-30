@@ -47,6 +47,7 @@ class Bowtie2(Aligner):
             input='fasta',
             output='sam',
             truncated=False,
+            classification='pairwise'
         )
         self.score_matrix = {}
         self.ev = {}

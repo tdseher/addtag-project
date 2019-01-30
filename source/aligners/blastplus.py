@@ -34,6 +34,7 @@ class BlastPlus(Aligner):
             input='fasta',
             output='blastn',
             truncated=False,
+            classification='pairwise'
         )
     def index(self, fasta, output_filename, output_folder, threads, *args, **kwargs):
         """
