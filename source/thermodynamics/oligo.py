@@ -360,13 +360,3 @@ class PrimerPair(object):
             
         return self.__class__.__name__ + '(' + ', '.join('='.join(map(str, x)) for x in zip(labs, vals)) + ')'
 
-def lr_justify(left_text, right_text, width=140):
-    if (len(left_text)+len(right_text) < width):
-        text = ('{:>'+str(width)+'}').format(right_text)
-        return left_text + text[len(left_text):]
-    else:
-        half = width//2 - 1
-        if (len(right_text) > half):
-            return left_text[:half] + '.'*(width-half-half) + right_text[-half:]
-        else:
-            return left_text[:width-len(right_text)-3] + '.'*3 + right_text

@@ -85,6 +85,58 @@ def flatten(iterable, remove_none=False):
     else:
         return [item for sublist in iterable for item in sublist]
 
+def lr_justify(left_text, right_text, width=140):
+    if (len(left_text)+len(right_text) < width):
+        text = ('{:>'+str(width)+'}').format(right_text)
+        return left_text + text[len(left_text):]
+    else:
+        half = width//2 - 1
+        if (len(right_text) > half):
+            return left_text[:half] + '.'*(width-half-half) + right_text[-half:]
+        else:
+            return left_text[:width-len(right_text)-3] + '.'*3 + right_text
+    # Some input arguments that cause this to give unexpected output:
+    #  Not enough '...' (should be 3)
+    #  The right-most text isn't justified
+    # >>> lr_justify("", "this is my favorite thing to do in the entire whole wide world", 59)
+    # '... the entire whole wide world'
+    # >>> lr_justify("this is my favorite thing to do in the entire whole wide world", "something else smells like fish", 60)
+    # 'this is my favorite thing to ..mething else smells like fish'
+
+def lr_justify2(left_text, right_text, width=140, colsplit=None):
+    if (colsplit == None):
+        colsplit = width//2
+    else:
+        colsplit = max(0, min(colsplit, width))
+    
+    rts = [' ']*width
+    if (len(left_text) + len(right_text) < width):
+        for i, l in enumerate(left_text):
+            rts[i] = l
+        for i, r in enumerate(right_text[::-1]):
+            rts[-(i+1)] = r
+    else:
+        i = 0
+        for l in left_text:
+            if (i < colsplit):
+                rts[i] = l
+            else:
+                break
+            i += 1
+        i += 1
+        rts[i] = '.'
+        i += 1
+        rts[i] = '.'
+        i += 1
+        rts[i] = '.'
+        i += 1
+        for j, r in enumerate(right_text[::-1]):
+            if (width-j > i):
+                rts[-(j+1)] = r
+            else:
+                break
+    return ''.join(rts)
+
 def cigar_length(cigar):
     """Returns the length of the sequence specified by the CIGAR string"""
     # The CIGAR operations are given in the following table (set '*' if unavailable):
