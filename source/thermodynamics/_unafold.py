@@ -11,8 +11,6 @@ import os
 import subprocess
 import math
 import logging
-import copy
-import time
 
 # Import non-standard packages
 import regex
@@ -21,9 +19,9 @@ logger = logging.getLogger(__name__)
 
 # import included AddTag-specific modules
 if (__name__ == "__main__"):
-    from oligo import Oligo, Primer, PrimerPair, lr_justify
+    from oligo import Oligo
 else:
-    from .oligo import Oligo, Primer, PrimerPair, lr_justify
+    from .oligo import Oligo
 
 # Treat modules in PACKAGE_PARENT as in working directory
 if (__name__ == "__main__"):
@@ -38,28 +36,26 @@ if (__name__ == "__main__"):
 else:
     from ..nucleotides import rc
 
-debug = False
-
 class UNAFold(Oligo):
     def __init__(self):
         super().__init__("UNAFold", "Markham, et al", 2008,
             citation="Markham, et al. UNAFold: Software for Nucleic Acid Folding and Hybridization. Bioinformatics: Structure, Function and Applications. Humana Press. p.3-31 (2008)."
         )
     
-    def weighted_scan(self, seq, side, *args, primer_sizes =(20, 21, 19, 22, 23, 18, 24, 25, 26), tm_range=(52, 68), **kwargs): ##### unfinished #####
-        """
-        New function to make list of all potential primers, but only
-        evaluate their 'weight' if they are good enough
-        """
-        good_primers = []
-        if (side in ['left', 'forward']):
-            for p_len in primer_sizes:
-                for pos in range(len(seq)-p_len+1):
-                    pf = seq[pos:pos+p_len]
-                    pf_results, o_a, o_aa, o_ar, pf_gc = self.check_potential_primer(pf, tm=tm_range)
-                    if self.summarize(pf_results):
-                        good_primers.append(Primer(sequence=pf, position=pos, strand='+', o_hairpin=o_a, o_self_dimer=o_aa, o_reverse_complement=o_ar, gc=pf_gc, checks=pf_results))
-        return good_primers
+    # def weighted_scan(self, seq, side, *args, primer_sizes =(20, 21, 19, 22, 23, 18, 24, 25, 26), tm_range=(52, 68), **kwargs): ##### unfinished #####
+    #     """
+    #     New function to make list of all potential primers, but only
+    #     evaluate their 'weight' if they are good enough
+    #     """
+    #     good_primers = []
+    #     if (side in ['left', 'forward']):
+    #         for p_len in primer_sizes:
+    #             for pos in range(len(seq)-p_len+1):
+    #                 pf = seq[pos:pos+p_len]
+    #                 pf_results, o_a, o_aa, o_ar, pf_gc = self.check_potential_primer(pf, tm=tm_range)
+    #                 if self.summarize(pf_results):
+    #                     good_primers.append(Primer(sequence=pf, position=pos, strand='+', o_hairpin=o_a, o_self_dimer=o_aa, o_reverse_complement=o_ar, gc=pf_gc, checks=pf_results))
+    #     return good_primers
     
     def relaxing_scan(self, seq, side, *args, **kwargs): ##### unfinished #####
         """
@@ -88,328 +84,71 @@ class UNAFold(Oligo):
             min_delta_g -= 1
         return primer_set
     
-    def scan(self, seq, side, *args, primer_size=(18,26), tm_range=(55,65), min_delta_g=-5.0, us_seq='', ds_seq='', min_junction_overlap=(4,8), time_limit=60, **kwargs):
-        # 'min_junction_overlap' allows for primers to span into the us/ds sequences
-        #           uuuuuIIIIddddd
-        #              └primer┘
-        # 
-        # min_junction_overlap = (
-        #    minimum nt of primer that CANNOT be on the 5' flanking sequence (us_seq for forward primer),
-        #    minimum nt of primer that CANNOT be on the 3' flanking sequence (ds_seq for forward primer)
-        # )
-        # 
-        # Example of min_junction_overlap=(1,3) (for forward primer)
-        #     us_seq    GTAAAGAAGG             10 nt
-        #     seq                 CC            2 nt
-        #     ds_seq                CCAAATTA    8 nt
-        #                         ┌1 nt overlap
-        #     primers         FFFFF 
-        #                      FFFFF
-        #                       FFFFF
-        #     4 primers          FFFFF
-        #                        └─┴3 nt overlap
-        
-        # Code to temporarily limit number of primers computed set to None to disable
-        #subset_size = 5000 # 1000 # 9000
-        
-        start_time = time.time() # Time in seconds
-        
-        # Total number of primers that will be scanned
-        n_max = sum(len(seq)-x+1 for x in range(primer_size[0], primer_size[1]+1))
-        if (n_max < 0):
-            n_max = 0
-        n_count = 0
-        
-        good_primers = []
-        if (side in ['left', 'forward']):
-            for p_len in range(primer_size[0], primer_size[1]+1):
-                # Include the flanking regions
-                l_seq = us_seq[len(us_seq) - (p_len-min_junction_overlap[0]):]
-                r_seq = ds_seq[:max(0, p_len-min_junction_overlap[1])]
-                
-                j_seq = l_seq + seq + r_seq
-                
-                if (len(j_seq) != len(seq)):
-                    logging.info('l_seq = ' + l_seq)
-                    logging.info('  seq = ' + ' '*len(l_seq) + seq)
-                    logging.info('r_seq = ' + ' '*len(l_seq+seq) + r_seq)
-                
-                #for pos in range(len(seq)-p_len+1):
-                #    pf = seq[pos:pos+p_len]
-                for i in range(len(j_seq)-p_len+1):
-                    pos = i-len(l_seq) # Position on sequence (can take negative number if hanging off the edge)
-                    pf = j_seq[i:i+p_len]
-                    
-                    # Check pf (constraints) & (self, homodimer, rc) to see if it is good.
-                    pf_results, o_a, o_aa, o_ar, pf_gc = self.check_potential_primer(pf, tm=tm_range, min_delta_g=min_delta_g, **kwargs)
-                    
-                    if self.summarize(pf_results):
-                        good_primers.append(Primer(sequence=pf, position=pos, template_length=len(seq), strand='+', o_hairpin=o_a, o_self_dimer=o_aa, o_reverse_complement=o_ar, gc=pf_gc, checks=pf_results))
-                    
-                    n_count += 1
-                    
-                    #if (n_count % 1000 == 0):
-                logging.info('Primer: {}/{}'.format(n_count, n_max))
-                #if ((subset_size != None) and (n_count >= subset_size)): ##### Temporary early break for testing purposes ##### Should remove eventually
-                if ((time.time()-start_time) > time_limit):
-                    logging.info('  left primer: skipping {}/{} potential primers'.format(max(0, n_max-n_count), n_max))
-                    break
-        
-        elif (side in ['right', 'reverse']):
-            for p_len in range(primer_size[0], primer_size[1]+1):
-                # Include the flanking regions
-                l_seq = us_seq[len(us_seq) - (p_len-min_junction_overlap[1]):]
-                r_seq = ds_seq[:max(0, p_len-min_junction_overlap[0])]
-                
-                j_seq = l_seq + seq + r_seq
-                
-                if (len(j_seq) != len(seq)):
-                    logging.info('l_seq = ' + l_seq)
-                    logging.info('  seq = ' + ' '*len(l_seq) + seq)
-                    logging.info('r_seq = ' + ' '*len(l_seq+seq) + r_seq)
-                
-                #for pos in range(len(seq)-p_len+1):
-                #    pr = rc(seq[pos:pos+p_len])
-                for i in range(len(j_seq)-p_len+1):
-                    pos = i-len(l_seq) # Position on sequence (can take negative number if hanging off the edge)
-                    pr = rc(j_seq[i:i+p_len])
-                    
-                    # check pr (constraints) & (self, homodimer, rc) to see if it is good.
-                    pr_results, o_b, o_bb, o_br, pr_gc = self.check_potential_primer(pr, tm=tm_range, min_delta_g=min_delta_g, **kwargs)
-                                
-                    if self.summarize(pr_results):
-                        good_primers.append(Primer(sequence=pr, position=pos, template_length=len(seq), strand='-', o_hairpin=o_b, o_self_dimer=o_bb, o_reverse_complement=o_br, gc=pr_gc, checks=pr_results))
-                    
-                    n_count += 1
-                    
-                    #if (n_count % 1000 == 0):
-                logging.info('Primer: {}/{}'.format(n_count, n_max))
-                #if ((subset_size != None) and (n_count >= subset_size)): ##### Temporary early break for testing purposes ##### Should remove eventually
-                if ((time.time()-start_time) > time_limit):
-                    logging.info('  right primer: skipping {}/{} potential primers'.format(max(0, n_max-n_count), n_max))
-                    break
-        
-        logging.info('                time elapsed: {}s'.format(time.time()-start_time))
-        
-        return good_primers
+    # def scan_sequence(self, seq, primer_size=(20,24), amplicon_size=(50,60)):
+    #     """
+    #     Finds optimal primer pairs for input sequence
+    #     """
+    #     # sliding window for F and R
+    #     good_forward = []
+    #     good_reverse = []
+    #     for p_len in range(primer_size[0], primer_size[1]+1):
+    #         if debug:
+    #             print(seq)
+    #         for pos in range(len(seq) - p_len+1):
+    #             pf = seq[pos:pos+p_len]
+    #             
+    #             # Check pf (constraints) & (self, homodimer, rc) to see if it is good.
+    #             pf_results, o_a, o_aa, o_ar, pf_gc = self.check_potential_primer(pf)
+    #             
+    #             if self.summarize(pf_results):
+    #                 good_forward.append(Primer(sequence=pf, position=pos, strand='+', o_hairpin=o_a, o_self_dimer=o_aa, o_reverse_complement=o_ar, gc=pf_gc, checks=pf_results))
+    #             
+    #             if debug:
+    #                 print(lr_justify(
+    #                     ' '*pos + pf,
+    #                     'fwd '+str(pf_results)
+    #                 ))
+    #             
+    #             pr = rc(pf)
+    #             # check pr (constraints) & (self, homodimer, rc) to see if it is good.
+    #             pr_results, o_b, o_bb, o_br, pr_gc = self.check_potential_primer(pr)
+    #                         
+    #             if self.summarize(pr_results):
+    #                 good_reverse.append(Primer(sequence=pr, position=pos, strand='-', o_hairpin=o_b, o_self_dimer=o_bb, o_reverse_complement=o_br, gc=pr_gc, checks=pr_results))
+    #             
+    #             if debug:
+    #                 print(lr_justify(
+    #                     ' '*pos + pr,
+    #                     'rev '+str(pr_results)
+    #                 ))
+    #     
+    #     # Filter pairs by amplicon size
+    #     good_pairs = []
+    #     for gf in good_forward:
+    #         for gr in good_reverse:
+    #             pp = PrimerPair(gf, gr, o_heterodimer=None, checks=None)
+    #             
+    #             if (amplicon_size[0] <= pp.get_amplicon_size() <= amplicon_size[1]):
+    #                 het_results, o_ab = self.check_potential_primer_pair(gf.sequence, gr.sequence, min(gf.o_reverse_complement).melting_temperature, min(gr.o_reverse_complement).melting_temperature)
+    #                 if self.summarize(het_results):
+    #                     pp.o_heterodimer = o_ab
+    #                     pp.checks = het_results
+    #                     good_pairs.append(pp)
+    #     
+    #     return good_pairs
     
-    def pair(self, good_forwards, good_reverses, *args, amplicon_size=(300,700), tm_max_difference=3.0, intervening=0, same_template=False, min_delta_g=-5.0, time_limit=60, **kwargs):
-        # Time how long the process takes
-        start_time = time.time()
-        
-        # Filter pairs by amplicon size
-        count = 0
-        max_count = len(good_forwards) * len(good_reverses)
-        
-        good_pairs = []
-        for gf in good_forwards:
-            for gr in good_reverses:
-                cgf, cgr = copy.deepcopy(gf), copy.deepcopy(gr)
-                # Set their template lengths to 0 because they come from the same template
-                if same_template:
-                    cgf.template_length, cgr.template_length = 0, 0
-                pp = PrimerPair(cgf, cgr, o_heterodimer=None, checks=None, intervening=intervening)
-                
-                #if (amplicon_size[0] <= pp.get_amplicon_size() <= amplicon_size[1]):
-                het_results, o_ab = self.check_potential_primer_pair(
-                    cgf.sequence,
-                    cgr.sequence,
-                    min(cgf.o_reverse_complement).melting_temperature,
-                    min(cgr.o_reverse_complement).melting_temperature,
-                    pp.get_amplicon_size(),
-                    max_tm_difference=tm_max_difference,
-                    min_delta_g=min_delta_g,
-                    amplicon_size_range=amplicon_size,
-                    **kwargs
-                )
-                if self.summarize(het_results):
-                    pp.o_heterodimer = o_ab
-                    pp.checks = het_results
-                    good_pairs.append(pp)
-                count += 1
-                if (count % 1000 == 0):
-                    logging.info('Primer pairs: {}/{}'.format(count, max_count))
-                    if ((time.time()-start_time) > time_limit):
-                        # Break the inner loop
-                        break
-            else:
-                # Continue if the inner loop wasn't broken
-                continue
-            # Since the inner loop was broken, break the outer loop
-            break
-        
-        logging.info('  pair: time elapsed: {}s'.format(time.time()-start_time))
-        
-        return good_pairs # unsorted
-    
-    def scan_sequence(self, seq, primer_size=(20,24), amplicon_size=(50,60)):
+    def find_structures(self, *args, **kwargs):
         """
-        Finds optimal primer pairs for input sequence
+        Should return the list of structures with delta-G values.
         """
-        # sliding window for F and R
-        good_forward = []
-        good_reverse = []
-        for p_len in range(primer_size[0], primer_size[1]+1):
-            if debug:
-                print(seq)
-            for pos in range(len(seq) - p_len+1):
-                pf = seq[pos:pos+p_len]
-                
-                # Check pf (constraints) & (self, homodimer, rc) to see if it is good.
-                pf_results, o_a, o_aa, o_ar, pf_gc = self.check_potential_primer(pf)
-                
-                if self.summarize(pf_results):
-                    good_forward.append(Primer(sequence=pf, position=pos, strand='+', o_hairpin=o_a, o_self_dimer=o_aa, o_reverse_complement=o_ar, gc=pf_gc, checks=pf_results))
-                
-                if debug:
-                    print(lr_justify(
-                        ' '*pos + pf,
-                        'fwd '+str(pf_results)
-                    ))
-                
-                pr = rc(pf)
-                # check pr (constraints) & (self, homodimer, rc) to see if it is good.
-                pr_results, o_b, o_bb, o_br, pr_gc = self.check_potential_primer(pr)
-                            
-                if self.summarize(pr_results):
-                    good_reverse.append(Primer(sequence=pr, position=pos, strand='-', o_hairpin=o_b, o_self_dimer=o_bb, o_reverse_complement=o_br, gc=pr_gc, checks=pr_results))
-                
-                if debug:
-                    print(lr_justify(
-                        ' '*pos + pr,
-                        'rev '+str(pr_results)
-                    ))
         
-        # Filter pairs by amplicon size
-        good_pairs = []
-        for gf in good_forward:
-            for gr in good_reverse:
-                pp = PrimerPair(gf, gr, o_heterodimer=None, checks=None)
-                
-                if (amplicon_size[0] <= pp.get_amplicon_size() <= amplicon_size[1]):
-                    het_results, o_ab = self.check_potential_primer_pair(gf.sequence, gr.sequence, min(gf.o_reverse_complement).melting_temperature, min(gr.o_reverse_complement).melting_temperature)
-                    if self.summarize(het_results):
-                        pp.o_heterodimer = o_ab
-                        pp.checks = het_results
-                        good_pairs.append(pp)
-        
-        return good_pairs
+        return Structure.new_calculate_simple(*args, **kwargs)
     
-    def summarize(self, results):
-        return all(x for x in results if (x != None))
 
-    def check_potential_primer_pair(self, seq1, seq2, tm1, tm2, amplicon_size, thorough=False, folder='/dev/shm/addtag', max_tm_difference=2.0, max_3prime_complementation_length=3, min_delta_g=-5.0, amplicon_size_range=(300,700)):
-        amplicon_size_passed = None
-        max_tm_difference_passed = None
-        max_3prime_complementation_length_passed = None
-        min_delta_g_passed = None
-        
-        if (amplicon_size_passed != None):
-            amplicon_size_passed = amplicon_size_range[0] <= amplicon_size <= amplicon_size_range[1]
-        
-        # The difference in Tms should be as small as possible
-        if (max_tm_difference != None):
-            max_tm_difference_passed = abs(tm1-tm2) <= max_tm_difference
-        
-        # 3' ends of primers should NOT be complementary
-        # As even a little dimerization will inhibit target annealing
-        if (max_3prime_complementation_length != None):
-            max_3prime_complementation_length_passed = self.get_3prime_complementation_length(seq1, seq2, max_3prime_search_length=max_3prime_complementation_length+1) <= max_3prime_complementation_length
-        
-        results = [amplicon_size_passed, max_tm_difference_passed, max_3prime_complementation_length_passed, min_delta_g_passed]
-        
-        o = None
-        
-        # if previous tests all pass
-        # Calculate heterodimer delta-G
-        if (thorough or self.summarize(results)):
-            if (min_delta_g != None):
-                o = Structure.new_calculate_simple(folder, seq1, seq2)
-                min_delta_g_passed = min_delta_g <= min(o).delta_G
-        
-        results = [amplicon_size_passed, max_tm_difference_passed, max_3prime_complementation_length_passed, min_delta_g_passed]
-        
-        return results, o
+    
         
 
-    def check_potential_primer(self, seq, thorough=False, folder='/dev/shm/addtag', length=(17,28), last5gc_count=(1,3), gc_clamp_length=(1,2), gc=(0.25,0.75), max_run_length=4, min_delta_g=-5.0, tm=(55,65)):
-        """
-        seq - ACGT sequence should be 5' to 3'
-        """
-        length_passed = None
-        last5gc_count_passed = None
-        gc_clamp_length_passed = None
-        gc_passed = None
-        max_run_length_passed = None
-        min_delta_g_passed = None
-        tm_passed = None
-        
-        # Check length of primer
-        # primer length should be 17-28 nt long
-        if (length != None):
-            length_passed = length[0] <= len(seq) <= length[1]
-        
-        # Does the last 5 nt of the sequence have 1-3 C/G bases?
-        # should avoid runs of 3-or-more Cs and Gs in 3' end
-        if (last5gc_count != None):
-            C_count = seq[-5:].count('C')
-            G_count = seq[-5:].count('G')
-            last5gc_count_passed = last5gc_count[0] <= C_count+G_count <= last5gc_count[1]
-        
-        # Does the 3' end of the sequence have the sequence 
-        # 3' GC clamp
-        if (gc_clamp_length != None):
-            i = -1
-            gcl = 0
-            while (seq[i] in ['G', 'C']):
-                i -= 1
-                gcl += 1
-            
-            gc_clamp_length_passed = gc_clamp_length[0] <= gcl <= gc_clamp_length[1]
-        
-        gc_freq = None
-        # %GC should be between 40-60
-        if (gc != None):
-            C_count = seq.count('C')
-            G_count = seq.count('G')
-            gc_freq = (C_count+G_count)/len(seq)
-            gc_passed = gc[0] <= gc_freq <= gc[1]
-        
-        # Primers with long runs of a single base should generally be avoided as they can misprime
-        if (max_run_length != None):
-            matches = list(regex.finditer(r'(.)\1*', seq))
-            max_run = 0
-            for m in matches:
-                max_run = max(max_run, len(m.group()))
-            max_run_length_passed = max_run <= max_run_length
-        
-        results = [length_passed, last5gc_count_passed, gc_clamp_length_passed, gc_passed, max_run_length_passed, min_delta_g_passed, tm_passed]
-        
-        o1 = None
-        o2 = None
-        o3 = None
-        
-        if (thorough or self.summarize(results)):
-            # min delta-G should be -3.0
-            if (min_delta_g != None):
-                # Calculate hairpin delta-G
-                o1 = Structure.new_calculate_simple(folder, seq)
-                
-                # Calculate homodimer delta-G
-                o2 = Structure.new_calculate_simple(folder, seq, seq)
-                
-                min_delta_g_passed = min_delta_g <= min(min(o1).delta_G, min(o2).delta_G)
-            
-            # Tm (against reverse_complement) should be between 50-70 or 55-65
-            if (tm != None):
-                # Calculate reverse-complement delta-G and Tm
-                o3 = Structure.new_calculate_simple(folder, seq, rc(seq))
-            
-                tm_passed = tm[0] <= min(o3).melting_temperature <= tm[1]
-            
-        results = [length_passed, last5gc_count_passed, gc_clamp_length_passed, gc_passed, max_run_length_passed, min_delta_g_passed, tm_passed]
-        
-        return results, o1, o2, o3, gc_freq
+    
 
 class Structure(object):
     def __init__(self, seq1, seq2, delta_G, delta_H, delta_S, melting_temperature, sodium, magnesium, temperature, concentration):
@@ -885,14 +624,14 @@ def test():
     primer_pairs = C.pair(left_primers, right_primers, amplicon_size=(50,60))
     print('primer_pairs =', primer_pairs)
     ##############
-    primer_pairs = C.scan_sequence(seq)
-    for pp in primer_pairs:
-        #print(pp, pp.forward_primer.strand, pp.reverse_primer.strand)
-        print(pp)
-    
-    print(seq)
-    for pp in primer_pairs:
-        print(' '*pp.forward_primer.position + pp.get_formatted())
+    #primer_pairs = C.scan_sequence(seq)
+    #for pp in primer_pairs:
+    #    #print(pp, pp.forward_primer.strand, pp.reverse_primer.strand)
+    #    print(pp)
+    #
+    #print(seq)
+    #for pp in primer_pairs:
+    #    print(' '*pp.forward_primer.position + pp.get_formatted())
 
 if (__name__ == "__main__"):
     test()

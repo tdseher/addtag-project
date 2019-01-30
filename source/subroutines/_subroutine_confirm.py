@@ -11,7 +11,7 @@ import logging
 import copy
 import random
 import math
-from collections import namedtuple
+#from collections import namedtuple
 
 # Import non-standard packages
 import regex
@@ -102,6 +102,26 @@ class ConfirmParser(subroutine.Subroutine):
         self.parser.add_argument("--skip_round", metavar="N", nargs="+", type=int, default=[],
             help="Skip primer calculations for these rounds.")
         
+        # Temporary: this expects 2 for each dDNA: a before and an after
+        self.parser.add_argument("--internal_primers_required", metavar="y/n",
+            nargs="+", type=str, default=None, action=subroutine.ValidateInternalPrimersRequired,
+            help="For each genome, starting with input, and each subsequent dDNA, \
+            specify whether internal primers are required (oF/oR). \
+            y - yes, these internal primers are required; \
+            n - no, these internal primers are optional. \
+            (For example, if you have 2 rounds of genome engineering, \
+            and only the wild type (input) genome and the final genome \
+            require internal primers, then you would use these command-line \
+            options: '--fasta genome.fasta --dDNAs ko.fasta ki.fasta \
+            --internal_primers_required y n y')")
+        
+        # Default should be allele-agnostic. If the users want allele-specific,
+        # the they should use this command-line option.
+        self.parser.add_argument("--allele-specific", action="store_true", default=False,
+            help="Report only allele-specific primer designs. \
+            Either primer amplicons will be diagnostically-different sizes, \
+            or primer sequences themselves will be different.")
+        
         # Nucleotide matching stuff
         #  - number errors (for fuzzy regex)
         
@@ -144,6 +164,8 @@ class ConfirmParser(subroutine.Subroutine):
         output0 = []
         output1 = []
         output2 = []
+        output3 = []
+        output4 = []
         
         # First, create the engineered genomes:
         #   FILENAME          DESCRIPTION
@@ -158,9 +180,7 @@ class ConfirmParser(subroutine.Subroutine):
         dDNA_alignment_file_list = []
         genome_fasta_file_list = []
         
-        #Datum = namedtuple('Datum', ['r', 'qname', 'sname', 'us_seq', 'ds_seq', 'insert_seq', 'feature_seq', 'q_hih_seq', 'q_ush_seq', 's_ush_seq', 'q_dsh_seq', 's_dsh_seq'])
-        #Datum = namedtuple('Datum', ['r', 'sname', 'ush_start', 'ush_end', 'dsh_start', 'dsh_end'])
-        Datum = namedtuple('Datum', ['dDNA_r', 'dDNA_contig', 'genome_r', 'genome_contig', 'ush_start', 'ush_end', 'dsh_start', 'dsh_end', 'ins_start', 'ins_end'])
+        #Datum = namedtuple('Datum', ['dDNA_r', 'dDNA_contig', 'genome_r', 'genome_contig', 'ush_start', 'ush_end', 'dsh_start', 'dsh_end', 'ins_start', 'ins_end'])
         
         # Create 'r0'
         logging.info('Working on round r{}'.format(0))
@@ -393,7 +413,7 @@ class ConfirmParser(subroutine.Subroutine):
                         ### end alternate ###
                         
                         # Add this parsed record data to the 'group_links'
-                        # Key refers to dDNA file and contig name, value referes to gDNA file, contig name, and homology regions
+                        # Key refers to dDNA file and contig name, value refers to gDNA file, contig name, and homology regions
                         #group_links.append(Datum(r, qname, r-1, sname, sush_start, sush_end, sdsh_start, sdsh_end, us_record.query_position[1], ds_record.query_position[0]))
                         group_links.append(Datum(r, qname, r-1, sname, sush_start, sush_end, sdsh_start, sdsh_end, qush_end, qdsh_start))
                         
@@ -484,6 +504,328 @@ class ConfirmParser(subroutine.Subroutine):
                 #group_links.setdefault((r, qname), []).append(Datum(r, sname, sush_start, sush_end, sdsh_start, sdsh_end))
                 group_links.append(Datum(r, qname, r, sname, sush_start, sush_end, sdsh_start, sdsh_end, ins_start, ins_end))
         
+        # Link the loci and store in 'datum_groups'
+        datum_groups = self.make_datum_groups(group_links, contig_groups, genome_contigs_list)
+        
+        # Find the longest common substring in the far-upstream and far-downstream regions
+        pcr_regions, pcr_region_positions = self.get_far_lcs_regions(datum_groups, genome_contigs_list)
+        
+        # Identify the feature/insert sequence where the 'rN-oF', 'rN-oR', 'rN-iF', 'rN-iR' primers should be located
+        # and store them in 'insert_seqs'
+        #Insert = namedtuple('Insert', ['genome_r', 'genome_contig', 'seq', 'us_seq', 'ds_seq', 'fus_dist', 'fds_dist', 'type'])
+        max_primer_length = 35
+        
+        
+        for i, dg in enumerate(datum_groups):
+            # Add DatumGroup to 'output0' table
+            output0.append([i, dg])
+            
+            fus_seq, fds_seq = pcr_regions[i]
+            
+            # insert_seqs = [
+            #     Insert(qname='ko-dDNA', genome_r=0, genome_contig='chr1',               seq='ACGTAACA') 
+            #     Insert(qname='ki-dDNA', genome_r=1, genome_contig='chr1-r1[ko]',        seq='ACGTAACA')
+            #     Insert(qname='ki-dDNA', genome_r=2, genome_contig='chr1-r1[ko]-r2[ki]', seq='CGATAAGC')
+            # ]
+            insert_seqs = []
+            
+            # Go through every datum, and select all the 'before' ones
+            # (because they have the full homology regions specified)
+            # And use those to calculate the 'before'=feature, and 'after'=insert
+            # sequences (with their up/downstream flanking regions)
+            for di, datum in enumerate(dg):
+                if (datum.ins_start != None):
+                    # Add feature
+                    insert_seqs.append(Insert(
+                        datum.genome_r, # genome_r
+                        datum.genome_contig, # genome_contig
+                        genome_contigs_list[datum.genome_r][datum.genome_contig][datum.ush_end:datum.dsh_start], # seq
+                        genome_contigs_list[datum.genome_r][datum.genome_contig][max(0, datum.ush_end-(max_primer_length-1)):datum.ush_end], # us_seq
+                        genome_contigs_list[datum.genome_r][datum.genome_contig][datum.dsh_start:datum.dsh_start+(max_primer_length-1)], # ds_seq
+                        datum.ush_end - pcr_region_positions[i][di][1], # fus_dist
+                        pcr_region_positions[i][di][2] - datum.dsh_start, # fds_dist
+                        'b' # type
+                    ))
+                    
+                    # Add insert
+                    insert_seqs.append(Insert(
+                        datum.genome_r, # genome_r
+                        datum.genome_contig, # genome_contig
+                        #datum.dDNA_r, # genome_r <----------------------- may need to change this to be the genome (not the dDNA)
+                        #datum.dDNA_contig, # genome_contig <------------- may need to change this to be the genome (not the dDNA)
+                        dDNA_contigs_list[datum.dDNA_r][datum.dDNA_contig][datum.ins_start:datum.ins_end], # seq
+                        dDNA_contigs_list[datum.dDNA_r][datum.dDNA_contig][max(0, datum.ins_start-(max_primer_length-1)):datum.ins_start], # us_seq
+                        dDNA_contigs_list[datum.dDNA_r][datum.dDNA_contig][datum.ins_end:datum.ins_end+(max_primer_length-1)], # ds_seq
+                        datum.ush_end - pcr_region_positions[i][di][1], # fus_dist
+                        pcr_region_positions[i][di][2] - datum.dsh_start, # fds_dist
+                        'a' # type
+                    ))
+                # Essentially, this current loop does the following:
+                #   if (di == 0): (a 'before')
+                #     Then get the original feature seq (for genome_r=0)
+                #     And get the insert seq (for genome_r=1)
+                #   if (di == 1), (an 'after')
+                #     then skip
+                #   if (di == 2): (a 'before')
+                #     Then get the feature seq (for genome_r=1)
+                #     And get the insert seq (for genome_r=2)
+                #   if (di == 3): (an 'after)
+                #     then skip
+            
+            # Now that we've identified the sequences where the shared PCR primers should reside ('sF' & 'sR'),
+            # As well as the sequences of the feature/insert and their up/downstream flanking sequences
+            # (which are used to find primers that span the junctions),
+            # we do the actual cPCR calculations
+            
+            # Old code for 6-set:
+            #initial_pair_list, final_pair_list = self.make_primer_set(args, qname, us_seq, ds_seq, insert_seq, feature_seq, q_hih_seq, s_ush_seq, q_ush_seq, s_dsh_seq, q_dsh_seq)
+            
+            #                                                                             shared_forward  shared_reverse  features/inserts
+            pair_list, insert_pair_list, round_labels = self.calculate_them_primers(args, fus_seq,        fds_seq,        insert_seqs)
+            
+            # Filter 'pair_list' to get the top 10
+            pair_list = sorted(pair_list, reverse=True)[:args.max_number_designs_reported]
+            
+            # Add the calculated weights of the sF/sR/oF/oR sets to 'output1' table
+            for ppli, (w, pp_list) in enumerate(pair_list):
+                output1.append([ppli, i, w])
+            
+            # Print the primers for 'output2' table
+            for ppli, (w, pp_list) in enumerate(pair_list):
+                round_labels_iter = iter(round_labels)
+                
+                for pp_i, pp in enumerate(pp_list):
+                    amp_name, round_n = next(round_labels_iter)
+                    #amp_name = '-'
+                    #round_n = '-'
+                    
+                    ra_counter = self.round_counter()
+                    for ia in range(len(insert_pair_list)):
+                        rac = next(ra_counter)
+                        converted_genome_round = self.round_converter(rac)
+                        
+                        if pp:
+                            amp_sizes = pp.in_silico_pcr(genome_contigs_list[converted_genome_round])
+                            if (len(amp_sizes) > 0):
+                                amp_sizes = ','.join(map(str, sorted(amp_sizes)))
+                            else:
+                                amp_sizes = '-'
+                            tms = ','.join([str(round(ptm, 2)) for ptm in pp.get_tms()])
+                            output2.append([ppli, pp_i, i, amp_name, rac, converted_genome_round, pp.forward_primer.name, pp.reverse_primer.name, amp_sizes, tms])
+                        
+                        #if (pp and (round_n == rac)):
+                        #    output2.append([ppli, pp_i, i, amp_name, round_n, '-', pp.forward_primer.name, pp.reverse_primer.name, pp.get_amplicon_size(), pp.get_tms()])
+                        else:
+                            if (amp_name == 'A'):
+                                output2.append([ppli, pp_i, i, amp_name, rac, converted_genome_round, 'sF', 'sR', '-', '-'])
+                            elif (amp_name == 'B'):
+                                output2.append([ppli, pp_i, i, amp_name, rac, converted_genome_round, 'sF', 'r'+round_n+'-oR', '-', '-'])
+                            elif (amp_name == 'C'):
+                                output2.append([ppli, pp_i, i, amp_name, rac, converted_genome_round, 'r'+round_n+'-oF', 'sR', '-', '-'])
+                    
+                    #if pp: # primer_set_index, primer_pair_index, locus
+                    #    #if (pp.forward_primer.name == 'sF'):
+                    #    #    if (pp.reverse_primer.name == 'sR'):
+                    #    #        amp_name = 'A'
+                    #    #        round_n = next(A_counter)
+                    #    #    else:
+                    #    #        amp_name = 'B'
+                    #    #        round_n = next(B_counter)
+                    #    #else:
+                    #    #    if (pp.reverse_primer.name == 'sR'):
+                    #    #        amp_name = 'C'
+                    #    #        round_n = next(C_counter)
+                    #    #    else:
+                    #    #        amp_name = 'D'
+                    #    output2.append([ppli, pp_i, i, amp_name, round_n, pp.forward_primer.name, pp.reverse_primer.name, pp.get_amplicon_size(), pp.get_tms(), 'Template'])
+                    #else:
+                    #    output2.append([ppli, pp_i, i, amp_name, round_n, '-', '-', '-', '-', '-'])
+            
+            # Filter 'insert_pair_list' to get the top 10 (They are already sorted)
+            insert_pair_list = [x[:args.max_number_designs_reported] for x in insert_pair_list]
+            #D_counter = self.round_counter() # Hacky way to get the round
+            #for ip_r, iF_iR_paired_primers in enumerate(insert_pair_list):
+            #    amp_name = 'D'
+            #    round_n = next(D_counter)
+            #    if (len(iF_iR_paired_primers) == 0):
+            #        output2.append(['-', ip_r, i, amp_name, round_n, '-', '-', '-', '-', '-'])
+            #    else:
+            #        for ppli, pp in enumerate(iF_iR_paired_primers):
+            #            if pp:
+            #                output2.append([ppli, ip_r, i, amp_name, round_n, pp.forward_primer.name, pp.reverse_primer.name, pp.get_amplicon_size(), pp.get_tms(), 'Template'])
+            #            else:
+            #                output2.append([ppli, ip_r, i, amp_name, round_n, '-', '-', '-', '-', '-'])
+            
+            if (len(insert_pair_list) > 0):
+                number_D_sets = max([len(ipl) for ipl in insert_pair_list])
+            else:
+                number_D_sets = 0
+            
+            #D_sets = [] # [['0b', '0a', '1b', '1a'], ...]
+            #for ppli in range(number_D_sets):
+            #    amp_name = 'D'
+            #    D_counter = self.round_counter() # Hacky way to get the round
+            #    D_sets.append([])
+            #    for ip_r, iF_iR_paired_primers in enumerate(insert_pair_list):
+            #        round_n = next(D_counter)
+            #        
+            #        try:
+            #            pp = iF_iR_paired_primers[ppli]
+            #            D_sets[-1].append([ppli, ip_r, i, amp_name, round_n, pp.forward_primer.name, pp.reverse_primer.name, pp.get_amplicon_size(), pp.get_tms()])
+            #        except IndexError, AttributeError:
+            #            D_sets[-1].append([ppli, ip_r, i, amp_name, round_n, round_n+'-iF', round_n+'-iR', '-', '-'])
+            #
+            #for D_set in D_sets:
+            #    for ds in D_set:
+            #        output2.append(ds)
+            
+            # Need to add code to this code sectoin involving 'D' so that
+            # it respects 'args.internal_primers_required'
+            amp_name = 'D'
+            for ppli in range(number_D_sets):
+                D_counter = self.round_counter() # Hacky way to get the round
+                for ip_r, iF_iR_paired_primers in enumerate(insert_pair_list):
+                    round_n = next(D_counter)
+                    try:
+                        pp = iF_iR_paired_primers[ppli]
+                    except IndexError:
+                        pp = None
+                    ra_counter = self.round_counter()
+                    for ia in range(len(insert_pair_list)):
+                        rac = next(ra_counter)
+                        converted_genome_round = self.round_converter(rac)
+                        if pp:
+                            amp_sizes = pp.in_silico_pcr(genome_contigs_list[converted_genome_round])
+                            if (len(amp_sizes) > 0):
+                                amp_sizes = ','.join(map(str, sorted(amp_sizes)))
+                            else:
+                                amp_sizes = '-'
+                            tms = ','.join([str(round(ptm, 2)) for ptm in pp.get_tms()])
+                            output2.append([ppli, ip_r, i, amp_name, rac, converted_genome_round, pp.forward_primer.name, pp.reverse_primer.name, amp_sizes, tms])
+                            
+                        #if (pp and (round_n == rac)):
+                        #    output2.append([ppli, ip_r, i, amp_name, round_n, '-', pp.forward_primer.name, pp.reverse_primer.name, pp.get_amplicon_size(), pp.get_tms()])
+                        else:
+                            output2.append([ppli, ip_r, i, amp_name, rac, converted_genome_round, 'r'+round_n+'-iF', 'r'+round_n+'-iR', '-', '-'])
+                    
+            # Add primers to 'output3' table
+            for ppli, (w, pp_list) in enumerate(pair_list):
+                round_labels_iter = iter(round_labels)
+                #non_redundant_primers = {}
+                for pp_i, pp in enumerate(pp_list):
+                    amp_name, round_n = next(round_labels_iter)
+                    if pp:
+                        fname, fseq = pp.forward_primer.name, pp.forward_primer.sequence
+                        rname, rseq = pp.reverse_primer.name, pp.reverse_primer.sequence
+                    else:
+                        if (amp_name == 'A'):
+                            fname, fseq = 'sF', '-'
+                            rname, rseq = 'sR', '-'
+                        elif (amp_name == 'B'):
+                            fname, fseq = 'sF', '-'
+                            rname, rseq = 'r'+round_n+'-oR', '-'
+                        elif (amp_name == 'C'):
+                            fname, fseq = 'r'+round_n+'-oF', '-'
+                            rname, rseq = 'sR', '-'
+                    #non_redundany_primers[fname] = fseq
+                    #non_redundany_primers[rname] = rseq
+                    output3.append([ppli, pp_i, i, fname, fseq])
+                    output3.append([ppli, pp_i, i, rname, rseq])
+            
+            amp_name = 'D'
+            for ppli in range(number_D_sets):
+                D_counter = self.round_counter() # Hacky way to get the round
+                for ip_r, iF_iR_paired_primers in enumerate(insert_pair_list):
+                    round_n = next(D_counter)
+                    try:
+                        pp = iF_iR_paired_primers[ppli]
+                    except IndexError:
+                        pp = None
+                    if pp:
+                        fname, fseq = pp.forward_primer.name, pp.forward_primer.sequence
+                        rname, rseq = pp.reverse_primer.name, pp.reverse_primer.sequence
+                    else:
+                        fname, fseq = 'r'+round_n+'-iF', '-'
+                        rname, rseq = 'r'+round_n+'-iR', '-'
+                    
+                    output3.append([ppli, ip_r, i, fname, fseq])
+                    output3.append([ppli, ip_r, i, rname, rseq])
+            
+            # Add the primer locations to 'output4' table
+            for ppli, (w, pp_list) in enumerate(pair_list):
+                for pp_i, pp in enumerate(pp_list):
+                    if pp:
+                        # 'f_locations' and 'r_locations' should have the same length
+                        f_locations = self.get_primer_location(genome_fasta_file_list, genome_contigs_list, pp.forward_primer.sequence)
+                        r_locations = self.get_primer_location(genome_fasta_file_list, genome_contigs_list, pp.reverse_primer.sequence)
+                        for loc_i in range(len(f_locations)):
+                            for loc in f_locations[loc_i]:
+                                output4.append([ppli, pp_i, i, pp.forward_primer.name, pp.forward_primer.sequence, loc[0], loc[1], loc[2], loc[3], loc[4]])
+                            for loc in r_locations[loc_i]:
+                                output4.append([ppli, pp_i, i, pp.reverse_primer.name, pp.reverse_primer.sequence, loc[0], loc[1], loc[2], loc[3], loc[4]])
+                        #output4.append([ppli, pp_i, i, pp.reverse_primer.name, pp.reverse_primer.sequence, 'File', 'Contig', 'Start', 'End', '-'])
+                    else:
+                        output4.append([ppli, pp_i, i, '-', '-', '-', '-', '-', '-', '+'])
+                        output4.append([ppli, pp_i, i, '-', '-', '-', '-', '-', '-', '-'])
+            
+            for ip_r, iF_iR_paired_primers in enumerate(insert_pair_list):
+                for ppli, pp in enumerate(iF_iR_paired_primers):
+                    if pp:
+                        # 'f_locations' and 'r_locations' should have the same length
+                        f_locations = self.get_primer_location(genome_fasta_file_list, genome_contigs_list, pp.forward_primer.sequence)
+                        r_locations = self.get_primer_location(genome_fasta_file_list, genome_contigs_list, pp.reverse_primer.sequence)
+                        for loc_i in range(len(f_locations)):
+                            for loc in f_locations[loc_i]:
+                                output4.append([ppli, ip_r, i, pp.forward_primer.name, pp.forward_primer.sequence, loc[0], loc[1], loc[2], loc[3], loc[4]])
+                            for loc in r_locations[loc_i]:
+                                output4.append([ppli, ip_r, i, pp.reverse_primer.name, pp.reverse_primer.sequence, loc[0], loc[1], loc[2], loc[3], loc[4]])
+                    else:
+                        output4.append([ppli, ip_r, i, '-', '-', '-', '-', '-', '-', '+'])
+                        output4.append([ppli, ip_r, i, '-', '-', '-', '-', '-', '-', '-'])
+        
+        # Print output header information describing the amplicons
+        print('#                                          Genome')
+        print('# Amplicon  ──upstream─┐┌─homology─┐┌──insert/feature──┐┌─homology─┐┌─downstream──')
+        print('#        A   sF ===>····················································<=== sR')
+        print('#        B   sF ===>···················<=== rN-oR')
+        print('#        C                             rN-oF ===>·······················<=== sR')
+        print('#        D                        rN-iF ===>······<=== rN-iR')
+        print('#')
+        print('# F=forward, R=reverse')
+        print('# s=shared, o=outer, i=inner')
+        print('# rN=round number')
+        print('#')
+        
+        # Print the various output tables
+        print('# ' + '\t'.join(['Locus', 'DatumGroup']))
+        for line in output0:
+            print('\t'.join(map(str, line)))
+        
+        print('# ' + '\t'.join(['Set', 'Locus', 'Weight']))
+        for line in output1:
+            print('\t'.join(map(str, line)))
+        
+        print('# ' + '\t'.join(['Set', 'Index', 'Locus', 'Amplicon', 'Template', 'Genome', 'F', 'R', 'Sizes', 'Tm']))
+        for line in output2:
+            print('\t'.join(map(str, line)))
+        
+        print('# ' + '\t'.join(['Set', 'Index', 'Locus', 'Primer', 'Sequence']))
+        for line in output3:
+            print('\t'.join(map(str, line)))
+        
+        print('# ' + '\t'.join(['Set', 'Index', 'Locus', 'Primer', 'Sequence', 'File', 'Contig', 'Start', 'End', 'Strand']))
+        for line in output4:
+            print('\t'.join(map(str, line)))
+        
+                        #####################
+                        # Cut code was here #
+                        #####################
+                        
+                        # This code output GenBank '*.gb' files
+        
+        # End 'compute()'
+    
+    def make_datum_groups(self, group_links, contig_groups, genome_contigs_list):
         ######## Begin for linking the loci ########
         
         logging.info('contig_groups:')
@@ -496,6 +838,8 @@ class ConfirmParser(subroutine.Subroutine):
                     return True
             else:
                 return False
+        
+        
         
         # Make a copy of 'group_links' that we can pop stuff from
         datum_list = copy.deepcopy(group_links)
@@ -709,7 +1053,10 @@ class ConfirmParser(subroutine.Subroutine):
         
         ######## End code for linking the loci ########
         
-        # 'datum_groups' contains the linked loci
+        return datum_groups
+    
+    def get_far_lcs_regions(self, datum_groups, genome_contigs_list):
+        
         # Let's find the longest common substring in the far_upstream and far_downstream regions of each
         # We also need the distance (in nt) between this LCS and the feature/insert
         # (for both the upstream and downstream)
@@ -804,269 +1151,16 @@ class ConfirmParser(subroutine.Subroutine):
             for prpi2, prp2 in enumerate(pcr_region_positions[-1]):
                 logging.info(str(prpi2) + ' ' + str(prp2[2:]).rjust(16) + ": " + genome_contigs_list[dg[prpi2].genome_r][dg[prpi2].genome_contig][prp2[2]:prp2[3]] + ' ' + str(dg[prpi2]))
         
-        # Identify the feature/insert sequence where the 'rN-oF', 'rN-oR', 'rN-iF', 'rN-iR' primers should be located
-        # and store them in 'insert_seqs'
-        Insert = namedtuple('Insert', ['genome_r', 'genome_contig', 'seq', 'us_seq', 'ds_seq', 'fus_dist', 'fds_dist', 'type'])
-        max_primer_length = 35
-        
-        def round_counter():
-            """
-            Returns '0b', '0a', '1b', '1a', '2b', '2a', ...
-            """
-            r = 0
-            m = 'b'
-            while True:
-                yield str(r) + m
-                if (m == 'b'):
-                    m = 'a'
-                else:
-                    m = 'b'
-                    r += 1
-        
-        for i, dg in enumerate(datum_groups):
-            fus_seq, fds_seq = pcr_regions[i]
-            
-            # insert_seqs = [
-            #     Insert(qname='ko-dDNA', genome_r=0, genome_contig='chr1',               seq='ACGTAACA') 
-            #     Insert(qname='ki-dDNA', genome_r=1, genome_contig='chr1-r1[ko]',        seq='ACGTAACA')
-            #     Insert(qname='ki-dDNA', genome_r=2, genome_contig='chr1-r1[ko]-r2[ki]', seq='CGATAAGC')
-            # ]
-            insert_seqs = []
-            
-            # Go through every datum, and select all the 'before' ones
-            # (because they have the full homology regions specified)
-            # And use those to calculate the 'before'=feature, and 'after'=insert
-            # sequences (with their up/downstream flanking regions)
-            for di, datum in enumerate(dg):
-                if (datum.ins_start != None):
-                    # Add feature
-                    insert_seqs.append(Insert(
-                        datum.genome_r, # genome_r
-                        datum.genome_contig, # genome_contig
-                        genome_contigs_list[datum.genome_r][datum.genome_contig][datum.ush_end:datum.dsh_start], # seq
-                        genome_contigs_list[datum.genome_r][datum.genome_contig][max(0, datum.ush_end-(max_primer_length-1)):datum.ush_end], # us_seq
-                        genome_contigs_list[datum.genome_r][datum.genome_contig][datum.dsh_start:datum.dsh_start+(max_primer_length-1)], # ds_seq
-                        datum.ush_end - pcr_region_positions[i][di][1], # fus_dist
-                        pcr_region_positions[i][di][2] - datum.dsh_start, # fds_dist
-                        'b' # type
-                    ))
-                    
-                    # Add insert
-                    insert_seqs.append(Insert(
-                        datum.genome_r, # genome_r
-                        datum.genome_contig, # genome_contig
-                        #datum.dDNA_r, # genome_r <----------------------- may need to change this to be the genome (not the dDNA)
-                        #datum.dDNA_contig, # genome_contig <------------- may need to change this to be the genome (not the dDNA)
-                        dDNA_contigs_list[datum.dDNA_r][datum.dDNA_contig][datum.ins_start:datum.ins_end], # seq
-                        dDNA_contigs_list[datum.dDNA_r][datum.dDNA_contig][max(0, datum.ins_start-(max_primer_length-1)):datum.ins_start], # us_seq
-                        dDNA_contigs_list[datum.dDNA_r][datum.dDNA_contig][datum.ins_end:datum.ins_end+(max_primer_length-1)], # ds_seq
-                        datum.ush_end - pcr_region_positions[i][di][1], # fus_dist
-                        pcr_region_positions[i][di][2] - datum.dsh_start, # fds_dist
-                        'a' # type
-                    ))
-                # Essentially, this current loop does the following:
-                #   if (di == 0): (a 'before')
-                #     Then get the original feature seq (for genome_r=0)
-                #     And get the insert seq (for genome_r=1)
-                #   if (di == 1), (an 'after')
-                #     then skip
-                #   if (di == 2): (a 'before')
-                #     Then get the feature seq (for genome_r=1)
-                #     And get the insert seq (for genome_r=2)
-                #   if (di == 3): (an 'after)
-                #     then skip
-            
-            # Now that we've identified the sequences where the shared PCR primers should reside ('sF' & 'sR'),
-            # As well as the sequences of the feature/insert and their up/downstream flanking sequences
-            # (which are used to find primers that span the junctions),
-            # we do the actual cPCR calculations
-            
-            # Old code for 6-set:
-            #initial_pair_list, final_pair_list = self.make_primer_set(args, qname, us_seq, ds_seq, insert_seq, feature_seq, q_hih_seq, s_ush_seq, q_ush_seq, s_dsh_seq, q_dsh_seq)
-            
-            #                                             shared_forward  shared_reverse  features/inserts
-            pair_list, insert_pair_list, round_labels = self.calculate_them_primers(args, fus_seq,        fds_seq,        insert_seqs)
-            
-            # Filter 'pair_list' to get the top 10
-            pair_list = sorted(pair_list, reverse=True)[:args.max_number_designs_reported]
-            
-            # Print the calculated weights of the sF/sR/oF/oR sets
-            for ppli, (w, pp_list) in enumerate(pair_list):
-                output0.append([ppli, i, w])
-            
-            # Print the primers for table output 1
-            for ppli, (w, pp_list) in enumerate(pair_list):
-                round_labels_iter = iter(round_labels)
-                
-                for pp_i, pp in enumerate(pp_list):
-                    amp_name, round_n = next(round_labels_iter)
-                    #amp_name = '-'
-                    #round_n = '-'
-                    
-                    ra_counter = round_counter()
-                    for ia in range(len(insert_pair_list)):
-                        rac = next(ra_counter)
-                        if (pp and (round_n == rac)):
-                            output1.append([ppli, pp_i, i, amp_name, round_n, pp.forward_primer.name, pp.reverse_primer.name, pp.get_amplicon_size(), pp.get_tms()])
-                        else:
-                            if (amp_name == 'A'):
-                                output1.append([ppli, pp_i, i, amp_name, rac, 'sF', 'sR', '-', '-'])
-                            elif (amp_name == 'B'):
-                                output1.append([ppli, pp_i, i, amp_name, rac, 'sF', 'r'+round_n+'-oR', '-', '-'])
-                            elif (amp_name == 'C'):
-                                output1.append([ppli, pp_i, i, amp_name, rac, 'r'+round_n+'-oF', 'sR', '-', '-'])
-                    
-                    #if pp: # primer_set_index, primer_pair_index, locus
-                    #    #if (pp.forward_primer.name == 'sF'):
-                    #    #    if (pp.reverse_primer.name == 'sR'):
-                    #    #        amp_name = 'A'
-                    #    #        round_n = next(A_counter)
-                    #    #    else:
-                    #    #        amp_name = 'B'
-                    #    #        round_n = next(B_counter)
-                    #    #else:
-                    #    #    if (pp.reverse_primer.name == 'sR'):
-                    #    #        amp_name = 'C'
-                    #    #        round_n = next(C_counter)
-                    #    #    else:
-                    #    #        amp_name = 'D'
-                    #    output1.append([ppli, pp_i, i, amp_name, round_n, pp.forward_primer.name, pp.reverse_primer.name, pp.get_amplicon_size(), pp.get_tms(), 'Template'])
-                    #else:
-                    #    output1.append([ppli, pp_i, i, amp_name, round_n, '-', '-', '-', '-', '-'])
-            
-            # Filter 'insert_pair_list' to get the top 10 (They are already sorted)
-            insert_pair_list = [x[:args.max_number_designs_reported] for x in insert_pair_list]
-            #D_counter = round_counter() # Hacky way to get the round
-            #for ip_r, iF_iR_paired_primers in enumerate(insert_pair_list):
-            #    amp_name = 'D'
-            #    round_n = next(D_counter)
-            #    if (len(iF_iR_paired_primers) == 0):
-            #        output1.append(['-', ip_r, i, amp_name, round_n, '-', '-', '-', '-', '-'])
-            #    else:
-            #        for ppli, pp in enumerate(iF_iR_paired_primers):
-            #            if pp:
-            #                output1.append([ppli, ip_r, i, amp_name, round_n, pp.forward_primer.name, pp.reverse_primer.name, pp.get_amplicon_size(), pp.get_tms(), 'Template'])
-            #            else:
-            #                output1.append([ppli, ip_r, i, amp_name, round_n, '-', '-', '-', '-', '-'])
-            
-            if (len(insert_pair_list) > 0):
-                number_D_sets = max([len(ipl) for ipl in insert_pair_list])
-            else:
-                number_D_sets = 0
-            
-            #D_sets = [] # [['0b', '0a', '1b', '1a'], ...]
-            #for ppli in range(number_D_sets):
-            #    amp_name = 'D'
-            #    D_counter = round_counter() # Hacky way to get the round
-            #    D_sets.append([])
-            #    for ip_r, iF_iR_paired_primers in enumerate(insert_pair_list):
-            #        round_n = next(D_counter)
-            #        
-            #        try:
-            #            pp = iF_iR_paired_primers[ppli]
-            #            D_sets[-1].append([ppli, ip_r, i, amp_name, round_n, pp.forward_primer.name, pp.reverse_primer.name, pp.get_amplicon_size(), pp.get_tms()])
-            #        except IndexError, AttributeError:
-            #            D_sets[-1].append([ppli, ip_r, i, amp_name, round_n, round_n+'-iF', round_n+'-iR', '-', '-'])
-            #
-            #for D_set in D_sets:
-            #    for ds in D_set:
-            #        output1.append(ds)
-            
-            amp_name = 'D'
-            for ppli in range(number_D_sets):
-                D_counter = round_counter() # Hacky way to get the round
-                for ip_r, iF_iR_paired_primers in enumerate(insert_pair_list):
-                    round_n = next(D_counter)
-                    try:
-                        pp = iF_iR_paired_primers[ppli]
-                    except IndexError:
-                        pp = None
-                    ra_counter = round_counter()
-                    for ia in range(len(insert_pair_list)):
-                        rac = next(ra_counter)
-                        if (pp and (round_n == rac)):
-                            output1.append([ppli, ip_r, i, amp_name, round_n, pp.forward_primer.name, pp.reverse_primer.name, pp.get_amplicon_size(), pp.get_tms()])
-                        else:
-                            output1.append([ppli, ip_r, i, amp_name, rac, 'r'+round_n+'-iF', 'r'+round_n+'-iR', '-', '-'])
-                    
-            
-            
-            # Print the primers for table output 2
-            for ppli, (w, pp_list) in enumerate(pair_list):
-                for pp_i, pp in enumerate(pp_list):
-                    if pp:
-                        # 'f_locations' and 'r_locations' should have the same length
-                        f_locations = self.get_primer_location(genome_fasta_file_list, genome_contigs_list, pp.forward_primer.sequence)
-                        r_locations = self.get_primer_location(genome_fasta_file_list, genome_contigs_list, pp.reverse_primer.sequence)
-                        for loc_i in range(len(f_locations)):
-                            for loc in f_locations[loc_i]:
-                                output2.append([ppli, pp_i, i, pp.forward_primer.name, pp.forward_primer.sequence, loc[0], loc[1], loc[2], loc[3], loc[4]])
-                            for loc in r_locations[loc_i]:
-                                output2.append([ppli, pp_i, i, pp.reverse_primer.name, pp.reverse_primer.sequence, loc[0], loc[1], loc[2], loc[3], loc[4]])
-                        #output2.append([ppli, pp_i, i, pp.reverse_primer.name, pp.reverse_primer.sequence, 'File', 'Contig', 'Start', 'End', '-'])
-                    else:
-                        output2.append([ppli, pp_i, i, '-', '-', '-', '-', '-', '-', '+'])
-                        output2.append([ppli, pp_i, i, '-', '-', '-', '-', '-', '-', '-'])
-            
-            for ip_r, iF_iR_paired_primers in enumerate(insert_pair_list):
-                for ppli, pp in enumerate(iF_iR_paired_primers):
-                    if pp:
-                        # 'f_locations' and 'r_locations' should have the same length
-                        f_locations = self.get_primer_location(genome_fasta_file_list, genome_contigs_list, pp.forward_primer.sequence)
-                        r_locations = self.get_primer_location(genome_fasta_file_list, genome_contigs_list, pp.reverse_primer.sequence)
-                        for loc_i in range(len(f_locations)):
-                            for loc in f_locations[loc_i]:
-                                output2.append([ppli, ip_r, i, pp.forward_primer.name, pp.forward_primer.sequence, loc[0], loc[1], loc[2], loc[3], loc[4]])
-                            for loc in r_locations[loc_i]:
-                                output2.append([ppli, ip_r, i, pp.reverse_primer.name, pp.reverse_primer.sequence, loc[0], loc[1], loc[2], loc[3], loc[4]])
-                    else:
-                        output2.append([ppli, ip_r, i, '-', '-', '-', '-', '-', '-', '+'])
-                        output2.append([ppli, ip_r, i, '-', '-', '-', '-', '-', '-', '-'])
-        
-        # Output header information for first output table
-        print('#                                          Genome')
-        print('# Amplicon  ──upstream─┐┌─homology─┐┌──insert/feature──┐┌─homology─┐┌─downstream──')
-        print('#        A   sF ===>····················································<=== sR')
-        print('#        B   sF ===>···················<=== rN-oR')
-        print('#        C                             rN-oF ===>·······················<=== sR')
-        print('#        D                        rN-iF ===>······<=== rN-iR')
-        print('#')
-        print('# F=forward, R=reverse')
-        print('# s=shared, o=outer, i=inner')
-        print('# rN=round number')
-        print('#')
-        
-        print('# '+ '\t'.join(['Set', 'Locus', 'Weight']))
-        for line in output0:
-            print('\t'.join(map(str, line)))
-        
-        print('# '+ '\t'.join(['Set', 'Index', 'Locus', 'Amplicon', 'Template', 'F', 'R', 'Size', 'Tm']))
-        for line in output1:
-            print('\t'.join(map(str, line)))
-        
-        # Output header information for second output table
-        print('# ' + '\t'.join(['Set', 'Index', 'Locus', 'Primer', 'Sequence', 'File', 'Contig', 'Start', 'End', 'Strand']))
-        for line in output2:
-            print('\t'.join(map(str, line)))
-        
-                        #####################
-                        # Cut code was here #
-                        #####################
-                        
-                        # This code output GenBank '*.gb' files
-        
-        # End 'compute()'
-
+        return pcr_regions, pcr_region_positions
+    
     def calculate_them_primers(self, args, far_us_seq, far_ds_seq, insert_seqs):
         """
         """
-        tm_max_difference = 4.0
-        amplicon_size = (200, 900)
-        tm_range = (52, 64)
         primer_length_range = (19,32)
-        min_delta_g = -5.0
         
-        subset_size = 1000 #35 #200 # Temporary size limit for the number of primers that go into the pair() function
+        # Limit for the number of primers that go into the pair() function.
+        # At most, there will be 1000*1000 = 1 millon possible pairs
+        subset_size = 1000
         
         logging.info('Scanning the regions (shared upstream (sF), shared downstream (sR), feature/insert (rN-oF,rN-oR,rN-iF,rN-iR) for all decent primers')
         
@@ -1075,7 +1169,7 @@ class ConfirmParser(subroutine.Subroutine):
         
         logging.info("Scanning far upstream for 'sF' primers:")
         sF_list = sorted(
-            args.selected_oligo.scan(far_us_seq, 'left', primer_size=primer_length_range, tm_range=tm_range, min_delta_g=min_delta_g, folder=temp_folder, time_limit=args.primer_scan_limit),
+            args.selected_oligo.scan(far_us_seq, 'left', primer_size=primer_length_range, folder=temp_folder, time_limit=args.primer_scan_limit),
             key=lambda x: x.weight,
             reverse=True
         )
@@ -1087,7 +1181,7 @@ class ConfirmParser(subroutine.Subroutine):
         
         logging.info("Scanning far downstream for 'sR' primers:")
         sR_list = sorted(
-            args.selected_oligo.scan(far_ds_seq, 'right', primer_size=primer_length_range, tm_range=tm_range, min_delta_g=min_delta_g, folder=temp_folder, time_limit=args.primer_scan_limit),
+            args.selected_oligo.scan(far_ds_seq, 'right', primer_size=primer_length_range, folder=temp_folder, time_limit=args.primer_scan_limit),
             key=lambda x: x.weight,
             reverse=True
         )
@@ -1101,7 +1195,7 @@ class ConfirmParser(subroutine.Subroutine):
         for ins in insert_seqs:
             logging.info("Scanning feature/insert for 'rN-oF', 'rN-oR', 'rN-iF', 'rN-iR' primers:")
             iF_list = sorted(
-                args.selected_oligo.scan(ins.seq, 'left',  primer_size=primer_length_range, tm_range=tm_range, min_delta_g=min_delta_g, folder=temp_folder, us_seq=ins.us_seq, ds_seq=ins.ds_seq, time_limit=args.primer_scan_limit),
+                args.selected_oligo.scan(ins.seq, 'left',  primer_size=primer_length_range, folder=temp_folder, us_seq=ins.us_seq, ds_seq=ins.ds_seq, time_limit=args.primer_scan_limit),
                 key=lambda x: x.weight,
                 reverse=True
             )
@@ -1110,7 +1204,7 @@ class ConfirmParser(subroutine.Subroutine):
             iF_list = iF_list[:subset_size]
             
             iR_list = sorted(
-                args.selected_oligo.scan(ins.seq, 'right', primer_size=primer_length_range, tm_range=tm_range, min_delta_g=min_delta_g, folder=temp_folder, us_seq=ins.us_seq, ds_seq=ins.ds_seq, time_limit=args.primer_scan_limit),
+                args.selected_oligo.scan(ins.seq, 'right', primer_size=primer_length_range, folder=temp_folder, us_seq=ins.us_seq, ds_seq=ins.ds_seq, time_limit=args.primer_scan_limit),
                 key=lambda x: x.weight,
                 reverse=True
             )
@@ -1126,7 +1220,7 @@ class ConfirmParser(subroutine.Subroutine):
         
         # Do the pair calculations that involve 'sF' and 'sR'
         logging.info("Calculating: 'sF' 'sR' paired primers...")
-        sF_sR_paired_primers = args.selected_oligo.pair(sF_list, sR_list, amplicon_size=(0, amplicon_size[1]), tm_max_difference=tm_max_difference, intervening=0, min_delta_g=min_delta_g, folder=temp_folder, time_limit=args.primer_pair_limit)
+        sF_sR_paired_primers = args.selected_oligo.pair(sF_list, sR_list, intervening=0, folder=temp_folder, time_limit=args.primer_pair_limit)
         
         for pp in sF_sR_paired_primers:
             # Re-calculate the PrimerPair weights to prefer the smallest amplicon sizes
@@ -1164,7 +1258,7 @@ class ConfirmParser(subroutine.Subroutine):
                 # sF rN-oR
                 logging.info("  Calculating: 'sF' 'r"+str(ins.genome_r)+ins.type+"-oR' paired_primers...")
                 sF_oR_paired_primers = sorted(
-                    args.selected_oligo.pair(sF_list, iR_list, amplicon_size=amplicon_size, tm_max_difference=tm_max_difference, intervening=ins.fus_dist, min_delta_g=min_delta_g, folder=temp_folder, time_limit=args.primer_pair_limit),
+                    args.selected_oligo.pair(sF_list, iR_list, intervening=ins.fus_dist, folder=temp_folder, time_limit=args.primer_pair_limit),
                     key=lambda x: x.get_joint_weight(),
                     reverse=True
                 )
@@ -1175,7 +1269,7 @@ class ConfirmParser(subroutine.Subroutine):
                 # rN-0F sR
                 logging.info("  Calculating: 'r"+str(ins.genome_r)+ins.type+"-oF' 'sR' paired_primers...")
                 oF_sR_paired_primers = sorted(
-                    args.selected_oligo.pair(iF_list, sR_list, amplicon_size=amplicon_size, tm_max_difference=tm_max_difference, intervening=ins.fds_dist, min_delta_g=min_delta_g, folder=temp_folder, time_limit=args.primer_pair_limit),
+                    args.selected_oligo.pair(iF_list, sR_list, intervening=ins.fds_dist, folder=temp_folder, time_limit=args.primer_pair_limit),
                     key=lambda x: x.get_joint_weight(),
                     reverse=True
                 )
@@ -1186,7 +1280,7 @@ class ConfirmParser(subroutine.Subroutine):
                 # rN-iF rN-iR
                 logging.info("  Calculating: 'r"+str(ins.genome_r)+ins.type+"-iF' 'r"+str(ins.genome_r)+ins.type+"-iR' paired_primers...")
                 iF_iR_paired_primers = sorted(
-                    args.selected_oligo.pair(iF_list, iR_list, amplicon_size=amplicon_size, tm_max_difference=tm_max_difference, intervening=0, same_template=True, min_delta_g=min_delta_g, folder=temp_folder, time_limit=args.primer_pair_limit),
+                    args.selected_oligo.pair(iF_list, iR_list, intervening=0, same_template=True, folder=temp_folder, time_limit=args.primer_pair_limit),
                     key=lambda x: x.get_joint_weight(),
                     reverse=True
                 )
@@ -1217,7 +1311,35 @@ class ConfirmParser(subroutine.Subroutine):
                     locations[-1].append([filenames[r], contig, m.start(), m.end(), '-'])
         return locations
     
-    def calculate_them_best_set(self, args, sF_sR_paired_primers, pair_list, max_iterations=1000):
+    def round_counter(self):
+        """
+        Returns '0b', '0a', '1b', '1a', '2b', '2a', ...
+        """
+        r = 0
+        m = 'b'
+        while True:
+            yield str(r) + m
+            if (m == 'b'):
+                m = 'a'
+            else:
+                m = 'b'
+                r += 1
+    
+    def round_converter(self, count):
+        """
+        Converts '0b' to 0 (the index of the genome)
+                 '0a'    1
+                 '1b'    1
+                 '1a'    2
+        Returns int values
+        """
+        
+        if (count[-1] == 'b'):
+            return int(count[:-1])
+        else:
+            return int(count[:-1])+1
+    
+    def calculate_them_best_set(self, args, sF_sR_paired_primers, pair_list, max_iterations=10000):
         """
         Takes input primer sets and calculates their weights
         
@@ -1377,6 +1499,26 @@ class ConfirmParser(subroutine.Subroutine):
             
             logging.info('  length of sources: ' + str([len(x) for x in pp_sources]))
             
+            
+            
+            # Only proceed with calculations (finally adding this primer to
+            # 'starting_set' and 'finished_set') if it has potential internal
+            # primers available, according to 'args.internal_primers_required'
+            
+            # Turns list ['y', 'n', 'y'] into ['y', 'y', 'n', 'n', 'y', 'y']
+            if args.internal_primers_required:
+                required_pattern = [val for val in args.internal_primers_required for b in range(2)]
+                current_pp_sources = [len(x) for x in pp_sources]
+                should_skip = False
+                for req_str, num_pp in zip(required_pattern, current_pp_sources):
+                    if ((req_str in ['y', 'Y', '1', 'T', 't', 'TRUE', 'True', 'true']) and (num_pp == 0)):
+                        should_skip = True
+                        break
+                if should_skip:
+                    logging.info('  skipping...')
+                    continue
+            
+            
             # # Pick random primer by weight for each source
             # pp_setN = []
             # p_setN = []
@@ -1393,9 +1535,16 @@ class ConfirmParser(subroutine.Subroutine):
             #     else:
             #         p_setN.append(None)
             
-            group_weight = args.selected_oligo.group_weight([sF_sR_pair.forward_primer, sF_sR_pair.reverse_primer]+p_setN)
-            joint_weight = group_weight * product(x.get_joint_weight() for x in [sF_sR_pair]+pp_setN if x)
+            p_group_weight = args.selected_oligo.p_group_weight([sF_sR_pair.forward_primer, sF_sR_pair.reverse_primer]+p_setN)
+            pp_group_weight = args.selected_oligo.pp_group_weight([sF_sR_pair]+pp_setN)
+            joint_weight = p_group_weight * pp_group_weight
             starting_set.append((joint_weight, [sF_sR_pair]+pp_setN))
+            
+            # Code that I am updating...
+        #    group_weight = args.selected_oligo.group_weight([sF_sR_pair.forward_primer, sF_sR_pair.reverse_primer]+p_setN)
+        #    joint_weight = group_weight * product(x.get_joint_weight() for x in [sF_sR_pair]+pp_setN if x)
+        #    starting_set.append((joint_weight, [sF_sR_pair]+pp_setN))
+            # ...updating am I that code
             
             logging.info('  starting_set: ' + str(starting_set[-1]))
             
@@ -1432,8 +1581,15 @@ class ConfirmParser(subroutine.Subroutine):
                             else:
                                 p_setNN.append(None)
                         
-                        new_group_weight = args.selected_oligo.group_weight([sF_sR_pair.forward_primer, sF_sR_pair.reverse_primer]+p_setNN)
-                        new_joint_weight = new_group_weight * product(x.get_joint_weight() for x in [sF_sR_pair]+pp_setNN if x)
+                        
+                        new_p_group_weight = args.selected_oligo.p_group_weight([sF_sR_pair.forward_primer, sF_sR_pair.reverse_primer]+p_setNN)
+                        new_pp_group_weight = args.selected_oligo.pp_group_weight([sF_sR_pair]+pp_setNN)
+                        new_joint_weight = new_p_group_weight * new_pp_group_weight
+                        
+                        # Code that I am updating...
+                    #    new_group_weight = args.selected_oligo.p_group_weight([sF_sR_pair.forward_primer, sF_sR_pair.reverse_primer]+p_setNN)
+                    #    new_joint_weight = new_group_weight * product(x.get_joint_weight() for x in [sF_sR_pair]+pp_setNN if x)
+                        # ...updating am I that code
                         
                         if (new_joint_weight > joint_weight):
                             logging.info('           set: ' + str((new_joint_weight, [sF_sR_pair]+pp_setNN)))
@@ -1577,3 +1733,70 @@ class ConfirmParser(subroutine.Subroutine):
             logging.info('Removing invalid record: ' + str(bad_qs_pair))
         
         return records
+
+class Datum(object):
+    """
+    Class representing the location of homology regions and inserts within
+    contigs.
+    The general pattern for each locus is:
+      Datum(dDNA_r=1, ..., genome_r=0, ...)
+      Datum(dDNA_r=1, ..., genome_r=1, ...)
+      Datum(dDNA_r=2, ..., genome_r=1, ...)
+      Datum(dDNA_r=2, ..., genome_r=2, ...)
+    """
+    __slots__ = [
+        'dDNA_r',
+        'dDNA_contig',
+        'genome_r',
+        'genome_contig',
+        'ush_start',
+        'ush_end',
+        'dsh_start',
+        'dsh_end',
+        'ins_start',
+        'ins_end'
+    ]
+    
+    def __init__(self, dDNA_r, dDNA_contig, genome_r, genome_contig, ush_start, ush_end, dsh_start, dsh_end, ins_start, ins_end):
+        self.dDNA_r = dDNA_r
+        self.dDNA_contig = dDNA_contig
+        self.genome_r = genome_r
+        self.genome_contig = genome_contig
+        self.ush_start = ush_start
+        self.ush_end = ush_end
+        self.dsh_start = dsh_start
+        self.dsh_end = dsh_end
+        self.ins_start = ins_start
+        self.ins_end = ins_end
+        
+    def __repr__(self):
+        return self.__class__.__name__ + '(' + ', '.join([s + '=' + repr(getattr(self, s)) for s in self.__slots__]) + ')'
+
+class Insert(object):
+    """
+    Class representing the insert region of a genome editing event, with
+    far-upstream and far-downstream distances.
+    """
+    __slots__ = [
+        'genome_r',
+        'genome_contig',
+        'seq',
+        'us_seq',
+        'ds_seq',
+        'fus_dist',
+        'fds_dist',
+        'type'
+    ]
+    
+    def __init__(self, genome_r, genome_contig, seq, us_seq, ds_seq, fus_dist, fds_dist, type):
+        self.genome_r = genome_r
+        self.genome_contig = genome_contig
+        self.seq = seq
+        self.us_seq = us_seq
+        self.ds_seq = ds_seq
+        self.fus_dist = fus_dist
+        self.fds_dist = fds_dist
+        self.type = type # 'b' for before, 'a' for after
+    
+    def __repr__(self):
+        return self.__class__.__name__ + '(' + ', '.join([s + '=' + repr(getattr(self, s)) for s in self.__slots__]) + ')'
