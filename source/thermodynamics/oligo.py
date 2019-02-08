@@ -118,7 +118,19 @@ class Oligo(object): # Name of the subclass
         #                       FFFFF
         #     4 primers          FFFFF
         #                        └─┴3 nt overlap
-        
+        # Example:
+        #       xxxxxxxxxx len(seq) = 10
+        #   FFFFF FFFFF    len(primer) = 5
+        #    FFFFF FFFFF   min_junction_overlap = (1,3)
+        #     FFFFF FFFFF  12 primers
+        #      FFFFF FFFFF
+        #       FFFFF FFFFF
+        #        FFFFF FFFFF
+        #    ffff ffff ffff len(primer) = 4
+        #     ffff ffff     11 primers
+        #      ffff ffff
+        #       ffff ffff
+        #        ffff ffff
         # Code to temporarily limit number of primers computed set to None to disable
         #subset_size = 5000 # 1000 # 9000
         
@@ -126,7 +138,11 @@ class Oligo(object): # Name of the subclass
         start_time = time.time() # Time in seconds
         
         # Total number of primers that will be scanned
-        n_est = max(0, sum(len(seq)-x+1 for x in range(primer_size[0], primer_size[1]+1)))
+        est_a = lambda x: max(0, min(x-min_junction_overlap[0], len(us_seq))) # number primers overlapping with us_seq
+        est_b = lambda x: max(0, min(x-min_junction_overlap[1], len(ds_seq))) # number primers overlapping with ds_seq
+        est_c = lambda x: len(seq)-x+1 # number primers contained within seq
+        
+        n_est = sum(max(0, est_a(x)+est_b(x)+est_c(x)) for x in range(primer_size[0], primer_size[1]+1))
         n_max = 0
         n_count = 0
         
@@ -136,7 +152,7 @@ class Oligo(object): # Name of the subclass
         # Second, filter the Primer objects
         # Third, return only the good Primer objects
         good_primers = []
-        if (side in ['left', 'forward', '+']):
+        if (side in ['left', 'L', 'forward', 'F', '+']):
             for p_len in range(primer_size[0], primer_size[1]+1):
                 # Include the flanking regions
                 l_seq = us_seq[len(us_seq) - (p_len-min_junction_overlap[0]):]
@@ -166,7 +182,7 @@ class Oligo(object): # Name of the subclass
                 if ((time.time()-start_time) > time_limit):
                     time_expired = True
         
-        elif (side in ['right', 'reverse', '-']):
+        elif (side in ['right', 'R', 'reverse', '-']):
             for p_len in range(primer_size[0], primer_size[1]+1):
                 # Include the flanking regions
                 l_seq = us_seq[len(us_seq) - (p_len-min_junction_overlap[1]):]
@@ -242,7 +258,7 @@ class Oligo(object): # Name of the subclass
                 if same_template:
                     cgf.template_length, cgr.template_length = 0, 0
                 
-                pp_object = PrimerPair.create(cgf, cgr, intervening=intervening, o_oligo=self)
+                pp_object = PrimerPair.create(cgf, cgr, *args, intervening=intervening, o_oligo=self, **kwargs) # 'pp_object' may not have desired 'intervening' value
                 if pp_object.forward_primer.summarize(pp_object.checks):
                     good_pairs.append(pp_object)
             
@@ -286,7 +302,6 @@ class Oligo(object): # Name of the subclass
                 temps.append(sum(tms)/len(tms))
         else:
             temps = [p.get_tm() for p in primers if p] # will not include any p == None
-        
         
         mean_temp = sum(temps)/len(temps) # mean Tm
         #print('temps =', temps, file=sys.stderr)
@@ -396,7 +411,10 @@ class Primer(object):
             self.o_reverse_complement = None
         
         self.weight = self.get_weight()
-        self.name = name
+        #self.name = name
+        self.names = set()
+        if name:
+            self.names.add(name)
     
     def __lt__(self, other):
         #if isinstance(other, Primer):
@@ -412,6 +430,12 @@ class Primer(object):
     #         C_count = seq.count('C')
     #         G_count = seq.count('G')
     #         return (C_count+G_count)/len(seq)
+    
+    def set_name(self, name):
+        self.names.add(name)
+    
+    def get_name(self):
+        return ','.join(sorted(self.names))
     
     @classmethod
     def create(cls, sequence, position, template_length, strand, checks=True, name=None, o_oligo=None):
@@ -704,8 +728,9 @@ class Primer(object):
         return locations
     
     def __repr__(self):
-        labs = ['seq', 'pos', 'strand', 'Tm', 'GC', 'min(dG)']
+        labs = ['name', 'seq', 'pos', 'strand', 'Tm', 'GC', 'min(dG)']
         vals = [
+            self.get_name(),
             self.sequence,
             self.position,
             self.strand,
@@ -731,7 +756,7 @@ class PrimerPair(object):
         self.intervening = intervening
         
         if checks:
-            self.checks, self.o_heterodimer = self.check_pair_attributes(o_oligo=o_oligo)
+            self.checks, self.o_heterodimer = self.check_pair_attributes(o_oligo=o_oligo, **kwargs)
         else:
             self.checks = [None]*4
             self.o_heterodimer = None
@@ -754,7 +779,7 @@ class PrimerPair(object):
         
         return pp
     
-    def check_pair_attributes(self, thorough=False, o_oligo=None):
+    def check_pair_attributes(self, thorough=False, o_oligo=None, **kwargs):
         o4 = None
         if thorough:
             checks = [
@@ -767,7 +792,7 @@ class PrimerPair(object):
         else:
             checks = [None]*4
         
-            checks[0] = self.check_amplicon_size()
+            checks[0] = self.check_amplicon_size(**kwargs)
             if checks[0]:
                 checks[1] = self.check_max_tm_difference()
                 if checks[1]:
@@ -777,7 +802,7 @@ class PrimerPair(object):
         
         return checks, o4
     
-    def check_amplicon_size(self, amplicon_size_range=(300,700)):
+    def check_amplicon_size(self, amplicon_size_range=(300,700), **kwargs):
         if (amplicon_size_range != None):
             amplicon_size_passed = amplicon_size_range[0] <= self.get_amplicon_size() <= amplicon_size_range[1]
         else:

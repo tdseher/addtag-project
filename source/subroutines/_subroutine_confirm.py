@@ -517,10 +517,14 @@ class ConfirmParser(subroutine.Subroutine):
         
         
         for i, dg in enumerate(datum_groups):
+            logging.info('Analyzing locus: {}'.format(i))
+            
             # Add DatumGroup to 'output0' table
             output0.append([i, dg])
             
             fus_seq, fds_seq = pcr_regions[i]
+            
+            logging.info("Grabbing contig substrings for 'Insert' objects...")
             
             # insert_seqs = [
             #     Insert(qname='ko-dDNA', genome_r=0, genome_contig='chr1',               seq='ACGTAACA') 
@@ -534,6 +538,7 @@ class ConfirmParser(subroutine.Subroutine):
             # And use those to calculate the 'before'=feature, and 'after'=insert
             # sequences (with their up/downstream flanking regions)
             for di, datum in enumerate(dg):
+                logging.info("Parsing 'Datum' {}".format(di))
                 if (datum.ins_start != None):
                     # Add feature
                     insert_seqs.append(Insert(
@@ -579,16 +584,45 @@ class ConfirmParser(subroutine.Subroutine):
             
             # Old code for 6-set:
             #initial_pair_list, final_pair_list = self.make_primer_set(args, qname, us_seq, ds_seq, insert_seq, feature_seq, q_hih_seq, s_ush_seq, q_ush_seq, s_dsh_seq, q_dsh_seq)
-            
+            logging.info('Calculating primers for locus {}'.format(i))
             #                                                                             shared_forward  shared_reverse  features/inserts
-            pair_list, insert_pair_list, round_labels = self.calculate_them_primers(args, fus_seq,        fds_seq,        insert_seqs)
+            pair_list, insert_pair_list, round_labels, weighted_d_set_list = self.calculate_them_primers(args, fus_seq,        fds_seq,        insert_seqs)
             
             # Filter 'pair_list' to get the top 10
+            logging.info("Sorting Amp 'A/B/C' list...")
             pair_list = sorted(pair_list, reverse=True)[:args.max_number_designs_reported]
+            
+            # Make Amp-D pp list non-redundant
+            logging.info("Sorting Amp 'D' list...")
+            ppdict = {}
+            for wdsl in weighted_d_set_list:
+                w, pp_list = wdsl
+                k = []
+                for pp in pp_list:
+                    if pp:
+                        k.append((pp.forward_primer.sequence, pp.reverse_primer.sequence))
+                    else:
+                        k.append((None, None))
+                k = tuple(k)
+                
+                d_wdsl = ppdict.setdefault(k, wdsl)
+                if (d_wdsl[0] < w):
+                    ppdict[k] = wdsl
+                
+            weighted_d_set_list = list(ppdict.values())
+            
+            # Filter to get the top 10
+            weighted_d_set_list = sorted(weighted_d_set_list, reverse=True)[:args.max_number_designs_reported]
+            
+            # Let user know program is still working
+            logging.info("Appending Locus {} results to output lists...".format(i))
             
             # Add the calculated weights of the sF/sR/oF/oR sets to 'output1' table
             for ppli, (w, pp_list) in enumerate(pair_list):
-                output1.append([ppli, i, w])
+                output1.append([ppli, i, w, 'A/B/C'])
+            
+            for ppli, (w, pp_list) in enumerate(weighted_d_set_list):
+                output1.append([ppli, i, w, 'D'])
             
             # Print the primers for 'output2' table
             for ppli, (w, pp_list) in enumerate(pair_list):
@@ -611,87 +645,29 @@ class ConfirmParser(subroutine.Subroutine):
                             else:
                                 amp_sizes = '-'
                             tms = ','.join([str(round(ptm, 2)) for ptm in pp.get_tms()])
-                            output2.append([ppli, pp_i, i, amp_name, rac, converted_genome_round, pp.forward_primer.name, pp.reverse_primer.name, amp_sizes, tms])
+                            output2.append([ppli, pp_i, i, amp_name, rac, converted_genome_round, pp.forward_primer.get_name(), pp.reverse_primer.get_name(), amp_sizes, tms])
                         
                         #if (pp and (round_n == rac)):
                         #    output2.append([ppli, pp_i, i, amp_name, round_n, '-', pp.forward_primer.name, pp.reverse_primer.name, pp.get_amplicon_size(), pp.get_tms()])
                         else:
                             if (amp_name == 'A'):
-                                output2.append([ppli, pp_i, i, amp_name, rac, converted_genome_round, 'sF', 'sR', '-', '-'])
+                                fname, rname = 'sF', 'sR'
                             elif (amp_name == 'B'):
-                                output2.append([ppli, pp_i, i, amp_name, rac, converted_genome_round, 'sF', 'r'+round_n+'-oR', '-', '-'])
+                                fname, rname = 'sF', 'r'+round_n+'-oR'
                             elif (amp_name == 'C'):
-                                output2.append([ppli, pp_i, i, amp_name, rac, converted_genome_round, 'r'+round_n+'-oF', 'sR', '-', '-'])
-                    
-                    #if pp: # primer_set_index, primer_pair_index, locus
-                    #    #if (pp.forward_primer.name == 'sF'):
-                    #    #    if (pp.reverse_primer.name == 'sR'):
-                    #    #        amp_name = 'A'
-                    #    #        round_n = next(A_counter)
-                    #    #    else:
-                    #    #        amp_name = 'B'
-                    #    #        round_n = next(B_counter)
-                    #    #else:
-                    #    #    if (pp.reverse_primer.name == 'sR'):
-                    #    #        amp_name = 'C'
-                    #    #        round_n = next(C_counter)
-                    #    #    else:
-                    #    #        amp_name = 'D'
-                    #    output2.append([ppli, pp_i, i, amp_name, round_n, pp.forward_primer.name, pp.reverse_primer.name, pp.get_amplicon_size(), pp.get_tms(), 'Template'])
-                    #else:
-                    #    output2.append([ppli, pp_i, i, amp_name, round_n, '-', '-', '-', '-', '-'])
+                                fname, rname = 'r'+round_n+'-oF', 'sR'
+                            else:
+                                fname, rname = '-', '-'
+                            output2.append([ppli, pp_i, i, amp_name, rac, converted_genome_round, fname, rname, '-', '-'])
             
-            # Filter 'insert_pair_list' to get the top 10 (They are already sorted)
-            insert_pair_list = [x[:args.max_number_designs_reported] for x in insert_pair_list]
-            #D_counter = self.round_counter() # Hacky way to get the round
-            #for ip_r, iF_iR_paired_primers in enumerate(insert_pair_list):
-            #    amp_name = 'D'
-            #    round_n = next(D_counter)
-            #    if (len(iF_iR_paired_primers) == 0):
-            #        output2.append(['-', ip_r, i, amp_name, round_n, '-', '-', '-', '-', '-'])
-            #    else:
-            #        for ppli, pp in enumerate(iF_iR_paired_primers):
-            #            if pp:
-            #                output2.append([ppli, ip_r, i, amp_name, round_n, pp.forward_primer.name, pp.reverse_primer.name, pp.get_amplicon_size(), pp.get_tms(), 'Template'])
-            #            else:
-            #                output2.append([ppli, ip_r, i, amp_name, round_n, '-', '-', '-', '-', '-'])
-            
-            if (len(insert_pair_list) > 0):
-                number_D_sets = max([len(ipl) for ipl in insert_pair_list])
-            else:
-                number_D_sets = 0
-            
-            #D_sets = [] # [['0b', '0a', '1b', '1a'], ...]
-            #for ppli in range(number_D_sets):
-            #    amp_name = 'D'
-            #    D_counter = self.round_counter() # Hacky way to get the round
-            #    D_sets.append([])
-            #    for ip_r, iF_iR_paired_primers in enumerate(insert_pair_list):
-            #        round_n = next(D_counter)
-            #        
-            #        try:
-            #            pp = iF_iR_paired_primers[ppli]
-            #            D_sets[-1].append([ppli, ip_r, i, amp_name, round_n, pp.forward_primer.name, pp.reverse_primer.name, pp.get_amplicon_size(), pp.get_tms()])
-            #        except IndexError, AttributeError:
-            #            D_sets[-1].append([ppli, ip_r, i, amp_name, round_n, round_n+'-iF', round_n+'-iR', '-', '-'])
-            #
-            #for D_set in D_sets:
-            #    for ds in D_set:
-            #        output2.append(ds)
-            
-            # Need to add code to this code sectoin involving 'D' so that
-            # it respects 'args.internal_primers_required'
             amp_name = 'D'
-            for ppli in range(number_D_sets):
-                D_counter = self.round_counter() # Hacky way to get the round
-                for ip_r, iF_iR_paired_primers in enumerate(insert_pair_list):
-                    round_n = next(D_counter)
-                    try:
-                        pp = iF_iR_paired_primers[ppli]
-                    except IndexError:
-                        pp = None
+            for ppli, (w, pp_list) in enumerate(weighted_d_set_list):
+                d_counter = self.round_counter()
+                for pp_i, pp in enumerate(pp_list):
+                    round_n = next(d_counter)
+                    
                     ra_counter = self.round_counter()
-                    for ia in range(len(insert_pair_list)):
+                    for ip_r in range(len(insert_pair_list)):
                         rac = next(ra_counter)
                         converted_genome_round = self.round_converter(rac)
                         if pp:
@@ -701,22 +677,92 @@ class ConfirmParser(subroutine.Subroutine):
                             else:
                                 amp_sizes = '-'
                             tms = ','.join([str(round(ptm, 2)) for ptm in pp.get_tms()])
-                            output2.append([ppli, ip_r, i, amp_name, rac, converted_genome_round, pp.forward_primer.name, pp.reverse_primer.name, amp_sizes, tms])
+                            output2.append([ppli, pp_i, i, amp_name, rac, converted_genome_round, pp.forward_primer.get_name(), pp.reverse_primer.get_name(), amp_sizes, tms])
                             
                         #if (pp and (round_n == rac)):
                         #    output2.append([ppli, ip_r, i, amp_name, round_n, '-', pp.forward_primer.name, pp.reverse_primer.name, pp.get_amplicon_size(), pp.get_tms()])
                         else:
-                            output2.append([ppli, ip_r, i, amp_name, rac, converted_genome_round, 'r'+round_n+'-iF', 'r'+round_n+'-iR', '-', '-'])
+                            output2.append([ppli, pp_i, i, amp_name, rac, converted_genome_round, 'r'+round_n+'-iF', 'r'+round_n+'-iR', '-', '-'])
+            
+            
+            
+            
+#            # Filter 'insert_pair_list' to get the top 10 (They are already sorted)
+#            insert_pair_list = [x[:args.max_number_designs_reported] for x in insert_pair_list]
+#            #D_counter = self.round_counter() # Hacky way to get the round
+#            #for ip_r, iF_iR_paired_primers in enumerate(insert_pair_list):
+#            #    amp_name = 'D'
+#            #    round_n = next(D_counter)
+#            #    if (len(iF_iR_paired_primers) == 0):
+#            #        output2.append(['-', ip_r, i, amp_name, round_n, '-', '-', '-', '-', '-'])
+#            #    else:
+#            #        for ppli, pp in enumerate(iF_iR_paired_primers):
+#            #            if pp:
+#            #                output2.append([ppli, ip_r, i, amp_name, round_n, pp.forward_primer.name, pp.reverse_primer.name, pp.get_amplicon_size(), pp.get_tms(), 'Template'])
+#            #            else:
+#            #                output2.append([ppli, ip_r, i, amp_name, round_n, '-', '-', '-', '-', '-'])
+#            
+#            if (len(insert_pair_list) > 0):
+#                number_D_sets = max([len(ipl) for ipl in insert_pair_list])
+#            else:
+#                number_D_sets = 0
+#            
+#            #D_sets = [] # [['0b', '0a', '1b', '1a'], ...]
+#            #for ppli in range(number_D_sets):
+#            #    amp_name = 'D'
+#            #    D_counter = self.round_counter() # Hacky way to get the round
+#            #    D_sets.append([])
+#            #    for ip_r, iF_iR_paired_primers in enumerate(insert_pair_list):
+#            #        round_n = next(D_counter)
+#            #        
+#            #        try:
+#            #            pp = iF_iR_paired_primers[ppli]
+#            #            D_sets[-1].append([ppli, ip_r, i, amp_name, round_n, pp.forward_primer.name, pp.reverse_primer.name, pp.get_amplicon_size(), pp.get_tms()])
+#            #        except IndexError, AttributeError:
+#            #            D_sets[-1].append([ppli, ip_r, i, amp_name, round_n, round_n+'-iF', round_n+'-iR', '-', '-'])
+#            #
+#            #for D_set in D_sets:
+#            #    for ds in D_set:
+#            #        output2.append(ds)
+#            
+#            # Need to add code to this code sectoin involving 'D' so that
+#            # it respects 'args.internal_primers_required'
+#            amp_name = 'Dold'
+#            for ppli in range(number_D_sets):
+#                D_counter = self.round_counter() # Hacky way to get the round
+#                for ip_r, iF_iR_paired_primers in enumerate(insert_pair_list):
+#                    round_n = next(D_counter)
+#                    try:
+#                        pp = iF_iR_paired_primers[ppli]
+#                    except IndexError:
+#                        pp = None
+#                    ra_counter = self.round_counter()
+#                    for ia in range(len(insert_pair_list)):
+#                        rac = next(ra_counter)
+#                        converted_genome_round = self.round_converter(rac)
+#                        if pp:
+#                            amp_sizes = pp.in_silico_pcr(genome_contigs_list[converted_genome_round])
+#                            if (len(amp_sizes) > 0):
+#                                amp_sizes = ','.join(map(str, sorted(amp_sizes)))
+#                            else:
+#                                amp_sizes = '-'
+#                            tms = ','.join([str(round(ptm, 2)) for ptm in pp.get_tms()])
+#                            output2.append([ppli, ip_r, i, amp_name, rac, converted_genome_round, pp.forward_primer.name, pp.reverse_primer.name, amp_sizes, tms])
+#                            
+#                        #if (pp and (round_n == rac)):
+#                        #    output2.append([ppli, ip_r, i, amp_name, round_n, '-', pp.forward_primer.name, pp.reverse_primer.name, pp.get_amplicon_size(), pp.get_tms()])
+#                        else:
+#                            output2.append([ppli, ip_r, i, amp_name, rac, converted_genome_round, 'r'+round_n+'-iF', 'r'+round_n+'-iR', '-', '-'])
                     
-            # Add primers to 'output3' table
+            # Add Primer sequences to 'output3' table
             for ppli, (w, pp_list) in enumerate(pair_list):
                 round_labels_iter = iter(round_labels)
                 #non_redundant_primers = {}
                 for pp_i, pp in enumerate(pp_list):
                     amp_name, round_n = next(round_labels_iter)
                     if pp:
-                        fname, fseq = pp.forward_primer.name, pp.forward_primer.sequence
-                        rname, rseq = pp.reverse_primer.name, pp.reverse_primer.sequence
+                        fname, fseq = pp.forward_primer.get_name(), pp.forward_primer.sequence
+                        rname, rseq = pp.reverse_primer.get_name(), pp.reverse_primer.sequence
                     else:
                         if (amp_name == 'A'):
                             fname, fseq = 'sF', '-'
@@ -727,61 +773,115 @@ class ConfirmParser(subroutine.Subroutine):
                         elif (amp_name == 'C'):
                             fname, fseq = 'r'+round_n+'-oF', '-'
                             rname, rseq = 'sR', '-'
+                        else:
+                            fname, fseq, rname, rseq = '-', '-', '-', '-'
                     #non_redundany_primers[fname] = fseq
                     #non_redundany_primers[rname] = rseq
                     output3.append([ppli, pp_i, i, fname, fseq])
                     output3.append([ppli, pp_i, i, rname, rseq])
             
-            amp_name = 'D'
-            for ppli in range(number_D_sets):
-                D_counter = self.round_counter() # Hacky way to get the round
-                for ip_r, iF_iR_paired_primers in enumerate(insert_pair_list):
-                    round_n = next(D_counter)
-                    try:
-                        pp = iF_iR_paired_primers[ppli]
-                    except IndexError:
-                        pp = None
+            #amp_name = 'D'
+            for ppli, (w, pp_list) in enumerate(weighted_d_set_list):
+                d_counter = self.round_counter()
+                for pp_i, pp in enumerate(pp_list):
+                    round_n = next(d_counter)
+                    #converted_genome_round = self.round_converter(round_n)
+                    
                     if pp:
-                        fname, fseq = pp.forward_primer.name, pp.forward_primer.sequence
-                        rname, rseq = pp.reverse_primer.name, pp.reverse_primer.sequence
+                        fname, fseq = pp.forward_primer.get_name(), pp.forward_primer.sequence
+                        rname, rseq = pp.reverse_primer.get_name(), pp.reverse_primer.sequence
                     else:
                         fname, fseq = 'r'+round_n+'-iF', '-'
                         rname, rseq = 'r'+round_n+'-iR', '-'
                     
-                    output3.append([ppli, ip_r, i, fname, fseq])
-                    output3.append([ppli, ip_r, i, rname, rseq])
+                    output3.append([ppli, pp_i, i, fname, fseq])
+                    output3.append([ppli, pp_i, i, rname, rseq])
+            
+            
+#            #amp_name = 'Dold'
+#            for ppli in range(number_D_sets):
+#                D_counter = self.round_counter() # Hacky way to get the round
+#                for ip_r, iF_iR_paired_primers in enumerate(insert_pair_list):
+#                    round_n = next(D_counter)
+#                    try:
+#                        pp = iF_iR_paired_primers[ppli]
+#                    except IndexError:
+#                        pp = None
+#                    if pp:
+#                        fname, fseq = pp.forward_primer.name, pp.forward_primer.sequence
+#                        rname, rseq = pp.reverse_primer.name, pp.reverse_primer.sequence
+#                    else:
+#                        fname, fseq = 'r'+round_n+'-iF', '-'
+#                        rname, rseq = 'r'+round_n+'-iR', '-'
+#                    
+#                    output3.append([ppli, ip_r, i, fname, fseq, 'Dold'])
+#                    output3.append([ppli, ip_r, i, rname, rseq, 'Dold'])
             
             # Add the primer locations to 'output4' table
             for ppli, (w, pp_list) in enumerate(pair_list):
+                round_labels_iter = iter(round_labels)
                 for pp_i, pp in enumerate(pp_list):
+                    amp_name, round_n = next(round_labels_iter)
                     if pp:
                         # 'f_locations' and 'r_locations' should have the same length
                         f_locations = self.get_primer_location(genome_fasta_file_list, genome_contigs_list, pp.forward_primer.sequence)
                         r_locations = self.get_primer_location(genome_fasta_file_list, genome_contigs_list, pp.reverse_primer.sequence)
                         for loc_i in range(len(f_locations)):
                             for loc in f_locations[loc_i]:
-                                output4.append([ppli, pp_i, i, pp.forward_primer.name, pp.forward_primer.sequence, loc[0], loc[1], loc[2], loc[3], loc[4]])
+                                output4.append([ppli, pp_i, i, pp.forward_primer.get_name(), pp.forward_primer.sequence, loc[0], loc[1], loc[2], loc[3], loc[4]])
                             for loc in r_locations[loc_i]:
-                                output4.append([ppli, pp_i, i, pp.reverse_primer.name, pp.reverse_primer.sequence, loc[0], loc[1], loc[2], loc[3], loc[4]])
+                                output4.append([ppli, pp_i, i, pp.reverse_primer.get_name(), pp.reverse_primer.sequence, loc[0], loc[1], loc[2], loc[3], loc[4]])
                         #output4.append([ppli, pp_i, i, pp.reverse_primer.name, pp.reverse_primer.sequence, 'File', 'Contig', 'Start', 'End', '-'])
                     else:
-                        output4.append([ppli, pp_i, i, '-', '-', '-', '-', '-', '-', '+'])
-                        output4.append([ppli, pp_i, i, '-', '-', '-', '-', '-', '-', '-'])
+                        if (amp_name == 'A'):
+                            fname, fseq = 'sF', '-'
+                            rname, rseq = 'sR', '-'
+                        elif (amp_name == 'B'):
+                            fname, fseq = 'sF', '-'
+                            rname, rseq = 'r'+round_n+'-oR', '-'
+                        elif (amp_name == 'C'):
+                            fname, fseq = 'r'+round_n+'-oF', '-'
+                            rname, rseq = 'sR', '-'
+                        
+                        output4.append([ppli, pp_i, i, fname, fseq, '-', '-', '-', '-', '+'])
+                        output4.append([ppli, pp_i, i, fname, fseq, '-', '-', '-', '-', '-'])
             
-            for ip_r, iF_iR_paired_primers in enumerate(insert_pair_list):
-                for ppli, pp in enumerate(iF_iR_paired_primers):
+            for ppli, (w, pp_list) in enumerate(weighted_d_set_list):
+                d_counter = self.round_counter()
+                for pp_i, pp in enumerate(pp_list):
+                    round_n = next(d_counter)
                     if pp:
                         # 'f_locations' and 'r_locations' should have the same length
                         f_locations = self.get_primer_location(genome_fasta_file_list, genome_contigs_list, pp.forward_primer.sequence)
                         r_locations = self.get_primer_location(genome_fasta_file_list, genome_contigs_list, pp.reverse_primer.sequence)
                         for loc_i in range(len(f_locations)):
                             for loc in f_locations[loc_i]:
-                                output4.append([ppli, ip_r, i, pp.forward_primer.name, pp.forward_primer.sequence, loc[0], loc[1], loc[2], loc[3], loc[4]])
+                                output4.append([ppli, pp_i, i, pp.forward_primer.get_name(), pp.forward_primer.sequence, loc[0], loc[1], loc[2], loc[3], loc[4]])
                             for loc in r_locations[loc_i]:
-                                output4.append([ppli, ip_r, i, pp.reverse_primer.name, pp.reverse_primer.sequence, loc[0], loc[1], loc[2], loc[3], loc[4]])
+                                output4.append([ppli, pp_i, i, pp.reverse_primer.get_name(), pp.reverse_primer.sequence, loc[0], loc[1], loc[2], loc[3], loc[4]])
                     else:
-                        output4.append([ppli, ip_r, i, '-', '-', '-', '-', '-', '-', '+'])
-                        output4.append([ppli, ip_r, i, '-', '-', '-', '-', '-', '-', '-'])
+                        output4.append([ppli, pp_i, i, 'r'+round_n+'-iF', '-', '-', '-', '-', '-', '+'])
+                        output4.append([ppli, pp_i, i, 'r'+round_n+'-iR', '-', '-', '-', '-', '-', '-'])
+            
+            
+            
+#            # Dold
+#            for ip_r, iF_iR_paired_primers in enumerate(insert_pair_list):
+#                for ppli, pp in enumerate(iF_iR_paired_primers):
+#                    if pp:
+#                        # 'f_locations' and 'r_locations' should have the same length
+#                        f_locations = self.get_primer_location(genome_fasta_file_list, genome_contigs_list, pp.forward_primer.sequence)
+#                        r_locations = self.get_primer_location(genome_fasta_file_list, genome_contigs_list, pp.reverse_primer.sequence)
+#                        for loc_i in range(len(f_locations)):
+#                            for loc in f_locations[loc_i]:
+#                                output4.append([ppli, ip_r, i, pp.forward_primer.name, pp.forward_primer.sequence, loc[0], loc[1], loc[2], loc[3], loc[4]])
+#                            for loc in r_locations[loc_i]:
+#                                output4.append([ppli, ip_r, i, pp.reverse_primer.name, pp.reverse_primer.sequence, loc[0], loc[1], loc[2], loc[3], loc[4]])
+#                    else:
+#                        output4.append([ppli, ip_r, i, '-', '-', '-', '-', '-', '-', '+'])
+#                        output4.append([ppli, ip_r, i, '-', '-', '-', '-', '-', '-', '-'])
+        
+        logging.info('Printing to STDOUT...')
         
         # Print output header information describing the amplicons
         print('#                                          Genome')
@@ -801,7 +901,7 @@ class ConfirmParser(subroutine.Subroutine):
         for line in output0:
             print('\t'.join(map(str, line)))
         
-        print('# ' + '\t'.join(['Set', 'Locus', 'Weight']))
+        print('# ' + '\t'.join(['Set', 'Locus', 'Weight', 'Amplicon']))
         for line in output1:
             print('\t'.join(map(str, line)))
         
@@ -1055,6 +1155,25 @@ class ConfirmParser(subroutine.Subroutine):
         
         return datum_groups
     
+    def new_sf_sr_primers(self):
+        # This function should replace 'get_far_lcs_regions()'
+        # The way it should work:
+        #   for flank in ['us', 'ds']:
+        #     primers_found = defaultdict() # starts every key at value=0
+        #     for insert
+        #       # Scan region using a sliding window to find putative primers
+        #       for primer_size in range(19, 32):
+        #         primer = ...
+        #         primers_found[primer] += 1
+        #     omnipresent_primers = []
+        #     for p, c in primers_found.items()
+        #       if (c == len(inserts))
+        #         omnipresent_primers.append(p)
+        
+        # A drawback--need a way to keep track of the primer's position...
+        # Advantages over old LCS version: does not require long stretches of homology
+        pass
+    
     def get_far_lcs_regions(self, datum_groups, genome_contigs_list):
         
         # Let's find the longest common substring in the far_upstream and far_downstream regions of each
@@ -1227,8 +1346,8 @@ class ConfirmParser(subroutine.Subroutine):
             pp.weight = pp.get_weight(minimize=True)
             
             # Re-name the primers so when they are printed, they are easy to distinguish
-            pp.forward_primer.name = 'sF'
-            pp.reverse_primer.name = 'sR'
+            pp.forward_primer.set_name('sF')
+            pp.reverse_primer.set_name('sR')
         
         # Sort by weight
         sF_sR_paired_primers = sorted(
@@ -1263,7 +1382,8 @@ class ConfirmParser(subroutine.Subroutine):
                     reverse=True
                 )
                 for pp in sF_oR_paired_primers:
-                    pp.forward_primer.name, pp.reverse_primer.name = 'sF', 'r'+str(ins.genome_r)+ins.type+'-oR'
+                    pp.forward_primer.set_name('sF')
+                    pp.reverse_primer.set_name('r'+str(ins.genome_r)+ins.type+'-oR')
                 logging.info('  len(sF_oR_paired_primers) = {}'.format(len(sF_oR_paired_primers)))
             
                 # rN-0F sR
@@ -1274,7 +1394,8 @@ class ConfirmParser(subroutine.Subroutine):
                     reverse=True
                 )
                 for pp in oF_sR_paired_primers:
-                    pp.forward_primer.name, pp.reverse_primer.name = 'r'+str(ins.genome_r)+ins.type+'-oF', 'sR'
+                    pp.forward_primer.set_name('r'+str(ins.genome_r)+ins.type+'-oF')
+                    pp.reverse_primer.set_name('sR')
                 logging.info('  len(oF_sR_paired_primers) = {}'.format(len(oF_sR_paired_primers)))
                 
                 # rN-iF rN-iR
@@ -1285,7 +1406,8 @@ class ConfirmParser(subroutine.Subroutine):
                     reverse=True
                 )
                 for pp in iF_iR_paired_primers:
-                    pp.forward_primer.name, pp.reverse_primer.name = 'r'+str(ins.genome_r)+ins.type+'-iF', 'r'+str(ins.genome_r)+ins.type+'-iR'
+                    pp.forward_primer.set_name('r'+str(ins.genome_r)+ins.type+'-iF')
+                    pp.reverse_primer.set_name('r'+str(ins.genome_r)+ins.type+'-iR')
                 logging.info('  len(iF_iR_paired_primers) = {}'.format(len(iF_iR_paired_primers)))
                 
                 # Add calculated primer pairs to the list
@@ -1297,7 +1419,9 @@ class ConfirmParser(subroutine.Subroutine):
         # Then it should only be weighted for a SINGLE entry
         starting_set, finished_set, round_labels = self.calculate_them_best_set(args, sF_sR_paired_primers, pair_list)
         
-        return finished_set, insert_pair_list, round_labels
+        d_starting_set, d_finished_set = self.calculate_amp_d_set(args, insert_pair_list)
+        
+        return finished_set, insert_pair_list, round_labels, d_finished_set
     
     def get_primer_location(self, filenames, genomes, primer_sequence):
         #[filename, contig, start, end, strand]
@@ -1339,6 +1463,188 @@ class ConfirmParser(subroutine.Subroutine):
         else:
             return int(count[:-1])+1
     
+    def flatten_primer_pair_list(self, pair_list):
+        p_set = []
+        for pp in pair_list:
+            if pp:
+                p_set.append(pp.forward_primer)
+                p_set.append(pp.reverse_primer)
+            else:
+                p_set.append(None)
+                p_set.append(None)
+        return p_set
+    
+    def optimize_pp_list_by_weight(self, args, pair_list, semirandom=True):
+        """
+        This will effectively minimize the number of primers sequences needed.
+        """
+        
+        if semirandom:
+            # Get ranked-random set
+            pp_set = [self.random_primer_by_weight(pp_list) for pp_list in pair_list]
+        else:
+            # Get top-ranked set
+            pp_set = [pp_list[0] if (len(pp_list) > 0) else None for pp_list in pair_list]
+        
+        p_group_weight = args.selected_oligo.p_group_weight(self.flatten_primer_pair_list(pp_set))
+        pp_group_weight = args.selected_oligo.pp_group_weight(pp_set)
+        joint_weight = p_group_weight * pp_group_weight
+        
+        starting_set = (joint_weight, pp_set) # initial set
+        
+        # iteratively improve until a local maxima is found
+        # By continually swapping out the least-weighted component primer
+        weight_delta = 1
+        while (weight_delta > 0):
+            # Get list of indices from smallest weight to largest weight (excluding 'sF' and 'sR')
+            # If a primer is 'None', then it is right-most in the list.
+            # Left-most element is the smallest weight. Weights increase as the index of the list increases.
+            
+            wi_order = self.rank_order([pp.get_joint_weight() if pp else math.inf for pp in pp_set])
+            
+            # If primer is 'None', then its weight will be 'math.inf', and the index
+            # corresponding to it will be the last element in wi_order:
+            #   rank_order([1, 2, 2.5, 0.001, math.inf]) # [3, 0, 1, 2, 4]
+            
+            # Start at the worst, and go to the next-worst, then next, then next
+            for wi in wi_order:
+                # Copy the list of primer pairs
+                pp_set2 = pp_set[:]
+                
+                # Swap the worst-performing primer with an alternative.
+                # If the alternative gives a better weight, then keep it
+                # and break out of the loop
+                for source_pp in pair_list[wi]:
+                    pp_set2[wi] = source_pp
+                    
+                    new_p_group_weight = args.selected_oligo.p_group_weight(self.flatten_primer_pair_list(pp_set2))
+                    new_pp_group_weight = args.selected_oligo.pp_group_weight(pp_set2)
+                    new_joint_weight = new_p_group_weight * new_pp_group_weight
+                    
+                    weight_delta = new_joint_weight - joint_weight
+                    
+                    if (weight_delta > 0):
+                        # replace values for next iteration
+                        pp_set = pp_set2
+                        joint_weight = new_joint_weight
+                        logging.info('          t-set: ' + str((joint_weight, pp_set)))
+                        break
+                else:
+                    # If no pp swap in 'source_pp' is higher-weighted, then return 0 rather than the last-calculated 'weight_delta'
+                    weight_delta = 0
+                
+                # If the pp swap already produces a higher-weighted primer set, then skip the rest of the 'wi'
+                if (weight_delta > 0):
+                    break
+        
+        finished_set = (joint_weight, pp_set)
+        
+        return starting_set, finished_set
+    
+    def random_choices(self, population, weights, k=1):
+        """
+        Return a k sized list of population elements chosen with replacement.
+        """
+        weight_sum = sum(weights)
+        choices = zip(population, weights)
+        values = []
+        for i in range(k):
+            r = random.uniform(0, weight_sum)
+            upto = 0
+            for c, w in choices:
+                if upto + w >= r:
+                    values.append(c)
+                    break
+                upto += w
+            else:
+                values.append(random.choice(population))
+        return values
+    
+    def random_primer_by_weight(self, pairs):
+        if (len(pairs) == 0):
+            return None
+        elif ('choices' in random.__all__):
+            return random.choices(pairs, [x.get_joint_weight() for x in pairs])[0]
+        else:
+            return self.random_choices(pairs, [x.get_joint_weight() for x in pairs])[0]
+    
+    def nsum(self, n):
+        return n*(n+1)/2
+    
+    def rank_order(self, x, reverse=False, shift=0):
+        return [y+shift for y in sorted(range(len(x)), key=x.__getitem__, reverse=reverse)]
+    
+    def rank(self, x, reverse=False, shift=0):
+        return [z[0]+shift for z in sorted(enumerate(sorted(enumerate(x), key=lambda w: w[1], reverse=reverse)), key=lambda y: y[1][0])]
+    
+    def rank_dist(self, x):
+        s = nsum(len(x))
+        return [y/s for y in rank(x, reverse=False, shift=1)]
+    
+    #def product(x):
+    #    z = 1
+    #    for y in x:
+    #        z *= y
+    #    return z
+    
+    def filter_primer_pairs(self, pairs, forward=None, reverse=None):
+        ooo = []
+        
+        if (forward and reverse):
+            for pp in pairs:
+                if ((pp.forward_primer.sequence == forward.sequence) and (pp.reverse_primer.sequence == reverse.sequence)):
+                    ooo.append(pp)
+        elif forward:
+            for pp in pairs:
+                if (pp.forward_primer.sequence == forward.sequence):
+                    ooo.append(pp)
+        elif reverse:
+            for pp in pairs:
+                if (pp.reverse_primer.sequence == reverse.sequence):
+                    ooo.append(pp)
+        else:
+            ooo = pairs
+        
+        return ooo
+    
+    def pp_sets_equal(self, set1, set2):
+        seqs1 = [(pp.forward_primer.sequence, pp.reverse_primer.sequence) if pp else (None, None) for pp in set1[1]]
+        seqs2 = [(pp.forward_primer.sequence, pp.reverse_primer.sequence) if pp else (None, None) for pp in set2[1]]
+        return seqs1 == seqs2
+    
+    def which_pp_equal(self, pp_set, shift=1):
+        t_num = (len(pp_set)-1)//2
+        for t1 in range(t_num):
+            pp1L = pp_set[1+(2*t1)]
+            if pp1L:
+                pp1Ls = (pp1L.forward_primer.sequence, pp1L.reverse_primer.sequence)
+            else:
+                pp1Ls = None
+            
+            pp1R = pp_set[1+(2*t1)+1]
+            if pp1R:
+                pp1Rs = (pp1R.forward_primer.sequence, pp1R.reverse_primer.sequence)
+            else:
+                pp1Rs = None
+            
+            for t2 in range(t_num):
+                if (t1 < t2):
+                    pp2L = pp_set[1+(2*t2)]
+                    if pp2L:
+                        pp2Ls = (pp2L.forward_primer.sequence, pp2L.reverse_primer.sequence)
+                    else:
+                        pp2Ls = None
+                        
+                    pp2R = pp_set[1+(2*t2)+1]
+                    if pp2R:
+                        pp2Rs = (pp2R.forward_primer.sequence, pp2R.reverse_primer.sequence)
+                    else:
+                        pp2Rs = None
+                    
+                    Ltest = None if (pp1Ls == pp2Ls == None) else pp1Ls == pp2Ls
+                    Rtest = None if (pp1Rs == pp2Rs == None) else pp1Rs == pp2Rs
+                    logging.info('PrimerPair equals ({} vs {}): L={}, R={}'.format(t1, t2, Ltest, Rtest))
+    
     def calculate_them_best_set(self, args, sF_sR_paired_primers, pair_list, max_iterations=10000):
         """
         Takes input primer sets and calculates their weights
@@ -1347,82 +1653,6 @@ class ConfirmParser(subroutine.Subroutine):
         Then it optimizes by swapping the worst component a finite number of times
         (or until the delta drops below a certain amount)
         """
-        # Define helper functions specific to only this method
-        def nsum(n):
-            return n*(n+1)/2
-        
-        def rank_order(x, reverse=False, shift=0):
-            return [y+shift for y in sorted(range(len(x)), key=x.__getitem__, reverse=reverse)]
-        
-        def rank(x, reverse=False, shift=0):
-            return [z[0]+shift for z in sorted(enumerate(sorted(enumerate(x), key=lambda w: w[1], reverse=reverse)), key=lambda y: y[1][0])]
-        
-        def rank_dist(x):
-            s = nsum(len(x))
-            return [y/s for y in rank(x, reverse=False, shift=1)]
-        
-        def product(x):
-            z = 1
-            for y in x:
-                z *= y
-            return z
-        
-        def random_choices(population, weights, k=1):
-            """
-            Return a k sized list of population elements chosen with replacement.
-            """
-            weight_sum = sum(weights)
-            choices = zip(population, weights)
-            values = []
-            for i in range(k):
-                r = random.uniform(0, weight_sum)
-                upto = 0
-                for c, w in choices:
-                    if upto + w >= r:
-                        values.append(c)
-                        break
-                    upto += w
-                else:
-                    values.append(random.choice(population))
-            return values
-        
-        def filter_primer_pairs(pairs, forward=None, reverse=None):
-            ooo = []
-            
-            if (forward and reverse):
-                for pp in pairs:
-                    if ((pp.forward_primer.sequence == forward.sequence) and (pp.reverse_primer.sequence == reverse.sequence)):
-                        ooo.append(pp)
-            elif forward:
-                for pp in pairs:
-                    if (pp.forward_primer.sequence == forward.sequence):
-                        ooo.append(pp)
-            elif reverse:
-                for pp in pairs:
-                    if (pp.reverse_primer.sequence == reverse.sequence):
-                        ooo.append(pp)
-            else:
-                ooo = pairs
-            
-            return ooo
-        
-        def random_primer_by_weight_old(pairs, forward=None, reverse=None):
-            ooo = filter_primer_pairs(pairs, forward, reverse)
-            
-            if (len(ooo) == 0):
-                return None
-            elif ('choices' in random.__all__):
-                return random.choices(ooo, [x.get_joint_weight() for x in ooo])[0]
-            else:
-                return random_choices(ooo, [x.get_joint_weight() for x in ooo])[0]
-        
-        def random_primer_by_weight(pairs):
-            if (len(pairs) == 0):
-                return None
-            elif ('choices' in random.__all__):
-                return random.choices(pairs, [x.get_joint_weight() for x in pairs])[0]
-            else:
-                return random_choices(pairs, [x.get_joint_weight() for x in pairs])[0]
         
         # This should be in a loop...
         #sF_oR_paired_primers, oF_sR_paired_primers, iF_iR_paired_primers, ins = pair_list[0]
@@ -1430,7 +1660,7 @@ class ConfirmParser(subroutine.Subroutine):
         # Set initial iteration count to zero
         iteration_count = 0
         
-        # Create lists to hold 5-set of primer pairs, and their joint weight
+        # Create lists to hold n-set of primer pairs, and their joint weight
         starting_set = [] # initial set
         finished_set = [] # final set
         
@@ -1461,8 +1691,6 @@ class ConfirmParser(subroutine.Subroutine):
             #uf_dr_pair = random_primer_by_weight(sF_sR_paired_primers) # comment this out to prevent random sampling of this one
             try:
                 sF_sR_pair = next(sF_sR_iterator)
-                #sF_sR_pair.forward_primer.name = 'sF'
-                #sF_sR_pair.reverse_primer.name = 'sR'
             except StopIteration:
                 break
             
@@ -1470,36 +1698,15 @@ class ConfirmParser(subroutine.Subroutine):
             
             # Populate set with all primer pairs that have 'sF' and 'sR'
             pp_sources = []
-            pp_setN = []
-            p_setN = []
+            
             for sF_oR_paired_primers, oF_sR_paired_primers, ins in pair_list:
-                # Add the 'oR' from 'sF-oR' pair
-                pp_sources.append(filter_primer_pairs(sF_oR_paired_primers, forward=sF_sR_pair.forward_primer))
-                #for pp in pp_sources[-1]:
-                #    if pp:
-                #        pp.forward_primer.name, pp.reverse_primer.name = 'sF', 'r'+str(ins.genome_r)+ins.type+'-oR'
-                pp = random_primer_by_weight(pp_sources[-1]) # Pick a random primer by weight
-                pp_setN.append(pp) # Will be 'None' if 'pp_sources[-1]' is empty
-                if pp:
-                    p_setN.append(pp.reverse_primer)
-                else:
-                    p_setN.append(None)
+                # Add the 'oR' from 'sF-oR' pair. These should already be sorted by weight from highest to lowest.
+                pp_sources.append(self.filter_primer_pairs(sF_oR_paired_primers, forward=sF_sR_pair.forward_primer))
                 
-                # Add the 'oF' from 'oF-sR' pair
-                pp_sources.append(filter_primer_pairs(oF_sR_paired_primers, reverse=sF_sR_pair.reverse_primer))
-                #for pp in pp_sources[-1]:
-                #    if pp:
-                #        pp.forward_primer.name, pp.reverse_primer.name = 'r'+str(ins.genome_r)+ins.type+'-oF', 'sR'
-                pp = random_primer_by_weight(pp_sources[-1]) # Pick a random primer by weight
-                pp_setN.append(pp) # Will be 'None' if 'pp_sources[-1]' is empty
-                if pp:
-                    p_setN.append(pp.forward_primer)
-                else:
-                    p_setN.append(None)
+                # Add the 'oF' from 'oF-sR' pair. These should already be sorted by weight from highest to lowest.
+                pp_sources.append(self.filter_primer_pairs(oF_sR_paired_primers, reverse=sF_sR_pair.reverse_primer))
             
             logging.info('  length of sources: ' + str([len(x) for x in pp_sources]))
-            
-            
             
             # Only proceed with calculations (finally adding this primer to
             # 'starting_set' and 'finished_set') if it has potential internal
@@ -1509,120 +1716,142 @@ class ConfirmParser(subroutine.Subroutine):
             if args.internal_primers_required:
                 required_pattern = [val for val in args.internal_primers_required for b in range(2)]
                 current_pp_sources = [len(x) for x in pp_sources]
+                should_mask = False
                 should_skip = False
                 for req_str, num_pp in zip(required_pattern, current_pp_sources):
                     if ((req_str in ['y', 'Y', '1', 'T', 't', 'TRUE', 'True', 'true']) and (num_pp == 0)):
                         should_skip = True
                         break
+                    if ((req_str not in ['y', 'Y', '1', 'T', 't', 'TRUE', 'True', 'true']) and (num_pp > 0)):
+                        should_mask = True
                 if should_skip:
                     logging.info('  skipping...')
                     continue
             
+            # If required_list=['y', 'n', 'n', 'y']
+            # And current_pp_sources=[4, 3, 1, 0, 1, 0, 10, 9]
+            # Then by default the program will always try to include the 1s, which aren't required
+            # To make it okay for the problem to ignore these, then we can either
+            #  1) Duplicate, then mask current_pp_sources so it artificially looks like this: [4, 3, 0, 0, 0, 0, 10, 9]
+            #  2) or we can modify the algorithm to allow discarding elements if there is a 'n' in 'required_pattern'
+            # Let's go with (1)
             
-            # # Pick random primer by weight for each source
-            # pp_setN = []
-            # p_setN = []
-            # for pp_list in pp_sources:
-            #     pp = random_primer_by_weight(pp_list)
-            #     pp_setN.append(pp) # Will be 'None' if 's' is empty
-            # 
-            # # Break down the 'pp_setN' which contains primer pairs into a set of primers
-            # p_setN = []
-            # for pp in pp_setN:
-            #     if pp:
-            #         p_setN.append(pp.reverse_primer)
-            #         p_setN.append(pp.forward_primer)
-            #     else:
-            #         p_setN.append(None)
+            # New code to test
+            test_starting, test_final = self.optimize_pp_list_by_weight(args, [[sF_sR_pair]]+pp_sources, semirandom=False)
+            logging.info('  test-starting:' + str(test_starting))
+            logging.info('     test-final:' + str(test_final))
+            # Report whether the "optimal" PrimerPairs chosen are identical
+            self.which_pp_equal(test_final[1])
+            starting_set.append(test_starting)
+            finished_set.append(test_final)
             
-            p_group_weight = args.selected_oligo.p_group_weight([sF_sR_pair.forward_primer, sF_sR_pair.reverse_primer]+p_setN)
-            pp_group_weight = args.selected_oligo.pp_group_weight([sF_sR_pair]+pp_setN)
-            joint_weight = p_group_weight * pp_group_weight
-            starting_set.append((joint_weight, [sF_sR_pair]+pp_setN))
+            # If necessary, we "mask" the non-required PrimerPairs, then calculate.
+            if args.internal_primers_required:
+                if should_mask:
+                    masked_pp_sources = []
+                    for req_str, pp_s in zip(required_pattern, pp_sources):
+                        if (req_str in ['y', 'Y', '1', 'T', 't', 'TRUE', 'True', 'true']):
+                            masked_pp_sources.append(pp_s)
+                        else:
+                            masked_pp_sources.append([])
+                    masked_starting, masked_final = self.optimize_pp_list_by_weight(args, [[sF_sR_pair]]+masked_pp_sources, semirandom=False)
+                    logging.info('masked-starting:' + str(masked_starting))
+                    logging.info('   masked-final:' + str(masked_final))
+                    # Report whether the "optimal" PrimerPairs chosen are identical
+                    self.which_pp_equal(masked_final[1])
+                    starting_set.append(masked_starting)
+                    finished_set.append(masked_final)
             
-            # Code that I am updating...
-        #    group_weight = args.selected_oligo.group_weight([sF_sR_pair.forward_primer, sF_sR_pair.reverse_primer]+p_setN)
-        #    joint_weight = group_weight * product(x.get_joint_weight() for x in [sF_sR_pair]+pp_setN if x)
-        #    starting_set.append((joint_weight, [sF_sR_pair]+pp_setN))
-            # ...updating am I that code
-            
-            logging.info('  starting_set: ' + str(starting_set[-1]))
-            
-            # iteratively improve until a local maxima is found
-            # By continually swapping out the least-weighted component primer
-            min_weight_delta = 1e-20
-            weight_delta = 1
-            while(weight_delta > min_weight_delta):
-                # Get list of indices from smallest weight to largest weight (excluding 'sF' and 'sR')
-                wi_order = rank_order([x.weight if (x != None) else math.inf for x in p_setN])
-                
-                # If primer is 'None', then its weight will be 'math.inf', and the index
-                # corresponding to it will be the last element in wi_order:
-                #   rank_order([1, 2, 2.5, 0.001, math.inf]) # [3, 0, 1, 2, 4]
-                
-                # Start at the worst, and go to the next-worst, then next, then next
-                for wi in wi_order:
-                    # Copy the list of primer pairs
-                    pp_setNN = pp_setN[:]
-                    
-                    # Swap the worst-performing primer with an alternative.
-                    # If the alternative gives a better weight, then keep it
-                    # and break out of the loop
-                    for source_pp in pp_sources[wi]:
-                        pp_setNN[wi] = source_pp
-                        
-                        p_setNN = []
-                        for pp in pp_setNN:
-                            if pp:
-                                if (wi % 2 == 0):
-                                    p_setNN.append(pp.reverse_primer)
-                                else:
-                                    p_setNN.append(pp.forward_primer)
-                            else:
-                                p_setNN.append(None)
-                        
-                        
-                        new_p_group_weight = args.selected_oligo.p_group_weight([sF_sR_pair.forward_primer, sF_sR_pair.reverse_primer]+p_setNN)
-                        new_pp_group_weight = args.selected_oligo.pp_group_weight([sF_sR_pair]+pp_setNN)
-                        new_joint_weight = new_p_group_weight * new_pp_group_weight
-                        
-                        # Code that I am updating...
-                    #    new_group_weight = args.selected_oligo.p_group_weight([sF_sR_pair.forward_primer, sF_sR_pair.reverse_primer]+p_setNN)
-                    #    new_joint_weight = new_group_weight * product(x.get_joint_weight() for x in [sF_sR_pair]+pp_setNN if x)
-                        # ...updating am I that code
-                        
-                        if (new_joint_weight > joint_weight):
-                            logging.info('           set: ' + str((new_joint_weight, [sF_sR_pair]+pp_setNN)))
-                            
-                            weight_delta = new_joint_weight - joint_weight
-                            
-                            # replace values for next iteration
-                            pp_setN = pp_setNN
-                            joint_weight = new_joint_weight
-                            break
-                    else:
-                        weight_delta = 0
-                    
-                    if (weight_delta > 0):
-                        break
-            
-            # Does not re-calculate 'pp.weight', thus the amplicon_size will not be further penalized
-            # However, the 'pp.get_amplicon_size()' will accurately reflect the updated 'pp.intervening' length
-            #sF_insert_sR_pair = copy.deepcopy(sF_sR_pair)
-            #sF_insert_sR_pair.intervening = len(q_hih_seq)
-            #sF_feature_sR_pair = copy.deepcopy(sF_sR_pair)
-            #sF_feature_sR_pair.intervening = len(s_ush_seq)+len(sseq_feature)+len(s_dsh_seq)
-            
-            # Duplicate 'sF_sR_pair' for each template, giving it the proper 'intervening' length (amplicon size)
-            #sF_sR_pair_list = []
-            #for sF_oR_paired_primers, oF_sR_paired_primers, ins in pair_list:
-            #    sF_sR_pair_list.append(copy.deepcopy(sF_sR_pair))
-            #    sF_sR_pair_list[-1].intervening = ins.fus_dist + len(ins.seq) + ins.fds_dist
-            
-            finished_set.append((joint_weight, [sF_sR_pair]+pp_setN)) # 1 copy of 'sF_sR_pair'
-            #finished_set.append((joint_weight, sF_sR_pair_list+pp_setN)) # 4 copies of 'sF_sR_pair': ('0b', '0a', '1b', '1a')
+            # Report the number of PrimerPairs that are shared among the inserts
+            t_num = len(pp_sources)//2
+            for t1 in range(t_num):
+                t1L_set = set([(x.forward_primer.sequence, x.reverse_primer.sequence) for x in pp_sources[2*t1] if x])
+                t1R_set = set([(x.forward_primer.sequence, x.reverse_primer.sequence) for x in pp_sources[(2*t1)+1] if x])
+                for t2 in range(t_num):
+                    if (t1 < t2):
+                        t2L_set = set([(x.forward_primer.sequence, x.reverse_primer.sequence) for x in pp_sources[2*t2] if x])
+                        t2R_set = set([(x.forward_primer.sequence, x.reverse_primer.sequence) for x in pp_sources[(2*t2)+1] if x])
+                        tL_num = len(t1L_set.intersection(t2L_set))
+                        tL_den = len(t1L_set.union(t2L_set))
+                        tR_num = len(t1R_set.intersection(t2R_set))
+                        tR_den = len(t1R_set.union(t2R_set))
+                        logging.info('number shared insert PrimerPairs ({} vs {}): L={}/{}, R={}/{}'.format(t1, t2, tL_num, tL_den, tR_num, tR_den))
         
         return starting_set, finished_set, round_labels
+    
+    def which_d_equal(self, pp_set):
+        """
+        Does all pairwise comparisons of PrimerPairs within list 'pp_set'
+        to identify which pairs have identical sequences.
+        """
+        for i, ppi in enumerate(pp_set):
+            if ppi:
+                i_seq = (ppi.forward_primer.sequence, ppi.reverse_primer.sequence)
+            else:
+                i_seq = (None, None)
+            
+            for j, ppj in enumerate(pp_set):
+                if (i < j):
+                    if ppj:
+                        j_seq = (ppj.forward_primer.sequence, ppj.reverse_primer.sequence)
+                    else:
+                        j_seq = (None, None)
+                    
+                    comparison = None if (i_seq == j_seq == (None, None)) else (i_seq == j_seq)
+                    logging.info("Amp 'D' PrimerPair {} equals PrimerPair {}: {}".format(i, j, comparison))
+    
+    def calculate_amp_d_set(self, args, insert_pair_list, max_iterations=1000):
+        iteration_count = 0
+        
+        starting_set = []
+        finished_set = [] # final set
+        
+        while (iteration_count < max_iterations):
+            # Increment the count
+            iteration_count += 1
+            logging.info('loop {}:'.format(iteration_count))
+            
+            logging.info('  length of sources: ' + str([len(x) for x in insert_pair_list]))
+            if args.internal_primers_required:
+                current_pp_sources = [len(x) for x in insert_pair_list]
+                should_mask = False
+                should_skip = False
+                for req_str, num_pp in zip(args.internal_primers_required, current_pp_sources):
+                    if ((req_str in ['y', 'Y', '1', 'T', 't', 'TRUE', 'True', 'true']) and (num_pp == 0)):
+                        should_skip = True
+                        break
+                    if ((req_str not in ['y', 'Y', '1', 'T', 't', 'TRUE', 'True', 'true']) and (num_pp > 0)):
+                        should_mask = True
+                if should_skip:
+                    logging.info('  skipping...')
+                    continue
+                
+            d_starting, d_final = self.optimize_pp_list_by_weight(args, insert_pair_list, semirandom=True)
+            logging.info('  test-starting:' + str(d_starting))
+            logging.info('    Amp-D-final:' + str(d_final))
+            # Report whether the "optimal" PrimerPairs chosen are identical
+            self.which_d_equal(d_final[1])
+            starting_set.append(d_starting)
+            finished_set.append(d_final)
+            
+            # If necessary, we "mask" the non-required PrimerPairs, then calculate.
+            if args.internal_primers_required:
+                if should_mask:
+                    masked_insert_pair_list = []
+                    for req_str, pp_list in zip(args.internal_primers_required, insert_pair_list):
+                        if (req_str in ['y', 'Y', '1', 'T', 't', 'TRUE', 'True', 'true']):
+                            masked_insert_pair_list.append(pp_list)
+                        else:
+                            masked_insert_pair_list.append([])
+                    masked_starting, masked_final = self.optimize_pp_list_by_weight(args, masked_insert_pair_list, semirandom=True)
+                    logging.info('masked-starting:' + str(masked_starting))
+                    logging.info('   masked-final:' + str(masked_final))
+                    # Report whether the "optimal" PrimerPairs chosen are identical
+                    self.which_d_equal(masked_final[1])
+                    starting_set.append(masked_starting)
+                    finished_set.append(masked_final)
+        
+        return starting_set, finished_set
     
     def filter_alignment_records_for_cPCR(self, args, alignment_filename, dDNA_contigs):
         """

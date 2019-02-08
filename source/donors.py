@@ -744,7 +744,7 @@ class ReversionDonor(Donor):
                 
                 logging.info('Calculating: primer pairs...')
                 uf_dr_paired_primers = sorted(
-                    args.selected_oligo.pair(upstream_F, downstream_R, amplicon_size=amplicon_size, tm_max_difference=tm_max_difference, intervening=(f.start-region_F_stop)+(region_R_start-f.end), min_delta_g=min_delta_g, folder=temp_folder, time_limit=args.primer_pair_limit),
+                    args.selected_oligo.pair(upstream_F, downstream_R, amplicon_size_range=amplicon_size, tm_max_difference=tm_max_difference, intervening=(f.start-region_F_stop)+(region_R_start-f.end), min_delta_g=min_delta_g, folder=temp_folder, time_limit=args.primer_pair_limit),
                     key=lambda x: x.get_joint_weight(),
                     reverse=True
                 )
