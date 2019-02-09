@@ -5,6 +5,9 @@
 
 # source/subroutines/_subroutine_feature.py
 
+# Import standard packages
+import sys
+
 # Import non-standard packages
 import regex
 
@@ -49,6 +52,10 @@ class FeatureParser(subroutine.Subroutine):
             help="If a feature is found that matches the query, include other \
             features that have similar values for these tags.")
         
+        self.parser.add_argument("--excluded_tags", metavar="TAG", nargs="*",
+            type=str, default=['Note', 'orf_classification', 'parent_feature_type'],
+            help="Do not search for within these tags.")
+        
         self.parser.add_argument("--allow_errors", action="store_true",
             default=False, help="Include matches with minor differences from the query.")
         
@@ -82,12 +89,14 @@ class FeatureParser(subroutine.Subroutine):
                         #for k in link_tags:
                         #    if k in obj.attributes:
                         for k in obj.attributes:
+                            if k not in args.excluded_tags:
                                 m = regex.search(q_pattern, obj.attributes[k], flags=regex.IGNORECASE)
                                 if m:
-                                    #print(m)
                                     #matched_lines.add((line, 0))
                                     matched_lines.add(line)
                                     includes.append({ tag_key: obj.attributes[tag_key] for tag_key in args.linked_tags if tag_key in obj.attributes })
+                                    #print('k={}, m={}'.format(k, m), file=sys.stderr)
+                                    #print('includes[-1]={}'.format(includes[-1]), file=sys.stderr)
                                     break
         #for line in sorted(matched_lines):
         #    print(line)
@@ -103,13 +112,21 @@ class FeatureParser(subroutine.Subroutine):
                         for k, v in inc.items():
                             #errors = len(q)//4
                             #inc_pattern = '(?:'+v+'){e<='+str(errors)'}'
-                            inc_pattern = v
-                            if k in obj.attributes:
-                                m = regex.search(inc_pattern, obj.attributes[k], flags=regex.IGNORECASE)
-                                if m:
-                                    #matched_lines.add((line, 1))
-                                    matched_lines.add(line)
-                                    break
+                            inc_patterns = [v]
+                            if (k == 'Alias'):
+                                inc_patterns = v.split(',')
+                            
+                            for inc_pattern in inc_patterns:
+                                #if k in obj.attributes:
+                                for obj_k, obj_v in obj.attributes.items():
+                                    if ((obj_k not in args.excluded_tags) and (k not in args.excluded_tags)):
+                                        m = regex.search(inc_pattern, obj_v, flags=regex.IGNORECASE)
+                                        if m:
+                                            #matched_lines.add((line, 1))
+                                            matched_lines.add(line)
+                                            #print('k={}, m={}'.format(k, m), file=sys.stderr)
+                                            #print('inc_pattern={}'.format(inc_pattern), file=sys.stderr)
+                                            break
         
         if args.header:
             print('# '+'\t'.join(['seqid', 'source', 'feature', 'start', 'end', 'score', 'strand', 'frame', 'attribute']))
