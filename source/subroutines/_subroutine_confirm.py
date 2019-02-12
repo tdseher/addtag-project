@@ -961,7 +961,7 @@ class ConfirmParser(subroutine.Subroutine):
         datum_groups = []
         to_pop = []
         for di, datum in enumerate(datum_list):
-            if datum.genome_contig in genome_contigs_list[0].keys():
+            if datum.genome_contig in genome_contigs_list[0].keys(): # The 0th index refers to genome-r0
                 datum_groups.append([datum])
                 to_pop.append(di)
         for di in sorted(to_pop, reverse=True):
@@ -983,7 +983,7 @@ class ConfirmParser(subroutine.Subroutine):
         # and  round n+1, BEFORE: ush_start-dsh_end
         # Then these loci should be linked!
         no_more_after = False
-        #no_more_before = False
+        no_more_before = False
         groups = []
         wcount = 0
         while (not no_more_after):
@@ -1018,10 +1018,10 @@ class ConfirmParser(subroutine.Subroutine):
                                     datum_before = datum
                                     to_pop.append(di)
                                     break
-                    #else:
-                    #    no_more_before = True
+                    else:
+                        no_more_before = True
                 
-                else:
+                else: # This means (datum_after == None)
                     # If there is no "before" to pair with selected "after"
                     # then this is a terminal genome engineering
                     # Not sure if this code would work if a locus was "skipped" between rounds as follows:
@@ -1031,7 +1031,15 @@ class ConfirmParser(subroutine.Subroutine):
                     #    genome-r3: locus A ki
                     
                     # Since this is a terminal, then we need to select the correct "before" using homology
-                    pass
+                    logging.info("DEBUG: This means (datum_after == None)")
+                
+                # Write some debug log messages
+                logging.info("DEBUG:")
+                logging.info("     datum_after={}".format(datum_after))
+                logging.info("    datum_before={}".format(datum_before))
+                logging.info("   no_more_after={}".format(no_more_after))
+                logging.info("  no_more_before={}".format(no_more_before))
+                
                 if ((datum_after != None) and (datum_before != None)):
                     # Now that the two datum are selected, determine whether or not they overlap
                     # Feature.overlap_coverage(start1, end1, start2, end2, index_base=0)
@@ -1043,85 +1051,121 @@ class ConfirmParser(subroutine.Subroutine):
                         group = [datum_after, datum_before]
                         groups.append(group)
                         
-                        logging.info('group:')
-                        for g in group:
-                            logging.info('  ' + str(g))
-                        
                         for di in sorted(to_pop, reverse=True):
                             datum_list.pop(di)
                     # Otherwise, they are non-overlapping engineering events on the same genome contig
                     else:
                         # Do nothing
-                        pass
+                        logging.info('DEBUG: This means that (overlap <= 0)')
+        
+        logging.info('groups:')
+        for gi, (datum_after, datum_before) in enumerate(groups):
+            logging.info('  i={}'.format(gi))
+            logging.info('      datum_after={}'.format(datum_after))
+            logging.info('     datum_before={}'.format(datum_before))
         
         logging.info('datum_list:')
         for datum in datum_list:
-            logging.info('  ' + str(datum))
+            logging.info('  {}'.format(datum))
         
         # Assuming we have 'group' with the [datum_after, datum_before]
         # Now we match homology regions with r0
-        for dg in datum_groups:
+        for dgi, dg in enumerate(datum_groups):
             # group = [
             #     Datum(dDNA_r=1, dDNA_contig='exDonor-55', genome_r=1, genome_contig='Ca22chr3A_C_albicans_SC5314-r1[exDonor-55]', ush_start=943366, ush_end=None, dsh_start=None, dsh_end=943468)
             #     Datum(dDNA_r=2, dDNA_contig='reDonor-0', genome_r=1, genome_contig='Ca22chr3A_C_albicans_SC5314-r1[exDonor-55]', ush_start=942963, ush_end=943420, dsh_start=943414, dsh_end=943996)
             # ]
-            ush_len = abs(dg[-1].ush_end - dg[-1].ush_start)
-            dsh_len = abs(dg[-1].dsh_end - dg[-1].dsh_start)
             
-            dg_ush_seq = genome_contigs_list[dg[-1].genome_r][dg[-1].genome_contig][dg[-1].ush_start:dg[-1].ush_start+ush_len]
-            dg_dsh_seq = genome_contigs_list[dg[-1].genome_r][dg[-1].genome_contig][dg[-1].dsh_end-dsh_len:dg[-1].dsh_end]
+            last_datum = dg[-1]
+            ush_len = abs(last_datum.ush_end - last_datum.ush_start)
+            dsh_len = abs(last_datum.dsh_end - last_datum.dsh_start)
             
-            for group in groups:
-                g_ush_seq = genome_contigs_list[group[0].genome_r][group[0].genome_contig][group[0].ush_start:group[0].ush_start+ush_len]
-                g_dsh_seq = genome_contigs_list[group[0].genome_r][group[0].genome_contig][group[0].dsh_end-dsh_len:group[0].dsh_end]
+            dg_ush_seq = genome_contigs_list[last_datum.genome_r][last_datum.genome_contig][last_datum.ush_start:last_datum.ush_start+ush_len]
+            dg_dsh_seq = genome_contigs_list[last_datum.genome_r][last_datum.genome_contig][last_datum.dsh_end-dsh_len:last_datum.dsh_end]
+            
+            for datum_after, datum_before in groups:
+                # For 'datum_after', the fields 'datum_after.ush_end' and 'datum_after.dsh_start' both equal 'None'
+                g_ush_seq = genome_contigs_list[datum_after.genome_r][datum_after.genome_contig][datum_after.ush_start:datum_after.ush_start+ush_len]
+                g_dsh_seq = genome_contigs_list[datum_after.genome_r][datum_after.genome_contig][datum_after.dsh_end-dsh_len:datum_after.dsh_end]
+                
+                ##### DEBUG CODE #####
+                logging.info("  dgi = {}".format(dgi))
+                logging.info("    ush_len = {}, 0.9*ush_len = {}".format(ush_len, 0.9*ush_len))
+                logging.info("    dsh_len = {}, 0.9*dsh_len = {}".format(dsh_len, 0.9*dsh_len))
+                us_lcs = nucleotides.lcs(dg_ush_seq, g_ush_seq)
+                ds_lcs = nucleotides.lcs(dg_dsh_seq, g_dsh_seq)
+                logging.info("    nucleotides.lcs(dg_ush_seq, g_ush_seq) = {}".format(us_lcs))
+                logging.info("    nucleotides.lcs(dg_dsh_seq, g_dsh_seq) = {}".format(ds_lcs))
+                logging.info("    us_lcs > 0.9*ush_len = {}".format(us_lcs.size > 0.9*ush_len))
+                logging.info("    ds_lcs > 0.9*dsh_len = {}".format(ds_lcs.size > 0.9*dsh_len))
+                us_pident = nucleotides.pident(dg_ush_seq, g_ush_seq)
+                ds_pident = nucleotides.pident(dg_dsh_seq, g_dsh_seq)
+                logging.info("    us_pident = {}, us_pident > 0.9 = {}".format(us_pident, us_pident > 0.9))
+                logging.info("    ds_pident = {}, ds_pident > 0.9 = {}".format(ds_pident, ds_pident > 0.9))
+                ######################
                 
                 # If the rounds match, the dDNA_contigs match, and the genome_contigs match
                 # and the homology regions match
-                if ((dg[-1].dDNA_r == group[0].dDNA_r) and
-                    (dg[-1].dDNA_contig == group[0].dDNA_contig) and
-                    in_same_contig_group(group[0].genome_contig, dg[-1].genome_contig) and
-                    (nucleotides.lcs(dg_ush_seq, g_ush_seq).size > 0.9*ush_len) and
-                    (nucleotides.lcs(dg_dsh_seq, g_dsh_seq).size > 0.9*dsh_len)):
+                if ((last_datum.dDNA_r == datum_after.dDNA_r) and
+                    (last_datum.dDNA_contig == datum_after.dDNA_contig) and
+                    in_same_contig_group(last_datum.genome_contig, datum_after.genome_contig) and
+                    (nucleotides.pident(dg_ush_seq, g_ush_seq) > 0.9) and
+                    (nucleotides.pident(dg_dsh_seq, g_dsh_seq) > 0.9)):
+                    #(nucleotides.lcs(dg_ush_seq, g_ush_seq).size > 0.9*ush_len) and # Old code
+                    #(nucleotides.lcs(dg_dsh_seq, g_dsh_seq).size > 0.9*dsh_len)): # Old code
                     # Then populate their missing fields
-                    #if (group[0].ush_end == None):
-                    #    group[0].ush_end = group[-1].ush_start+ush_len
-                    #if (group[0].dsh_start == None):
-                    #    group[0].dsh_start = group[-1].dsh_end-dsh_len
+                    #if (datum_after.ush_end == None):
+                    #    datum_after.ush_end = group[-1].ush_start+ush_len
+                    #if (datum_after.dsh_start == None):
+                    #    datum_after.dsh_start = group[-1].dsh_end-dsh_len
                     
                     # Then add them to the same group
-                    for g in group:
-                        dg.append(g)
+                    dg.append(datum_after)
+                    dg.append(datum_before)
+                    logging.info('group [datum_after, datum_before] appended to current datum_group.')
         
         logging.info('datum_groups:')
         for dg in datum_groups:
-            logging.info('  ' + str(dg))
+            logging.info('  {}'.format(dg))
         
         # Populate the final/terminal group 'rN'
         # Using homology! (like we did with r0 above)
-        for dg in datum_groups:
+        for dgi, dg in enumerate(datum_groups):
             # group = [
             #     Datum(dDNA_r=1, dDNA_contig='exDonor-55', genome_r=1, genome_contig='Ca22chr3A_C_albicans_SC5314-r1[exDonor-55]', ush_start=943366, ush_end=None, dsh_start=None, dsh_end=943468)
             #     Datum(dDNA_r=2, dDNA_contig='reDonor-0', genome_r=1, genome_contig='Ca22chr3A_C_albicans_SC5314-r1[exDonor-55]', ush_start=942963, ush_end=943420, dsh_start=943414, dsh_end=943996)
             # ]
-            ush_len = abs(dg[-1].ush_end - dg[-1].ush_start)
-            dsh_len = abs(dg[-1].dsh_end - dg[-1].dsh_start)
+            last_datum = dg[-1]
+            ush_len = abs(last_datum.ush_end - last_datum.ush_start)
+            dsh_len = abs(last_datum.dsh_end - last_datum.dsh_start)
             
-            dg_ush_seq = genome_contigs_list[dg[-1].genome_r][dg[-1].genome_contig][dg[-1].ush_start:dg[-1].ush_start+ush_len]
-            dg_dsh_seq = genome_contigs_list[dg[-1].genome_r][dg[-1].genome_contig][dg[-1].dsh_end-dsh_len:dg[-1].dsh_end]
+            dg_ush_seq = genome_contigs_list[last_datum.genome_r][last_datum.genome_contig][last_datum.ush_start:last_datum.ush_start+ush_len]
+            dg_dsh_seq = genome_contigs_list[last_datum.genome_r][last_datum.genome_contig][last_datum.dsh_end-dsh_len:last_datum.dsh_end]
             
             to_pop = []
             for di, datum in enumerate(datum_list):
                 d_ush_seq = genome_contigs_list[datum.genome_r][datum.genome_contig][datum.ush_start:datum.ush_start+ush_len]
                 d_dsh_seq = genome_contigs_list[datum.genome_r][datum.genome_contig][datum.dsh_end-dsh_len:datum.dsh_end]
                 
+                ##### DEBUG CODE #####
+                logging.info("  dgi = {}".format(dgi))
+                logging.info("    ush_len = {}, 0.9*ush_len = {}".format(ush_len, 0.9*ush_len))
+                logging.info("    dsh_len = {}, 0.9*dsh_len = {}".format(dsh_len, 0.9*dsh_len))
+                us_pident = nucleotides.pident(dg_ush_seq, d_ush_seq)
+                ds_pident = nucleotides.pident(dg_dsh_seq, d_dsh_seq)
+                logging.info("    us_pident = {}, us_pident > 0.9 = {}".format(us_pident, us_pident > 0.9))
+                logging.info("    ds_pident = {}, ds_pident > 0.9 = {}".format(ds_pident, ds_pident > 0.9))
+                ######################
+                
                 # If the rounds match, the dDNA_contigs match, and the genome_contigs match
                 # and the homology regions match
-                if ((dg[-1].dDNA_r == datum.dDNA_r) and
-                    (dg[-1].dDNA_contig == datum.dDNA_contig) and
-                    in_same_contig_group(datum.genome_contig, dg[-1].genome_contig) and
-                    #group[0].genome_contig.startswith(dg[-1].genome_contig) and
-                    (nucleotides.lcs(dg_ush_seq, d_ush_seq).size > 0.9*ush_len) and
-                    (nucleotides.lcs(dg_dsh_seq, d_dsh_seq).size > 0.9*dsh_len)):
+                if ((last_datum.dDNA_r == datum.dDNA_r) and
+                    (last_datum.dDNA_contig == datum.dDNA_contig) and
+                    in_same_contig_group(last_datum.genome_contig, datum.genome_contig) and
+                    (nucleotides.pident(dg_ush_seq, d_ush_seq) > 0.9) and
+                    (nucleotides.pident(dg_dsh_seq, d_dsh_seq) > 0.9)):
+                    #(nucleotides.lcs(dg_ush_seq, d_ush_seq).size > 0.9*ush_len) and # Old code
+                    #(nucleotides.lcs(dg_dsh_seq, d_dsh_seq).size > 0.9*dsh_len)): # Old code
                     
                     # Then add them to the same group
                     dg.append(datum)
@@ -1155,8 +1199,13 @@ class ConfirmParser(subroutine.Subroutine):
         
         return datum_groups
     
-    def new_sf_sr_primers(self):
-        # This function should replace 'get_far_lcs_regions()'
+    def new_sf_sr_primers(self, args):
+        """
+        This function should replace 'get_far_lcs_regions()'
+        """
+        # If allele-specific, then do this for each locus.
+        # If NOT allele-specific, then include all alleles in the same 'Datum' (will this even work?)
+        
         # The way it should work:
         #   for flank in ['us', 'ds']:
         #     primers_found = defaultdict() # starts every key at value=0
@@ -1738,8 +1787,8 @@ class ConfirmParser(subroutine.Subroutine):
             
             # New code to test
             test_starting, test_final = self.optimize_pp_list_by_weight(args, [[sF_sR_pair]]+pp_sources, semirandom=False)
-            logging.info('  test-starting:' + str(test_starting))
-            logging.info('     test-final:' + str(test_final))
+            logging.info('  test-starting: ' + str(test_starting))
+            logging.info('     test-final: ' + str(test_final))
             # Report whether the "optimal" PrimerPairs chosen are identical
             self.which_pp_equal(test_final[1])
             starting_set.append(test_starting)
@@ -1755,8 +1804,8 @@ class ConfirmParser(subroutine.Subroutine):
                         else:
                             masked_pp_sources.append([])
                     masked_starting, masked_final = self.optimize_pp_list_by_weight(args, [[sF_sR_pair]]+masked_pp_sources, semirandom=False)
-                    logging.info('masked-starting:' + str(masked_starting))
-                    logging.info('   masked-final:' + str(masked_final))
+                    logging.info('masked-starting: ' + str(masked_starting))
+                    logging.info('   masked-final: ' + str(masked_final))
                     # Report whether the "optimal" PrimerPairs chosen are identical
                     self.which_pp_equal(masked_final[1])
                     starting_set.append(masked_starting)
@@ -1827,8 +1876,8 @@ class ConfirmParser(subroutine.Subroutine):
                     continue
                 
             d_starting, d_final = self.optimize_pp_list_by_weight(args, insert_pair_list, semirandom=True)
-            logging.info('  test-starting:' + str(d_starting))
-            logging.info('    Amp-D-final:' + str(d_final))
+            logging.info('  test-starting: ' + str(d_starting))
+            logging.info('    Amp-D-final: ' + str(d_final))
             # Report whether the "optimal" PrimerPairs chosen are identical
             self.which_d_equal(d_final[1])
             starting_set.append(d_starting)
@@ -1844,8 +1893,8 @@ class ConfirmParser(subroutine.Subroutine):
                         else:
                             masked_insert_pair_list.append([])
                     masked_starting, masked_final = self.optimize_pp_list_by_weight(args, masked_insert_pair_list, semirandom=True)
-                    logging.info('masked-starting:' + str(masked_starting))
-                    logging.info('   masked-final:' + str(masked_final))
+                    logging.info('masked-starting: ' + str(masked_starting))
+                    logging.info('   masked-final: ' + str(masked_final))
                     # Report whether the "optimal" PrimerPairs chosen are identical
                     self.which_d_equal(masked_final[1])
                     starting_set.append(masked_starting)
