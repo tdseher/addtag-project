@@ -368,6 +368,9 @@ class GenerateParser(subroutine.Subroutine):
         self.parser.add_argument("--allele-specific-donors", action="store_true", default=False,
             help="Homology arms of dDNAs should be unique for each homologous feature. \
             Otherwise, the dDNA homology arms will target all homologous features.")
+        # ^^^^vvvv These two options, ideally, should be only one option ^^^^vvvv
+        self.parser.add_argument("--allele-specific-primers", action="store_true", default=False,
+            help="If primers are calculated for amplifying the wild type, then they should be allele-specific.")
         
     def compute(self, args):
         """Perform complete CRISPR/Cas analysis for input"""
