@@ -690,7 +690,7 @@ class GenerateParser(subroutine.Subroutine):
         Lists the best 'reTarget' and their corresponding 'exDonor' objects.
         """
         
-        header = ['gene', 'features', 'weight', 'reTarget name', 'reTarget sequence', 'OT:Hsu-Zhang', 'OT:CFD', 'Azimuth', 'exDonors', 'us-trim:mAT:ds-trim', 'feature:contig:strand:start..end', 'warnings']
+        header = ['# gene', 'features', 'weight', 'reTarget name', 'reTarget sequence', 'OT:Hsu-Zhang', 'OT:CFD', 'Azimuth', 'exDonors', 'us-trim:mAT:ds-trim', 'feature:contig:strand:start..end', 'warnings']
         print('\t'.join(header))
         
         results = []
@@ -743,7 +743,7 @@ class GenerateParser(subroutine.Subroutine):
         # Based on the primer pair weights, AND the 'exTarget' weights, the
         # possible 'reDonor's can be given weights, which can be used to
         # rank them
-        header = ['gene', 'features', 'weight', 'exTarget name', 'exTarget sequence', 'OT:Hsu-Zhang', 'OT:CFD', 'Azimuth', 'reDonors', 'None', 'feature:contig:strand:start..end', 'warnings']
+        header = ['# gene', 'features', 'weight', 'exTarget name', 'exTarget sequence', 'OT:Hsu-Zhang', 'OT:CFD', 'Azimuth', 'reDonors', 'None', 'feature:contig:strand:start..end', 'warnings']
         print('\t'.join(header))
         
         results = []
