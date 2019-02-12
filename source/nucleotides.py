@@ -327,6 +327,44 @@ def lcs(string1, string2, autojunk=False):
     # print(string1[match.a: match.a + match.size])
     # print(string2[match.b: match.b + match.size])
 
+def pident(seq1, seq2, min_identity=0.8):
+    """
+    Returns the percent identity of two strings,
+    relative to the longer one (global alignment),
+    and permitting for up to 1-min_identity errors.
+    
+    DOES NOT disambiguate the shorter sequence.
+    IUPAC ambiguities in the longer sequence count as matches,
+    and ambiguities in the shorter sequence counts as mismatches.
+    
+    Also DOES NOT do perfect disambiguous calculations:
+    If N aligns to R, this SHOULD be a score of 0.5, but
+    This function will count it as 0.
+    """
+    # If lengths of inputs are tied, choose the one with ambiguities
+    # as the pattern
+    if (len(seq1) == len(seq2)):
+        p1 = build_regex_pattern(seq1, capture=False)
+        p2 = build_regex_pattern(seq2, capture=False)
+        if (len(p1) < len(p2)):
+            shorter, longer = seq1, seq2
+        else:
+            shorter, longer = seq2, seq1
+    else:
+        # Find which input is shorter, and which is longer
+        shorter, longer = sorted([seq1, seq2], key=lambda x:len(x))
+    
+    # Calculate number of permissable errors
+    e = int(len(longer)*max(0, min(1, 1-min_identity)))
+    
+    # Convert into IUPAC regex pattern
+    pattern = build_regex_pattern(longer, max_errors=e, capture=False)
+    m = regex.match(pattern, shorter, flags=regex.IGNORECASE|regex.BESTMATCH)
+    if m:
+        return (len(longer) - sum(m.fuzzy_counts))/len(longer)
+    
+    return 0
+
 def ridentities(seq1, seq2):
     """
     Returns the number of invariant nucleotides from the 3' side
@@ -489,7 +527,7 @@ def build_regex_pattern(iupac_sequence, max_substitutions=0, max_insertions=0, m
         pattern = '(' + sequence + ')' + fuzzy
     else:
         pattern = '(?:' + sequence + ')' + fuzzy
-    logger.info('Built regex string: {!r}'.format(pattern))
+    #logger.info('Built regex string: {!r}'.format(pattern))
     return pattern
 
 # So far for DNA only
