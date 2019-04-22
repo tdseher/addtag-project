@@ -1,58 +1,64 @@
-       5'-Motif-3'          Protein       Confidence Protein origin system           Empirical system         Citation
-       ===========          =======       ========== =====================           ================         ========
-     N{17}|N{3}>NGG         SpCas9        Vetted     Streptococcus pyogenes (Sp)     ?                        ?
-       N{17,20}>NGG         SpCas9        Vetted     Streptococcus pyogenes          ?                        Fu, et al (2014)
-          N{??}>NGG         SpCas9 D1135E
-          N{20}>NGA         SpCas9 VQR               Streptococcus pyogenes VQR      H. sapiens; E.coli       Kleinstiver, et al (2015a)
-          N{20}>NGNG        SpCas9 EQR               Streptococcus pyogenes EQR      H. sapiens; E.coli       Kleinstiver, et al (2015a)
-          N{20}>NGAG        SpCas9 EQR               Streptococcus pyogenes EQR      H. sapiens; E.coli       Kleinstiver, et al (2015a)
-          N{20}>NGCG        SpCas9 VRER              Streptococcus pyogenes VRER     H. sapiens; E.coli       Kleinstiver, et al (2015a)
-          N{20}>NAAG        SpCas9 QQR               Streptococcus pyogenes QQR1     ?                        Anders, et al (2016)
-          N{20}>NAG         SpCas9                   Streptococcus pyogenes          H. sapiens; Cell-free    Hsu, et al (2013)
-          N{20}>NRG         SpCas9        Vetted     Streptococcus pyogenes          H. sapiens; Cell-free    Hsu, et al (2013); Karvelis, et al (2015)
-         GN{19}>NRG         SpCas9                   Streptococcus pyogenes          H. sapiens; Cell-free    Hsu, et al (2013)
-      N{17}|NGG>NGG         SpCas9        Vetted     Streptococcus pyogenes          C. elegans; Candida spp  Farboud  & Meyer (2015); Grahl, et al (2017)
-          N{10}>AGGNGG      SpCas9                   Streptococcus pyogenes          C. elegans; ?            Farboud  & Meyer (2015)
-          N{??}>NNGTGA      SpCas9                   Streptococcus pasteurianus?     ?                        ?
-  G{,2}N{19,20}>NGG         Cas9p                    ?                               Plants                   Ma & Liu (2016)
-         RN{19}>NGG         Cas9p                    ?                               Plants                   Ma, et al (2015); Ma & Liu (2016)
-        RYN{19}>NGG         Cas9p                    ?                               Plants                   Ma, et al (2015); Ma & Liu (2016)
-         N{20?}>NNAGAAW     StCas9                   Streptococcus thermophilus (St) ?                        Horvath, et al (2008); Cong et al (2013)
-          N{20}>NNAAAAW     StCas9                   Streptococcus thermophilus      ?                        Fonfara, et al (2013)
-       N{20,23}>NNAGAA      StCas9                   Streptococcus thermophilus      H. sapiens/E.coli        Kleinstiver, et al (2015a)
-          N{20}>NGGNG       StCas9                   Streptococcus thermophilus      ?                        Horvath, et al (2008)
-          N{20}>NHRBMAW     StCas9                   Streptococcus thermophilus      ?                        Karvelis, et al (2015)
-          N{20}>NGGWG       StCas9                   Streptococcus thermophilus      S. cerevisiae            Xu, et al (2015)
-          N{20}>NGG         SmCas9                   Streptococcus  mutans (Sm)      ?                        Fonfara, et al (2013)
-          N{21}>NNGRRT      SaCas9                   Staphylococcus aureus (Sa)      ?                        Ran, et al (2015)
-       N{21,23}>NNGRRT      SaCas9                   Staphylococcus aureus           H. sapiens; E.coli       Kleinstiver, et al (2015a)
-       N{21,23}>NNNRRT      SaCas9 KKH               Staphylococcus aureus KKH       ?                        Kleinstiver, et al (2015b)
-          N{20}>NNNNGATT    NmCas9                   Neisseria meningitidis (Nm)     H. sapiens; ?            Amrani, et al (2017)
-          N{20}>NNNNGMTT    NmCas9                   Neisseria meningitidis          ?                        Hou, et al (2013)
-          N{20}>NNNNACA     CjCas9                   Campylobacter jejuni (Cj)       ?                        Fonfara, et al (2013)
-          N{20}>NNNNRYAC    CjCas9                   Campylobacter jejuni            ?                        ?
-          N{20}>NNNVRYAC    CjCas9                   Campylobacter jejuni            ?                        ?
-         N{20?}>NAAAAC      TdCas9                   Treponema denticola (Td)        ?                        Zhang (year?) (unpublished)
-       N{18,21}>NGGNCNDD    BlCas9                   Brevibacillus laterosporus (Bl) ?                        Karvelis, et al (2015)
-          N{20}>NNNNCND     BlCas9                   Brevibacillus laterosporus      ?                        Karvelis, et al (2015)
-          N{20}>NNNNCNDD    BlCas9                   Brevibacillus laterosporus      ?                        Karvelis, et al (2015)
-          N{20}>GNNNCNNA    PmCas9                   Pasteurella multocida (Pm)      ?                        Fonfara, et al (2013)
-          N{20}>NG          FnCas9        Putative   Francisella novicida (Fn)       ?                        Fonfara, et al (2013)
-           TTTN<N{19}/.{4}\ AsCpf1/LbCpf1            Acidaminococcus/Lachnospiraceae ?                        ?
-           TTTN<N{20,23}    AsCpf1/LbCpf1            Acidaminococcus/Lachnospiraceae ?                        ?
-           TTTV<N{20,23}    AsCpf1/LbCpf1            Acidaminococcus/Lachnospiraceae ?                        ?
-           TYCV<N{??}       AsCpf1 RR/LbCpf1 RR      ?                               ?                        ?
-           TATV<N{??}       AsCpf1 RVR               ?                               ?                        ?
-            TTN<N{20,23}    FnCpf1        Putative   Francisella novicida            ?                        ?
-            YTN<N{20,23}    FnCpf1        Putative   Francisella spp.?               ?                        ?
-             AW<GN{31,32}   EcCas3        Putative   Escherichia coli (Ec)           ?                        Swarts, et al (2012)
-            AWG<N{32,33}    EcCas3        Putative   Escherichia coli                ?                        Swarts, et al (2012)
-         N{???}>NGR         ? Cst         Vetted     Pyrococcus furiosus             ?                        Elmore, et al (2015)
-         N{???}>HVG         ? Cst         Vetted     Pyrococcus furiosus             ?                        Elmore, et al (2015
-         N{???}>CVG         ? Csa         Vetted     Pyrococcus furiosus             ?                        Elmore, et al (2015
-         N{???}>NRG         ? Csa         Vetted     Pyrococcus furiosus             ?                        Elmore, et al (2015
-         N{20?}>YCN         ?                        Pyrococcus furiosus             ?                        ?
-         N{20?}>CCW         ?                        Clostridium difficile           ?                        ?
-         N{20?}>YYC         ?                        Bacillus halodurans             ?                        ?
-         N{20?}>CC          ?                        Pseudomonas aeruginosa          ?                        ?
-         N{20?}>MMA         ?                        Pyrococcus furiosus             ?                        ?
+       5'-Motif-3'          Protein        Confidence    Protein origin system           Empirical system                   Citation
+       ===========          =======        ==========    =====================           ================                   ========
+     N{17}|N{3}>NGG         SpCas9         Vetted        Streptococcus pyogenes (Sp)     ?                                  ?
+       N{17,20}>NGG         SpCas9         Vetted        Streptococcus pyogenes          ?                                  Fu, et al (2014)
+          N{??}>NGG         SpCas9 D1135E                                                                                   
+          N{20}>NGA         SpCas9 VQR                   Streptococcus pyogenes VQR      H. sapiens; E. coli                Kleinstiver, et al (2015a)
+          N{20}>NGNG        SpCas9 EQR                   Streptococcus pyogenes EQR      H. sapiens; E. coli                Kleinstiver, et al (2015a)
+          N{20}>NGAG        SpCas9 EQR                   Streptococcus pyogenes EQR      H. sapiens; E. coli                Kleinstiver, et al (2015a)
+          N{20}>NGCG        SpCas9 VRER                  Streptococcus pyogenes VRER     H. sapiens; E. coli                Kleinstiver, et al (2015a)
+          N{20}>NAAG        SpCas9 QQR                   Streptococcus pyogenes QQR1     ?                                  Anders, et al (2016)
+          N{20}>NAG         SpCas9                       Streptococcus pyogenes          H. sapiens; Cell-free              Hsu, et al (2013)
+          N{20}>NRG         SpCas9         Vetted        Streptococcus pyogenes          H. sapiens; Cell-free              Hsu, et al (2013); Karvelis, et al (2015)
+         GN{19}>NRG         SpCas9                       Streptococcus pyogenes          H. sapiens; Cell-free              Hsu, et al (2013)
+      N{17}|NGG>NGG         SpCas9         Vetted        Streptococcus pyogenes          C. elegans; Candida spp            Farboud & Meyer (2015); Grahl, et al (2017)
+          N{10}>AGGNGG      SpCas9                       Streptococcus pyogenes          C. elegans; ?                      Farboud & Meyer (2015)
+          N{??}>NNGTGA      SpCas9                       Streptococcus pasteurianus?     ?                                  ?
+  G{,2}N{19,20}>NGG         Cas9p                        ?                               Plants                             Ma & Liu (2016)
+         RN{19}>NGG         Cas9p                        ?                               Plants                             Ma, et al (2015); Ma & Liu (2016)
+        RYN{19}>NGG         Cas9p                        ?                               Plants                             Ma, et al (2015); Ma & Liu (2016)
+         N{20?}>NNAGAAW     StCas9                       Streptococcus thermophilus (St) ?                                  Horvath, et al (2008); Cong et al (2013)
+          N{20}>NNAAAAW     StCas9                       Streptococcus thermophilus      ?                                  Fonfara, et al (2013)
+       N{20,23}>NNAGAA      StCas9                       Streptococcus thermophilus      H. sapiens/E.coli                  Kleinstiver, et al (2015a)
+          N{20}>NGGNG       StCas9                       Streptococcus thermophilus      ?                                  Horvath, et al (2008)
+          N{20}>NHRBMAW     StCas9                       Streptococcus thermophilus      ?                                  Karvelis, et al (2015)
+          N{20}>NGGWG       StCas9                       Streptococcus thermophilus      S. cerevisiae                      Xu, et al (2015)
+          N{20}>NGG         SmCas9                       Streptococcus  mutans (Sm)      ?                                  Fonfara, et al (2013)
+          N{21}>NNGRRT      SaCas9                       Staphylococcus aureus (Sa)      ?                                  Ran, et al (2015)
+       N{21,23}>NNGRRT      SaCas9                       Staphylococcus aureus           H. sapiens; E.coli                 Kleinstiver, et al (2015a)
+       N{21,23}>NNNRRT      SaCas9 KKH                   Staphylococcus aureus KKH       ?                                  Kleinstiver, et al (2015b)
+          N{20}>NNNNGATT    NmCas9                       Neisseria meningitidis (Nm)     H. sapiens; ?                      Amrani, et al (2017)
+          N{20}>NNNNGMTT    NmCas9                       Neisseria meningitidis          ?                                  Hou, et al (2013)
+          N{20}>NNNNACA     CjCas9                       Campylobacter jejuni (Cj)       ?                                  Fonfara, et al (2013)
+          N{20}>NNNNRYAC    CjCas9                       Campylobacter jejuni            ?                                  ?
+          N{20}>NNNVRYAC    CjCas9                       Campylobacter jejuni            ?                                  ?
+         N{20?}>NAAAAC      TdCas9                       Treponema denticola (Td)        ?                                  Zhang (year?) (unpublished)
+       N{18,21}>NGGNCNDD    BlCas9                       Brevibacillus laterosporus (Bl) ?                                  Karvelis, et al (2015)
+          N{20}>NNNNCND     BlCas9                       Brevibacillus laterosporus      ?                                  Karvelis, et al (2015)
+          N{20}>NNNNCNDD    BlCas9                       Brevibacillus laterosporus      ?                                  Karvelis, et al (2015)
+          N{20}>GNNNCNNA    PmCas9                       Pasteurella multocida (Pm)      ?                                  Fonfara, et al (2013)
+          N{20}>NG          FnCas9 ?       Putative      Francisella novicida (Fn)       ?                                  Fonfara, et al (2013)
+          N{??}>YG          FnCas9 EER                   Francisella novicida EER        ?                                  ?
+           TTTN<N{19}/.{4}\ As/Lb Cpf1                   Acidaminococcus/Lachnospiraceae ?                                  ?
+           TTTN<N{20,23}    As/Lb Cpf1                   Acidaminococcus/Lachnospiraceae ?                                  ?
+           TTTV<N{19}/N{4}\ As/Lb Cpf1                   Acidaminococcus/Lachnospiraceae H. sapiens; E. coli                Zetsche, et al (2015); Gao, et al (2017); Kim, et al (2016)
+           TYCV<N{19}/N{4}\ As/Lb Cpf1 RR  Vetted        Acidaminococcus/Lachnospiraceae H. sapiens; M. musculus            Gao, et al (2017)
+           TATV<N{19}/N{4}\ As/Lb Cpf1 RVR Vetted        Acidaminococcus/Lachnospiraceae H. sapiens; M. musculus            Gao, et al (2017)
+            TTN<N{18,24}    FnCpf1         Putative      Francisella novicida            H. sapiens; E. coli                Zetsche, et al (2015)
+            YTN<N{18,24}    FnCpf1         Putative      Francisella novicida            H. sapiens; E. coli                Zetsche, et al (2015)
+             AW<GN{31,32}   EcCas3         Putative      Escherichia coli (Ec)           ?                                  Swarts, et al (2012)
+            AWG<N{32,33}    EcCas3         Putative      Escherichia coli                ?                                  Swarts, et al (2012)
+         N{???}>NGR         ? Cst          Vetted        Pyrococcus furiosus             ?                                  Elmore, et al (2015)
+         N{???}>HVG         ? Cst          Vetted        Pyrococcus furiosus             ?                                  Elmore, et al (2015)
+         N{???}>CVG         ? Csa          Vetted        Pyrococcus furiosus             ?                                  Elmore, et al (2015)
+         N{???}>NRG         ? Csa          Vetted        Pyrococcus furiosus             ?                                  Elmore, et al (2015)
+         N{20?}>YCN         ?                            Pyrococcus furiosus             ?                                  ?
+         N{20?}>CCW         ?                            Clostridium difficile           ?                                  ?
+         N{20?}>YYC         ?                            Bacillus halodurans             ?                                  ?
+         N{20?}>CC          ?                            Pseudomonas aeruginosa          ?                                  ?
+         N{20?}>MMA         ?                            Pyrococcus furiosus             ?                                  ?
+           TTCN<N{32,34}    CasX (Cas12e)                Metagenomic                     E. coli                            Burstein, et al (2017)
+             TA<N{17,19}    CasY (Cas12d)                Metagenomic                     E. coli                            Burstein, et al (2017)
+             TA<N{26}       CasY.5                       Metagenomic                     E. coli                            Burstein, et al (2017)
+           YTTN<N{21}       MAD7                         [Lachnospiraceae] rectale       E. coli, S. cerevisiae; H. sapiens Gill, Garst, et al (2017)
+          N{20}>            Cas14a         NOT SUPPORTED Metagenomic DPANN archaea       E. coli                            Harrington, et al (2018)
