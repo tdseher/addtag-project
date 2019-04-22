@@ -7,6 +7,7 @@
 
 # Import standard packages
 import logging
+import itertools
 
 # Import non-standard packages
 import regex
@@ -14,6 +15,7 @@ import regex
 # Import included AddTag-specific modules
 #from .__init__ import Target
 #from . import targets
+from . import nucleotides
 
 class Feature(object):
     features = {}
@@ -22,7 +24,7 @@ class Feature(object):
     NONE=0
     INPUT=1
     DERIVED=2
-    def __init__(self, contig, start, end, strand, name=None, attributes=None, source=None, feature_type=None, score=None, frame=None, origin=NONE, sep=';', expand_parent=None):
+    def __init__(self, contig, start, end, strand, name=None, attributes=None, source=None, feature_type=None, score=None, frame=None, origin=NONE, sep=';', parent=None, gene=None, homologs=None):
         self.contig = contig
         self.source = source
         self.feature_type = feature_type
@@ -45,17 +47,29 @@ class Feature(object):
             self.attributes = dict([regex.split('\s*=\s*', x) for x in alist]) # {'ID': '12', 'Parent': 'nope'}
         self.name = name
         self.origin = origin
-        self.expand_parent = expand_parent
+        self.parent = parent
+        
+        if homologs:
+            self.homologs = homologs
+        else:
+            self.homologs = []
+        self.gene = gene
     
-    def get_expand_parent(self):
-        if (self.expand_parent == None):
+    def get_homologs(self):
+        return self.homologs
+    
+    def get_gene(self):
+        return self.gene
+    
+    def get_parent(self):
+        if ((self.parent == None) or (self.parent == self)):
             return self
         else:
-            return self.expand_parent.get_expand_parent()
+            return self.parent.get_parent()
     
     @classmethod
     def get_gene_from_feature(cls, feature_name, feature2gene):
-        parent = cls.features[feature_name].get_expand_parent().name
+        parent = cls.features[feature_name].get_parent().name
         
         return feature2gene[parent]
     
@@ -166,6 +180,30 @@ class Feature(object):
         #logger.info('GFF file parsed: {!r}'.format(filename))
     
     @classmethod
+    def assign_homologs(cls, homologs):
+        """
+        Give all features the 'self.homologs' attribute
+        """
+        for feature_name, f in cls.features.items():
+            if homologs:
+                hname_set = homologs[f.get_parent().name]
+                h_set = set()
+                for fname, f2 in cls.features.items():
+                    if fname in hname_set:
+                        h_set.add(f2)
+                if h_set not in f.homologs:
+                    f.homologs.append(h_set)
+    
+    @classmethod
+    def assign_gene(cls, feature2gene):
+        """
+        Give all features the 'self.gene' attribute
+        """
+        for feature_name, f in cls.features.items():
+            if feature2gene:
+                f.gene = feature2gene[f.get_parent().name]
+    
+    @classmethod
     def assert_features(cls, selection, contigs):
         # Current implementation limitations
         # GFF file only has 'Gene=' tag on ONE of the homologs, and not the other
@@ -204,9 +242,303 @@ class Feature(object):
                 logging.info('Expanding feature: {}'.format(feature_name))
                 f.expand_feature(args, contig_sequence)
     
+    def calc_homology_similarity(self, args, contigs, f1, f2):
+        """
+        Calculate the similarity of two features. Takes into account:
+         * Feature length (not yet)
+         * Similarity of US homology region
+         * Similarity of DS homology region
+        
+        Return a number between 0 and 1, with 1 being similar, and 0 being dissimilar
+        """
+        
+        # Eventually, this should be calculated from '--excise_upstream_homology MIN MAX' and '--excise_downstream_homology MIN MAX'
+        # The homology length is a function of '--excise_donor_lengths 100 100' and the insert size
+        # We just divide the max length by two (most-extreme case is 'mintag' with 0 nt insert)
+        max_homology_length = (max(args.excise_donor_lengths)+1)//2
+        
+        # We get the up/downstream homology regions up to this 'max_homology_length' for 'f1'
+        f = f1
+        us_start, us_end = f.start-max_homology_length, f.start
+        f1_upstream = contigs[f.contig][us_start:us_end]
+        
+        ds_start, ds_end = f.end, f.end+max_homology_length
+        f1_downstream = contigs[f.contig][ds_start:ds_end]
+        
+        # Get the homology regions for 'f2'
+        f = f2
+        us_start, us_end = f.start-max_homology_length, f.start
+        f2_upstream = contigs[f.contig][us_start:us_end]
+        
+        ds_start, ds_end = f.end, f.end+max_homology_length
+        f2_downstream = contigs[f.contig][ds_start:ds_end]
+        
+        
+        # Calculate the similarity
+        # Will treat any ambiguous characters as errors
+        us_errors = sum(nucleotides.count_errors(f1_upstream, f2_upstream))
+        ds_errors = sum(nucleotides.count_errors(f1_downstream, f2_downstream))
+        
+        us_len = max(len(f1_upstream), len(f2_upstream))
+        ds_len = max(len(f1_downstream), len(f2_downstream))
+        
+        sim = (us_len+ds_len-us_errors-ds_errors)/(us_len+ds_len)
+        
+        return sim
+    
+    @classmethod
+    def calc_homology_errors(cls, args, contigs, f1, f2):
+        """
+        Calculate the number of errors in alignment of homology regions of the two features.
+        
+        Returns an int.
+        """
+        
+        # Eventually, this should be calculated from '--excise_upstream_homology MIN MAX' and '--excise_downstream_homology MIN MAX'
+        # The homology length is a function of '--excise_donor_lengths 100 100' and the insert size
+        # We just divide the max length by two (most-extreme case is 'mintag' with 0 nt insert)
+        max_homology_length = (max(args.excise_donor_lengths)+1)//2
+        
+        # We get the up/downstream homology regions up to this 'max_homology_length' for 'f1'
+        f = f1
+        us_start, us_end = f.start-max_homology_length, f.start
+        f1_upstream = contigs[f.contig][us_start:us_end]
+        
+        ds_start, ds_end = f.end, f.end+max_homology_length
+        f1_downstream = contigs[f.contig][ds_start:ds_end]
+        
+        # Get the homology regions for 'f2'
+        f = f2
+        us_start, us_end = f.start-max_homology_length, f.start
+        f2_upstream = contigs[f.contig][us_start:us_end]
+        
+        ds_start, ds_end = f.end, f.end+max_homology_length
+        f2_downstream = contigs[f.contig][ds_start:ds_end]
+        
+        
+        # Calculate the similarity
+        # Will treat any ambiguous characters as errors
+        us_errors = sum(nucleotides.count_errors(f1_upstream, f2_upstream))
+        ds_errors = sum(nucleotides.count_errors(f1_downstream, f2_downstream))
+        
+        return us_errors, ds_errors
+    
+    @classmethod
+    def match_features_by_homology(cls, args, contigs):
+        """
+        Group all features (including derived ones) into homologs,
+        taking feature length and us/ds homology into account
+        """
+        features_to_keep = set()
+        if (args.donor_specificity == 'all'): # Multi-allelic
+            
+            # Create a dict where key=gene, value=set of all feature parents
+            parents_per_gene = {}
+            for fname, feature in cls.features.items():
+                gene = feature.get_gene()
+                parent = feature.get_parent()
+                parents_per_gene.setdefault(gene, set()).add(parent)
+            
+            logging.info('parents_per_gene:')
+            for k, v in parents_per_gene.items():
+                logging.info(' {} {}'.format(k, v)) # BRG1 {'C1_05140W_B', 'C1_05140W_C', 'C1_05140W_A'}
+            
+            # Will need to do this for each gene
+            for G, parents in parents_per_gene.items():
+                # Create a dict where key=parent, value=feature
+                vals = {}
+                for fname, feature in cls.features.items():
+                    gene = feature.get_gene()
+                    parent = feature.get_parent()
+                    if (gene == G):
+                        vals.setdefault(parent, list()).append(feature)
+                order = sorted(vals, key=lambda x: x.name)
+                logging.info('order = {}'.format(order)) # order = ['C1_05140W_A', 'C1_05140W_B', 'C1_05140W_C']
+                
+                # Separate features into lists based on their parent
+                # All derived features of from the same parent will be in a list together
+                odat = [vals[x] for x in order]
+                logging.info('odat = {}'.format(odat)) # odat = [[Feature(C1_05140W_A_derived-0), Feature(C1_05140W_A_derived-1), Feature(C1_05140W_A_derived-2)], [Feature(C1_05140W_B_derived-0), Feature(C1_05140W_B_derived-1)], [Feature(C1_05140W_C_derived-0)]]
+                
+                # Perform pairwise comparisons for every combination of input homologies
+                similarity = {}
+                c_similarities = {}
+                couplings = list(itertools.product(*odat))
+                for c1 in couplings:
+                    logging.info(c1)
+                    sims = []
+                    comparisons = list(itertools.combinations(c1, 2))
+                    for c2 in comparisons:
+                        logging.info('  {}'.format(c2))
+                        #sims.append(similarity.setdefault(c2, self.calc_homology_similarity(args, contigs, c2[0], c2[1])))
+                        sim = similarity.get(c2, None)
+                        if sim:
+                            sims.append(sim)
+                        else:
+                            sims.append(similarity.setdefault(c2, cls.calc_homology_errors(args, contigs, c2[0], c2[1])))
+                        
+                    c_similarities[c1] = sims
+                    # (Feature(C1_05140W_A_derived-0), Feature(C1_05140W_B_derived-0), Feature(C1_05140W_C_derived-0))
+                    #   (Feature(C1_05140W_A_derived-0), Feature(C1_05140W_B_derived-0))
+                    #   (Feature(C1_05140W_A_derived-0), Feature(C1_05140W_C_derived-0))
+                    #   (Feature(C1_05140W_B_derived-0), Feature(C1_05140W_C_derived-0))
+                    
+                
+                # Test every possible input homology group to see if they are similar enough
+                logging.info('c_similarities:')
+                for k, v in c_similarities.items():
+                    #logging.info(' ', k, v, all(x > 0.95 for x in v)) # (Feature(C1_05140W_A_derived-0), Feature(C1_05140W_B_derived-0), Feature(C1_05140W_C_derived-0)) [0.99, 0.98, 0.97] True
+                    verdict = all(((x[0] <= args.max_homology_errors) and (x[1] <= args.max_homology_errors)) for x in v)
+                    logging.info(' {} {} {}'.format(k, v, verdict))
+                    if verdict:
+                        for f in k:
+                            features_to_keep.add(f)
+                            # Add this new set of homologs to the 'self.homologs' attribute
+                            # (each feature can thus have multiple sets of homologs)
+                            # Ideally, it should resemble the following:
+                            #   self.homologs = [[Feature(), Feature(), Feature()], [Feature(), Feature(), Feature()]]
+                            hset = set(k)
+                            if hset not in f.homologs:
+                                f.homologs.append(hset)
+                            
+        
+        elif (args.donor_specificity == 'exclusive'): # Uni-alleleic
+            # Either the length of the insert should be diagnostically different
+            # Or the homology regions should have polymorphisms (maximize polymorphisms)
+            # or both
+            
+            
+            # Placeholder code
+            for fname, f in cls.features.items():
+                features_to_keep.add(f)
+            
+        elif (args.donor_specificity == 'any'): # Allele-agnostic
+            # Placeholder code
+            for fname, f in cls.features.items():
+                features_to_keep.add(f)
+    
+        return list(features_to_keep)
+    
+    @classmethod
+    def filter_features(cls, feature_names):
+        """
+        Reduce the total number of features to just the ones indicated in the selection
+        """
+        
+        # Require at least one in order to filter
+        # Feature has this format: key=gene/tag, value = (contig, start(bp), end(bp), strand)
+        if feature_names:
+            new_features = {}
+            for fn in feature_names:
+                f = cls.features.get(fn)
+                if f:
+                    new_features[fn] = f
+                else:
+                    raise Exception("Feature specified as '"+fn+"' does not exist in 'Feature.features'.")
+                    #sys.exit(1)
+            if (len(new_features) == 0):
+                raise Exception("No features to be filtered are present in 'Feature.features'.")
+                #sys.exit(1)
+            cls.features = new_features
+    
+    def expand_feature_for_homology(self, args, contigs, homologs):
+        """
+        Expand the feature to ensure its upstream/downstream flanking sequences
+        have no polymorphisms
+        """
+        
+        pass
+    
+    def expand_homologous_feature_bad(self, args, contigs, homologs):
+        """
+        Expand the feature to ensure its upstream/downstream flanking sequences
+        have no polymorphisms
+        """
+        
+        # Should run MSA on upstream/downstream regions for all homologous features
+        # From this, pick the shared us/ds homology regions
+        # and choose different sizes to expand each feature depending on this MSA
+        
+        
+        #min_homology_length = 50 # Eventually, this should be calculated from '--excise_upstream_homology MIN MAX' and '--excise_downstream_homology MIN MAX'
+        # The homology length is a function of '--excise_donor_lengths 100 100' and the insert size
+        # We just divide the max length by two (most-extreme case is 'mintag' with 0 nt insert)
+        min_homology_length = (max(args.excise_donor_lengths)+1)//2
+        
+        # Get the IDs of the features homologous to self
+        try:
+            homolog_set = homologs[self.name]
+        except KeyError:
+            # This feature name does not have a homolog in the 'homologs' dict (probably because it is a derived feature)
+            homolog_set = set()
+        
+        # Get the objects associated with each of the homologous feature names
+        homolog_features = []
+        
+        for fname, f in Feature.features.items():
+            if fname in homolog_set: # <== temporary code: needs to be fixed
+                if (self != f):
+                    if (f.origin == Feature.INPUT):
+                        homolog_features.append(f)
+        
+        lcs_size = 0
+        lcs_start, lcs_end
+        n = 20
+        should_end = False
+        while (not should_end and (lcs_size < min_homology_length)):
+            
+            if (self.start - n < 0):
+                should_end = True
+            else:
+                ref_us = contigs[self.contig][self.start-n:self.start]
+                
+                for f in homolog_features:
+                    if (f.start - n < 0):
+                        should_end = True
+                    else:
+                        f_us = contigs[f.contig][f.start-n:f.start]
+                        m = nucleotides.lcs(ref_us, f_us)
+                lcs_size = m.size
+                lcs_start = self.start-n + m.a
+                lcs_end = self.start-n + m.a + m.size
+            
+            n += 1
+        
+            
+        # We search the upstream region
+        n = 1 # Start at 20 nt upstream of feature start
+        should_end = False
+        while(should_end == False):
+            if (self.start-n < 0):
+                should_end = True
+                n = self.start # Limit n
+                break
+            else:
+                ref_us_region = contigs[self.contig][self.start-n:self.start]
+                lcs_lengths = []
+                for f in homolog_features:
+                    if (f.start - n < 0):
+                        should_end = True
+                        n = f.start # Limit n
+                    else:
+                        f_us_region = contigs[f.contig][f.start-n:f.start]
+                        m = nucleotides.lcs(ref_us_region, f_us_region)
+                        lcs_lengths.append(m.size)
+                if (min(lcs_lengths) > min_homology_length):
+                    # Set n to the precise distance to make min(lcs_lengths) equal min_homology_length
+                    n = n-(min(lcs_lengths) - min_homology_length)
+                    should_end = True
+                    break
+            n += 10
+        
+        
+        
+        
+        
+    
     def expand_feature(self, args, contig_sequence):
         """
-        New method of expanding a feature.
+        Expand the feature to ensure it has a viable 'Target' sequence
         Will generate all possible expanded features, which will be
         evaluated later to determine which is the best.
         """
@@ -375,15 +707,14 @@ class Feature(object):
         
         # Create a counter for the derived feature
         count = 0
-        
-        for derived_start, derived_end in derived_sets:
+        for derived_start, derived_end in sorted(derived_sets, key=lambda x: x[1]-x[0]): # in order from smallest to largest
             # If derived feature length is within the desired size range, then create the derived feature
             if (args.feature_expansion_lengths[0] <= derived_end - derived_start <= args.feature_expansion_lengths[1]):
                 if (max_upstream_coord <= derived_start <= derived_end <= max_downstream_coord):
                     new_name = self.name + '_derived-' + str(count)
                     new_attributes = self.attributes.copy()
                     new_attributes[args.tag] = new_name
-                    new_feature = Feature(self.contig, derived_start, derived_end, self.strand, name=new_name, source=self.source, feature_type=self.feature_type, score=self.score, frame=self.frame, attributes=new_attributes, origin=Feature.DERIVED, expand_parent=self)
+                    new_feature = Feature(self.contig, derived_start, derived_end, self.strand, name=new_name, source=self.source, feature_type=self.feature_type, score=self.score, frame=self.frame, attributes=new_attributes, origin=Feature.DERIVED, parent=self)
                     Feature.features[new_name] = new_feature
                     count += 1
                     logging.info("DERIVED FEATURE '{}' created.".format(new_name))
@@ -438,7 +769,7 @@ class Feature(object):
             new_name = self.name + '_derived'
             new_attributes = self.attributes.copy()
             new_attributes[args.tag] = new_name
-            new_feature = Feature(self.contig, feature_start, feature_end, self.strand, name=new_name, source=self.source, feature_type=self.feature_type, score=self.score, frame=self.frame, attributes=new_attributes, origin=Feature.DERIVED, expand_parent=self)
+            new_feature = Feature(self.contig, feature_start, feature_end, self.strand, name=new_name, source=self.source, feature_type=self.feature_type, score=self.score, frame=self.frame, attributes=new_attributes, origin=Feature.DERIVED, parent=self)
             Feature.features[new_name] = new_feature
             return new_feature
         else:
@@ -504,3 +835,12 @@ class Feature(object):
                     the_features.add(feature_name)
         
         return sorted(the_features)
+
+    def __repr__(self):
+        labs = ['name', 'gene', 'location']
+        vals = [
+            self.name,
+            self.get_gene(),
+            '{}:{}:{}..{}'.format(self.contig, self.strand, self.start, self.end)
+        ]
+        return self.__class__.__name__ + '(' + ', '.join('='.join(map(str, x)) for x in zip(labs, vals)) + ')'
