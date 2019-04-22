@@ -51,6 +51,15 @@ class Stemmer(PairedSequenceAlgorithm):
         
         return 0.0
     
+        # calculations 4/11/2019
+        # Converting to a scale between 0 and 1
+        # The Stemmer paper only considers mismatches,
+        # However, we expand it so we can consider indels too.
+        mismatch_positions = [1, 8, 15]
+        denom = sum(1.2**n for n in range(1, len(seq1)+1))
+        score = (denom - sum(1.2**n for n in mismatch_positions))/denom
+        return score
+    
     def off_target_score(self, off_targets):
         """
         We assume that the distance between off-target sites and exons are
