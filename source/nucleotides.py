@@ -698,9 +698,15 @@ def disambiguate_iupac(iupac_sequence, kind="dna"):
 
 def count_errors(seq1, seq2):
     """Counts number of substitutions, insertions, and deletions"""
-    # There is a bug in this function that makes it inaccurate. I will need
-    # to replace it with a custom solution
-    m = regex.match('(?:'+seq1+'){e}', seq2, flags=regex.ENHANCEMATCH|regex.IGNORECASE)
+    # Looks like the bugs with this have been fixed!
+    m = regex.match('(?:'+seq1+'){e}', seq2, flags=regex.BESTMATCH|regex.IGNORECASE)
+    
+    # Subs, ins, and dels are all given the same penalty
+    
+    # In general, (regex.match(seq1, seq2) != regex.match(seq2, seq1))
+    # Also, terminal in/dels tend to be ignored (but not always)
+    # Also, substitutions are favored over in/dels
+    
     # substitutions, insertions, deletions
     return m.fuzzy_counts
 
@@ -967,7 +973,29 @@ def build_dDNA_regex(dDNA):
     compiled_regex = regex.compile(pattern, flags=flags)
     return compiled_regex
 
-def make_labeled_primer_alignments(label_list, sequence_list, contig_name, primer_pair_label_list, primer_pair_list, shifts=None):
+def build_alignment(template_label, template_region_sequencess, template_region_labels, row_labels, row_sequences):
+    '''
+    a = build_alignment(
+      'SEQ',
+      ['AAAA', 'CCCCGGGGG', 'TTTTTTTT'],
+      ['first', 'second', 'third'],
+      ['contig1', 'contig2'],
+      ['   ACCCC-GGGGTT', ' AAACCCCGGGGGTTT']
+    )
+    
+    for line in a:
+      print(a)
+    
+             ┌first
+            ┌┴─┐┌second─┐┌third─┐
+        SEQ AAAACCCCGGGGGTTTTTTTT
+    contig1    ACCCC-GGGGTT
+    contig2  AAACCCCGGGGGTTT
+    
+    '''
+    pass
+
+def make_labeled_primer_alignments(label_list, sequence_list, contig_name, primer_pair_label_list, primer_pair_list, shifts=None, left_pos=0):
     
     lengths = [len(x) for x in sequence_list]
     output = make_alignment_labels(label_list, lengths)
@@ -977,15 +1005,26 @@ def make_labeled_primer_alignments(label_list, sequence_list, contig_name, prime
     output.append(''.join(sequence_list))
     
     for i, (pp_label, pp) in enumerate(zip(primer_pair_label_list, primer_pair_list)):
+        
+        cn = contig_name.split(' ')[1]
+        for f_gene, f_locus, f_genome, f_region, f_contig, f_strand, f_start, f_end in pp.forward_primer.locations:
+            if (f_contig == cn):
+                break
+        
         output_names.append(pp_label)
         if (shifts == None):
-            output.append(' '*pp.forward_primer.position + pp.get_formatted())
+            #output.append(' '*pp.forward_primer.position + pp.get_formatted())
+            #for fseq in pp.get_formatted():
+            #    output.append(' '*f_start + fseq[2])
+            output.append(' '*(f_start-left_pos) + pp.get_formatted()[0][2])
         else: # Need to improve this so it uses shifts for real
             if pp:
                 if (i in [0, 1]):
-                    output.append(' '*pp.forward_primer.position + pp.get_formatted())
+                    #output.append(' '*pp.forward_primer.position + pp.get_formatted())
+                    output.append(' '*(f_start-left_pos) + pp.get_formatted()[0][2])
                 elif (i == 2):
-                    output.append(' '*(lengths[0]+lengths[1]) + ' '*pp.forward_primer.position + pp.get_formatted()) # NOT elegant AT ALL
+                    #output.append(' '*(lengths[0]+lengths[1]) + ' '*pp.forward_primer.position + pp.get_formatted()) # NOT elegant AT ALL
+                    output.append(' '*(lengths[0]+lengths[1]) + ' '*(f_start-left_pos) + pp.get_formatted()[0][2])
             else:
                 output.append('None')
     
