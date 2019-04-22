@@ -575,12 +575,14 @@ class Target(object):
         """Return (sorted) list of all contig names this Target maps to"""
         return sorted(set(x[1] for x in self.locations))
     
-    def get_parent(self):
-        """Returns a parent tuple for an arbitrary location record"""
-        loc = next(iter(self.locations)) # Pull an arbitrary location record
-        #parent = (self.sequence, self.target, self.pam, self.upstream, self.downstream)
-        parent = (self.sequence, self.spacer, self.pam, loc[5], loc[6])
-        return parent
+### Unused 04/08/2019 ###
+#    def get_parent(self):
+#        """Returns a parent tuple for an arbitrary location record"""
+#        loc = next(iter(self.locations)) # Pull an arbitrary location record
+#        #parent = (self.sequence, self.target, self.pam, self.upstream, self.downstream)
+#        parent = (self.sequence, self.spacer, self.pam, loc[5], loc[6])
+#        return parent
+#########################
     
     @classmethod
     def score_batch(cls):
