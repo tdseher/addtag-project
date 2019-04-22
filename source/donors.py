@@ -7,6 +7,7 @@
 
 # Import standard packages
 import os
+import time
 import logging
 from collections import defaultdict
 
@@ -19,6 +20,7 @@ from . import nucleotides
 from . import motifs
 from .feature import Feature
 from .targets import Target
+from .thermodynamics.oligo import Primer, PrimerPair
 
 class Donor(object):
     prefix = 'Donor'
@@ -547,7 +549,7 @@ class ExcisionDonor(Donor):
                 # cross-reference their primary sequence headers with
                 # the (parent) feature names and gene names (from homologs file)
                 for feature_name, f in Feature.features.items():
-                    fp = f.get_expand_parent() # short for 'feature_parent'
+                    fp = f.get_parent() # short for 'feature_parent'
                     try:
                         if fp.name in ko_contigs:
                             tag = ko_contigs[fp.name]
@@ -662,6 +664,456 @@ class ReversionDonor(Donor):
         logging.info("Generating 'ReversionDonor' objects")
         
         if (args.revert_amplification_primers):
+            #amplicon_size = (2*min(args.revert_homology_length), 2*max(args.revert_homology_length))
+            
+            #subset_size = 1000 # 500 # Temporarily limit number of Primer objects used as input to the pair() function
+            pp_subset_size = 1000 # Temporarily limit the number of PrimerPairs that are used to create ReversionDonor objects
+            #temp_folder = os.path.join(args.temp_folder, 'addtag', os.path.basename(args.folder))
+            
+            # Make a folder to store the *.gb Genbank flat files
+            os.makedirs(os.path.join(args.folder, 'reversion-gb'), exist_ok=True)
+            
+            # Make list of genes, and the expected input feature numbers
+            gene_dict = defaultdict(int)
+            
+        #    us_gene_p_list_dict = {}
+        #    ds_gene_p_list_dict = {}
+            for feature_name, f in Feature.features.items():
+                fp = f.get_parent() # short for 'feature_parent'
+                g = feature2gene[fp.name]
+                gene_dict[g] += 1 # Count how many times a feature maps to this gene in only the desired data
+                
+            #    # Make defaultdicts to count homologous Primer objects
+            #    us_gene_p_list_dict[g] = defaultdict(list)
+            #    ds_gene_p_list_dict[g] = defaultdict(list)
+            
+            # There should be at least one ReversionDonor for each feature
+            for feature_name, f in Feature.features.items():
+                logging.info("Scanning feature '{}:{}:{}:{}..{}' for amplification primers".format(feature_name, f.contig, f.strand, f.start, f.end))
+                
+                my_contig = contigs[f.contig]
+                
+                #feature_length = f.end - f.start
+                #feature_sequence = my_contig[f.start:f.end]
+                
+                fp = f.get_parent() # short for 'feature_parent'
+                g = feature2gene[fp.name]
+                
+                us_extend_seq = my_contig[f.start:fp.start]
+                ds_extend_seq = my_contig[fp.end:f.end]
+                mid_feature_seq = my_contig[fp.start:fp.end]
+                if isinstance(args.ki_dDNA, str):
+                    # If a file is specified, then it has the knock-in DNA that should be stitched to flanking homology arms
+                    #o_feature_name = None
+                    #for f2g_f, f2g_g in feature2gene.items():
+                    #    if ((fp.name == f2g_f) or (fp.name == f2g_g)):
+                    #        o_feature_name = f2g_g
+                    #        break
+                    
+                    ki_contigs = utils.old_load_fasta_file(args.ki_dDNA)
+                    
+                    try:
+                        if fp.name in ki_contigs:
+                            mid_feature_seq = ki_contigs[fp.name]
+                        else:
+                            mid_feature_seq = ki_contigs[feature2gene[fp.name]]
+                    except KeyError:
+                        raise Exception("The ki-dDNA file '{}' has no sequence with a primary header that matches '{}' or '{}'".format(args.ki_dDNA, fp.name, feature2gene[fp.name]))
+                else:
+                    # Otherwise, generate KI dDNA that are wild type
+                    pass
+                
+                orientation = '+'
+                
+                # Won't work if a region spans the start/end of a circular plasmid:
+                #   RRRFFFFFF------------RRR
+                # Also won't work if the Feature is too close to the beginning of the contig
+                region_F_start, region_F_stop = f.start-max(args.revert_homology_length), f.start-min(args.revert_homology_length)
+                region_F_start, region_F_stop = max(0, region_F_start), max(0, region_F_stop)
+                region_R_start, region_R_stop = f.end+min(args.revert_homology_length), f.end+max(args.revert_homology_length)
+                
+                region_F = my_contig[region_F_start:region_F_stop]
+                region_R = my_contig[region_R_start:region_R_stop]
+                
+                AMP_F = 10
+                AMP_R = 11
+                
+                logging.info('Adding upstream_F primers to queue...')
+                Primer.scan(my_contig, gene=g, locus=fp.name, genome=0, region=AMP_F, contig=f.contig, orientation='+', start=region_F_start, end=region_F_stop, name='AmpF', primer_size=(19,36))
+                logging.info('Adding downstream_R primers to queue...')
+                Primer.scan(my_contig, gene=g, locus=fp.name, genome=0, region=AMP_R, contig=f.contig, orientation='-', start=region_R_start, end=region_R_stop, name='AmpR', primer_size=(19,36))
+            
+            
+            # Make simple dict to lookup the feature size given the gene/locus/contig
+            gg2feature_size = {}
+            for feature_name, f in Feature.features.items():
+                f_gene = f.get_gene()
+                f_locus = f.get_parent().name
+                f_genome = 0
+                f_contig = f.contig
+                
+                f_start, f_end = f.start, f.end
+                
+                gg2feature_size.setdefault((f_gene, f_locus, f_genome, f_contig), list()).append(f_end-f_start)
+            
+            logging.info("gene-to-feature:")
+            for k, v in gg2feature_size.items():
+                logging.info("  {} {}".format(k, v))
+            
+            # Do required stuff
+            for g, g_count in gene_dict.items():
+                ampF_list = []
+                ampR_list = []
+                for pi, (seq, p) in enumerate(Primer.sequences.items()):
+                    if any(loc[3] == AMP_F for loc in p.locations):
+                        ampF_list.append(p)
+                    if any(loc[3] == AMP_R for loc in p.locations):
+                        ampR_list.append(p)
+                
+                feature_sizes = []
+                for fname, f in Feature.features.items():
+                    if (f.get_gene() == g):
+                        feature_sizes.append(f.end-f.start)
+                
+                
+                logging.info('Using fixed primer calculation cutoffs')
+                cutoffs = {
+                    'length': (19, 28),
+                    'last5gc_count': (1, 3),
+                    'gc_clamp_length': (1, 2),
+                    'gc': (0.4, 0.6),
+                    'max_run_length': 4,
+                    'max_3prime_complementation_length': 3,
+                    'min_delta_g': -4.0,
+                    'tm': (52, 65),
+                    'max_tm_difference': 2.5,
+                    'amplicon_size_range': (2*min(args.revert_homology_length)+min(feature_sizes), 2*max(args.revert_homology_length)+max(feature_sizes)),
+                }
+                # Add the invariant cutoff parameters
+                cutoffs['o_oligo'] = args.selected_oligo
+                cutoffs['folder'] = os.path.join(args.temp_folder, 'addtag', os.path.basename(args.folder))
+                
+                # Perform primer calculations
+                logging.info('Performing calculations on primers...')
+                for alist in [ampF_list, ampR_list]:
+                    start_time = time.time()
+                    time_expired = False
+                    for pi, p in enumerate(alist):
+                        if (pi % 1000 == 0):
+                            if ((time.time()-start_time) > args.primer_scan_limit):
+                                time_expired = True
+                    
+                        if not time_expired:
+                            cpass = p.summarize(p.checks)
+                            if ((p.checks[0] == None) or (not cpass)):
+                                p.progressive_check(cutoffs)
+                
+                #desired_p1_loc_set = set()
+                #desired_p2_loc_set = set()
+                #desired_p1_loc_set.add((g, fp.name, 0, AMP_F, f.contig, '+'))
+                #desired_p2_loc_set.add((g, fp.name, 0, AMP_R, f.contig, '-'))
+                ampF_list = []
+                ampR_list = []
+                for pi, (seq, p) in enumerate(Primer.sequences.items()):
+                    if ((p.checks[0] != None) and p.summarize(p.checks)):
+                        
+                        if (args.donor_specificity == 'any'):
+                            
+                            if any(((loc[0] == g) and (loc[3] == AMP_F)) for loc in p.locations):
+                                ampF_list.append(p)
+                            if any(((loc[0] == g) and (loc[3] == AMP_R)) for loc in p.locations):
+                                ampR_list.append(p)
+                            
+                            #p_loc_set = set(loc[:-2] for loc in p.locations)
+                            #if (desired_p1_loc_set.intersection(p_loc_set) == desired_p1_loc_set):
+                            #    ampF_list.append(p)
+                            #if (desired_p2_loc_set.intersection(p_loc_set) == desired_p2_loc_set):
+                            #    ampR_list.append(p)
+                            ##if any((loc[3] == AMP_F) for loc in p.locations): # allow for any feature/locus
+                            ##    ampF_list.append(p)
+                            ##if any((loc[3] == AMP_R) for loc in p.locations): # allow for any feature/locus
+                            ##    ampR_list.append(p)
+                            
+                        elif (args.donor_specificity == 'all'):
+                            p1_features = set()
+                            p2_features = set()
+                            for loc in p.locations:
+                                if (loc[0] == g):
+                                    if (loc[3] == AMP_F):
+                                        p1_features.add(loc[1])
+                                    if (loc[3] == AMP_R):
+                                        p2_features.add(loc[1])
+                            if (len(p1_features) == g_count):
+                                ampF_list.append(p)
+                            if (len(p2_features) == g_count):
+                                ampR_list.append(p)
+                        
+                        elif (args.donor_specificity == 'exclusive'):
+                            p1_features = set()
+                            p2_features = set()
+                            for loc in p.locations:
+                                if (loc[0] == g):
+                                    if (loc[3] == AMP_F):
+                                        p1_features.add(loc[1])
+                                    if (loc[3] == AMP_R):
+                                        p2_features.add(loc[1])
+                            if ((len(p1_features) > 0) and (len(p2_features) == 0)):
+                                ampF_list.append(p)
+                            if ((len(p2_features) > 0) and (len(p1_features) == 0)):
+                                ampR_list.append(p)
+                
+                
+                
+                ampF_list = sorted(ampF_list, reverse=True)
+                ampR_list = sorted(ampR_list, reverse=True)
+                logging.info('  len(ampF_list) = {}'.format(len(ampF_list)))
+                logging.info('  len(ampR_list) = {}'.format(len(ampR_list)))
+                
+            #    for pF in ampF_list:
+            #        us_gene_p_list_dict[g][pF.sequence].append(pF)
+            #    
+            #    for pR in ampR_list:
+            #        ds_gene_p_list_dict[g][pR.sequence].append(pR)
+                
+                
+                # Allele-specific 'PrimerPair' calculations
+                #if (args.primer_specificity == 'any'):
+                #if args.allele_specific_primers:
+                # >>> INDENT >>>
+                logging.info('Calculating: primer pairs...')
+                check_count = 0
+                # For each pair, we reset the timer
+                start_time = time.time()
+                time_expired = False
+                
+                uf_dr_paired_primers = []
+                for i1, p1 in enumerate(ampF_list[:pp_subset_size]):
+                    if ((time.time()-start_time) > args.primer_pair_limit):
+                        time_expired = True
+                    
+                    if not time_expired:
+                        for i2, p2 in enumerate(ampR_list[:pp_subset_size]):
+                            # If it doesn't exist, add PrimerPair to database.
+                            # Otherwise, do nothing.
+                            PrimerPair(p1, p2)
+                            
+                            # Get the 'PrimerPair' object from the dict
+                            pair = (p1.sequence, p2.sequence)
+                            pp = PrimerPair.pairs.get(pair)
+                            
+                            if pp:
+                                # Run checks
+                                pp.progressive_check(cutoffs)
+                                check_count += 1
+                                
+                                # If the 'PrimerPair' passes the checks, then add it
+                                if ((pp.checks[0] != None) and Primer.summarize(pp.checks)):
+                                    pp.weight = pp.get_weight(minimize=gg2feature_size)
+                                    
+                                    uf_dr_paired_primers.append(pp)
+                logging.info('  checked {} primer pairs'.format(check_count))
+                
+                uf_dr_paired_primers = sorted(uf_dr_paired_primers, reverse=True)
+                
+                logging.info('  len(uf_dr_paired_primers) = {}'.format(len(uf_dr_paired_primers)))
+                
+                
+                
+                
+                
+                
+                
+                logging.info('\t'.join(['ReversionDonor', 'feature', 'weight', 'PrimerPair']))
+            
+                for feature_name, f in Feature.features.items():
+                    
+                    fp = f.get_parent() # short for 'feature_parent'
+                    
+                    if (feature2gene[fp.name] == g):
+                        
+                        ###### alignment ######
+                        pp_labels_list = []
+                        ###### alignment ######/
+                        
+                        ### Copied from earlier in function ###
+                        my_contig = contigs[f.contig]
+                        
+                        us_extend_seq = my_contig[f.start:fp.start]
+                        ds_extend_seq = my_contig[fp.end:f.end]
+                        mid_feature_seq = my_contig[fp.start:fp.end]
+                        if isinstance(args.ki_dDNA, str):
+                            # If a file is specified, then it has the knock-in DNA that should be stitched to flanking homology arms
+                            #o_feature_name = None
+                            #for f2g_f, f2g_g in feature2gene.items():
+                            #    if ((fp.name == f2g_f) or (fp.name == f2g_g)):
+                            #        o_feature_name = f2g_g
+                            #        break
+                            
+                            ki_contigs = utils.old_load_fasta_file(args.ki_dDNA)
+                            
+                            try:
+                                if fp.name in ki_contigs:
+                                    mid_feature_seq = ki_contigs[fp.name]
+                                else:
+                                    mid_feature_seq = ki_contigs[feature2gene[fp.name]]
+                            except KeyError:
+                                raise Exception("The ki-dDNA file '{}' has no sequence with a primary header that matches '{}' or '{}'".format(args.ki_dDNA, fp.name, feature2gene[fp.name]))
+                        else:
+                            # Otherwise, generate KI dDNA that are wild type
+                            pass
+                        
+                        orientation = '+'
+                        
+                        # Won't work if a region spans the start/end of a circular plasmid:
+                        #   RRRFFFFFF------------RRR
+                        # Also won't work if the Feature is too close to the beginning of the contig
+                        region_F_start, region_F_stop = f.start-max(args.revert_homology_length), f.start-min(args.revert_homology_length)
+                        region_F_start, region_F_stop = max(0, region_F_start), max(0, region_F_stop)
+                        region_R_start, region_R_stop = f.end+min(args.revert_homology_length), f.end+max(args.revert_homology_length)
+                        
+                        region_F = my_contig[region_F_start:region_F_stop]
+                        region_R = my_contig[region_R_start:region_R_stop]
+                        ### Copied from earlier in function ###
+                        
+                        
+                        #for pp_count, pp in enumerate(uf_dr_paired_primers[:pp_subset_size]):
+                        for pp in uf_dr_paired_primers:
+                            
+                            # Pick the right-most p1, and the left-most p2 (corresponding to the smallest amplicon)
+                            p1_se_list = []
+                            for loc in pp.forward_primer.locations:
+                                if ((loc[0] == g) and (loc[3] == AMP_F) and (loc[4] == f.contig)):
+                                    p1_se_list.append([loc[6], loc[7], loc])
+                            p1_location = max(p1_se_list)[2]
+                            
+                            p2_se_list = []
+                            for loc in pp.reverse_primer.locations:
+                                if ((loc[0] == g) and (loc[3] == AMP_R) and (loc[4] == f.contig)):
+                                    p2_se_list.append([loc[6], loc[7], loc])
+                            p2_location = min(p2_se_list)[2]
+                            
+                            start1, end1 = p1_location[6], f.start
+                            start2, end2 = f.end, p2_location[7]
+                            
+                            #start1, end1 = region_F_start + pp.forward_primer.position, f.start
+                            #start2, end2 = f.end, region_R_start+pp.reverse_primer.position+len(pp.reverse_primer.sequence)
+                            upstream_seq = my_contig[start1:end1]
+                            downstream_seq = my_contig[start2:end2]
+                            
+                            #dDNA = upstream_seq + feature_sequence + downstream_seq # This works, but doesn't take foreign knock-in DNA into account
+                            dDNA = upstream_seq + us_extend_seq + mid_feature_seq + ds_extend_seq + downstream_seq
+                            
+                            new_obj = cls(feature_name, f.contig, orientation, dDNA, (start1, end2), spacer=None)
+                            
+                            rd = cls.sequences[dDNA]
+                            
+                            # Also need to list their compatible exDonors, and by extension, their exTargets
+                            logging.info('\t'.join([rd.name, feature_name, str(pp.get_joint_weight()), str(pp)])) # <<<<< In pp, the 'amplicon_size' attribute is calculated INCORRECTLY for some derived features. Also, the x-shift seems off in the alignment.
+                            #logging.info('  (new_obj == rd): {}'.format(new_obj == rd))
+                            #logging.info('  contig: {}, start1: {}, end2: {}'.format(f.contig, start1, end2))
+                            #logging.info('  F: {}'.format(sorted(pp.forward_primer.locations)))
+                            #logging.info('  R: {}'.format(sorted(pp.reverse_primer.locations)))
+                            
+                            ###### alignment ######
+                            pp_labels_list.append('{: 18.15f}'.format(pp.get_joint_weight()) + ' ' + rd.name)  # <<<<< In pp, the 'amplicon_size' attribute is calculated INCORRECTLY for some derived features. Also, the x-shift seems off in the alignment
+                            ###### alignment ######
+                            
+                            # ############# Write to Genbank flat file #############
+                            # colors = {
+                            #     'grey': '#DDDDDD',
+                            #     'gray': '#DDDDDD',
+                            #     'pink': '#FF9CCD',
+                            #     'bpink': '#FF9C9A', # salmon
+                            #     'dpink': '#DDB4DD', # grey-pink
+                            # }
+                            # segment_start, segment_end = max(0, f.start-2000), min(len(my_contig), f.end+2000)
+                            # genome_segment = my_contig[segment_start:segment_end]
+                            # gb = utils.GenBankFile(f.contig + ':' + str(segment_start+1) + '-' + str(segment_end), genome_segment) # chr:start-end
+                            # #gb.add_annotation('source', 0, len(genome_segment), '+', organism=args.fasta[0], mol_type='genomic DNA') # only uses the first listed args.fasta
+                            # gb.add_annotation('feature', f.start-segment_start, f.end-segment_start, f.strand, label='feature', ApEinfo_revcolor=colors['grey'], ApEinfo_fwdcolor=colors['grey'])
+                            # gb.add_annotation('region', region_F_start-segment_start, region_F_stop-segment_start, '+', label='upstream_primer_region', ApEinfo_revcolor=colors['dpink'], ApEinfo_fwdcolor=colors['dpink'])
+                            # gb.add_annotation('region', region_R_start-segment_start, region_R_stop-segment_start, '-', label='downstream_primer_region', ApEinfo_revcolor=colors['dpink'], ApEinfo_fwdcolor=colors['dpink'])
+                            # gb.add_annotation('amplicon', start1-segment_start, end2-segment_start, '+', label='ampf_ampr_amplicon', ApEinfo_revcolor=colors['bpink'], ApEinfo_fwdcolor=colors['bpink']) # salmon
+                            # gb.add_annotation('primer', start1 - segment_start, start1 - segment_start + len(pp.forward_primer.sequence), '+', label='ampf_primer', ApEinfo_revcolor=colors['pink'], ApEinfo_fwdcolor=colors['pink']) # pink
+                            # gb.add_annotation('primer', end2 - segment_start-len(pp.reverse_primer.sequence), end2 - segment_start, '-', label='ampr_primer', ApEinfo_revcolor=colors['pink'], ApEinfo_fwdcolor=colors['pink']) # pink
+                            # gb.write(os.path.join(args.folder, 'reversion-gb', 'pp-'+str(pp_count)+'.gb')) # pp_labels_list[-1]
+                            # ############# Write to Genbank flat file #############
+                    
+                
+                        ###### alignment ######
+                        label_list = ['us_region', 'us_skipped', 'us_extend_feature', 'feature', 'ds_extend_feature', 'ds_skipped', 'ds_region']
+                        sequence_list = [region_F, my_contig[region_F_stop:f.start], us_extend_seq, mid_feature_seq, ds_extend_seq, my_contig[f.end:region_R_start], region_R]
+                        aln_out = nucleotides.make_labeled_primer_alignments(label_list, sequence_list, '{:>18}'.format('weight')+' '+f.contig, pp_labels_list, uf_dr_paired_primers[:pp_subset_size], left_pos=region_F_start)
+                        
+                        logging.info(feature_name)
+                        for oline in aln_out:
+                            logging.info(oline)
+                        ###### alignment ######
+        
+        else: # This is when (args.revert_amplification_primers == False)
+            # There should be at least one ReversionDonor for each feature
+            for feature_name, f in Feature.features.items():
+                logging.info("Scanning feature '{}:{}:{}:{}..{}' for amplification primers".format(feature_name, f.contig, f.strand, f.start, f.end))
+                
+                my_contig = contigs[f.contig]
+                
+                #feature_length = f.end - f.start
+                #feature_sequence = my_contig[f.start:f.end]
+                
+                fp = f.get_parent() # short for 'feature_parent'
+                us_extend_seq = my_contig[f.start:fp.start]
+                ds_extend_seq = my_contig[fp.end:f.end]
+                mid_feature_seq = my_contig[fp.start:fp.end]
+                if isinstance(args.ki_dDNA, str):
+                    # If a file is specified, then it has the knock-in DNA that should be stitched to flanking homology arms
+                    #o_feature_name = None
+                    #for f2g_f, f2g_g in feature2gene.items():
+                    #    if ((fp.name == f2g_f) or (fp.name == f2g_g)):
+                    #        o_feature_name = f2g_g
+                    #        break
+                    
+                    ki_contigs = utils.old_load_fasta_file(args.ki_dDNA)
+                    
+                    try:
+                        if fp.name in ki_contigs:
+                            mid_feature_seq = ki_contigs[fp.name]
+                        else:
+                            mid_feature_seq = ki_contigs[feature2gene[fp.name]]
+                    except KeyError:
+                        raise Exception("The ki-dDNA file '{}' has no sequence with a primary header that matches '{}' or '{}'".format(args.ki_dDNA, fp.name, feature2gene[fp.name]))
+                else:
+                    # Otherwise, generate KI dDNA that are wild type
+                    pass
+                
+                region_F_start, region_F_stop = f.start-max(args.revert_homology_length), f.start-min(args.revert_homology_length)
+                region_F_start, region_F_stop = max(0, region_F_start), max(0, region_F_stop)
+                region_R_start, region_R_stop = f.end+min(args.revert_homology_length), f.end+max(args.revert_homology_length)
+                
+                start1, end1 = region_F_start, f.start
+                start2, end2 = f.end, region_R_stop
+                upstream_seq = my_contig[start1:end1]
+                downstream_seq = my_contig[start2:end2]
+                
+                #dDNA = upstream_seq + feature_sequence + downstream_seq # This works, but doesn't take foreign knock-in DNA into account
+                dDNA = upstream_seq + us_extend_seq + mid_feature_seq + ds_extend_seq + downstream_seq
+                
+                orientation = '+'
+                
+                cls(feature_name, f.contig, orientation, dDNA, (start1, end2), spacer=None)
+            
+        ### End generate_donors() method ###
+    
+    @classmethod
+    def generate_donors_old(cls, args, contigs, feature2gene):
+        """
+        Creates the DNA oligo with the structure:
+        [amp-F primer]                                                               [amp-R primer]
+        [upstream homology][us expanded feature][feature][ds expanded feature][downstream homology]
+        """
+        
+        logging.info("Generating 'ReversionDonor' objects")
+        
+        if (args.revert_amplification_primers):
             tm_max_difference = 4.0
             amplicon_size = (2*min(args.revert_homology_length), 2*max(args.revert_homology_length))
             tm_range = (52, 64)
@@ -680,7 +1132,7 @@ class ReversionDonor(Donor):
             us_gene_p_list_dict = {}
             ds_gene_p_list_dict = {}
             for feature_name, f in Feature.features.items():
-                fp = f.get_expand_parent() # short for 'feature_parent'
+                fp = f.get_parent() # short for 'feature_parent'
                 g = feature2gene[fp.name]
                 gene_dict[g] += 1
                 
@@ -697,7 +1149,7 @@ class ReversionDonor(Donor):
                 #feature_length = f.end - f.start
                 #feature_sequence = my_contig[f.start:f.end]
                 
-                fp = f.get_expand_parent() # short for 'feature_parent'
+                fp = f.get_parent() # short for 'feature_parent'
                 g = feature2gene[fp.name]
                 
                 us_extend_seq = my_contig[f.start:fp.start]
@@ -804,10 +1256,10 @@ class ReversionDonor(Donor):
                         rd = cls.sequences[dDNA]
                         
                         # Also need to list their compatible exDonors, and by extension, their exTargets
-                        logging.info('\t'.join([rd.name, feature_name, str(pp.get_joint_weight()), str(pp)]))
+                        logging.info('\t'.join([rd.name, feature_name, str(pp.get_joint_weight()), str(pp)])) # <<<<< In pp, the 'amplicon_size' attribute is calculated INCORRECTLY for some derived features. Also, the x-shift seems off in the alignment.
                         
                         ###### alignment ######
-                        pp_labels_list.append('{: 18.15f}'.format(pp.get_joint_weight()) + ' ' + rd.name)
+                        pp_labels_list.append('{: 18.15f}'.format(pp.get_joint_weight()) + ' ' + rd.name)  # <<<<< In pp, the 'amplicon_size' attribute is calculated INCORRECTLY for some derived features. Also, the x-shift seems off in the alignment
                         ###### alignment ######
                         
                         # ############# Write to Genbank flat file #############
@@ -851,7 +1303,7 @@ class ReversionDonor(Donor):
             ds_gene_primers = {}
             gene_count = {}
             for feature_name, f in Feature.features.items():
-                fp = f.get_expand_parent() # short for 'feature_parent'
+                fp = f.get_parent() # short for 'feature_parent'
                 g = feature2gene[fp.name]
                 if not g in gene_count:
                     gene_count[g] = 0
@@ -936,10 +1388,10 @@ class ReversionDonor(Donor):
                     rd = cls.sequences[dDNA]
                     
                     # Also need to list their compatible exDonors, and by extension, their exTargets
-                    logging.info('\t'.join([rd.name, feature_name, str(pp.get_joint_weight()), str(pp)]))
+                    logging.info('\t'.join([rd.name, feature_name, str(pp.get_joint_weight()), str(pp)]))  # <<<<< In pp, the 'amplicon_size' attribute is calculated INCORRECTLY for some derived features. Also, the x-shift seems off in the alignment
                     
                     ###### alignment ######
-                    pp_labels_list.append('{: 18.15f}'.format(pp.get_joint_weight()) + ' ' + rd.name)
+                    pp_labels_list.append('{: 18.15f}'.format(pp.get_joint_weight()) + ' ' + rd.name)  # <<<<< In pp, the 'amplicon_size' attribute is calculated INCORRECTLY for some derived features. Also, the x-shift seems off in the alignment
                     ###### alignment ######
                 
                 ###### alignment ######
@@ -969,7 +1421,7 @@ class ReversionDonor(Donor):
                 #feature_length = f.end - f.start
                 #feature_sequence = my_contig[f.start:f.end]
                 
-                fp = f.get_expand_parent() # short for 'feature_parent'
+                fp = f.get_parent() # short for 'feature_parent'
                 us_extend_seq = my_contig[f.start:fp.start]
                 ds_extend_seq = my_contig[fp.end:f.end]
                 mid_feature_seq = my_contig[fp.start:fp.end]
@@ -1013,7 +1465,7 @@ class ReversionDonor(Donor):
         ### End generate_donors() method ###
     
     @classmethod
-    def generate_donors_old(cls, args, contigs):
+    def generate_donors_old_old(cls, args, contigs):
         """
         Creates the DNA oligo with the structure:
         [upstream homology][original feature][downstream homology]
