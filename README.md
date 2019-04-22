@@ -90,20 +90,17 @@ $ cd addtag-project/
 
 If you would like to update your local copy to the newest version available, use the following command from within the `addtag-project/` directory.
 ```sh
-$ git pull
+$ ./addtag update
 ```
 
-If you want the newest version, but you made local changes, then you can first discard your changes, and then update. Use the following two commands from inside the `addtag-project/` folder.
+If you want the newest version, but you made local changes, then you can first discard your changes, and then update. Use the following command from inside the `addtag-project/` folder.
 ```sh
-$ git reset --hard
-$ git pull
+$ ./addtag update --discard_local_changes
 ```
 
 Alternatively, if you want to keep the local modifications, you can use stash to hide them away before pulling, then reapply them afterwards.
 ```sh
-$ git stash
-$ git pull
-$ git stash pop
+$ ./addtag update --keep_local_changes
 ```
 
 Each one of these methods may require your Atlassian login credentials.
