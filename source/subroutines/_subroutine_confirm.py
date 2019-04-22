@@ -6,11 +6,13 @@
 # source/subroutines/_subroutine_confirm.py
 
 # Import standard packages
+import sys
 import os
 import logging
 import copy
 import random
 import math
+import time
 #from collections import namedtuple
 
 # Import non-standard packages
@@ -23,6 +25,7 @@ from .. import utils
 from .. import nucleotides
 from .. import aligners
 from .. import thermodynamics
+from ..thermodynamics.oligo import Primer, PrimerPair, PrimerDesign
 
 class ConfirmParser(subroutine.Subroutine):
     def __init__(self, subparsers):
@@ -85,7 +88,7 @@ class ConfirmParser(subroutine.Subroutine):
         self.parser.add_argument("--primer_pair_limit", metavar="N", type=int, default=5*60,
             help="Amount of time (in seconds) to limit primer pairings.")
         
-        self.parser.add_argument("--primers", nargs="+", metavar="*.fasta", type=str, default=[],
+        self.parser.add_argument("--mandatory_primers", nargs="+", metavar="*.fasta", type=str, default=[],
             help="A FASTA file for each round containing primer sequences that \
             must be used for that round. Usually, these correspond to flanktags.")
         
@@ -115,15 +118,71 @@ class ConfirmParser(subroutine.Subroutine):
             options: '--fasta genome.fasta --dDNAs ko.fasta ki.fasta \
             --internal_primers_required y n y')")
         
-        # Default should be allele-agnostic. If the users want allele-specific,
-        # the they should use this command-line option.
-        self.parser.add_argument("--allele-specific", action="store_true", default=False,
-            help="Report only allele-specific primer designs. \
-            Either primer amplicons will be diagnostically-different sizes, \
-            or primer sequences themselves will be different.")
+        self.parser.add_argument("--i_primers_required", metavar="y/n",
+            nargs="+", type=str, default=None, action=subroutine.ValidatePrimersRequired,
+            help="For each genome, starting with input, and each subsequent dDNA, \
+            specify whether internal primers are required (iF/iR). \
+            y - yes, these internal primers are required; \
+            n - no, these internal primers are optional. \
+            (For example, if you have 2 rounds of genome engineering, \
+            and only the wild type (input) genome and the final genome \
+            require internal primers, then you would use these command-line \
+            options: '--fasta genome.fasta --dDNAs ko.fasta ki.fasta \
+            --i_primers_required y n y')")
+        
+        self.parser.add_argument("--o_primers_required", metavar="y/n",
+            nargs="+", type=str, default=None, action=subroutine.ValidatePrimersRequired,
+            help="For each genome, starting with input, and each subsequent dDNA, \
+            specify whether outer primers are required (oF/oR). \
+            y - yes, these outer primers are required; \
+            n - no, these outer primers are optional. \
+            (For example, if you have 2 rounds of genome engineering, \
+            and only the wild type (input) genome and the final genome \
+            require outer primers, then you would use these command-line \
+            options: '--fasta genome.fasta --dDNAs ko.fasta ki.fasta \
+            --o_primers_required y n y')")
+        
+        # Default should be multi-allelic (NOT allele-agnostic).
+        # If the users want allele-specific, then they should use this
+        # command-line option.
+        #self.parser.add_argument("--allele-specific", action="store_true", default=False,
+        #    help="Report only allele-specific primer designs. \
+        #    Either primer amplicons will be diagnostically-different sizes, \
+        #    or primer sequences themselves will be different.")
+        
+        #   'exclusive' (single/specific),
+                    #   'all' (multi),
+                    #   'any' (agnostic)
+        self.parser.add_argument("--specificity", choices=['exclusive', 'all', 'any'], default='all',
+            help="Report only *-specific primer designs. Either primer \
+            amplicons will be diagnostially-different sizes, or primer \
+            sequences themselves will be different. The choices are as \
+            follows: 'exclusive' (allele-specific), 'all' (multi-allelic), \
+            'any' (allele-agnostic).")
+        
+        # Get TEMP directory
+        if sys.platform.startswith('win'):
+            from tempfile import gettempdir
+            temp_default = gettempdir()
+        else:
+            temp_default = '/dev/shm'
+        self.parser.add_argument("--temp_folder", type=str, default=temp_default,
+            help="Directory to store temporary files. RAMdisk recommended.")
         
         # Nucleotide matching stuff
         #  - number errors (for fuzzy regex)
+        
+        # PCR conditions:
+        #self.parser.add_argument("--primer_lengths", nargs=2, metavar=("MIN", "MAX"), type=int, default=[19,28],
+        #    help="Range of lengths acceptable for primer sequences, inclusive.")
+        #self.parser.add_argument("--primer_last5gc_count", nargs=2 metavar=("MIN", "MAX"), type=int, default=[1,3],
+        #    help="Range of acceptable number of G and C residues in the last 5 nt of oligo, inclusive.")
+        #self.parser.add_argument("--primer_gc_clamp_length", nargs=2 metavar=("MIN", "MAX"), type=int, default=[0,2],
+        #    help="Range of acceptable consecutive G and C residues in 3' end of oligo, inclusive.")
+        #self.parser.add_argument("--primer_gc", nargs=2, metavar=("MIN", "MAX"), type=float, default=[0.25,0.75],
+        #    help="Minimum and maximum acceptable fraction of C and C residues within the primer.")
+        #self.parser.add_argument("--primer_max_run_length", metavar="N", type=int, default=4,
+        #    help="Maximum number of consecutive identical residues.")
         
         # PCR conditions:
         #  - primer_size (min, max)
@@ -393,7 +452,7 @@ class ConfirmParser(subroutine.Subroutine):
                         #########
                         # Replace entry in 'genome_contigs' dict with the new cross-over contig
                         # This probably doesn't work with multiple targeted engineering events on the same chromosome
-                        #genome_contigs_list[r][sname] = us_seq + q_hih_seq + ds_seq # <---------------------- this should be done in the 'r' outer loop (earlier draft)
+                        #genome_contigs_list[r][sname] = us_seq + q_hih_seq + ds_seq # <=---------------------- this should be done in the 'r' outer loop (earlier draft)
                         
                         # Keep the subject up/down-stream homology regions in case 2 engineered loci have overlapping homology arms
                         # like this:
@@ -408,7 +467,7 @@ class ConfirmParser(subroutine.Subroutine):
                         # this messes with calling self.calculate_amplicons() for each query-subject pair.
                         
                         ##### alternate #####
-                        # This code only works for a single-locus per chromosome! <------ need to update this so it works for multiple loci per chromosome
+                        # This code only works for a single-locus per chromosome! <=------ need to update this so it works for multiple loci per chromosome
                         #updated_contigs[sname] = us_seq + q_hih_seq + ds_seq
                         ### end alternate ###
                         
@@ -421,7 +480,7 @@ class ConfirmParser(subroutine.Subroutine):
                     logging.info(qname + ' vs ' + sname + ' has ' + str(len(record_list)) + ' regions of homology (2 needed)')
             
             # Rename the contigs based on the modifications
-            # This code only works for a single-locus per chromosome! <------ need to update this so it works for multiple loci per chromosome
+            # This code only works for a single-locus per chromosome! <=----- need to update this so it works for multiple loci per chromosome
             for sname in name_changes:
                 new_name = sname+'-r'+str(r)+'['+','.join(name_changes[sname])+']'
                 genome_contigs_list[r][new_name] = genome_contigs_list[r].pop(sname)
@@ -507,6 +566,12 @@ class ConfirmParser(subroutine.Subroutine):
         # Link the loci and store in 'datum_groups'
         datum_groups = self.make_datum_groups(group_links, contig_groups, genome_contigs_list)
         
+        ###### New code ######
+        self.primer_queue_test(args, datum_groups, genome_contigs_list, dDNA_contigs_list)
+        
+        
+        ######################
+        
         # Find the longest common substring in the far-upstream and far-downstream regions
         pcr_regions, pcr_region_positions = self.get_far_lcs_regions(datum_groups, genome_contigs_list)
         
@@ -556,8 +621,8 @@ class ConfirmParser(subroutine.Subroutine):
                     insert_seqs.append(Insert(
                         datum.genome_r, # genome_r
                         datum.genome_contig, # genome_contig
-                        #datum.dDNA_r, # genome_r <----------------------- may need to change this to be the genome (not the dDNA)
-                        #datum.dDNA_contig, # genome_contig <------------- may need to change this to be the genome (not the dDNA)
+                        #datum.dDNA_r, # genome_r <=---------------------- may need to change this to be the genome (not the dDNA)
+                        #datum.dDNA_contig, # genome_contig <=------------ may need to change this to be the genome (not the dDNA)
                         dDNA_contigs_list[datum.dDNA_r][datum.dDNA_contig][datum.ins_start:datum.ins_end], # seq
                         dDNA_contigs_list[datum.dDNA_r][datum.dDNA_contig][max(0, datum.ins_start-(max_primer_length-1)):datum.ins_start], # us_seq
                         dDNA_contigs_list[datum.dDNA_r][datum.dDNA_contig][datum.ins_end:datum.ins_end+(max_primer_length-1)], # ds_seq
@@ -586,7 +651,8 @@ class ConfirmParser(subroutine.Subroutine):
             #initial_pair_list, final_pair_list = self.make_primer_set(args, qname, us_seq, ds_seq, insert_seq, feature_seq, q_hih_seq, s_ush_seq, q_ush_seq, s_dsh_seq, q_dsh_seq)
             logging.info('Calculating primers for locus {}'.format(i))
             #                                                                             shared_forward  shared_reverse  features/inserts
-            pair_list, insert_pair_list, round_labels, weighted_d_set_list = self.calculate_them_primers(args, fus_seq,        fds_seq,        insert_seqs)
+#            pair_list, insert_pair_list, round_labels, weighted_d_set_list = self.calculate_them_primers(args, fus_seq,        fds_seq,        insert_seqs)
+            pair_list, insert_pair_list, round_labels, weighted_d_set_list = [], [], [], []
             
             # Filter 'pair_list' to get the top 10
             logging.info("Sorting Amp 'A/B/C' list...")
@@ -618,6 +684,7 @@ class ConfirmParser(subroutine.Subroutine):
             logging.info("Appending Locus {} results to output lists...".format(i))
             
             # Add the calculated weights of the sF/sR/oF/oR sets to 'output1' table
+            logging.info("Appending 'output1'...")
             for ppli, (w, pp_list) in enumerate(pair_list):
                 output1.append([ppli, i, w, 'A/B/C'])
             
@@ -625,6 +692,7 @@ class ConfirmParser(subroutine.Subroutine):
                 output1.append([ppli, i, w, 'D'])
             
             # Print the primers for 'output2' table
+            logging.info("Appending 'output2'...")
             for ppli, (w, pp_list) in enumerate(pair_list):
                 round_labels_iter = iter(round_labels)
                 
@@ -683,78 +751,9 @@ class ConfirmParser(subroutine.Subroutine):
                         #    output2.append([ppli, ip_r, i, amp_name, round_n, '-', pp.forward_primer.name, pp.reverse_primer.name, pp.get_amplicon_size(), pp.get_tms()])
                         else:
                             output2.append([ppli, pp_i, i, amp_name, rac, converted_genome_round, 'r'+round_n+'-iF', 'r'+round_n+'-iR', '-', '-'])
-            
-            
-            
-            
-#            # Filter 'insert_pair_list' to get the top 10 (They are already sorted)
-#            insert_pair_list = [x[:args.max_number_designs_reported] for x in insert_pair_list]
-#            #D_counter = self.round_counter() # Hacky way to get the round
-#            #for ip_r, iF_iR_paired_primers in enumerate(insert_pair_list):
-#            #    amp_name = 'D'
-#            #    round_n = next(D_counter)
-#            #    if (len(iF_iR_paired_primers) == 0):
-#            #        output2.append(['-', ip_r, i, amp_name, round_n, '-', '-', '-', '-', '-'])
-#            #    else:
-#            #        for ppli, pp in enumerate(iF_iR_paired_primers):
-#            #            if pp:
-#            #                output2.append([ppli, ip_r, i, amp_name, round_n, pp.forward_primer.name, pp.reverse_primer.name, pp.get_amplicon_size(), pp.get_tms(), 'Template'])
-#            #            else:
-#            #                output2.append([ppli, ip_r, i, amp_name, round_n, '-', '-', '-', '-', '-'])
-#            
-#            if (len(insert_pair_list) > 0):
-#                number_D_sets = max([len(ipl) for ipl in insert_pair_list])
-#            else:
-#                number_D_sets = 0
-#            
-#            #D_sets = [] # [['0b', '0a', '1b', '1a'], ...]
-#            #for ppli in range(number_D_sets):
-#            #    amp_name = 'D'
-#            #    D_counter = self.round_counter() # Hacky way to get the round
-#            #    D_sets.append([])
-#            #    for ip_r, iF_iR_paired_primers in enumerate(insert_pair_list):
-#            #        round_n = next(D_counter)
-#            #        
-#            #        try:
-#            #            pp = iF_iR_paired_primers[ppli]
-#            #            D_sets[-1].append([ppli, ip_r, i, amp_name, round_n, pp.forward_primer.name, pp.reverse_primer.name, pp.get_amplicon_size(), pp.get_tms()])
-#            #        except IndexError, AttributeError:
-#            #            D_sets[-1].append([ppli, ip_r, i, amp_name, round_n, round_n+'-iF', round_n+'-iR', '-', '-'])
-#            #
-#            #for D_set in D_sets:
-#            #    for ds in D_set:
-#            #        output2.append(ds)
-#            
-#            # Need to add code to this code sectoin involving 'D' so that
-#            # it respects 'args.internal_primers_required'
-#            amp_name = 'Dold'
-#            for ppli in range(number_D_sets):
-#                D_counter = self.round_counter() # Hacky way to get the round
-#                for ip_r, iF_iR_paired_primers in enumerate(insert_pair_list):
-#                    round_n = next(D_counter)
-#                    try:
-#                        pp = iF_iR_paired_primers[ppli]
-#                    except IndexError:
-#                        pp = None
-#                    ra_counter = self.round_counter()
-#                    for ia in range(len(insert_pair_list)):
-#                        rac = next(ra_counter)
-#                        converted_genome_round = self.round_converter(rac)
-#                        if pp:
-#                            amp_sizes = pp.in_silico_pcr(genome_contigs_list[converted_genome_round])
-#                            if (len(amp_sizes) > 0):
-#                                amp_sizes = ','.join(map(str, sorted(amp_sizes)))
-#                            else:
-#                                amp_sizes = '-'
-#                            tms = ','.join([str(round(ptm, 2)) for ptm in pp.get_tms()])
-#                            output2.append([ppli, ip_r, i, amp_name, rac, converted_genome_round, pp.forward_primer.name, pp.reverse_primer.name, amp_sizes, tms])
-#                            
-#                        #if (pp and (round_n == rac)):
-#                        #    output2.append([ppli, ip_r, i, amp_name, round_n, '-', pp.forward_primer.name, pp.reverse_primer.name, pp.get_amplicon_size(), pp.get_tms()])
-#                        else:
-#                            output2.append([ppli, ip_r, i, amp_name, rac, converted_genome_round, 'r'+round_n+'-iF', 'r'+round_n+'-iR', '-', '-'])
                     
             # Add Primer sequences to 'output3' table
+            logging.info("Appending 'output3'...")
             for ppli, (w, pp_list) in enumerate(pair_list):
                 round_labels_iter = iter(round_labels)
                 #non_redundant_primers = {}
@@ -797,27 +796,8 @@ class ConfirmParser(subroutine.Subroutine):
                     output3.append([ppli, pp_i, i, fname, fseq])
                     output3.append([ppli, pp_i, i, rname, rseq])
             
-            
-#            #amp_name = 'Dold'
-#            for ppli in range(number_D_sets):
-#                D_counter = self.round_counter() # Hacky way to get the round
-#                for ip_r, iF_iR_paired_primers in enumerate(insert_pair_list):
-#                    round_n = next(D_counter)
-#                    try:
-#                        pp = iF_iR_paired_primers[ppli]
-#                    except IndexError:
-#                        pp = None
-#                    if pp:
-#                        fname, fseq = pp.forward_primer.name, pp.forward_primer.sequence
-#                        rname, rseq = pp.reverse_primer.name, pp.reverse_primer.sequence
-#                    else:
-#                        fname, fseq = 'r'+round_n+'-iF', '-'
-#                        rname, rseq = 'r'+round_n+'-iR', '-'
-#                    
-#                    output3.append([ppli, ip_r, i, fname, fseq, 'Dold'])
-#                    output3.append([ppli, ip_r, i, rname, rseq, 'Dold'])
-            
             # Add the primer locations to 'output4' table
+            logging.info("Appending 'output4'...")
             for ppli, (w, pp_list) in enumerate(pair_list):
                 round_labels_iter = iter(round_labels)
                 for pp_i, pp in enumerate(pp_list):
@@ -862,24 +842,6 @@ class ConfirmParser(subroutine.Subroutine):
                     else:
                         output4.append([ppli, pp_i, i, 'r'+round_n+'-iF', '-', '-', '-', '-', '-', '+'])
                         output4.append([ppli, pp_i, i, 'r'+round_n+'-iR', '-', '-', '-', '-', '-', '-'])
-            
-            
-            
-#            # Dold
-#            for ip_r, iF_iR_paired_primers in enumerate(insert_pair_list):
-#                for ppli, pp in enumerate(iF_iR_paired_primers):
-#                    if pp:
-#                        # 'f_locations' and 'r_locations' should have the same length
-#                        f_locations = self.get_primer_location(genome_fasta_file_list, genome_contigs_list, pp.forward_primer.sequence)
-#                        r_locations = self.get_primer_location(genome_fasta_file_list, genome_contigs_list, pp.reverse_primer.sequence)
-#                        for loc_i in range(len(f_locations)):
-#                            for loc in f_locations[loc_i]:
-#                                output4.append([ppli, ip_r, i, pp.forward_primer.name, pp.forward_primer.sequence, loc[0], loc[1], loc[2], loc[3], loc[4]])
-#                            for loc in r_locations[loc_i]:
-#                                output4.append([ppli, ip_r, i, pp.reverse_primer.name, pp.reverse_primer.sequence, loc[0], loc[1], loc[2], loc[3], loc[4]])
-#                    else:
-#                        output4.append([ppli, ip_r, i, '-', '-', '-', '-', '-', '-', '+'])
-#                        output4.append([ppli, ip_r, i, '-', '-', '-', '-', '-', '-', '-'])
         
         logging.info('Printing to STDOUT...')
         
@@ -924,6 +886,890 @@ class ConfirmParser(subroutine.Subroutine):
                         # This code output GenBank '*.gb' files
         
         # End 'compute()'
+    
+    def primer_queue_test_old(self, args, loci, genome_contigs_list, dDNA_contigs_list):
+        '''
+        New pseudocode for primer set calculations
+        needs to handle:
+          allele-specific, multi-allele, allele-agnostic
+          masked characters
+        '''
+        
+        logging.info("Starting 'primer_queue_test()'...")
+        # This should be input to this function
+        # loci = datum_list/datum_groups
+        #loci = ['hapA', 'hapB']
+        
+        FAR_UPSTREAM = 1
+        FAR_DOWNSTREAM = 2
+        FEATURE = 4
+        INSERT = 8
+        
+        pairs = [
+            ((FAR_UPSTREAM, '+', 'sF'), (FAR_DOWNSTREAM, '-', 'sR')), # sF sR = Amp A
+            
+            ((FAR_UPSTREAM, '+', 'sF'), (FEATURE, '-', 'oR')),        # sF oR = Amp B
+            ((FEATURE, '+', 'oF'), (FAR_DOWNSTREAM, '-', 'sR')),      # oF sR = Amp C
+            ((FEATURE, '+', 'iF'), (FEATURE, '-', 'iR')),             # iF iR = Amp D
+            
+            ((FAR_UPSTREAM, '+', 'sF'), (INSERT, '-', 'oR')),         # sF oR = Amp B
+            ((INSERT, '+', 'oF'), (FAR_DOWNSTREAM, '-', 'sR')),       # oF sR = Amp C
+            ((INSERT, '+', 'iF'), (INSERT, '-', 'iR')),               # iF iR = Amp D
+        ]
+        regions = set(x for y in pairs for x in y)
+        
+        # Populate the 'Primer.sequences' dict to serve as a queue (but don't do any calculations yet)
+        # Scan each region, and add the sequence as a 'Primer' object
+        for locus, dg in enumerate(loci):
+            for datum in dg:
+                if (datum.ins_start != None):
+                    for region, orientation, name in regions:
+                        if (region == FAR_UPSTREAM):
+                            start, end = max(0, datum.ush_start-1300), datum.ush_start
+                            sequence = genome_contigs_list[datum.genome_r][datum.genome_contig]
+                            contig = datum.genome_contig
+                            nname = name
+                        
+                        elif (region == FAR_DOWNSTREAM):
+                            start, end = datum.dsh_end, min(datum.dsh_end+1300, len(genome_contigs_list[datum.genome_r][datum.genome_contig]))
+                            sequence = genome_contigs_list[datum.genome_r][datum.genome_contig]
+                            contig = datum.genome_contig
+                            nname = name
+                        
+                        elif (region == FEATURE):
+                            start, end = datum.ush_end, datum.dsh_start
+                            sequence = genome_contigs_list[datum.genome_r][datum.genome_contig]
+                            contig = datum.genome_contig
+                            nname = 'r'+str(datum.genome_r)+'-'+name
+                        
+                        elif (region == INSERT):
+                            start, end = datum.ins_start, datum.ins_end
+                            sequence = dDNA_contigs_list[datum.dDNA_r][datum.dDNA_contig]
+                            contig = datum.dDNA_contig
+                            nname = 'r'+str(datum.genome_r+1)+'-'+name
+                                
+                        #args.selected_oligo.scan(ins.seq, 'left',  primer_size=primer_length_range, folder=temp_folder, us_seq=ins.us_seq, ds_seq=ins.ds_seq, time_limit=args.primer_scan_limit)
+                        #args.selected_oligo.scan(seq, l, r, o)
+                        nname = None
+                        Primer.scan(sequence, 0, locus, datum.genome_r, region, contig, orientation, start, end, nname, primer_size=(19,36))
+        
+        logging.info("Total 'Primer' objects before filtering: {}".format(len(Primer.sequences)))
+        
+        # Determine the minimal set of loci/genomes/contigs to constitute correct specificity
+        # Filter the primer queue in 'Primer.sequences' so only valid primers remain
+        logging.info("Removing 'Primer' objects that don't meet desired: specificity='{}'".format(args.specificity))
+        
+        if (args.specificity == 'exclusive'): # allele-specific
+            # Primer must be present in only one locus and not any others
+            new_primer_sequences = {}
+            for seq, p in Primer.sequences.items():
+                if (len(p.get_specificity()) == 1): # Assumes non-multiplex design
+                    new_primer_sequences[seq] = p
+            Primer.sequences = new_primer_sequences
+            
+        elif (args.specificity == 'all'): # multi-allelic
+            # Primer must be present in all loci
+            new_primer_sequences = {}
+            for seq, p in Primer.sequences.items():
+                if (len(p.get_specificity()) == len(loci)):
+                    new_primer_sequences[seq] = p
+            Primer.sequences = new_primer_sequences
+            
+        elif (args.specificity == 'any'): # allele-agnostic
+            # Primer can be present in any number of loci
+            pass
+        
+        logging.info("Total 'Primer' objects after filtering: {}".format(len(Primer.sequences)))
+        
+        # Set up 'PrimerPair' objects, and place them in a queue 'PrimerPair.pairs'
+        logging.info("Setting up 'PrimerPair' objects")
+        
+        
+        clist = [
+            #   Name, initial, final, delta # states
+            Cutoff("length", (19,28), (19,36), (0,2), separate=True), # 1,5
+            Cutoff("last5gc_count", (1,3), (0,4), (-1,1), separate=True), # 2, last5gc
+            Cutoff("gc_clamp_length", (1,2), (0,4), (-1,1), separate=True), # 2, gcclamp
+            Cutoff("gc", (0.4, 0.6), (0.2, 0.8), (-0.1, 0.1)), # 3, gcfreq
+            Cutoff("max_run_length", (4,), (6,), (1,)), # 3, runlen_max
+            Cutoff("max_3prime_complementation_length", (3,), (6,), (1,)), # 4, 3primecomplen_max
+            Cutoff("min_delta_g", (-4.0,), (-7.0,), (-1.0,)), # 4, deltag_min
+            Cutoff("tm", (52,65), (52,65), (0,0)), # 1, tm
+            Cutoff("max_tm_difference", (2.5,), (4.0,), (0.5,)), # 4, deltatm_max
+        ]
+        
+        citer = CutoffIterator()
+        
+        design_found = False
+        # Do calculations until either:
+        #  * all primers are assayed,
+        #  * an adequate design is found,
+        #  * or the time limit expires
+        cycle_n = 0
+        while (design_found == False):
+            break # added so these calculations won't be run
+            try:
+                # Get the initial cutoffs (if this is the first loop)
+                # or get the next-most relaxed cutoffs (if this isn't the first loop)
+                cutoffs = next(citer)
+            except StopIteration:
+                break
+            cutoffs['o_oligo'] = args.selected_oligo
+            cutoffs['folder'] = os.path.join(args.temp_folder, 'addtag', os.path.basename(args.folder))
+            
+            logging.info("cycle {}".format(cycle_n))
+            logging.info("  cutoffs = {}".format(cutoffs))
+            
+            # Do 'Primer' calculations until the time limit is reached
+            p_tot = 0
+            p_checked_now = 0
+            p_passed_previously = 0
+            p_rejected = 0
+            p_skipped = 0
+            start_time = time.time()
+            time_expired = False
+            #while (time.time()-start_time < args.primer_scan_limit):
+            #    p = primer_queue.get()
+            #    # First, perform cheap calculation on the primers
+            #    # If there is time remaining, then perform the next-most expensive calculation
+            #    # If there is time remaining, then perform the most expensive calculations
+            #    # If there are no good primers, then 'relax' the thresholds
+            #    # Then do calculations using the 'relaxed' thresholds
+            for pi, (seq, p) in enumerate(Primer.sequences.items()):
+                if (pi % 1000 == 0):
+                    if ((time.time()-start_time) > args.primer_scan_limit):
+                        time_expired = True
+                
+                if not time_expired:
+                    cpass = p.summarize(p.checks)
+                    if ((p.checks[0] == None) or (not cpass)):
+                        p.progressive_check(cutoffs)
+                        p_checked_now += 1
+                    elif cpass:
+                        p_passed_previously += 1
+                    else:
+                        p_rejected += 1
+                else:
+                    p_skipped += 1
+                
+                p_tot += 1
+            
+            logging.info("  'Primer' objects: checked_now={}, passed_previously={}, not_checked={}, skipped={}, total={}".format(p_checked_now, p_passed_previously, p_rejected, p_skipped, p_tot))
+            
+            
+            ##### Some debug code #####
+            sss = 0
+            ttt = 0
+            nnn = 0
+            hhh = 0
+            ddd = 0
+            ooo = 0
+            for seq, p in Primer.sequences.items():
+                ttt += 1
+                if p.summarize(p.checks):
+                    sss += 1
+                if ((p.checks[0] != None) and p.summarize(p.checks)):
+                    nnn += 1
+                if (p.o_hairpin != None):
+                    hhh += 1
+                if (p.o_self_dimer != None):
+                    ddd += 1
+                if (p.o_reverse_complement != None):
+                    ooo += 1
+            logging.info("   sss={}, nnn={}, ttt={}, hhh={}, ddd={}, ooo={}".format(sss, nnn, ttt, hhh, ddd, ooo))
+            ##### Some debug code #####
+            
+            
+            
+            subset_size = 1000
+            logging.info("  Queueing 'PrimerPair' objects")
+            #pair_queue = []
+            # pair_queue = [
+            #     [                        # Locus 0
+            #         [PrimerPair(), ...], # ((FAR_UPSTREAM, '+', 'sF'), (FAR_DOWNSTREAM, '-', 'sR')),
+            #         [PrimerPair(), ...], # ((FAR_UPSTREAM, '+', 'sF'), (FEATURE, '-', 'oR'))
+            #         ...
+            #     ],
+            #     ...
+            # ]
+            
+            
+            
+            # BEGIN Try 3/27/2019
+            pair_queue = []
+            
+            for (f_reg, f_ori, f_name), (r_reg, r_ori, r_name) in pairs:
+                logging.info("  pair: F={}, R={}".format((f_reg, f_ori, f_name), (r_reg, r_ori, r_name)))
+                f_list = []
+                r_list = []
+                #loci_needed = list(range(len(loci)))
+                for seq, p in Primer.sequences.items():
+                    if ((p.checks[0] != None) and p.summarize(p.checks)):
+                        plocs = [loc[0:2]+loc[3:4] for loc in p.locations] # [locus, region, strand]
+                        
+                        # Assume multi-allelic
+                        f_in = [False] * len(loci)
+                        r_in = [False] * len(loci)
+                        for locus, dg in enumerate(loci):
+                            if ((locus, f_reg, f_ori) in plocs):
+                                f_in[locus] = True
+                            #else:
+                            #    break # Already failed, so might as well stop loop to save computations
+                            if ((locus, r_reg, r_ori) in plocs):
+                                r_in[locus] = True
+                            #else:
+                            #    break # Already failed, so might as well stop loop to save computations
+                                
+                        if all(f_in):
+                            f_list.append(seq)
+                            p.set_name('r?-'+f_name)
+                        if all(r_in):
+                            r_list.append(seq)
+                            p.set_name('r?-'+r_name)
+                logging.info("    len(f_list)={}, len(r_list)={}".format(len(f_list), len(r_list)))
+                pp_list = []
+                for p1 in sorted(f_list, reverse=True)[:subset_size]:
+                    for p2 in sorted(r_list, reverse=True)[:subset_size]:
+                        #if (p1, p2) not in pp_list: # This is implicit
+                        PrimerPair(Primer.sequences[p1], Primer.sequences[p2])
+                        
+                        pair = (p1, p2)
+                        pp = PrimerPair.pairs[pair]
+                        pp.progressive_check(cutoffs)
+                        
+                        if ((pp.checks[0] != None) and Primer.summarize(pp.checks)):
+                            pp_list.append(pair)
+                pair_queue.append(pp_list)
+                logging.info("    Added {} 'PrimerPair' objects for pair: F={}, R={}".format(len(pp_list), (f_reg, f_ori, f_name), (r_reg, r_ori, r_name)))
+            
+            
+            
+            # Populate sF_sR_paired_primers with primer objects
+            sF_sR_paired_primers = []
+            
+            for pair in pair_queue[0]:
+                pp = PrimerPair.pairs[pair]
+                #pp.weight = pp.get_weight(locus, FAR_UPSTREAM, FAR_DOWNSTREAM, contig, minimize=True)
+                pp.weight = pp.get_weight(minimize=True)
+                sF_sR_paired_primers.append(pp)
+            
+            # Go through the 'pair_queue' one sF sR pair at a time
+            design_count = 0
+            for loop_i, sF_sR_pair in enumerate(sorted(sF_sR_paired_primers, reverse=True)):
+                logging.info('  loop {}:'.format(loop_i))
+                pp_sources = []
+                pp_sources.append([sF_sR_pair])
+                
+                # Order in 'pairs' variable
+                # A,   B,C,D,   B,C,D
+                #for ppi, pp_list in pp2d_list:
+                for ppi, pp_seq_list in enumerate(pair_queue[1:]):
+                    pp_list = []
+                    for pair in pp_seq_list:
+                        pp_list.append(PrimerPair.pairs[pair])
+                    
+                    if (ppi in [0, 3]): # B
+                        pp_sources.append(self.filter_primer_pairs(pp_list, forward=sF_sR_pair.forward_primer))
+                    elif (ppi in [1, 4]): # C
+                        pp_sources.append(self.filter_primer_pairs(pp_list, reverse=sF_sR_pair.reverse_primer))
+                    elif (ppi in [2, 5]): # D
+                        pp_sources.append(pp_list)
+                
+                current_pp_sources = [len(x) for x in pp_sources]
+                logging.info('  length of sources: {}'.format(current_pp_sources))
+                
+                
+                # Ideally, similar code should be executed, but before the 'PrimerPair.progressive_check()' is calculated
+                #required_pattern = [val for val in args.internal_primers_required for b in range(2)]
+                required_pattern = ['y', 'y', 'y', 'n', 'y', 'y', 'n']
+                should_mask = False
+                should_skip = False
+                for req_str, num_pp in zip(required_pattern, current_pp_sources):
+                    if ((req_str in ['y', 'Y', '1', 'T', 't', 'TRUE', 'True', 'true']) and (num_pp == 0)):
+                        should_skip = True
+                        break
+                    if ((req_str not in ['y', 'Y', '1', 'T', 't', 'TRUE', 'True', 'true']) and (num_pp > 0)):
+                        should_mask = True
+                if should_skip:
+                    logging.info('  skipping...')
+                    continue
+                if should_mask:
+                    logging.info('  masking...')
+                    continue
+                
+                
+                
+                
+                # Evaluate if any new primer designs are adequate
+                design = PrimerDesign(pp_sources)
+                #design.optimize(mode='direct')
+                design.optimize()
+                optimal = design.optimal
+                
+                design_count += 1
+                
+                if (design_count >= subset_size):
+                    break
+            
+            # END Try 3/27/2019
+            
+            cycle_n += 1
+            
+        
+        # Output the results, starting with the best-found design
+        #for locus in datum_list:
+        #    sets = calculate_primer_sets()
+        #    for s in sets[:max_sets]:
+        #        print(s)
+        logging.info("Function 'primer_queue_test()' completed.")
+        
+    
+    def primer_queue_test(self, args, loci, genome_contigs_list, dDNA_contigs_list):
+        '''
+        New Code for primer set calculations
+        needs to handle:
+          allele-specific, multi-allele, allele-agnostic (not yet) (it is hard-coded to multi-allele)
+          case-masked characters (not yet)
+          ambiguous-masked characters (not yet)
+          disambiguation of ambiguous characters (not yet) (This can be handled in the Primer object by taking averages of metrics for each disambiguated sequence)
+          masked amplicons (not yet)
+        '''
+        
+        logging.info("Starting 'primer_queue_test()'...")
+        
+        #### BEGIN 3/28 ####
+        
+        # Goal is to re-jiggle Datum and Insert objects so that the data structure is easy to parse
+        # so we want:
+        #  the GENE is defined by the dDNA 'contig' names
+        #    dDNA1a => dDNA2a => dDNA3a
+        #  every GENE can align to multiple loci within each genome/round (r0, r1, r2, etc)
+        #  each locus has 3 regions, and 4 region+orientations:
+        #    upstream F, downstream R, feature/insert F, feature/insert R
+        #  upstream F and downstream R must have shared primers among ALL loci for each gene across ALL genome/rounds
+        #  feature/insert F and feature/insert R primers must be shared among all loci on a genome/round-specific manner
+        #    i.e. dDNA1+locus0+g0+featureF = dDNA1_locus1+g0+featureF
+        #
+        # let's try a 2D representation of this
+        #  GENE           locus genome region              contig   start  end  orientation  name   group         
+        #  dDNA1 => dDNA2 0     r0     upstream F          ...      ...    ...  +            sF       <<<           
+        #  dDNA1 => dDNA2 0     r0     downstream R        ...      ...    ...  -            sR            >>>      
+        #  dDNA1 => dDNA2 0     r0     feature/insert F    ...      ...    ...  +                               0  
+        #  dDNA1 => dDNA2 0     r0     feature/insert R    ...      ...    ...  -                                 0
+        #  dDNA1 => dDNA2 0     r1     upstream F          ...      ...    ...  +            sF       <<<           
+        #  dDNA1 => dDNA2 0     r1     downstream R        ...      ...    ...  -            sR            >>>      
+        #  dDNA1 => dDNA2 0     r1     feature/insert F    ...      ...    ...  +                               1  
+        #  dDNA1 => dDNA2 0     r1     feature/insert R    ...      ...    ...  -                                 1
+        #  dDNA1 => dDNA2 0     r2     upstream F          ...      ...    ...  +            sF       <<<           
+        #  dDNA1 => dDNA2 0     r2     downstream R        ...      ...    ...  -            sR            >>>      
+        #  dDNA1 => dDNA2 0     r2     feature/insert F    ...      ...    ...  +                               2  
+        #  dDNA1 => dDNA2 0     r2     feature/insert R    ...      ...    ...  -                                 2
+        #  dDNA1 => dDNA2 1     r0     upstream F          ...      ...    ...  +            sF       <<<           
+        #  dDNA1 => dDNA2 1     r0     downstream R        ...      ...    ...  -            sR            >>>      
+        #  dDNA1 => dDNA2 1     r0     feature/insert F    ...      ...    ...  +                               0  
+        #  dDNA1 => dDNA2 1     r0     feature/insert R    ...      ...    ...  -                                 0
+        #  dDNA1 => dDNA2 1     r1     upstream F          ...      ...    ...  +            sF       <<<           
+        #  dDNA1 => dDNA2 1     r1     downstream R        ...      ...    ...  -            sR            >>>      
+        #  dDNA1 => dDNA2 1     r1     feature/insert F    ...      ...    ...  +                              1   
+        #  dDNA1 => dDNA2 1     r1     feature/insert R    ...      ...    ...  -                                 1
+        #  dDNA1 => dDNA2 1     r2     upstream F          ...      ...    ...  +            sF       <<<           
+        #  dDNA1 => dDNA2 1     r2     downstream R        ...      ...    ...  -            sR            >>>      
+        #  dDNA1 => dDNA2 1     r2     feature/insert F    ...      ...    ...  +                              2   
+        #  dDNA1 => dDNA2 1     r2     feature/insert R    ...      ...    ...  -                                 2
+        
+        
+        # datum_groups (finished):
+        # [
+        #   Datum(dDNA_r=1, dDNA_contig='exDonor-5', genome_r=0, genome_contig='Ca22chr4B_C_albicans_SC5314', ush_start=1044509, ush_end=1044547, dsh_start=1044673, dsh_end=1044712, ins_start=38, ins_end=61), 
+        #   Datum(dDNA_r=1, dDNA_contig='exDonor-5', genome_r=1, genome_contig='Ca22chr4B_C_albicans_SC5314-r1[exDonor-5]', ush_start=1044509, ush_end=None, dsh_start=None, dsh_end=1044609, ins_start=None, ins_end=None), 
+        #   Datum(dDNA_r=2, dDNA_contig='reDonor-0', genome_r=1, genome_contig='Ca22chr4B_C_albicans_SC5314-r1[exDonor-5]', ush_start=1044372, ush_end=1044547, dsh_start=1044570, dsh_end=1044737, ins_start=172, ins_end=299), 
+        #   Datum(dDNA_r=2, dDNA_contig='reDonor-0', genome_r=2, genome_contig='Ca22chr4B_C_albicans_SC5314-r1[exDonor-5]-r2[reDonor-0]', ush_start=1044372, ush_end=None, dsh_start=None, dsh_end=1044838, ins_start=None, ins_end=None)
+        # ],
+        # [
+        #   Datum(dDNA_r=1, dDNA_contig='exDonor-5', genome_r=0, genome_contig='Ca22chr4A_C_albicans_SC5314', ush_start=1044481, ush_end=1044519, dsh_start=1044646, dsh_end=1044685, ins_start=38, ins_end=61), 
+        #   Datum(dDNA_r=1, dDNA_contig='exDonor-5', genome_r=1, genome_contig='Ca22chr4A_C_albicans_SC5314-r1[exDonor-5]', ush_start=1044481, ush_end=None, dsh_start=None, dsh_end=1044581, ins_start=None, ins_end=None), 
+        #   Datum(dDNA_r=2, dDNA_contig='reDonor-0', genome_r=1, genome_contig='Ca22chr4A_C_albicans_SC5314-r1[exDonor-5]', ush_start=1044347, ush_end=1044519, dsh_start=1044542, dsh_end=1044709, ins_start=172, ins_end=299), 
+        #   Datum(dDNA_r=2, dDNA_contig='reDonor-0', genome_r=2, genome_contig='Ca22chr4A_C_albicans_SC5314-r1[exDonor-5]-r2[reDonor-0]', ush_start=1044347, ush_end=None, dsh_start=None, dsh_end=1044813, ins_start=None, ins_end=None)
+        # ]
+        
+        logging.info('Starting test of new 2D simplification of the data')
+        
+        # Define regions as constants for low-memory reference variables
+        FAR_UPSTREAM = 1
+        FAR_DOWNSTREAM = 2
+        FEATURE_F = 4
+        FEATURE_R = 8
+        
+        data = []
+        for i, dg in enumerate(loci):
+            gene = ','.join(sorted(set(datum.dDNA_contig for datum in dg)))
+            locus = i
+            temp = None
+            temp2 = None
+            for datum in dg:
+                genome = datum.genome_r
+                contig = datum.genome_contig
+                
+                if (datum.dDNA_r == datum.genome_r):
+                    temp = [datum.dDNA_r, datum.genome_r, datum.ush_start, datum.dsh_end]
+                    
+                    # The last one
+                    if (datum.genome_r == len(genome_contigs_list)-1):
+                        
+                        region = FAR_UPSTREAM
+                        start = max(0, datum.ush_start - 1300)
+                        end = datum.ush_start
+                        strand = '+'
+                        data.append([gene, locus, genome, region, contig, strand, start, end])
+                        
+                        region = FAR_DOWNSTREAM
+                        start = datum.dsh_end
+                        end = min(datum.dsh_end+1300, len(genome_contigs_list[genome][contig]))
+                        strand = '-'
+                        data.append([gene, locus, genome, region, contig, strand, start, end])
+                        
+                        region = FEATURE_F
+                        start = datum.ush_start+temp2[2]
+                        end = datum.ush_start+temp2[3]
+                        strand = '+'
+                        data.append([gene, locus, genome, region, contig, strand, start, end])
+                        
+                        region = FEATURE_R
+                        start = datum.ush_start+temp2[2]
+                        end = datum.ush_start+temp2[3]
+                        strand = '-'
+                        data.append([gene, locus, genome, region, contig, strand, start, end])
+                
+                elif (datum.dDNA_r == datum.genome_r+1):
+                    
+                    region = FAR_UPSTREAM
+                    if (temp and (temp[0] == datum.dDNA_r-1) and (temp[1] == datum.genome_r)):
+                        start = min(max(0, temp[2]-1300), max(0, datum.ush_start-1300))
+                        end = min(temp[2], datum.ush_start)
+                    else:
+                        start = max(0, datum.ush_start - 1300)
+                        end = datum.ush_start
+                    strand = '+'
+                    data.append([gene, locus, genome, region, contig, strand, start, end])
+                    
+                    region = FAR_DOWNSTREAM
+                    if (temp and (temp[0] == datum.dDNA_r-1) and (temp[1] == datum.genome_r)):
+                        start = max(temp[3], datum.dsh_end)
+                        end = max(min(temp[3]+1300, len(genome_contigs_list[genome][contig])), min(datum.dsh_end+1300, len(genome_contigs_list[genome][contig])))
+                    else:
+                        start = datum.dsh_end
+                        end = min(datum.dsh_end+1300, len(genome_contigs_list[genome][contig]))
+                    strand = '-'
+                    data.append([gene, locus, genome, region, contig, strand, start, end])
+                    
+                    region = FEATURE_F
+                    start = datum.ush_end
+                    end = datum.dsh_start
+                    strand = '+'
+                    data.append([gene, locus, genome, region, contig, strand, start, end])
+                    
+                    region = FEATURE_R
+                    start = datum.ush_end
+                    end = datum.dsh_start
+                    strand = '-'
+                    data.append([gene, locus, genome, region, contig, strand, start, end])
+                    
+                    temp2 = [datum.dDNA_r, datum.genome_r, datum.ins_start, datum.ins_end]
+        
+        print('# ' + '\t'.join(['Gene', 'Locus', 'Genome', 'Region', 'Contig', 'Strand', 'Start', 'End']))
+        for d in data:
+            print('\t'.join(map(str, d)), flush=True)
+        
+        logging.info('Finished testing new 2D simplification of the data')
+        
+        gene_list = list(sorted(set(d[0] for d in data)))
+        locus_list = list(sorted(set(d[1] for d in data)))
+        locus_set = set(d[1] for d in data)
+        genome_list = list(sorted(set(d[2] for d in data)))
+        
+        for d in data:
+            sequence = genome_contigs_list[d[2]][d[4]]
+            Primer.scan(sequence, gene=d[0], locus=d[1], genome=d[2], region=d[3], contig=d[4], orientation=d[5], start=d[6], end=d[7], name=None, primer_size=(19,36))
+        logging.info("Total 'Primer' objects before filtering: {}".format(len(Primer.sequences)))
+        
+        # Build the required pattern
+        #                      A    B    C    D    B    C    D    B    C    D
+        # required_pattern = ['y', 'y', 'y', 'y', 'y', 'y', 'n', 'y', 'y', 'y']
+        if (args.o_primers_required == None):
+            o_primers_required = ['n']*len(genome_list)
+        else:
+            o_primers_required = args.o_primers_required
+        
+        if (args.i_primers_required == None):
+            i_primers_required = ['n']*len(genome_list)
+        else:
+            i_primers_required = args.i_primers_required
+            
+        required_pattern = ['y'] # for A
+        for oo, ii in zip(o_primers_required, i_primers_required):
+            required_pattern.append(oo) # For B
+            required_pattern.append(oo) # For C
+            required_pattern.append(ii) # For D
+        
+        # Make simple dict to lookup the feature size given the gene/locus/contig
+        gg2feature_size = {}
+        for d in data:
+            d_gene = d[0]
+            d_locus = d[1]
+            d_genome = d[2]
+            d_region = d[3]
+            d_contig = d[4]
+            d_start, d_end = d[6], d[7]
+            
+            if (d_region == FEATURE_F):
+                # This size is too small:
+                #   For instance, ADE2 should be 1707 nt, but it is reporting 1706.
+                gg2feature_size.setdefault((d_gene, d_locus, d_genome, d_contig), list()).append(d_end-d_start)
+        
+        logging.info("gene-to-feature:")
+        for k, v in gg2feature_size.items():
+            logging.info("  {} {}".format(k, v))
+        
+        for gene in gene_list:
+            logging.info("Processing gene: {}".format(gene))
+            # Make list of SHARED sF primers, and perform progressive checks on them
+            sF_seq_list = []
+            sR_seq_list = []
+            featureF_seq_lists = [list() for r in genome_list]
+            featureR_seq_lists = [list() for r in genome_list]
+            
+            # Get the reference locations needed for 'sF' and 'sR'
+            sF_loc_set = set()
+            sR_loc_set = set()
+            for d in data:
+                if (d[0] == gene):
+                    if (d[3] == FAR_UPSTREAM):
+                        sF_loc_set.add(tuple(d[:-2]))
+                    elif (d[3] == FAR_DOWNSTREAM):
+                        sR_loc_set.add(tuple(d[:-2]))
+            
+            # Get the reference locations needed for 'oF', 'oR', 'iF', and 'iR'
+            fF_loc_sets = [set() for r in genome_list]
+            fR_loc_sets = [set() for r in genome_list]
+            for d in data:
+                if (d[0] == gene):
+                    if (d[3] == FEATURE_F):
+                        fF_loc_sets[d[2]].add(tuple(d[:-2]))
+                    if (d[3] == FEATURE_R):
+                        fR_loc_sets[d[2]].add(tuple(d[:-2]))
+            
+            for pi, (seq, p) in enumerate(Primer.sequences.items()):
+                # We strip out the start/end
+                #   location = (Gene, Locus, Genome, Region, Contig, Strand, Start, End)
+                p_loc_set = set(loc[:-2] for loc in p.locations) # Contig doesn't matter for FAR_UPSTREAM or FAR_DOWNSTREAM
+                
+                
+                ###### BEGIN THIS ######
+                # These 'intersection' expressions is where the allele-specific calculations should be made
+                #if (args.specificity == 'exclusive'): # allele-specific
+                #elif (args.specificity == 'all'): # multi-allelic
+                #elif (args.specificity == 'any'): # allele-agnostic
+                
+                # If all required positions are present, then we add it
+                if (sF_loc_set.intersection(p_loc_set) == sF_loc_set):
+                    sF_seq_list.append(seq)
+                
+                if (sR_loc_set.intersection(p_loc_set) == sR_loc_set):
+                    sR_seq_list.append(seq)
+                
+                # If all required regions are present, then we add it
+                for r in range(len(genome_list)):
+                    if (fF_loc_sets[r].intersection(p_loc_set) == fF_loc_sets[r]):
+                        featureF_seq_lists[r].append(seq)
+                    
+                    if (fR_loc_sets[r].intersection(p_loc_set) == fR_loc_sets[r]):
+                        featureR_seq_lists[r].append(seq)
+                ###### END THIS ######
+            
+            logging.info("Total 'sF' 'Primer' sequences after filtering: {}".format(len(sF_seq_list)))
+            logging.info("Total 'sR' 'Primer' sequences after filtering: {}".format(len(sR_seq_list)))
+            for r in range(len(genome_list)):
+                logging.info("Total 'iF/oF-r{}' 'Primer' sequences after filtering: {}".format(genome_list[r], len(featureF_seq_lists[r])))
+                logging.info("Total 'iR/oR-r{}' 'Primer' sequences after filtering: {}".format(genome_list[r], len(featureR_seq_lists[r])))
+            
+            # Define cutoff start and ends (default)
+            clist = [
+                #   Name, initial, final, delta # states
+                Cutoff("length", (19,28), (19,36), (0,2), separate=True), # 1,5
+                Cutoff("last5gc_count", (1,3), (0,4), (-1,1), separate=True), # 2, last5gc
+                Cutoff("gc_clamp_length", (1,2), (0,4), (-1,1), separate=True), # 2, gcclamp
+                Cutoff("gc", (0.4, 0.6), (0.2, 0.8), (-0.1, 0.1)), # 3, gcfreq
+                Cutoff("max_run_length", (4,), (6,), (1,)), # 3, runlen_max
+                Cutoff("max_3prime_complementation_length", (3,), (6,), (1,)), # 4, 3primecomplen_max
+                Cutoff("min_delta_g", (-4.0,), (-7.0,), (-1.0,)), # 4, deltag_min
+                Cutoff("tm", (52,65), (52,65), (0,0)), # 1, tm
+                Cutoff("max_tm_difference", (2.5,), (4.0,), (0.5,)), # 4, deltatm_max
+                Cutoff("amplicon_size_range", (300,700), (300,700), (0,0)),
+            ]
+            
+            # Create Iterator that returns the next cutoff and increments appropriately when 'next()' is called
+            citer = CutoffIterator()
+            
+            design_found = False
+            # Do calculations until either:
+            #  * all primers are assayed,
+            #  * an adequate design is found,
+            #  * or the time limit expires
+            cycle_n = 0
+            while (design_found == False):
+                logging.info("gene: {}, cycle: {}".format(gene, cycle_n))
+                cycle_n += 1
+                try:
+                    logging.info("  Calculating next set of cutoffs")
+                    # Get the initial cutoffs (if this is the first loop)
+                    # or get the next-most relaxed cutoffs (if this isn't the first loop)
+                    cutoffs = next(citer)
+                except StopIteration:
+                    logging.info("  No additional cutoffs. Ending loop")
+                    break
+                
+                # Add the invariant cutoff parameters
+                cutoffs['o_oligo'] = args.selected_oligo
+                cutoffs['folder'] = os.path.join(args.temp_folder, 'addtag', os.path.basename(args.folder))
+                
+                
+                logging.info("  cutoffs = {}".format(cutoffs))
+                
+                # Do 'Primer' calculations until the time limit is reached
+                p_queue = [sF_seq_list, sR_seq_list] + featureF_seq_lists + featureR_seq_lists
+                
+                for seq_list in p_queue:
+                    # For each region, we reset the timer
+                    start_time = time.time()
+                    time_expired = False
+                    
+                    # reset metrics for this region
+                    p_tot = 0
+                    p_checked_now = 0
+                    p_passed_previously = 0
+                    p_rejected = 0
+                    p_skipped = 0
+                    p_newly_passed = 0
+                    
+                    for pi, seq in enumerate(seq_list):
+                        p = Primer.sequences[seq]
+                    #for pi, (seq, p) in enumerate(Primer.sequences.items()):
+                        if (pi % 1000 == 0):
+                            if ((time.time()-start_time) > args.primer_scan_limit):
+                                time_expired = True
+                        
+                        if not time_expired:
+                            cpass = p.summarize(p.checks)
+                            if ((p.checks[0] == None) or (not cpass)):
+                                p.progressive_check(cutoffs)
+                                p_checked_now += 1
+                                if ((p.checks[0] != None) and p.summarize(p.checks)):
+                                    p_newly_passed += 1
+                            elif cpass:
+                                p_passed_previously += 1
+                            else:
+                                p_rejected += 1
+                        else:
+                            p_skipped += 1
+                        
+                        p_tot += 1
+                
+                    logging.info("  'Primer' objects: checked_now={}, passed_previously={}, newly_passed={}, not_checked={}, skipped={}, total={}".format(p_checked_now, p_passed_previously, p_newly_passed, p_rejected, p_skipped, p_tot))
+                
+                
+                ##### Some debug code #####
+                sss = 0
+                ttt = 0
+                nnn = 0
+                hhh = 0
+                ddd = 0
+                ooo = 0
+                for seq, p in Primer.sequences.items():
+                    ttt += 1
+                    if p.summarize(p.checks):
+                        sss += 1
+                    if ((p.checks[0] != None) and p.summarize(p.checks)):
+                        nnn += 1
+                    if (p.o_hairpin != None):
+                        hhh += 1
+                    if (p.o_self_dimer != None):
+                        ddd += 1
+                    if (p.o_reverse_complement != None):
+                        ooo += 1
+                logging.info("  Summary of all 'Primer' objects:")
+                logging.info("    Number primers with summarize() passed = {}".format(sss))
+                logging.info("    Number primers with all checks passed = {}".format(nnn))
+                logging.info("    Number primers in 'Primer.sequences' = {}".format(ttt))
+                logging.info("    Number primers with hairpins calculated = {}".format(hhh))
+                logging.info("    Number primers with self-dimers calculated = {}".format(ddd))
+                logging.info("    Number primers with Tm calculated = {}".format(ooo))
+                ##### Some debug code #####
+                
+                
+                
+                # Set up 'PrimerPair' objects, and place them in a queue 'PrimerPair.pairs'
+                logging.info("  Queueing 'PrimerPair' objects")
+                
+                #pair_queue = []
+                # pair_queue = [
+                #     [                        # Locus 0
+                #         [PrimerPair(), ...], # ((FAR_UPSTREAM, '+', 'sF'), (FAR_DOWNSTREAM, '-', 'sR')),
+                #         [PrimerPair(), ...], # ((FAR_UPSTREAM, '+', 'sF'), (FEATURE, '-', 'oR'))
+                #         ...
+                #     ],
+                #     ...
+                # ]
+                
+                # Limit number of Primer pairs
+                subset_size = 1000
+                
+                
+                
+                # Pair the lists, and include their names and amplicon label
+                pairs = [
+                    [sF_seq_list, sR_seq_list, 'sF', 'sR', 'A']
+                ]
+                for r in range(len(genome_list)):
+                    pairs.append([sF_seq_list, featureR_seq_lists[r], 'sF', 'r{}-oR'.format(genome_list[r]), 'B'])
+                    pairs.append([featureF_seq_lists[r], sR_seq_list, 'r{}-oF'.format(genome_list[r]), 'sR', 'C'])
+                    pairs.append([featureF_seq_lists[r], featureR_seq_lists[r], 'r{}-iF'.format(genome_list[r]), 'r{}-iR'.format(genome_list[r]), 'D'])
+                
+                # Make list of viable 'PrimerPair' objects
+                pp_queue = []
+                should_skip = False
+                for pi, (seq1_list, seq2_list, lab1, lab2, amp) in enumerate(pairs):
+                    p1_list = []
+                    p2_list = []
+                    
+                    # If 'Primer' has passed all checks, then include it
+                    for seq in seq1_list:
+                        p = Primer.sequences[seq]
+                        if ((p.checks[0] != None) and Primer.summarize(p.checks)):
+                            p1_list.append(p)
+                    for seq in seq2_list:
+                        p = Primer.sequences[seq]
+                        if ((p.checks[0] != None) and Primer.summarize(p.checks)):
+                            p2_list.append(p)
+                    
+                    # For each pair, we reset the timer
+                    start_time = time.time()
+                    time_expired = False
+                    
+                    pp_seq_list = []
+                    for i1, p1 in enumerate(sorted(p1_list, reverse=True)[:subset_size]):
+                        if ((time.time()-start_time) > args.primer_pair_limit):
+                            time_expired = True
+                        
+                        if not time_expired:
+                            for i2, p2 in enumerate(sorted(p2_list, reverse=True)[:subset_size]):
+                                # If it doesn't exist, add PrimerPair to database.
+                                # Otherwise, do nothing.
+                                PrimerPair(p1, p2)
+                                
+                                # Get the 'PrimerPair' object from the dict
+                                pair = (p1.sequence, p2.sequence)
+                                pp = PrimerPair.pairs.get(pair)
+                                
+                                if pp:
+                                    # Run checks
+                                    pp.progressive_check(cutoffs)
+                                    
+                                    # If the 'PrimerPair' passes the checks, then add it
+                                    if ((pp.checks[0] != None) and Primer.summarize(pp.checks)):
+                                        pp_seq_list.append(pair)
+                                    
+                    pp_queue.append(pp_seq_list)
+                    logging.info("    Added {} 'PrimerPair' objects for pair: '{}', '{}', amp={}, required={}".format(len(pp_seq_list), lab1, lab2, amp, required_pattern[pi]))
+                    
+                    # Ideally:
+                    #   Each pp should have its own cutoffs:
+                    #     A, r0:B/C/D, r1:B/C/D, r2:B/C/D
+                    #   Thus, 10 cutoffs.
+                    #   If this specific set of PrimerPairs has 0 passing,
+                    #     then cutoffs should be relaxed.
+                    #   Thus, each PrimerPair group would have its own set of cutoffs.
+                    #   This would minimize relaxing cutoffs that don't need it.
+                    if ((required_pattern[pi] in ['y', 'Y', '1', 'T', 't', 'TRUE', 'True', 'true']) and (len(pp_seq_list) == 0)):
+                        should_skip = True
+                
+                # Continue performing the pp calculations for the current round,
+                # Then skip without doing any simulated annealing
+                if should_skip:
+                    logging.info("  Skipping simulated annealing")
+                    continue
+                
+                # Now we need to take the 'pp_queue' and slot it into a 'PrimerDesign', and optimize
+                # ...do calculations here...
+                
+                # Populate sF_sR_paired_primers with primer objects
+                sF_sR_paired_primers = []
+                
+                #logging.info("    Gene={}, number_features={}, Features={}".format(gene, ))
+                
+                for pair in pp_queue[0]:
+                    pp = PrimerPair.pairs[pair]
+                    #pp.weight = pp.get_weight(locus, FAR_UPSTREAM, FAR_DOWNSTREAM, contig, minimize=True)
+                    #pp.weight = pp.get_weight(minimize=True)
+                    pp.weight = pp.get_weight(minimize=gg2feature_size)
+                    sF_sR_paired_primers.append(pp)
+                
+                # Go through the 'pp_queue' one sF sR pair at a time
+                design_count = 0
+                for loop_i, sF_sR_pair in enumerate(sorted(sF_sR_paired_primers, reverse=True)):
+                    logging.info('  loop {}:'.format(loop_i))
+                    pp_sources = []
+                    pp_sources.append([sF_sR_pair])
+                    
+                    # Order in 'pairs' variable
+                    # all  r0       r1      r2
+                    # A,   B,C,D,   B,C,D,  B,C,D
+                    #      0 1 2    3 4 5   6 7 8
+                    
+                    #for ppi, pp_list in pp2d_list:
+                    for ppi, pp_seq_list in enumerate(pp_queue[1:]):
+                        pp_list = []
+                        for pair in pp_seq_list:
+                            pp_list.append(PrimerPair.pairs[pair])
+                        
+                        if (ppi % 3 == 0): # B
+                            pp_sources.append(self.filter_primer_pairs(pp_list, forward=sF_sR_pair.forward_primer))
+                        elif (ppi % 3 == 1): # C
+                            pp_sources.append(self.filter_primer_pairs(pp_list, reverse=sF_sR_pair.reverse_primer))
+                        elif (ppi % 3 == 2): # D
+                            pp_sources.append(pp_list)
+                    
+                    current_pp_sources = [len(x) for x in pp_sources]
+                    logging.info('  length of sources: {}'.format(current_pp_sources))
+                    
+                    
+                    # Ideally, similar code should be executed, but before the 'PrimerPair.progressive_check()' is calculated
+                    should_mask = False
+                    should_skip = False
+                    for req_str, num_pp in zip(required_pattern, current_pp_sources):
+                        if ((req_str in ['y', 'Y', '1', 'T', 't', 'TRUE', 'True', 'true']) and (num_pp == 0)):
+                            should_skip = True
+                            break
+                        if ((req_str not in ['y', 'Y', '1', 'T', 't', 'TRUE', 'True', 'true']) and (num_pp > 0)):
+                            should_mask = True
+                    if should_skip:
+                        logging.info('  skipping...')
+                        continue
+                    if should_mask:
+                        logging.info('  masking...')
+                        continue
+                    
+                    # Evaluate if any new primer designs are adequate
+                    design = PrimerDesign(pp_sources)
+                    #design.optimize(mode='direct')
+                    design.optimize(iterations=2000)
+                    optimal = design.optimal
+                    
+                    design_count += 1
+                    
+                    if (design_count >= subset_size):
+                        break
+        
+        logging.info("Function 'primer_queue_test()' completed.")
     
     def make_datum_groups(self, group_links, contig_groups, genome_contigs_list):
         ######## Begin for linking the loci ########
@@ -1419,7 +2265,7 @@ class ConfirmParser(subroutine.Subroutine):
         
             # If there is a hard constraint for primers that should be used
             # That is, if flanktag primers should be used
-            if (len(args.primers) > 0):
+            if (len(args.mandatory_primers) > 0):
                 pass
             # Otherwise, no flanktags are specified
             else:
@@ -1785,7 +2631,7 @@ class ConfirmParser(subroutine.Subroutine):
             #  2) or we can modify the algorithm to allow discarding elements if there is a 'n' in 'required_pattern'
             # Let's go with (1)
             
-            # New code to test
+            # Oldish code to test
             test_starting, test_final = self.optimize_pp_list_by_weight(args, [[sF_sR_pair]]+pp_sources, semirandom=False)
             logging.info('  test-starting: ' + str(test_starting))
             logging.info('     test-final: ' + str(test_final))
@@ -1793,6 +2639,13 @@ class ConfirmParser(subroutine.Subroutine):
             self.which_pp_equal(test_final[1])
             starting_set.append(test_starting)
             finished_set.append(test_final)
+            
+            # Brand new code to test
+            pp_set = PrimerDesign([[sF_sR_pair]]+pp_sources)
+            for oo in range(2):
+                pp_set.optimize()
+            logging.info('NEW >= OLD: ' + str(pp_set.optimal.weight >= test_final[0]))
+            
             
             # If necessary, we "mask" the non-required PrimerPairs, then calculate.
             if args.internal_primers_required:
@@ -1810,6 +2663,12 @@ class ConfirmParser(subroutine.Subroutine):
                     self.which_pp_equal(masked_final[1])
                     starting_set.append(masked_starting)
                     finished_set.append(masked_final)
+                    
+                    # Brand new code to test
+                    pp_set = PrimerDesign([[sF_sR_pair]]+masked_pp_sources)
+                    for oo in range(2):
+                        pp_set.optimize()
+                    logging.info('NEW >= OLD: ' + str(pp_set.optimal.weight >= masked_final[0]))
             
             # Report the number of PrimerPairs that are shared among the inserts
             t_num = len(pp_sources)//2
@@ -1883,6 +2742,12 @@ class ConfirmParser(subroutine.Subroutine):
             starting_set.append(d_starting)
             finished_set.append(d_final)
             
+            # Brand new code to test
+            pp_set = PrimerDesign(insert_pair_list)
+            for oo in range(2):
+                pp_set.optimize()
+            logging.info('NEW >= OLD: ' + str(pp_set.optimal.weight >= d_final[0]))
+            
             # If necessary, we "mask" the non-required PrimerPairs, then calculate.
             if args.internal_primers_required:
                 if should_mask:
@@ -1899,6 +2764,12 @@ class ConfirmParser(subroutine.Subroutine):
                     self.which_d_equal(masked_final[1])
                     starting_set.append(masked_starting)
                     finished_set.append(masked_final)
+                    
+                    # Brand new code to test
+                    pp_set = PrimerDesign(masked_insert_pair_list)
+                    for oo in range(2):
+                        pp_set.optimize()
+                    logging.info('NEW >= OLD: ' + str(pp_set.optimal.weight >= masked_final[0]))
         
         return starting_set, finished_set
     
@@ -2078,3 +2949,143 @@ class Insert(object):
     
     def __repr__(self):
         return self.__class__.__name__ + '(' + ', '.join([s + '=' + repr(getattr(self, s)) for s in self.__slots__]) + ')'
+
+class Cutoff(object):
+    # List holding all currently-defined cutoffs
+    cutoffs = []
+    
+    # Index of the cutoff to modify next
+    ci = 0
+    
+    def __init__(self, name, initial, final, delta, separate=False):
+        self.name = name
+        self.initial = initial
+        self.final = final
+        self.delta = delta
+        self.current = initial
+        
+        self.separate=separate
+        self.separate_current=0
+        
+        self.cutoffs.append(self)
+    
+    @classmethod
+    def _increment(cls):
+        # Increment
+        cls.ci += 1
+        if (cls.ci >= len(cls.cutoffs)):
+            cls.ci = 0
+    
+    @classmethod
+    def loosen(cls):
+        cutoff = cls.cutoffs[cls.ci]
+        
+        new = []
+        for i, (c, d, f) in enumerate(zip(cutoff.current, cutoff.delta, cutoff.final)):
+            if cutoff.separate:
+                if (i == cutoff.separate_current):
+                    n = c+d
+                    if math.isclose(n, f):
+                        n = f
+                    elif ((d < 0) and (n < f)):
+                        n = f
+                    elif ((d > 0) and (n > f)):
+                        n = f
+                else:
+                    n = c
+                
+            else:
+                n = c+d
+                if math.isclose(n, f):
+                    n = f
+                if ((d < 0) and (n < f)):
+                    n = f
+                elif ((d > 0) and (n > f)):
+                    n = f
+                
+            new.append(n)
+        new = tuple(new)
+        
+        if cutoff.separate:
+            cutoff.separate_current += 1
+            if (cutoff.separate_current >= len(cutoff.current)):
+                cutoff.separate_current = 0
+        
+        
+        # If there was no change, try again with the same CI
+        if ((new == cutoff.current) and (new != cutoff.final)):
+            finished = cls.loosen()
+        
+        
+        elif (new == cutoff.current):
+            if all(x.current == x.final for x in Cutoff.cutoffs):
+            #if all(math.isclose(x.current[i], x.final[i]) for x in Cutoff.cutoffs for i in range(len(x.current))): # 2
+                # Then 'final' was reached for all cutoffs
+                finished = True
+            else:
+                cls._increment()
+                finished = cls.loosen()
+        else:
+            # Replace current
+            cutoff.current = new
+            
+            # Increment
+            cls._increment()
+            
+            # Set return value
+            finished = False
+        
+        return finished
+    
+    @classmethod
+    def test(cls):
+        clist = [
+            #   Name, initial, final, delta # states
+            #cls("length_min", (19,), (19,), (0,)), # 1
+            #cls("length_max", (28,), (36,), (2,)), # 5
+            cls("length", (19,28), (19,36), (0,2), separate=True), # 1,5
+            #cls("last5gc_min", (1,), (0,), (-1,)), # 2
+            #cls("last5gc_max", (3,), (4,), (1,)), # 2
+            cls("last5gc", (1,3), (0,4), (-1,1), separate=True), # 2
+            #cls("gcclamp_min", (1,), (0,), (-1,)), # 2
+            #cls("gcclamp_max", (2,), (4,), (1,)), # 3
+            cls("gcclamp", (1,2), (0,4), (-1,1), separate=True), # 2
+            cls("gcfreq", (0.4, 0.6), (0.2, 0.8), (-0.1, 0.1)), # 3
+            cls("runlen_max", (4,), (6,), (1,)), # 3
+            cls("3primecomplen_max", (3,), (6,), (1,)), # 4
+            cls("deltag_min", (-4.0,), (-7.0,), (-1.0,)), # 4
+            cls("tm", (52, 65), (52, 65), (0, 0)), # 1
+            # cls("amplicon", (300,700), (300,700), (0,0)), # 1
+            cls("deltatm_max", (2.5,), (4.0,), (0.5,)), # 4
+        ]
+        finished = False
+        i = 0
+        while (finished == False):
+            
+            print(i, [x.current for x in clist], end=' ')
+            finished = cls.loosen()
+            print(finished)
+            
+            # Convert to dict
+            d = {c.name: c.current if (len(c.current) > 1) else c.current[0] for c in Cutoff.cutoffs}
+            print(' ', d)
+            
+            i += 1
+    
+class CutoffIterator(object):
+    def __init__(self):
+        pass
+    
+    def __iter__(self):
+        return self
+    
+    def __next__(self):
+        d = {c.name: c.current if (len(c.current) > 1) else c.current[0] for c in Cutoff.cutoffs}
+        finished = Cutoff.loosen()
+        if finished:
+            raise StopIteration
+        else:
+            return d
+    
+    
+        
