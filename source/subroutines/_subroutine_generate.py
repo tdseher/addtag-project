@@ -6,6 +6,7 @@
 # source/subroutines/_subroutine_generate.py
 
 # Import standard packages
+import sys
 import os
 import logging
 
@@ -161,11 +162,14 @@ class GenerateParser(subroutine.Subroutine):
             help="Range of homology lengths acceptable for knock-out dDNAs, inclusive.")
         self.parser.add_argument("--excise_downstream_homology", nargs=2, metavar=("MIN", "MAX"), type=int, default=[47,50],
             help="Range of homology lengths acceptable for knock-out dDNAs, inclusive.")
-        self.parser.add_argument("--allowed_homology_errors", nargs=4, metavar = ("S", "I", "D", "E"), type=int, default=[0,0,0,0],
-            help="Maximum number of substitutions (S), insertions (I), \
-            deletions (D), or errors (E) to allow in homology regions of homologs. \
-            If a greater number exist between homologs, then the feature will be \
-            expanded until a homology region with appropriate length is found.")
+        self.parser.add_argument("--max_homology_errors", metavar="N", type=int, default=0,
+            help="Maximum number of total errors (substitutions, insertions, and deletions) \
+            allowed in each homology region of dDNAs.")
+        #self.parser.add_argument("--max_homology_errors", nargs=4, metavar = ("S", "I", "D", "E"), type=int, default=[0,0,0,0],
+        #    help="Maximum number of substitutions (S), insertions (I), \
+        #    deletions (D), or total errors (E) to allow in homology regions of homologs. \
+        #    If a greater number exist between homologs, then the feature will be \
+        #    expanded until a homology region with appropriate length is found.")
         #
         #
         self.parser.add_argument("--excise_donor_lengths", nargs=2, metavar=('MIN', 'MAX'), type=int, default=[100, 100],
@@ -360,17 +364,46 @@ class GenerateParser(subroutine.Subroutine):
         #                       NNNNNNNNNNNNNNNNNNN
         #                       The entire feature will be replaced by this sequence
         
-        self.parser.add_argument("--allele-specific-targets", action="store_true", default=False,
-            help="Only spacer sequences that diagnostically target alleles will be designed. \
+        self.parser.add_argument("--target_specificity", choices=['exclusive', 'all', 'any'], default='all',
+            help="For 'exclusive', only spacer sequences that diagnostically target alleles will be designed. \
             With this option enabled, spacers will target polymorphisms in the feature. \
-            Otherwise, spacers will target invariant sites within the feautre.")
+            For 'all', spacers will target invariant sites within the feature.\
+            For 'any', targets will not be checked against homologous features.")
         
-        self.parser.add_argument("--allele-specific-donors", action="store_true", default=False,
-            help="Homology arms of dDNAs should be unique for each homologous feature. \
-            Otherwise, the dDNA homology arms will target all homologous features.")
         # ^^^^vvvv These two options, ideally, should be only one option ^^^^vvvv
-        self.parser.add_argument("--allele-specific-primers", action="store_true", default=False,
-            help="If primers are calculated for amplifying the wild type, then they should be allele-specific.")
+        #self.parser.add_argument("--allele-specific-primers", action="store_true", default=False,
+        #    help="If primers are calculated for amplifying the wild type, then they should be allele-specific.")
+        
+        self.parser.add_argument("--donor_specificity", choices=['exclusive', 'all', 'any'], default='all',
+            help="For 'exclusive' (allele-specific), homology arms of dDNAs should be unique for each homologous feature. \
+            Primer amplicons will either be diagnostially-different sizes, or primer sequences themselves will be different. \
+            For 'all' (multi-allelic), dDNA homology arms will minimize polymorphisms so they target all homologous features, and primer pairs will amplify all homologs. \
+            For 'any' (allele-agnostic), dDNA homology arms and primer pairs will be calculated for each feature independently.")
+        
+        # Future implementation: allow for user to input a choice for each dDNA
+        #   --donor_specificity all exclusive      --donor_specificity exclusive all
+        #     A0   B0   (g0: wild type)              A0   B0   (g0: wild type)
+        #      \   /      1 ko-dDNA                  |     |     2 ko-dDNAs
+        #       AB1     (g1: intermediary)           A1   B1   (g1: intermediary)
+        #      /   \      2 ki-dDNAs                  \   /      1 ki-dDNA
+        #     A2   B2   (g2: knock-in)                 AB2     (g2: knock-in)
+        #
+        # But the current implementation will do only the following:
+        #   --donor_specificity all all            --donor_specificity exclusive exclusive
+        #     A0   B0   (g0: wild type)              A0   B0   (g0: wild type)
+        #      \   /      1 ko-dDNA                  |     |     2 ko-dDNAs
+        #       AB1     (g1: intermediary)           A1   B1   (g1: intermediary)
+        #        |        1 ki-dDNA                  |     |     2 ki-dDNAs
+        #       AB2     (g2: knock-in)               A2   B2   (g2: knock-in)
+        
+        # Get TEMP directory
+        if sys.platform.startswith('win'):
+            from tempfile import gettempdir
+            temp_default = gettempdir()
+        else:
+            temp_default = '/dev/shm'
+        self.parser.add_argument("--temp_folder", type=str, default=temp_default,
+            help="Directory to store temporary files. RAMdisk recommended.")
         
     def compute(self, args):
         """Perform complete CRISPR/Cas analysis for input"""
@@ -381,6 +414,14 @@ class GenerateParser(subroutine.Subroutine):
         #fasta_index, contig_index, contig_sequences = utils.load_indexed_fasta_files(args.fasta)
         contig_sequences = utils.load_multiple_fasta_files(args.fasta)
         
+        # Load '--homologs' file
+        # Make dict linking each feature to its gene
+        # Make dict linking features to each other as homologs
+        if args.homologs:
+            homologs, feature2gene = utils.load_homologs(args.homologs)
+        else:
+            homologs, feature2gene = None, None
+        
         # Open and parse the GFF file specified on the command line
         #features = utils.load_gff_file(args.gff, args.features, args.tag)
         # Filter features by what is selected
@@ -389,11 +430,9 @@ class GenerateParser(subroutine.Subroutine):
             Feature.load_gff_file(gff_file, args.features, args.excluded_features, args.selection, args.tag)
         Feature.assert_features(args.selection, contig_sequences)
         
-        # Make index of homologs
-        if args.homologs:
-            homologs, feature2gene = utils.load_homologs(args.homologs)
-        else:
-            homologs, feature2gene = None, None
+        # Assign default 'self.homologs' and 'self.gene'
+        Feature.assign_homologs(homologs)
+        Feature.assign_gene(feature2gene)
         
         logging.info('Feature.features')
         for f_name, f in sorted(Feature.features.items()):
@@ -452,7 +491,24 @@ class GenerateParser(subroutine.Subroutine):
                 # Print the set of new features
                 logging.info('Feature.features')
                 for f_name, f in sorted(Feature.features.items()):
-                    logging.info("  {}:{}:{}:{}..{} PARENT={}".format(f.name, f.contig, f.strand, f.start, f.end, f.get_expand_parent().name))
+                    logging.info("  {}:{}:{}:{}..{} PARENT={}".format(f.name, f.contig, f.strand, f.start, f.end, f.get_parent().name))
+        
+        
+        # Get list of features that have compatible homology regions
+        sim_features = Feature.match_features_by_homology(args, contig_sequences)
+        
+        # Remove any features whose homology regions violate command-line argument '--max_homology_errors'
+        Feature.filter_features([x.name for x in sim_features])
+        
+        # Print to log what the filtered Features looks like
+        logging.info('Feature.features after filtering')
+        logging.info("  {}:{}:{}:{}..{} {} {} {}".format('Name', 'Contig', 'Strand', 'Start', 'End', 'Gene', 'Parent', 'Homologs'))
+        for f_name, f in sorted(Feature.features.items()):
+            logging.info("  {}:{}:{}:{}..{} {} {} {}".format(f.name, f.contig, f.strand, f.start, f.end, f.get_gene(), f.get_parent().name, f.homologs))
+        
+        if (len(Feature.features) == 0):
+            print("No Features match homology similarity requirements", file=sys.stderr)
+            sys.exit(1)
         
         if (args.ko_gRNA):
             # Search features within contigs for targets that match the motifs
@@ -572,6 +628,9 @@ class GenerateParser(subroutine.Subroutine):
         self.log_results(args, homologs, n=5)
         self.print_reTarget_results(args, homologs, feature2gene)
         self.print_exTarget_results(args, homologs, feature2gene)
+        self.print_reDonor_results(args)
+        self.print_exDonor_results(args)
+        
         #print('======')
         #self.get_best_table(args, homologs, feature2gene)
         
@@ -613,7 +672,7 @@ class GenerateParser(subroutine.Subroutine):
                 #contig, start, end, strand = features[feature]
                 # Convert to tuple
                 #groups.add(tuple(sorted(homologs[feature_name])))
-                groups.add(tuple(sorted(homologs[f.get_expand_parent().name])))
+                groups.add(tuple(sorted(homologs[f.get_parent().name])))
             # groups = {('F1_A', 'F1_B'), ('F2_A', 'F2_B')} # A set of tuples
             
             for g in groups:
@@ -686,7 +745,6 @@ class GenerateParser(subroutine.Subroutine):
         #return sorted(target_list, key=lambda x: rank(x.score['Azimuth'], x.off_targets['Hsu-Zhang'], x.off_targets['CFD']), reverse=True)
         return sorted(rank_list, key=lambda x: x[0], reverse=True)
     
-    @classmethod
     def print_reTarget_results(self, args, homologs, feature2gene):
         """
         Print to STDOUT the final output for the '_generate()' function.
@@ -709,7 +767,7 @@ class GenerateParser(subroutine.Subroutine):
                 # (feature, contig, orientation, start, end, upstream, downstream)
                 for ll in l[0].split(','):
                     genes.add(Feature.get_gene_from_feature(ll, feature2gene))
-                    features.add(Feature.features[ll].get_expand_parent().name)
+                    features.add(Feature.features[ll].get_parent().name)
                     positions.append(rt.format_location(l))
             
             
@@ -734,7 +792,6 @@ class GenerateParser(subroutine.Subroutine):
         for r in results:
             print('\t'.join(map(str, r)))
     
-    @classmethod
     def print_exTarget_results(self, args, homologs, feature2gene):
         """
         Print to STDOUT the final output for the '_generate()' function.
@@ -779,7 +836,7 @@ class GenerateParser(subroutine.Subroutine):
                 # (feature, contig, orientation, start, end, upstream, downstream)
                 for ll in l[0].split(','):
                     genes.add(Feature.get_gene_from_feature(ll, feature2gene))
-                    features.add(Feature.features[ll].get_expand_parent().name)
+                    features.add(Feature.features[ll].get_parent().name)
                     positions.append(et.format_location(l))
             
             
@@ -813,6 +870,18 @@ class GenerateParser(subroutine.Subroutine):
         
         for r in results:
             print('\t'.join(map(str, r)))
+    
+    def print_reDonor_results(self, args):
+        """
+        Print to STDOUT the top-weighted reDonor objects
+        """
+        pass
+    
+    def print_exDonor_results(self, args):
+        """
+        Print to STDOUT the top-weighted exDonor objects
+        """
+        pass
     
     @classmethod
     def log_results(self, args, homologs, n=None):
@@ -901,7 +970,7 @@ class GenerateParser(subroutine.Subroutine):
             groups = set()
             for feature_name, f in Feature.features.items():
                 #groups.add(tuple(sorted(homologs[feature_name])))
-                groups.add(tuple(sorted(homologs[f.get_expand_parent().name])))
+                groups.add(tuple(sorted(homologs[f.get_parent().name])))
             for g in groups:
                 ext_dict[g] = set()
                 for name, obj in ExcisionTarget.indices.items():
