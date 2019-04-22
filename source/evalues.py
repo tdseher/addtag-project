@@ -211,6 +211,7 @@ def dbSizeCorrectedExpect(sumP, effective_length_db, sbjct_seq_length):
 def drange(start, stop, step=1, rounding=None):
     """
     A generator for a range that can use decimal steps
+    Only works for increasing numbers
     """
     # For more info in floating point error in Python, see:
     #  https://docs.python.org/3/tutorial/floatingpoint.html
