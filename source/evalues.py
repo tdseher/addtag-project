@@ -529,7 +529,7 @@ def calculate_compositions(sequence, kmer=1):
     for k in nucleotides.kmers(kmer):
         d[k] = 0
     for i in range(len(sequence) - (kmer-1)):
-        seq = sequence[i:i+kmer]
+        seq = sequence[i:i+kmer].upper() # Make upper-case
         
         for char in seq:
             if ((char != 'A') and (char != 'C') and (char != 'G') and (char != 'T')):
@@ -545,14 +545,21 @@ def calculate_compositions(sequence, kmer=1):
 def normalize_compositions(compositions):
     f = {}
     s = sum(compositions.values())
-    for k, v in compositions.items():
-        f[k] = v/s
+    if (s == 0):
+        for k, v in compositions.items():
+            f[k] = 0.0
+    else:
+        for k, v in compositions.items():
+            f[k] = v/s
     return f
 
 def contig_compositions(contigs, kmer=1, frequencies=True):
     d = {}
     for k in nucleotides.kmers(kmer):
         d[k] = 0
+    
+    if (len(contigs) == 0):
+        raise Exception("Variable does not contain sequences when it should!")
     
     for k, v in contigs.items():
         comp = calculate_compositions(v, kmer=kmer)
