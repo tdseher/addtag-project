@@ -47,6 +47,8 @@ class Donor(object):
                 print(' '.join(['>'+obj.name, 'spacers='+str(len(obj.spacers))] + sorted([obj.format_location(x, sep) for x in obj.locations])), file=flo)
                 print(sequence, file=flo)
         logging.info(cls.__name__ + ' dDNA FASTA generated: {!r}'.format(filename))
+        if (len(cls.sequences) == 0):
+            logging.info(cls.__name__ + ' no sequences written: Possible error!')
         return filename
     
     def search_other_locations(self, contigs):
@@ -746,6 +748,7 @@ class ReversionDonor(Donor):
                 logging.info('Adding downstream_R primers to queue...')
                 Primer.scan(my_contig, gene=g, locus=fp.name, genome=0, region=AMP_R, contig=f.contig, orientation='-', start=region_R_start, end=region_R_stop, name='AmpR', primer_size=(19,36))
             
+            logging.info("Total 'Primer' objects: {}".format(len(Primer.sequences)))
             
             # Make simple dict to lookup the feature size given the gene/locus/contig
             gg2feature_size = {}
@@ -810,6 +813,18 @@ class ReversionDonor(Donor):
                             cpass = p.summarize(p.checks)
                             if ((p.checks[0] == None) or (not cpass)):
                                 p.progressive_check(cutoffs)
+                
+                ##### Some debug code #####
+                nnn = 0
+                ttt = 0
+                for seq, p in Primer.sequences.items():
+                    ttt += 1
+                    if ((p.checks[0] != None) and p.summarize(p.checks)):
+                        nnn += 1
+                logging.info("  Summary of all 'Primer' objects:")
+                logging.info("    Number primers with all checks passed = {}".format(nnn))
+                logging.info("    Number primers in 'Primer.sequences' = {}".format(ttt))
+                ##### Some debug code #####    
                 
                 #desired_p1_loc_set = set()
                 #desired_p2_loc_set = set()
