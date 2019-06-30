@@ -327,7 +327,8 @@ class ExcisionDonor(Donor):
         """
         
         # Use this instead of 'args.excise_donor_lengths'
-        slen = 100
+        #slen = 100
+        slen = min(args.excise_donor_lengths)
         
         # when insert_length = 0, then the kmers are [''] (single element, empty string)
         for bartag in bartags:
@@ -354,7 +355,8 @@ class ExcisionDonor(Donor):
         with flanking homology arms
         """
         # Use this instead of 'args.excise_donor_lengths'
-        slen = 100
+        #slen = 100
+        slen = min(args.excise_donor_lengths)
         
         genome_composition = nucleotides.get_seq_dist(contig_sequence, 1, 4) # step_size=1, kmer_size=4
         
@@ -423,7 +425,8 @@ class ExcisionDonor(Donor):
         This function assumes the input 'unitag' has already been calculated
         """
         # Use this instead of 'args.excise_donor_lengths'
-        slen = 100
+        #slen = 100
+        slen = min(args.excise_donor_lengths)
         
         # Get the contig locations of the homology regions
         us_start, us_end = f.start+(-slen//2-(-len(unitag)//2)), f.start
