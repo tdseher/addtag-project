@@ -15,6 +15,7 @@ import random
 import pickle
 import math
 import copy
+import signal
 from collections import namedtuple
 
 # Import non-standard packages
@@ -193,6 +194,8 @@ example:
      2> analysis.err
 """.format(**locals())
 
+
+
 class TempPrimer(object):
     sequences = {} # key = nucleotide sequence, value = Primer object
 
@@ -220,8 +223,11 @@ class Main(object):
         
         if hasattr(args, 'folder'):
             # Print time taken for program to complete
+            end_time = time.time()
             logging.info('{} finished'.format(__program__))
-            logging.info('Runtime: {}s'.format(time.time()-start_time))
+            logging.info('Start time: {}s'.format(start_time))
+            logging.info('End time: {}s'.format(end_time))
+            logging.info('Runtime: {}s'.format(end_time-start_time))
     
     def calculate_amplicons(self, args, primer_sets, contigs):
         """
@@ -385,7 +391,7 @@ class Main(object):
             os.makedirs(args.folder, exist_ok=True)
         
             # Create the logger, and have it write to 'folder/log.txt'
-            logging.basicConfig(filename=os.path.join(args.folder, 'log.txt'), level=logging.INFO, format='%(message)s') # format='%(levelname)s %(asctime)s: %(message)s'
+            logging.basicConfig(filename=os.path.join(args.folder, 'log.txt'), level=logging.INFO, format='%(asctime)s - %(module)s - %(funcName)s - %(lineno)d - %(message)s') # format='%(levelname)s %(asctime)s: %(message)s'
         
         if hasattr(args, 'aligner'):
             # Add 'args.selected_aligner' to hold the actual aligner object
