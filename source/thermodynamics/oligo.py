@@ -472,7 +472,34 @@ class Primer(object):
     #     return False
     
     @classmethod
-    def scan(cls, sequence, gene, locus, genome, region, contig, orientation, start, end, name, primer_size=(18,26), min_junction_overlap=(4,8), **kwargs):
+    def check_case(cls, case, seq):
+        '''
+        Returns 'True' if the sequence passes the case requirements,
+        Otherwise, returns 'False'
+        '''
+        
+        # Check the case of the potential gRNA sequence
+        if (case == "upper-only"):
+            if regex.search('[a-z]', seq):
+                return False # Reject this sequence because it has lower-case characters
+        elif (case == "lower-only"):
+            if regex.search('[A-Z]', seq):
+                return False # Reject this sequence because it has upper-case characters
+        elif (case == "mixed-lower"):
+            if not regex.search('[a-z]', seq):
+                return False
+        elif (case == "mixed-upper"):
+            if not regex.search('[A-Z]', seq):
+                return False
+        elif (case == "mixed-only"):
+            if not (regex.search('[a-z]', seq) and regex.search('[A-Z]', seq)):
+                return False # Reject this sequence because it does not have both lower-case and upper-case characters
+        #elif (args.case == "ignore") # then do nothing
+        #    pass
+        return True
+    
+    @classmethod
+    def scan(cls, sequence, gene, locus, genome, region, contig, orientation, start, end, name, primer_size=(18,26), min_junction_overlap=(4,8), case='ignore', **kwargs):
         """
         Pass in a sequence, then either design left/forward/+ primers
         or design right/reverse/- primers.
@@ -564,9 +591,10 @@ class Primer(object):
                     pos = start-len(l_seq)+i
                     pf = j_seq[i:i+p_len]
                     
-                    #primer_object = Primer.create(sequence=pf, position=pos, template_length=len(seq), strand='+', o_oligo=self)
-                    #p = Primer(pf, gene, locus, genome, region, contig, strand, start+i, start+i+p_len, name=name)
-                    p = Primer(pf, gene, locus, genome, region, contig, strand, pos, pos+p_len, name=name)
+                    if cls.check_case(case, pf):
+                        #primer_object = Primer.create(sequence=pf, position=pos, template_length=len(seq), strand='+', o_oligo=self)
+                        #p = Primer(pf, gene, locus, genome, region, contig, strand, start+i, start+i+p_len, name=name)
+                        p = Primer(pf, gene, locus, genome, region, contig, strand, pos, pos+p_len, name=name)
                     
                     n_count += 1
                     n_max += 1
@@ -599,10 +627,11 @@ class Primer(object):
                     #pos = i-len(l_seq) # Position on sequence (can take negative number if hanging off the edge)
                     pos = start-len(l_seq)+i
                     pr = rc(j_seq[i:i+p_len])
-                
-                    #primer_object = Primer.create(sequence=pr, position=pos, template_length=len(seq), strand='-', o_oligo=self)
-                    #p = Primer(pr, gene, locus, genome, region, contig, strand, start+i, start+i+p_len, name=name)
-                    p = Primer(pr, gene, locus, genome, region, contig, strand, pos, pos+p_len, name=name)
+                    
+                    if cls.check_case(case, pr):
+                        #primer_object = Primer.create(sequence=pr, position=pos, template_length=len(seq), strand='-', o_oligo=self)
+                        #p = Primer(pr, gene, locus, genome, region, contig, strand, start+i, start+i+p_len, name=name)
+                        p = Primer(pr, gene, locus, genome, region, contig, strand, pos, pos+p_len, name=name)
                     
                     n_count += 1
                     n_max += 1

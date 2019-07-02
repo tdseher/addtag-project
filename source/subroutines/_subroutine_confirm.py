@@ -79,6 +79,16 @@ class ConfirmParser(subroutine.Subroutine):
         #    within each condition will have similar size (nt) and melting temperatures. \
         #    If unspecified, will default to the number of target features.")
         
+        self.parser.add_argument("--case", type=str, default="ignore",
+            choices=["ignore", "upper-only", "lower-only", "mixed-lower", "mixed-upper", "mixed-only"],
+            help="Restrict generation of primers based on case of nucleotides in input FASTA: \
+            ignore - keep all potential primers; \
+            upper-only - discard any potential primer with a lower-case character in the genome; \
+            lower-only - discard all potential primers with upper-case characters; \
+            mixed-lower - discard primers that are all upper-case; \
+            mixed-upper - discard primers that are all lower-case; \
+            mixed-only - only use primers that have both lower- and upper-case characters.")
+        
         self.parser.add_argument("--max_number_designs_reported", metavar="N", type=int, default=5,
             help="The maximum number of final cPCR designs to report.")
         
