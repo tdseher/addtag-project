@@ -117,6 +117,12 @@ class ConfirmParser(subroutine.Subroutine):
         
         self.parser.add_argument("--cycle_start", metavar="N", type=int, default=0,
             help="Stringency to consider a primer.")
+        
+        self.parser.add_argument("--subset_size", metavar="N", type=int, default=1000,
+            help="Artificially limit the number of primer pairs that are calculated. \
+                 This represents the max each primer list could be. The maximum number \
+                 of paiwise comparisons is the square of this number.")
+        
         # Temporary: this expects 2 for each dDNA: a before and an after
         self.parser.add_argument("--internal_primers_required", metavar="y/n",
             nargs="+", type=str, default=None, action=subroutine.ValidateInternalPrimersRequired,
@@ -1647,7 +1653,7 @@ class ConfirmParser(subroutine.Subroutine):
                 # ]
                 
                 # Limit number of Primer pairs
-                subset_size = 1000
+                subset_size = args.subset_size # 1000 # 10000x10000 takes ~3.5Gb ram and 1.5 hours to calculate
                 
                 
                 
