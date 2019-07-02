@@ -25,6 +25,10 @@ exclusions = [
 #    'bowtie2.py',
     'bwa.py',
     'casoffinder.py',
+    'casot.py',
+    'hyperscan.py',
+    'mafft.py',
+    'usearch.py'
 ]
 
 path = os.path.dirname(os.path.abspath(__file__))
