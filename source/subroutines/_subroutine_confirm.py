@@ -115,6 +115,8 @@ class ConfirmParser(subroutine.Subroutine):
         self.parser.add_argument("--skip_round", metavar="N", nargs="+", type=int, default=[],
             help="Skip primer calculations for these rounds.")
         
+        self.parser.add_argument("--cycle_start", metavar="N", type=int, default=0,
+            help="Stringency to consider a primer.")
         # Temporary: this expects 2 for each dDNA: a before and an after
         self.parser.add_argument("--internal_primers_required", metavar="y/n",
             nargs="+", type=str, default=None, action=subroutine.ValidateInternalPrimersRequired,
@@ -1526,14 +1528,28 @@ class ConfirmParser(subroutine.Subroutine):
             #  * an adequate design is found,
             #  * or the time limit expires
             cycle_n = 0
-            while (design_found == False):
+            
+            while (cycle_n < args.cycle_start):
                 logging.info("gene: {}, cycle: {}".format(gene, cycle_n))
-                cycle_n += 1
                 try:
                     logging.info("  Calculating next set of cutoffs")
                     # Get the initial cutoffs (if this is the first loop)
                     # or get the next-most relaxed cutoffs (if this isn't the first loop)
                     cutoffs = next(citer)
+                    cycle_n += 1
+                except StopIteration:
+                    logging.info("  No additional cutoffs. Ending loop")
+                    break
+            
+            while (design_found == False):
+                
+                logging.info("gene: {}, cycle: {}".format(gene, cycle_n))
+                try:
+                    logging.info("  Calculating next set of cutoffs")
+                    # Get the initial cutoffs (if this is the first loop)
+                    # or get the next-most relaxed cutoffs (if this isn't the first loop)
+                    cutoffs = next(citer)
+                    cycle_n += 1
                 except StopIteration:
                     logging.info("  No additional cutoffs. Ending loop")
                     break
