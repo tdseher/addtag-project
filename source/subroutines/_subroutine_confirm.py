@@ -1394,9 +1394,13 @@ class ConfirmParser(subroutine.Subroutine):
                     
                     temp2 = [datum.dDNA_r, datum.genome_r, datum.ins_start, datum.ins_end]
         
+        ##### BEGIN OUTPUT 1 #####
+        #                       0        1       2         3         4         5         6        7
         print('# ' + '\t'.join(['Gene', 'Locus', 'Genome', 'Region', 'Contig', 'Strand', 'Start', 'End']))
         for d in data:
+            # Should decode 'Region' column: region_decode[r]
             print('\t'.join(map(str, d)), flush=True)
+        ##### END OUTPUT 1 #####
         
         logging.info('Finished testing new 2D simplification of the data')
         
@@ -1569,6 +1573,7 @@ class ConfirmParser(subroutine.Subroutine):
                 
                 # Do 'Primer' calculations until the time limit is reached
                 p_queue = [sF_seq_list, sR_seq_list] + featureF_seq_lists + featureR_seq_lists
+                #p_queue_labels = ['sF', 'sR'] + ['r'+str(r) for r in genome_list] + ['r'+str(r) for r in genome_list]
                 
                 for seq_list in p_queue:
                     # For each region, we reset the timer
@@ -1687,6 +1692,15 @@ class ConfirmParser(subroutine.Subroutine):
                     start_time = time.time()
                     time_expired = False
                     
+                    
+                    # The p1 x p2 nested for loop takes a reasonable amount of time
+                    # if we limit the length of each list to 10,000 (see below)
+                    #   ##### BEGIN SAMPLE #####
+                    #   t = 0
+                    #   for i in range(10000):
+                    #      for j in range(10000):
+                    #          t += i*j
+                    #   ##### END SAMPLE #####
                     pp_seq_list = []
                     for i1, p1 in enumerate(sorted(p1_list, reverse=True)[:subset_size]):
                         if (args.primer_pair_limit and ((time.time()-start_time) > args.primer_pair_limit)):
