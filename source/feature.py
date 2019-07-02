@@ -8,6 +8,7 @@
 # Import standard packages
 import logging
 import itertools
+import os
 
 # Import non-standard packages
 import regex
@@ -441,13 +442,52 @@ class Feature(object):
                 #sys.exit(1)
             cls.features = new_features
     
-    def expand_feature_for_homology(self, args, contigs, homologs):
+    def expand_feature_for_homology(self, args, contigs):
         """
         Expand the feature to ensure its upstream/downstream flanking sequences
         have no polymorphisms
+        
+        Assumes each 'Feature.homologs' list is populated
         """
         
-        pass
+        from . import aligners
+        
+        for side in ('upstream', 'downstream'):
+            dist = 0
+            found = False
+            while (found == False):
+                dist += 100
+                
+                # Get upstream and downstream regions of each homolog
+                hom_list = []
+                
+                for f in self.homologs:
+                    hom_list.append(None)
+                    
+                folder = os.path.join(args.temp_folder, 'addtag', os.path.basename(args.folder))
+                query_filename = os.path.join(folder, side+'.fasta')
+                
+                # Store upstream and downstream regions into a multi-fasta file
+                with open(query_filename, 'w') as flo:
+                    for i, seq in enumerate(hom_list):
+                        print('>{}\n{}'.format(i, seq), file=flo)
+                
+                
+                # Get the MSA aligner object
+                for a in aligners.aligners:
+                    if (a.name == 'mafft'):
+                        aligner = a
+                        break
+                
+                # Align sequences using MSA
+                aln_filename = aligner.align(us_query_filename, None, side+'.aln', folder, args.threads)
+                
+                # Read the MSA
+                # Extract the longest region with perfect homology
+                # check to see if region is long enough
+                if (hom_region_len >= min_hom_len):
+                    found = True
+        
     
     def expand_homologous_feature_bad(self, args, contigs, homologs):
         """
@@ -714,7 +754,7 @@ class Feature(object):
                     new_name = self.name + '_derived-' + str(count)
                     new_attributes = self.attributes.copy()
                     new_attributes[args.tag] = new_name
-                    new_feature = Feature(self.contig, derived_start, derived_end, self.strand, name=new_name, source=self.source, feature_type=self.feature_type, score=self.score, frame=self.frame, attributes=new_attributes, origin=Feature.DERIVED, parent=self)
+                    new_feature = Feature(self.contig, derived_start, derived_end, self.strand, name=new_name, source=self.source, feature_type=self.feature_type, score=self.score, frame=self.frame, attributes=new_attributes, origin=Feature.DERIVED, parent=self, gene=self.gene)
                     Feature.features[new_name] = new_feature
                     count += 1
                     logging.info("DERIVED FEATURE '{}' created.".format(new_name))
