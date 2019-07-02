@@ -82,10 +82,10 @@ class ConfirmParser(subroutine.Subroutine):
         self.parser.add_argument("--max_number_designs_reported", metavar="N", type=int, default=5,
             help="The maximum number of final cPCR designs to report.")
         
-        self.parser.add_argument("--primer_scan_limit", metavar="N", type=int, default=2*60,
+        self.parser.add_argument("--primer_scan_limit", metavar="N", type=int, default=None, #2*60, # Should be None by default, thus a limit is only enforced if this option is specified.
             help="Number of seconds to limit each primer scan.")
         
-        self.parser.add_argument("--primer_pair_limit", metavar="N", type=int, default=5*60,
+        self.parser.add_argument("--primer_pair_limit", metavar="N", type=int, default=None, #5*60, # Should be None by default, thus a limit is only enforced if this option is specified.
             help="Amount of time (in seconds) to limit primer pairings.")
         
         self.parser.add_argument("--mandatory_primers", nargs="+", metavar="*.fasta", type=str, default=[],
@@ -1555,7 +1555,7 @@ class ConfirmParser(subroutine.Subroutine):
                         p = Primer.sequences[seq]
                     #for pi, (seq, p) in enumerate(Primer.sequences.items()):
                         if (pi % 1000 == 0):
-                            if ((time.time()-start_time) > args.primer_scan_limit):
+                            if (args.primer_scan_limit and ((time.time()-start_time) > args.primer_scan_limit)):
                                 time_expired = True
                         
                         if not time_expired:
@@ -1657,7 +1657,7 @@ class ConfirmParser(subroutine.Subroutine):
                     
                     pp_seq_list = []
                     for i1, p1 in enumerate(sorted(p1_list, reverse=True)[:subset_size]):
-                        if ((time.time()-start_time) > args.primer_pair_limit):
+                        if (args.primer_pair_limit and ((time.time()-start_time) > args.primer_pair_limit)):
                             time_expired = True
                         
                         if not time_expired:
