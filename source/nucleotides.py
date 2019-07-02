@@ -264,12 +264,25 @@ def flip(text):
     f = 'ɐqɔpǝɟɓɥᴉſʞ┐ɯuodbɹsʇnʌʍxʎzⱯʚ'+'\u0186'+'pƎℲϑHIſʞ˥WNOԀÕᴚS┴ՈΛMXʎZ'
     return text.translate(str.maketrans(a, f))[::-1]
 
+# def rc(seq, kind="dna"):
+#     """Returns the reverse-complement of a string containing DNA or RNA characters"""
+#     if (kind == "dna"):
+#         complements = str.maketrans('acgtrymkbdhvACGTRYMKBDHV', 'tgcayrkmvhdbTGCAYRKMVHDB') # exclude ws, WS
+#     elif (kind == "rna"):
+#         complements = str.maketrans('acgturymkbdhvACGTURYMKBDHV', 'ugcaayrkmvhdbTGCAAYRKMVHDB') # exclude ws, WS
+#     else:
+#         raise ValueError("'" + str(kind) + "' is an invalid argument for rc()")
+#     return seq.translate(complements)[::-1]
+
+DNA_COMPLEMENTS = str.maketrans('acgtrymkbdhvACGTRYMKBDHV', 'tgcayrkmvhdbTGCAYRKMVHDB') # exclude ws, WS
+RNA_COMPLEMENTS = str.maketrans('acgturymkbdhvACGTURYMKBDHV', 'ugcaayrkmvhdbTGCAAYRKMVHDB') # exclude ws, WS
+
 def rc(seq, kind="dna"):
     """Returns the reverse-complement of a string containing DNA or RNA characters"""
     if (kind == "dna"):
-        complements = str.maketrans('acgtrymkbdhvACGTRYMKBDHV', 'tgcayrkmvhdbTGCAYRKMVHDB') # exclude ws, WS
+        complements = DNA_COMPLEMENTS
     elif (kind == "rna"):
-        complements = str.maketrans('acgturymkbdhvACGTURYMKBDHV', 'ugcaayrkmvhdbTGCAAYRKMVHDB') # exclude ws, WS
+        complements = RNA_COMPLEMENTS
     else:
         raise ValueError("'" + str(kind) + "' is an invalid argument for rc()")
     return seq.translate(complements)[::-1]
