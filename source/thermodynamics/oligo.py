@@ -550,9 +550,14 @@ class Primer(object):
         ds_seq = sequence[end:ds_extend_end]
         
         # Total number of primers that will be scanned
-        est_a = lambda x: max(0, min(x-min_junction_overlap[0], len(us_seq))) # number primers overlapping with us_seq
-        est_b = lambda x: max(0, min(x-min_junction_overlap[1], len(ds_seq))) # number primers overlapping with ds_seq
-        est_c = lambda x: len(seq)-x+1 # number primers contained within seq
+        if ((min_junction_overlap == None) or (min_junction_overlap == (None, None))):
+            est_a = lambda x: 0 # number primers overlapping with us_seq
+            est_b = lambda x: 0 # number primers overlapping with ds_seq
+            est_c = lambda x: len(seq)-x+1 # number primers contained within seq
+        else:
+            est_a = lambda x: max(0, min(x-min_junction_overlap[0], len(us_seq))) # number primers overlapping with us_seq
+            est_b = lambda x: max(0, min(x-min_junction_overlap[1], len(ds_seq))) # number primers overlapping with ds_seq
+            est_c = lambda x: len(seq)-x+1 # number primers contained within seq
         
         n_est = sum(max(0, est_a(x)+est_b(x)+est_c(x)) for x in range(primer_size[0], primer_size[1]+1))
         n_max = 0
@@ -564,19 +569,24 @@ class Primer(object):
         # Second, filter the Primer objects
         # Third, return only the good Primer objects
         
+        mjo = min_junction_overlap
+        
         if (orientation in ['left', 'L', 'l', 'forward', 'F', 'f', '+']):
             strand = '+'
             for p_len in range(primer_size[0], primer_size[1]+1):
                 # Include the flanking regions
                 
+                if ((min_junction_overlap == None) or (min_junction_overlap == (None, None))):
+                    mjo = (p_len, p_len)
+                
                 #l_seq = us_seq[len(us_seq) - (p_len-min_junction_overlap[0]):]
-                if (p_len > min_junction_overlap[0]):
-                    l_start = -(p_len-min_junction_overlap[0]) # Should be a negative number most of the time
+                if (p_len > mjo[0]):
+                    l_start = -(p_len-mjo[0]) # Should be a negative number most of the time
                 else:
                     l_start = len(us_seq)
                 l_seq = us_seq[l_start:]
                 
-                r_end = max(0, p_len-min_junction_overlap[1])
+                r_end = max(0, p_len-mjo[1])
                 r_seq = ds_seq[:r_end]
                 
                 j_seq = l_seq + seq + r_seq
@@ -606,14 +616,17 @@ class Primer(object):
             for p_len in range(primer_size[0], primer_size[1]+1):
                 # Include the flanking regions
                 
+                if ((min_junction_overlap == None) or (min_junction_overlap == (None, None))):
+                    mjo = (p_len, p_len)
+                
                 #l_seq = us_seq[len(us_seq) - (p_len-min_junction_overlap[1]):]
-                if (p_len > min_junction_overlap[1]):
-                    l_start = -(p_len-min_junction_overlap[1]) # Should be a negative number most of the time
+                if (p_len > mjo[1]):
+                    l_start = -(p_len-mjo[1]) # Should be a negative number most of the time
                 else:
                     l_start = len(us_seq)
                 l_seq = us_seq[l_start:]
                 
-                r_end = max(0, p_len-min_junction_overlap[0])
+                r_end = max(0, p_len-mjo[0])
                 r_seq = ds_seq[:r_end]
                 
                 j_seq = l_seq + seq + r_seq

@@ -1411,7 +1411,10 @@ class ConfirmParser(subroutine.Subroutine):
         
         for d in data:
             sequence = genome_contigs_list[d[2]][d[4]]
-            Primer.scan(sequence, gene=d[0], locus=d[1], genome=d[2], region=d[3], contig=d[4], orientation=d[5], start=d[6], end=d[7], name=None, primer_size=(19,36))
+            if ((d[3] == FAR_UPSTREAM) or (d[3] == FAR_DOWNSTREAM)):
+                Primer.scan(sequence, gene=d[0], locus=d[1], genome=d[2], region=d[3], contig=d[4], orientation=d[5], start=d[6], end=d[7], name=None, primer_size=(19,36), case=args.case, min_junction_overlap=(19,19))
+            else:
+                Primer.scan(sequence, gene=d[0], locus=d[1], genome=d[2], region=d[3], contig=d[4], orientation=d[5], start=d[6], end=d[7], name=None, primer_size=(19,36), case=args.case)
         logging.info("Total 'Primer' objects before filtering: {}".format(len(Primer.sequences)))
         
         # Build the required pattern
