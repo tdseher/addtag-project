@@ -1619,6 +1619,7 @@ class PrimerDesign(object):
     def __init__(self, primer_pair_list):
         self.primer_pair_list = primer_pair_list
         self.optimal = None # Store 'PrimerSet' object
+        self.done = False
     
     def random_choices(self, population, weights, k=1):
         """
@@ -1669,48 +1670,53 @@ class PrimerDesign(object):
             pp_set = [pp_list[0] if (len(pp_list) > 0) else None for pp_list in self.primer_pair_list]
         elif (mode == 'direct'):
             # Replace the worst-weighted 'PrimerPair'
-            # If no replacement would improve, then do 'ranked' replacement
+            # If no replacement would improve, then do nothing (return the current)
             
             # If no swap would improve the weight, then choose a random one
             pp_set = self.anneal(mode='ranked').pp_list
             
             if (current != None):
-                # Get list of indices from smallest weight to largest weight (excluding 'sF' and 'sR')
-                # If a primer is 'None', then it is right-most in the list.
-                # Left-most element is the smallest weight. Weights increase as the index of the list increases.
-                # If primer is 'None', then its weight will be 'math.inf', and the index
-                # corresponding to it will be the last element in wi_order:
-                #   rank_order([1, 2, 2.5, 0.001, math.inf]) # [3, 0, 1, 2, 4]
-                wi_order = self.rank_order([pp.get_joint_weight() if pp else math.inf for pp in current.pp_list])
-                
-                # Start at the worst index (wi), and go to the next-worst, then next, then next
-                for wi in wi_order:
-                    # Shallow copy the list of primer pairs
-                    pp_set_d = PrimerSet(current.pp_list[:])
+                if not self.done:
+                    # Get list of indices from smallest weight to largest weight (excluding 'sF' and 'sR')
+                    # If a primer is 'None', then it is right-most in the list.
+                    # Left-most element is the smallest weight. Weights increase as the index of the list increases.
+                    # If primer is 'None', then its weight will be 'math.inf', and the index
+                    # corresponding to it will be the last element in wi_order:
+                    #   rank_order([1, 2, 2.5, 0.001, math.inf]) # [3, 0, 1, 2, 4]
+                    wi_order = self.rank_order([pp.get_joint_weight() if pp else math.inf for pp in current.pp_list])
                     
-                    # Swap the worst-performing primer with an alternative.
-                    # If the alternative gives a better weight, then keep it
-                    # and break out of the loop
-                    for source_pp in self.primer_pair_list[wi]:
-                        pp_set_d.pp_list[wi] = source_pp
-                        pp_set_d.weight = pp_set_d.calculate_weight()
+                    # Start at the worst index (wi), and go to the next-worst, then next, then next
+                    for wi in wi_order:
+                        # Shallow copy the list of primer pairs
+                        pp_set_d = PrimerSet(current.pp_list[:])
                         
-                        weight_delta = pp_set_d.weight - current.weight
+                        # Swap the worst-performing primer with an alternative.
+                        # If the alternative gives a better weight, then keep it
+                        # and break out of the loop
+                        for source_pp in self.primer_pair_list[wi]:
+                            pp_set_d.pp_list[wi] = source_pp
+                            pp_set_d.weight = pp_set_d.calculate_weight()
+                            
+                            weight_delta = pp_set_d.weight - current.weight
+                            
+                            if (weight_delta > 0):
+                                pp_set = pp_set_d.pp_list
+                                break
+                        else:
+                            # If no pp swap is higher-weighted, then return 0 rather than the last-calculated 'weight_delta'
+                            weight_delta = 0
                         
+                        # If the pp swap already produces a higher-weighted primer set, then skip the rest of the 'wi'
                         if (weight_delta > 0):
-                            pp_set = pp_set_d.pp_list
                             break
-                    else:
-                        # If no pp swap is higher-weighted, then return 0 rather than the last-calculated 'weight_delta'
-                        weight_delta = 0
                     
-                    # If the pp swap already produces a higher-weighted primer set, then skip the rest of the 'wi'
-                    if (weight_delta > 0):
-                        break
-                
+                    else:
+                        # If no swap would improve the weight, then return the
+                        # current, and ignore further calls to this function
+                        self.done = True
+                        return current
                 else:
-                    # If no swap would improve the weight, then choose a random one
-                    pass
+                    return current
         
         design = PrimerSet(pp_set)
         
@@ -1723,9 +1729,12 @@ class PrimerDesign(object):
         improves = 0
         retrogresses = 0
         optimizes = 0
+        ignores = 0
         
         # Copy the current optimal
         optimal = self.optimal
+        
+        self.done = False
         
         # Start out at a random place
         current = self.anneal(mode=mode)
@@ -1766,6 +1775,8 @@ class PrimerDesign(object):
                 retrogresses += 1
             elif (dW > 0.0):
                 improves += 1
+            elif (dW == 0.0):
+                ignores += 1
             
             if ((dW < 0.0) and (random.random() > weight_threshold)):
                 # Then reject this new state, and keep the current state unchanged
@@ -1791,6 +1802,7 @@ class PrimerDesign(object):
         
         logging.info('     accepts = {}'.format(accepts))
         logging.info('     rejects = {}'.format(rejects))
+        logging.info('     ignores = {}'.format(ignores))
         logging.info('    improves = {}'.format(improves))
         logging.info('retrogresses = {}'.format(retrogresses))
         logging.info('   optimizes = {}'.format(optimizes))
