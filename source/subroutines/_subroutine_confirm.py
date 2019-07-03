@@ -1706,10 +1706,14 @@ class ConfirmParser(subroutine.Subroutine):
                     #      for j in range(10000):
                     #          t += i*j
                     #   ##### END SAMPLE #####
+                    logging.info("    Number potential 'PrimerPair' objects for pair: {} = {} x {}".format(len(p1_list) * len(p2_list), len(p1_list), len(p2_list)))
                     pp_seq_list = []
                     for i1, p1 in enumerate(sorted(p1_list, reverse=True)[:subset_size]):
                         if (args.primer_pair_limit and ((time.time()-start_time) > args.primer_pair_limit)):
                             time_expired = True
+                        
+                        if (i1 % 100 == 0):
+                            logging.info("      Processed {} pairs".format(i1*len(p2_list)))
                         
                         if not time_expired:
                             for i2, p2 in enumerate(sorted(p2_list, reverse=True)[:subset_size]):
