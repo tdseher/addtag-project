@@ -1815,8 +1815,8 @@ class ConfirmParser(subroutine.Subroutine):
                     
                     # Evaluate if any new primer designs are adequate
                     design = PrimerDesign(pp_sources)
-                    #design.optimize(mode='direct')
-                    design.optimize(iterations=2000)
+                    design.optimize(mode='direct')
+                    #design.optimize(iterations=3000)
                     optimal = design.optimal
                     
                     design_count += 1
