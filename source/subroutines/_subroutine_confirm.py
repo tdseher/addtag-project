@@ -1318,6 +1318,8 @@ class ConfirmParser(subroutine.Subroutine):
         FEATURE_F = 4
         FEATURE_R = 8
         
+        search_distance = 800
+        
         data = []
         for i, dg in enumerate(loci):
             gene = ','.join(sorted(set(datum.dDNA_contig for datum in dg)))
@@ -1335,14 +1337,14 @@ class ConfirmParser(subroutine.Subroutine):
                     if (datum.genome_r == len(genome_contigs_list)-1):
                         
                         region = FAR_UPSTREAM
-                        start = max(0, datum.ush_start - 1300)
+                        start = max(0, datum.ush_start - search_distance)
                         end = datum.ush_start
                         strand = '+'
                         data.append([gene, locus, genome, region, contig, strand, start, end])
                         
                         region = FAR_DOWNSTREAM
                         start = datum.dsh_end
-                        end = min(datum.dsh_end+1300, len(genome_contigs_list[genome][contig]))
+                        end = min(datum.dsh_end+search_distance, len(genome_contigs_list[genome][contig]))
                         strand = '-'
                         data.append([gene, locus, genome, region, contig, strand, start, end])
                         
@@ -1362,10 +1364,10 @@ class ConfirmParser(subroutine.Subroutine):
                     
                     region = FAR_UPSTREAM
                     if (temp and (temp[0] == datum.dDNA_r-1) and (temp[1] == datum.genome_r)):
-                        start = min(max(0, temp[2]-1300), max(0, datum.ush_start-1300))
+                        start = min(max(0, temp[2]-search_distance), max(0, datum.ush_start-search_distance))
                         end = min(temp[2], datum.ush_start)
                     else:
-                        start = max(0, datum.ush_start - 1300)
+                        start = max(0, datum.ush_start - search_distance)
                         end = datum.ush_start
                     strand = '+'
                     data.append([gene, locus, genome, region, contig, strand, start, end])
@@ -1373,10 +1375,10 @@ class ConfirmParser(subroutine.Subroutine):
                     region = FAR_DOWNSTREAM
                     if (temp and (temp[0] == datum.dDNA_r-1) and (temp[1] == datum.genome_r)):
                         start = max(temp[3], datum.dsh_end)
-                        end = max(min(temp[3]+1300, len(genome_contigs_list[genome][contig])), min(datum.dsh_end+1300, len(genome_contigs_list[genome][contig])))
+                        end = max(min(temp[3]+search_distance, len(genome_contigs_list[genome][contig])), min(datum.dsh_end+search_distance, len(genome_contigs_list[genome][contig])))
                     else:
                         start = datum.dsh_end
-                        end = min(datum.dsh_end+1300, len(genome_contigs_list[genome][contig]))
+                        end = min(datum.dsh_end+search_distance, len(genome_contigs_list[genome][contig]))
                     strand = '-'
                     data.append([gene, locus, genome, region, contig, strand, start, end])
                     
