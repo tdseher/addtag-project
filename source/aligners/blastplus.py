@@ -79,6 +79,7 @@ class BlastPlus(Aligner):
             ('-out', output_filename_path), # Path to the output '*.blastn' file to generate
             ('-word_size', 11), # Word size for wordfinder algorithm (length of best perfect match)
             ('-dust', 'no'), # Filter query sequence with DUST (Format: 'yes', 'level window linker', or 'no' to disable)
+            #('-soft_masking', 'false') # Apply filtering locations as soft masks (i.e., only for finding initial matches).
         ])
         
         return self.process('blastn', output_filename_path, options)
