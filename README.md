@@ -55,9 +55,6 @@ All generated sequences can be designed as either strand-specific or strand-agno
         ```
 
  * Git >= 1.7.1 ([source, binaries](https://git-scm.com/downloads)) Certain AddTag functionality depends on Git.
- * If you are using the Windows operating system, before running AddTag, it is recommended to set the environmental variable `PYTHONIOENCODING` to `utf-8`, otherwise, STDOUT may not be written correctly to files.
-   
-    ```> set PYTHONIOENCODING=utf-8```
 
 ### Obtaining AddTag ###
 You can download the latest version of AddTag over HTTPS using `git` with the following command (replacing `username` with your BitBucket account name).

@@ -203,6 +203,10 @@ class Main(object):
     def __init__(self):
         """Create argument parser, then run the selected sub-program"""
         
+        # Check to make sure that STDOUT redirects in Windows will work.
+        # We restart the command if necessary
+        self.win_restart()
+        
         # Obtain command line arguments and parse them
         args = self.parse_arguments()
         
@@ -228,6 +232,29 @@ class Main(object):
             logging.info('Start time: {}s'.format(start_time))
             logging.info('End time: {}s'.format(end_time))
             logging.info('Runtime: {}s'.format(end_time-start_time))
+    
+    def win_restart(self):
+        '''
+        Check to make sure that STDOUT redirects in Windows will work.
+        The environmental variable PYTHONIOENCODING needs to be set to 'utf-8'.
+        If PYTHONIOENCODING has not been set or has a different value, then
+        we restart the program, replacing the PID.
+        '''
+        #print('Executable: {}'.format(sys.executable))
+        #print('ARGV: {}'.format(sys.argv))
+        #print('Parent process id: {}'.format(os.getppid()))
+        #print('Current process id: {}'.format(os.getpid()))
+        #try:
+        #    print('Env var: {}'.format(os.environ['PYTHONIOENCODING']))
+        #except KeyError:
+        #    print('Env var: None')
+        #print('')
+        
+        if sys.platform.startswith('win'):
+            if (('PYTHONIOENCODING' not in os.environ) or (os.environ['PYTHONIOENCODING'] != 'utf-8')):
+                #print('Restarting')
+                os.environ['PYTHONIOENCODING'] = 'utf-8'
+                os.execvp(sys.executable, [sys.executable] + sys.argv)
     
     def calculate_amplicons(self, args, primer_sets, contigs):
         """
