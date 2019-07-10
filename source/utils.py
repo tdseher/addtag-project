@@ -533,7 +533,7 @@ def load_git_revision():
     try:
         cp = subprocess.run(command_list, cwd=working_dir, shell=False, check=True, stdout=subprocess.PIPE)
         return len(cp.stdout.decode().splitlines())
-    except FileNotFoundError:
+    except (FileNotFoundError, subprocess.CalledProcessError):
         return 'missing'
 
 def load_git_version():
