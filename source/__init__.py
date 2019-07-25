@@ -10,6 +10,7 @@ import sys
 import os
 import argparse
 import time
+import datetime
 import logging
 import random
 import pickle
@@ -228,10 +229,12 @@ class Main(object):
         if hasattr(args, 'folder'):
             # Print time taken for program to complete
             end_time = time.time()
+            elapsed = end_time-start_time
             logging.info('{} finished'.format(__program__))
             logging.info('Start time: {}s'.format(start_time))
             logging.info('End time: {}s'.format(end_time))
-            logging.info('Runtime: {}s'.format(end_time-start_time))
+            logging.info('Runtime: {}s'.format(elapsed))
+            logging.info('Runtime: {}'.format(str(datetime.timedelta(seconds=elapsed))))
     
     def win_restart(self):
         '''
