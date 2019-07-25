@@ -138,8 +138,9 @@ class ValidateInternalPrimersRequired(argparse.Action):
         # print '{n} {v} {o}'.format(n=args, v=values, o=option_string)
         f = '--'+self.dest
         
-        if (2*len(args.dDNAs) != len(values)):
-            parser.error('argument {f}: expected {n} arguments'.format(f=f, n=2*len(args.dDNAs)))
+        if (values != None):
+            if (2*len(args.dDNAs) != len(values)):
+                parser.error('argument {f}: expected {n} arguments'.format(f=f, n=2*len(args.dDNAs)))
         
         setattr(args, self.dest, values)
 
@@ -147,9 +148,9 @@ class ValidatePrimersRequired(argparse.Action):
     def __call__(self, parser, args, values, option_string=None):
         # print '{n} {v} {o}'.format(n=args, v=values, o=option_string)
         f = '--'+self.dest
-        
-        if (len(args.dDNAs)+1 != len(values)):
-            parser.error('argument {f}: expected {n} arguments'.format(f=f, n=len(args.dDNAs)+1))
+        if (values != None):
+            if (len(args.dDNAs)+1 != len(values)):
+                parser.error('argument {f}: expected {n} arguments'.format(f=f, n=len(args.dDNAs)+1))
         
         setattr(args, self.dest, values)
 
