@@ -1112,6 +1112,22 @@ class Primer(object):
         
         return locations
     
+    def mp_update(self, data):
+        self.checks = data[0]
+        self.o_hairpin = data[1]
+        self.o_self_dimer = data[2]
+        self.o_reverse_complement = data[3]
+        self.weight = data[4]
+        
+    def mp_dump(self):
+        return (
+            self.checks,
+            self.o_hairpin,
+            self.o_self_dimer,
+            self.o_reverse_complement,
+            self.weight,
+        )
+    
     def __repr__(self):
         labs = ['name', 'seq', 'pos', 'strand', 'Tm', 'GC', 'min(dG)']
         vals = [
@@ -1499,6 +1515,18 @@ class PrimerPair(object):
         
         return results
     
+    def mp_update(self, data):
+        self.checks = data[0]
+        self.o_heterodimer = data[1]
+        self.weight = data[2]
+        
+    def mp_dump(self):
+        return (
+            self.checks,
+            self.o_heterodimer,
+            self.weight,
+        )
+    
     def __repr__(self):
         labs = ['names', 'seqs', 'amplicon_sizes', 'Tms', 'GCs', 'min(dG)']
         vals = [
@@ -1722,7 +1750,12 @@ class PrimerDesign(object):
         
         return design
     
-    def optimize(self, mode='ranked', iterations=1000):
+    def optimize(self, mode='ranked', iterations=1000, lock=None):
+        """
+        Run primer design optimization protocol.
+        mode can take the following values:
+        'uniform', 'ranked', 'best', 'direct'
+        """
         # Define some benchmarking variables for parameter tuning
         accepts = 0
         rejects = 0
@@ -1800,16 +1833,26 @@ class PrimerDesign(object):
             
             #logging.info('\t'.join(map(str, [i, threshold, dW, weight_threshold])))
         
-        logging.info('     accepts = {}'.format(accepts))
-        logging.info('     rejects = {}'.format(rejects))
-        logging.info('     ignores = {}'.format(ignores))
-        logging.info('    improves = {}'.format(improves))
-        logging.info('retrogresses = {}'.format(retrogresses))
-        logging.info('   optimizes = {}'.format(optimizes))
-        logging.info('  iterations = {}'.format(iterations))
-        logging.info('     optimal = {}'.format(optimal))
+        def add_to_log():
+            logging.info('     accepts = {}'.format(accepts))
+            logging.info('     rejects = {}'.format(rejects))
+            logging.info('     ignores = {}'.format(ignores))
+            logging.info('    improves = {}'.format(improves))
+            logging.info('retrogresses = {}'.format(retrogresses))
+            logging.info('   optimizes = {}'.format(optimizes))
+            logging.info('  iterations = {}'.format(iterations))
+            logging.info('     optimal = {}'.format(optimal))
+        
+        if lock:
+            with lock:
+                add_to_log()
+        else:
+            add_to_log()
         
         self.optimal = optimal
+        
+        # Use return value for multiprocessing
+        #return optimal
     
     def log_pp_union(self, pp_2d_list):
         """

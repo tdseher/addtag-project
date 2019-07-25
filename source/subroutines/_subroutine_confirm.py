@@ -13,6 +13,9 @@ import copy
 import random
 import math
 import time
+import copy
+import multiprocessing
+import queue
 #from collections import namedtuple
 
 # Import non-standard packages
@@ -1419,7 +1422,7 @@ class ConfirmParser(subroutine.Subroutine):
         for d in data:
             sequence = genome_contigs_list[d[2]][d[4]]
             if ((d[3] == FAR_UPSTREAM) or (d[3] == FAR_DOWNSTREAM)):
-                Primer.scan(sequence, gene=d[0], locus=d[1], genome=d[2], region=d[3], contig=d[4], orientation=d[5], start=d[6], end=d[7], name=None, primer_size=(19,36), case=args.case, min_junction_overlap=(19,19))
+                Primer.scan(sequence, gene=d[0], locus=d[1], genome=d[2], region=d[3], contig=d[4], orientation=d[5], start=d[6], end=d[7], name=None, primer_size=(19,36), case=args.case, min_junction_overlap=None)
             else:
                 Primer.scan(sequence, gene=d[0], locus=d[1], genome=d[2], region=d[3], contig=d[4], orientation=d[5], start=d[6], end=d[7], name=None, primer_size=(19,36), case=args.case)
         logging.info("Total 'Primer' objects before filtering: {}".format(len(Primer.sequences)))
@@ -1561,6 +1564,7 @@ class ConfirmParser(subroutine.Subroutine):
                     logging.info("  No additional cutoffs. Ending loop")
                     break
             
+            optimal_designs = []
             while ((design_found == False) and (cycle_n <= args.cycle_stop)):
                 
                 logging.info("gene: {}, cycle: {}".format(gene, cycle_n))
@@ -1585,43 +1589,52 @@ class ConfirmParser(subroutine.Subroutine):
                 p_queue = [sF_seq_list, sR_seq_list] + featureF_seq_lists + featureR_seq_lists
                 #p_queue_labels = ['sF', 'sR'] + ['r'+str(r) for r in genome_list] + ['r'+str(r) for r in genome_list]
                 
-                for seq_list in p_queue:
-                    # For each region, we reset the timer
-                    start_time = time.time()
-                    time_expired = False
-                    
-                    # reset metrics for this region
-                    p_tot = 0
-                    p_checked_now = 0
-                    p_passed_previously = 0
-                    p_rejected = 0
-                    p_skipped = 0
-                    p_newly_passed = 0
-                    
-                    for pi, seq in enumerate(seq_list):
-                        p = Primer.sequences[seq]
-                    #for pi, (seq, p) in enumerate(Primer.sequences.items()):
-                        if (pi % 1000 == 0):
-                            if (args.primer_scan_limit and ((time.time()-start_time) > args.primer_scan_limit)):
-                                time_expired = True
-                        
-                        if not time_expired:
-                            cpass = p.summarize(p.checks)
-                            if ((p.checks[0] == None) or (not cpass)):
-                                p.progressive_check(cutoffs)
-                                p_checked_now += 1
-                                if ((p.checks[0] != None) and p.summarize(p.checks)):
-                                    p_newly_passed += 1
-                            elif cpass:
-                                p_passed_previously += 1
-                            else:
-                                p_rejected += 1
-                        else:
-                            p_skipped += 1
-                        
-                        p_tot += 1
                 
-                    logging.info("  'Primer' objects: checked_now={}, passed_previously={}, newly_passed={}, not_checked={}, skipped={}, total={}".format(p_checked_now, p_passed_previously, p_newly_passed, p_rejected, p_skipped, p_tot))
+                ###### Start multiprocessing ######
+                
+                for seq_list in p_queue:
+                    primers_to_process_list = [Primer.sequences[s] for s in seq_list]
+                    self.mp_setup(args, cutoffs, primers_to_process_list)
+                
+                ###### End multiprocessing ######
+                
+#                for seq_list in p_queue:
+#                    # For each region, we reset the timer
+#                    start_time = time.time()
+#                    time_expired = False
+#                    
+#                    # reset metrics for this region
+#                    p_tot = 0
+#                    p_checked_now = 0
+#                    p_passed_previously = 0
+#                    p_rejected = 0
+#                    p_skipped = 0
+#                    p_newly_passed = 0
+#                    
+#                    for pi, seq in enumerate(seq_list):
+#                        p = Primer.sequences[seq]
+#                    #for pi, (seq, p) in enumerate(Primer.sequences.items()):
+#                        if (pi % 1000 == 0):
+#                            if (args.primer_scan_limit and ((time.time()-start_time) > args.primer_scan_limit)):
+#                                time_expired = True
+#                        
+#                        if not time_expired:
+#                            cpass = p.summarize(p.checks)
+#                            if ((p.checks[0] == None) or (not cpass)):
+#                                p.progressive_check(cutoffs)
+#                                p_checked_now += 1
+#                                if ((p.checks[0] != None) and p.summarize(p.checks)):
+#                                    p_newly_passed += 1
+#                            elif cpass:
+#                                p_passed_previously += 1
+#                            else:
+#                                p_rejected += 1
+#                        else:
+#                            p_skipped += 1
+#                        
+#                        p_tot += 1
+#                
+#                    logging.info("  'Primer' objects: checked_now={}, passed_previously={}, newly_passed={}, not_checked={}, skipped={}, total={}".format(p_checked_now, p_passed_previously, p_newly_passed, p_rejected, p_skipped, p_tot))
                 
                 
                 ##### Some debug code #####
@@ -1681,6 +1694,11 @@ class ConfirmParser(subroutine.Subroutine):
                     pairs.append([featureF_seq_lists[r], sR_seq_list, 'r{}-oF'.format(genome_list[r]), 'sR', 'C'])
                     pairs.append([featureF_seq_lists[r], featureR_seq_lists[r], 'r{}-iF'.format(genome_list[r]), 'r{}-iR'.format(genome_list[r]), 'D'])
                 
+                
+                
+                
+                
+                
                 # Make list of viable 'PrimerPair' objects
                 pp_queue = []
                 should_skip = False
@@ -1713,12 +1731,13 @@ class ConfirmParser(subroutine.Subroutine):
                     #   ##### END SAMPLE #####
                     logging.info("    Number potential 'PrimerPair' objects for pair: {} = {} x {}".format(len(p1_list) * len(p2_list), len(p1_list), len(p2_list)))
                     pp_seq_list = []
+                    primerpairs_to_process_list = []
                     for i1, p1 in enumerate(sorted(p1_list, reverse=True)[:subset_size]):
                         if (args.primer_pair_limit and ((time.time()-start_time) > args.primer_pair_limit)):
                             time_expired = True
                         
                         if (i1 % 100 == 0):
-                            logging.info("      Processed {} pairs".format(i1*len(p2_list)))
+                            logging.info("      Processed/Queued {} pairs".format(i1*len(p2_list)))
                         
                         if not time_expired:
                             for i2, p2 in enumerate(sorted(p2_list, reverse=True)[:subset_size]):
@@ -1731,13 +1750,31 @@ class ConfirmParser(subroutine.Subroutine):
                                 pp = PrimerPair.pairs.get(pair)
                                 
                                 if pp:
-                                    # Run checks
-                                    pp.progressive_check(cutoffs)
+                                    primerpairs_to_process_list.append(pp)
                                     
-                                    # If the 'PrimerPair' passes the checks, then add it
-                                    if ((pp.checks[0] != None) and Primer.summarize(pp.checks)):
-                                        pp_seq_list.append(pair)
-                                    
+#                                    # Run checks
+#                                    pp.progressive_check(cutoffs)
+#                                    
+#                                    # If the 'PrimerPair' passes the checks, then add it
+#                                    if ((pp.checks[0] != None) and Primer.summarize(pp.checks)):
+#                                        pp_seq_list.append(pair)
+                    
+                    ###### Start multiprocessing ######
+                    
+                    self.mpp_setup(args, cutoffs, primerpairs_to_process_list)
+                    
+                    ###### End multiprocessing ######
+                    
+                    for i1, p1 in enumerate(sorted(p1_list, reverse=True)[:subset_size]):
+                        for i2, p2 in enumerate(sorted(p2_list, reverse=True)[:subset_size]):
+                            pair = (p1.sequence, p2.sequence)
+                            pp = PrimerPair.pairs.get(pair)
+                            
+                            if pp:
+                                # If the 'PrimerPair' passes the checks, then add it
+                                if ((pp.checks[0] != None) and Primer.summarize(pp.checks)):
+                                    pp_seq_list.append(pair)
+                        
                     pp_queue.append(pp_seq_list)
                     logging.info("    Added {} 'PrimerPair' objects for pair: '{}', '{}', amp={}, required={}".format(len(pp_seq_list), lab1, lab2, amp, required_pattern[pi]))
                     
@@ -1775,6 +1812,7 @@ class ConfirmParser(subroutine.Subroutine):
                 
                 # Go through the 'pp_queue' one sF sR pair at a time
                 design_count = 0
+                mpd_list = []
                 for loop_i, sF_sR_pair in enumerate(sorted(sF_sR_paired_primers, reverse=True)):
                     logging.info('  loop {}:'.format(loop_i))
                     pp_sources = []
@@ -1819,17 +1857,193 @@ class ConfirmParser(subroutine.Subroutine):
                         continue
                     
                     # Evaluate if any new primer designs are adequate
+                    # This assumes that pp_sources has valid primer pair lists as each element
+                    # And thus that an optimal solution is possible
                     design = PrimerDesign(pp_sources)
-                    design.optimize(mode='direct')
-                    #design.optimize(iterations=3000)
-                    optimal = design.optimal
+                    mpd_list.append(design)
+#                    design.optimize(mode='direct')
+#                    #design.optimize(iterations=3000)
+#                    optimal = design.optimal
+#                    
+#                    if optimal:
+#                        optimal_designs.append(optimal)
+#                        design_found = True
                     
                     design_count += 1
                     
                     if (design_count >= subset_size):
+                        logging.info("  Stopped queueing designs for 'optimization' because 'subset_size' has been reached.")
                         break
-        
+                
+                ###### Start multiprocessing ######
+                
+                mpd_list = self.mpd_setup(args, mpd_list)
+                for design in mpd_list:
+                    if design.optimal:
+                        optimal_designs.append(design.optimal)
+                        design_found = True
+                
+                ###### End multiprocessing ######
+                
+                
+            
+            # Write output
+            print('# ' + '\t'.join(map(str, ['Gene', 'Design'])))
+            for od in optimal_designs:
+                print(gene, od)
+            
         logging.info("Function 'primer_queue_test()' completed.")
+    
+    def mp_setup(self, args, cutoffs, data):
+        '''
+        Use multiprocessing to run 'progressive_checks()' on each 'Primer' object.
+        '''
+        
+        # Create queue that will hold 'Primer' objects
+        mp_queue = multiprocessing.JoinableQueue()
+        results_queue = multiprocessing.Queue()
+        
+        # Create locks
+        log_lock = multiprocessing.Lock()
+        data_lock = multiprocessing.Lock()
+        
+        # Create a number of processes equal to input cores
+        logging.info('Creating mp jobs...')
+        jobs = []
+        for i in range(args.processors):
+            w = PrimerWorker(args, cutoffs, mp_queue, results_queue, log_lock, data_lock)
+            jobs.append(w)
+            w.start()
+        
+        # After the jobs are created, we populate the queue
+        logging.info('Adding data to qeueue...')
+        for d in data:
+            mp_queue.put(d)
+        
+        # Add a poison pill for each processor
+        logging.info('Adding kill signals to qeueue...')
+        for i in range(args.processors):
+            mp_queue.put(None)
+        
+        # exitcode - The child’s exit code will be None if the process has not yet terminated.
+        # A negative value -N indicates that the child was terminated by signal N.
+        logging.info('Waiting for threads to finish...')
+        while any([j.exitcode == None for j in jobs]):
+        #while any([j.is_alive() for j in jobs]):
+            try:
+                seq, results = results_queue.get(timeout=1) # May need to use try/except block, or include a timeout (in seconds)
+                p = Primer.sequences[seq]
+                p.mp_update(results)
+            except queue.Empty:
+                logging.info('queue empty')
+        
+        # Wait for all processes to end
+        for j in jobs:
+            j.join()
+        
+        logging.info('mp finished')
+    
+    def mpp_setup(self, args, cutoffs, data):
+        '''
+        Use multiprocessing to run 'progressive_checks()' on each 'PrimerPair' object.
+        '''
+        # Each process can do computations on a single entry to 'pairs'
+        
+        # Create queue that will hold 'Primer' objects
+        mp_queue = multiprocessing.JoinableQueue()
+        results_queue = multiprocessing.Queue()
+        
+        # Create locks
+        log_lock = multiprocessing.Lock()
+        data_lock = multiprocessing.Lock()
+        
+        # Create a number of processes equal to input cores
+        logging.info('Creating mp jobs...')
+        jobs = []
+        for i in range(args.processors):
+            w = PrimerPairWorker(args, cutoffs, mp_queue, results_queue, log_lock, data_lock)
+            jobs.append(w)
+            w.start()
+        
+        # After the jobs are created, we populate the queue
+        logging.info('Adding data to qeueue...')
+        for d in data:
+            mp_queue.put(d)
+        
+        # Add a poison pill for each processor
+        logging.info('Adding kill signals to qeueue...')
+        for i in range(args.processors):
+            mp_queue.put(None)
+        
+        # exitcode - The child’s exit code will be None if the process has not yet terminated.
+        # A negative value -N indicates that the child was terminated by signal N.
+        logging.info('Waiting for threads to finish...')
+        while any([j.exitcode == None for j in jobs]):
+        #while any([j.is_alive() for j in jobs]):
+            try:
+                pair, results = results_queue.get(timeout=1) # May need to use try/except block, or include a timeout (in seconds)
+                pp = PrimerPair.pairs.get(pair)
+                if pp:
+                    pp.mp_update(results)
+            except queue.Empty:
+                logging.info('queue empty')
+        
+        # Wait for all processes to end
+        for j in jobs:
+            j.join()
+        
+        logging.info('mp finished')
+    
+    def mpd_setup(self, args, data):
+        '''
+        Use multiprocessing to run 'oligo.PrimerDesign.optimize()'.
+        '''
+        
+        # Create queue that will hold 'Primer' objects
+        mp_queue = multiprocessing.JoinableQueue()
+        results_queue = multiprocessing.Queue()
+        
+        # Create locks
+        log_lock = multiprocessing.Lock()
+        data_lock = multiprocessing.Lock()
+        
+        # Create a number of processes equal to input cores
+        logging.info('Creating mp jobs...')
+        jobs = []
+        for i in range(args.processors):
+            w = PrimerDesignWorker(args, mp_queue, results_queue, log_lock, data_lock)
+            jobs.append(w)
+            w.start()
+        
+        # After the jobs are created, we populate the queue
+        logging.info('Adding data to qeueue...')
+        for d in data:
+            mp_queue.put(d)
+        
+        # Add a poison pill for each processor
+        logging.info('Adding kill signals to qeueue...')
+        for i in range(args.processors):
+            mp_queue.put(None)
+        
+        # exitcode - The child’s exit code will be None if the process has not yet terminated.
+        # A negative value -N indicates that the child was terminated by signal N.
+        logging.info('Waiting for threads to finish...')
+        data = []
+        while any([j.exitcode == None for j in jobs]):
+        #while any([j.is_alive() for j in jobs]):
+            try:
+                d = results_queue.get(timeout=1) # May need to use try/except block, or include a timeout (in seconds)
+                data.append(d)
+            except queue.Empty:
+                logging.info('queue empty')
+        
+        # Wait for all processes to end
+        for j in jobs:
+            j.join()
+        
+        logging.info('mp finished')
+        
+        return data
     
     def make_datum_groups(self, group_links, contig_groups, genome_contigs_list):
         ######## Begin for linking the loci ########
@@ -2942,6 +3156,103 @@ class ConfirmParser(subroutine.Subroutine):
             logging.info('Removing invalid record: ' + str(bad_qs_pair))
         
         return records
+
+class PrimerWorker(multiprocessing.Process):
+    def __init__(self, args, cutoffs, queue, results_queue, log_lock, data_lock):
+        super().__init__()
+        self.args = args
+        self.cutoffs = copy.deepcopy(cutoffs)
+        
+        self.queue = queue
+        self.results_queue = results_queue
+        self.log_lock = log_lock
+        self.data_lock = data_lock
+    
+    def run(self):
+        # Will need to change temp directory to be process-specific
+        # This must be done after the process has been invoked (i.e. in the run method)
+        self.cutoffs['folder'] = os.path.join(self.cutoffs['folder'], str(self.pid))
+        
+        while True:
+            # Get the next 'Primer' object from the queue
+            p = self.queue.get()
+            
+            # 'None' is the poison pill that terminates this process
+            if (p == None):
+                self.queue.task_done()
+                break
+            
+            cpass = p.summarize(p.checks)
+            if ((p.checks[0] == None) or (not cpass)):
+                p.progressive_check(self.cutoffs)
+                self.results_queue.put((p.sequence, p.mp_dump()))
+            
+            self.queue.task_done()
+        
+        return None
+
+class PrimerPairWorker(multiprocessing.Process):
+    def __init__(self, args, cutoffs, queue, results_queue, log_lock, data_lock):
+        super().__init__()
+        self.args = args
+        self.cutoffs = copy.deepcopy(cutoffs)
+        
+        self.queue = queue
+        self.results_queue = results_queue
+        self.log_lock = log_lock
+        self.data_lock = data_lock
+    
+    def run(self):
+        # Will need to change temp directory to be process-specific
+        # This must be done after the process has been invoked (i.e. in the run method)
+        self.cutoffs['folder'] = os.path.join(self.cutoffs['folder'], str(self.pid))
+        
+        while True:
+            # Get the next 'PrimerPair' object from the queue
+            pp = self.queue.get()
+            
+            # 'None' is the poison pill that terminates this process
+            if (pp == None):
+                self.queue.task_done()
+                break
+            
+            # Run checks
+            pp.progressive_check(self.cutoffs)
+            
+            pair = (pp.forward_primer.sequence, pp.reverse_primer.sequence)
+            self.results_queue.put((pair, pp.mp_dump()))
+            
+            self.queue.task_done()
+        
+        return None
+
+class PrimerDesignWorker(multiprocessing.Process):
+    def __init__(self, args, queue, results_queue, log_lock, data_lock):
+        super().__init__()
+        self.args = args
+        self.queue = queue
+        self.results_queue = results_queue
+        self.log_lock = log_lock
+        self.data_lock = data_lock
+    
+    def run(self):
+        while True:
+            # Get the next 'Primer' object from the queue
+            d = self.queue.get()
+            
+            # 'None' is the poison pill that terminates this process
+            if (d == None):
+                self.queue.task_done()
+                break
+            
+            d.optimize(mode='direct', lock=self.log_lock)
+            #design.optimize(iterations=3000, lock=self.log_lock)
+            
+            self.results_queue.put(d)
+            
+            self.queue.task_done()
+        
+        return None
 
 class Datum(object):
     """
