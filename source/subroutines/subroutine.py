@@ -81,6 +81,20 @@ class CustomHelpFormatter(argparse.HelpFormatter):
                     help += ' (default: %(default)s)'
         return help
 
+class ValidateCycleStop(argparse.Action):
+    def __call__(self, parser, args, value, option_string=None):
+        # print '{n} {v} {o}'.format(n=args, v=values, o=option_string)
+        #f = '--'+self.dest.replace('_', '-')
+        f = '--'+self.dest
+        
+        if (value == None):
+            value = args.cycle_start
+            
+        elif (value < args.cycle_start):
+            parser.error("argument {f}: must be greater than or equal to '--cycle_start {p}'".format(f=f, p=args.cycle_start))
+        
+        setattr(args, self.dest, value)
+
 class ValidateFlanktags(argparse.Action):        
     def __call__(self, parser, args, values, option_string=None):
         # print '{n} {v} {o}'.format(n=args, v=values, o=option_string)

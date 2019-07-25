@@ -118,6 +118,11 @@ class ConfirmParser(subroutine.Subroutine):
         self.parser.add_argument("--cycle_start", metavar="N", type=int, default=0,
             help="Stringency to consider a primer.")
         
+        a = self.parser.add_argument("--cycle_stop", metavar="N", type=int, default=None,
+            action=subroutine.ValidateCycleStop,
+            help="Stringency to consider a primer. Defaults to the same value as '--cycle_start'.")
+        a.process_action_on_default = True
+        
         self.parser.add_argument("--subset_size", metavar="N", type=int, default=1000,
             help="Artificially limit the number of primer pairs that are calculated. \
                  This represents the max each primer list could be. The maximum number \
@@ -1556,7 +1561,7 @@ class ConfirmParser(subroutine.Subroutine):
                     logging.info("  No additional cutoffs. Ending loop")
                     break
             
-            while (design_found == False):
+            while ((design_found == False) and (cycle_n <= args.cycle_stop)):
                 
                 logging.info("gene: {}, cycle: {}".format(gene, cycle_n))
                 try:
