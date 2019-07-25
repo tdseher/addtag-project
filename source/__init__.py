@@ -326,7 +326,7 @@ class Main(object):
         )
         
         # Create the subparsers
-        subparsers = parser.add_subparsers(metavar='action', help='choose an action to perform (required)')
+        subparsers = parser.add_subparsers(metavar='action', help='choose an action to perform (required)', dest='action')
         
         # Change the help text of the "-h" flag
         parser._actions[0].help='Show this help message and exit.'
@@ -410,6 +410,23 @@ class Main(object):
         if (len(sys.argv) < 2):
             parser.print_usage()
             sys.exit(1)
+        
+        # Run Action on arguments with default values
+        # Does not check for action 'conflicts', and does not update the
+        # 'seen' actions list
+        for sub in subroutines.subroutines:
+            if (sub.name == args.action):
+                subparser = sub.parser
+                for action in subparser._actions:
+                    if hasattr(args, action.dest):
+                        if (hasattr(action, 'process_action_on_default') and (getattr(action, 'process_action_on_default') == True)):
+                            v = getattr(args, action.dest)
+                            if (v == action.default):
+                                #sys.stderr.write("YES  " + str(action) + "\n")
+                                action(subparser, args, v)
+                            #else:
+                            #    sys.stderr.write("NO   " + str(action) + "\n")
+        
         
         # Return the parsed arguments
         return args
