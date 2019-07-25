@@ -243,6 +243,13 @@ class Main(object):
         If PYTHONIOENCODING has not been set or has a different value, then
         we restart the program, replacing the PID.
         '''
+        # In Windows, exec() does not really replace the current process.
+        # It creates a new process (with a new pid), and exits the current one.
+        # When a call to an _exec function is successful, the new process is
+        # placed in the memory previously occupied by the calling process.
+        # Sufficient memory must be available for loading and executing the new
+        # process. 
+        
         #print('Executable: {}'.format(sys.executable))
         #print('ARGV: {}'.format(sys.argv))
         #print('Parent process id: {}'.format(os.getppid()))
