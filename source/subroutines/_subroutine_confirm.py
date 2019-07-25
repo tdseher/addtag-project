@@ -129,17 +129,17 @@ class ConfirmParser(subroutine.Subroutine):
                  of paiwise comparisons is the square of this number.")
         
         # Temporary: this expects 2 for each dDNA: a before and an after
-        self.parser.add_argument("--internal_primers_required", metavar="y/n",
-            nargs="+", type=str, default=None, action=subroutine.ValidateInternalPrimersRequired,
-            help="For each genome, starting with input, and each subsequent dDNA, \
-            specify whether internal primers are required (oF/oR). \
-            y - yes, these internal primers are required; \
-            n - no, these internal primers are optional. \
-            (For example, if you have 2 rounds of genome engineering, \
-            and only the wild type (input) genome and the final genome \
-            require internal primers, then you would use these command-line \
-            options: '--fasta genome.fasta --dDNAs ko.fasta ki.fasta \
-            --internal_primers_required y n y')")
+#        self.parser.add_argument("--internal_primers_required", metavar="y/n",
+#            nargs="+", type=str, default=None, action=subroutine.ValidateInternalPrimersRequired,
+#            help="For each genome, starting with input, and each subsequent dDNA, \
+#            specify whether internal primers are required (oF/oR). \
+#            y - yes, these internal primers are required; \
+#            n - no, these internal primers are optional. \
+#            (For example, if you have 2 rounds of genome engineering, \
+#            and only the wild type (input) genome and the final genome \
+#            require internal primers, then you would use these command-line \
+#            options: '--fasta genome.fasta --dDNAs ko.fasta ki.fasta \
+#            --internal_primers_required y n y')")
         
         self.parser.add_argument("--i_primers_required", metavar="y/n",
             nargs="+", type=str, default=None, action=subroutine.ValidatePrimersRequired,
