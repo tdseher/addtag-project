@@ -29,6 +29,7 @@ from .. import nucleotides
 from .. import aligners
 from .. import thermodynamics
 from ..thermodynamics.oligo import Primer, PrimerPair, PrimerDesign
+from .. import cache
 
 class ConfirmParser(subroutine.Subroutine):
     def __init__(self, subparsers):
@@ -131,6 +132,10 @@ class ConfirmParser(subroutine.Subroutine):
                  This represents the max each primer list could be. The maximum number \
                  of paiwise comparisons is the square of this number.")
         
+        self.parser.add_argument("--cache", action="store_true", default=False,
+            help="If you will be re-running designs on these same input files, \
+                 Intermediate results can be stored to speed up total calculations.")
+        
         # Temporary: this expects 2 for each dDNA: a before and an after
 #        self.parser.add_argument("--internal_primers_required", metavar="y/n",
 #            nargs="+", type=str, default=None, action=subroutine.ValidateInternalPrimersRequired,
@@ -229,6 +234,8 @@ class ConfirmParser(subroutine.Subroutine):
     def compute(self, args):
         print("# Confirmation primer design (cPCR).")
         
+        # Create the 'cache' subdirectory if it doesn't exist already
+        os.makedirs(os.path.join(args.folder, 'cache'), exist_ok=True)
         
         # Set intended amplicon size range
         #amplicon_size = (400, 700) # definition moved to make_primer_set() function
@@ -1426,6 +1433,19 @@ class ConfirmParser(subroutine.Subroutine):
             else:
                 Primer.scan(sequence, gene=d[0], locus=d[1], genome=d[2], region=d[3], contig=d[4], orientation=d[5], start=d[6], end=d[7], name=None, primer_size=(19,36), case=args.case)
         logging.info("Total 'Primer' objects before filtering: {}".format(len(Primer.sequences)))
+        
+        
+        # Load cached primer objects if instructed to
+        if args.cache:
+            cache_dir = os.path.join(args.folder, 'cache')
+            object_name = 'Primer.sequences.pickle'
+            if os.path.exists(os.path.join(cache_dir, object_name)):
+                cache_data = cache.load_object(object_name, cache_dir)
+                
+                # This simple nested loop is the fastest way to do this
+                for k in Primer.sequences:
+                    if k in cache_data:
+                        Primer.sequences[k] = cache_data[k]
         
         # Build the required pattern
         #                      A    B    C    D    B    C    D    B    C    D
