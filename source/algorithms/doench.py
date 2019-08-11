@@ -28,7 +28,7 @@ if (__name__ == "__main__"):
     sys.path.append(os.path.normpath(os.path.join(SCRIPT_DIR, PACKAGE_PARENT)))
     
     from algorithm import SingleSequenceAlgorithm, PairedSequenceAlgorithm, BatchedSingleSequenceAlgorithm
-    from nucleotides import rc, disambiguate_iupac
+    from nucleotides import rc, disambiguate_iupac, random_sequence
     from utils import which
 else:
     from .algorithm import SingleSequenceAlgorithm, PairedSequenceAlgorithm, BatchedSingleSequenceAlgorithm
@@ -259,7 +259,7 @@ class Azimuth(BatchedSingleSequenceAlgorithm):
     
     def weight(self, x):
         """Penalize any score less than 60"""
-        return 1.0/(1+1.17**(50-x))
+        return 1.0/(1+1.17**(52-x))
     
     # Not currently used
     def fix_flank(self, upstream='', downstream=''):
@@ -580,6 +580,48 @@ def test():
     print(C.calculate([g, h, i])) # [0.0, 0.0, 68.10224199640001]
     print(C.calculate([g, h, i], disambiguate=True)) # [47.92785688539728, 68.47839267067128, 68.10224199640001]
     print(C.calculate([n])) # [70.237901082]
+    
+    
+    import time
+    
+    start = time.time()
+    seqs = []
+    for I in range(100000):
+        seqs.append(('', random_sequence(20), random_sequence(3), random_sequence(4), random_sequence(3)))
+    scores = C.calculate(seqs, disambiguate=True)
+    
+    print('min={}, max={}, mean={}, time={}'.format(min(scores), max(scores), sum(scores)/len(scores), time.time()-start))
+    # Scores range from -4 to 92 with a mean of 52
+    
+    def figure(scores, C, x_min=0, x_max=100, title=''):
+        import matplotlib.pyplot as plt
+        
+        fig, ax1 = plt.subplots(figsize=(8, 4))
+        num_bins = 50
+        n, bins, patches = ax1.hist(scores, num_bins, color='orange', histtype='step', label='Histogram') # The histogram
+        ax2 = ax1.twinx()
+        n, bins, patches = ax2.hist(scores, num_bins, density=True, histtype='step', cumulative=True, label='Cumulative') # plot the cumulative histogram
+        
+        x = list(range(x_min, x_max+1))
+        y = []
+        for i in x:
+            y.append(C.weight(i))
+        ax2.plot(x, y, 'k--', linewidth=1.5, label='Weight')
+        
+        ax2.grid(True)
+        
+        lines1, labels1 = ax1.get_legend_handles_labels()
+        lines2, labels2 = ax2.get_legend_handles_labels()
+        ax2.legend(lines1 + lines2, labels1 + labels2, loc='upper left')
+        
+        ax2.set_title(title)
+        ax1.set_xlabel('Score')
+        ax1.set_ylabel('Count')
+        ax2.set_ylabel('Frequency')
+        fig.tight_layout()
+        plt.show()
+    
+    figure(scores, C, title='Random Azimuth scores')
 
 if (__name__ == "__main__"):
     test()

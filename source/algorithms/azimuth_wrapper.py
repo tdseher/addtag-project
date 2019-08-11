@@ -30,8 +30,8 @@ else:
 from numpy import array
 
 # Raise a useful error if utilizing an incompatible version of Python
-if ((sys.version_info < (2, 7, 10)) or (sys.version_info >= (3, 0, 0))):
-    raise Exception("AddTag Azimuth wrapper requires 3.0.0 > Python >= 2.7.10. You are running with " + ".".join(map(str, sys.version_info[:3])) + ".")
+#if ((sys.version_info < (2, 7, 10)) or (sys.version_info >= (3, 0, 0))):
+#    raise Exception("AddTag Azimuth wrapper requires 3.0.0 > Python >= 2.7.10. You are running with " + ".".join(map(str, sys.version_info[:3])) + ".")
 
 def test():
     sequences = array(['ACAGCTGATCTCCAGATATGACCATGGGTT', 'CAGCTGATCTCCAGATATGACCATGGGTTT', 'CCAGAAGTTTGAGCCACAAACCCATGGTCA'])
@@ -40,7 +40,7 @@ def test():
     predictions = azimuth.model_comparison.predict(sequences, amino_acid_cut_positions, percent_peptides)
     
     for i, prediction in enumerate(predictions):
-        print sequences[i], prediction
+        print(sequences[i] + ' ' + str(prediction))
     
     
     azimuth.model_comparison.predict(array(['GGGAGGCTGCTTTACCCGCTGTGGGGGCGC']), array([-1]), array([-1]))
@@ -73,7 +73,7 @@ def main():
     #predictions = azimuth.model_comparison.predict(sequences, amino_acid_cut_positions, percent_peptides)
     
     for i, prediction in enumerate(predictions):
-        print sequences[i], prediction
+        print(sequences[i] + ' ' + str(prediction))
 
 if (__name__ == '__main__'):
     main()

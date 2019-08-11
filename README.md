@@ -26,13 +26,28 @@ By default, AddTag will avoid designing homology regions and Targets against pol
         ```
         $ pip3 install regex
         ```
+    
+    - Azimuth 3 module ([source](https://github.com/milescsmith/Azimuth), [documentation](https://www.microsoft.com/en-us/research/project/crispr/))
+      
+        note: Azimuth 3 is only required if you want to calculate Azimuth scores.
+        
+        note: requires specific versions of numpy, scikit-learn, and pandas.
+        Other dependencies include click, biopython, scipy, GPy, hyperopt, paramz, theanets, glmnet_py, dill, matplotlib, pytz, python-dateutil, six, tqdm, future, networkx, pymongo, decorator, downhill, theano, nose-parameterized, joblib, kiwisolver, cycler, pyparsing, setuptools, glmnet-py.
+        
+        You can install it using `pip`, assuming `git` is available in the `PATH` environmental variable.
+        
+        ```
+        $ pip3 install git+https://github.com/milescsmith/Azimuth.git
+        ```
 
  * 3.0.0 > Python >= 2.7.10 ([source](https://www.python.org/downloads/), [binaries](https://www.python.org/downloads/), [documentation](https://docs.python.org/2/))
-    - Azimuth module ([source](https://github.com/MicrosoftResearch/Azimuth), [documentation](https://www.microsoft.com/en-us/research/project/azimuth/))
+    - Azimuth 2 module ([source](https://github.com/MicrosoftResearch/Azimuth), [documentation](https://www.microsoft.com/en-us/research/project/crispr/))
       
-        note: requires python-tk to be installed.
+        note: Azimuth 2 is only required if you want to calculate Azimuth scores.
         
-        note: requires specific versions of scipy, numpy, matplotlib, nose, scikit-learn, pandas, biopython, pyparsing, cycler, six, pytz, python-dateutil, functools32, subprocess32. The easiest way to install it and take care of all dependencies is to use `pip`. This process assumes `git` is available in the `PATH` environmental variable.
+        note: requires python-tk to be installed. Also requires specific versions of scipy, numpy, matplotlib, nose, scikit-learn, pandas, biopython, pyparsing, cycler, six, pytz, python-dateutil, functools32, subprocess32.
+        
+        The easiest way to install it and take care of all dependencies is to use `pip`, assuming `git` is available in the `PATH` environmental variable.
         
         ```
         $ pip2.7 install git+https://github.com/MicrosoftResearch/Azimuth.git
