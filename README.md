@@ -27,6 +27,22 @@ By default, AddTag will avoid designing homology regions and Targets against pol
         $ pip3 install regex
         ```
     
+    - Keras module ([source](https://github.com/keras-team/keras), [whls](https://pypi.org/project/Keras/), [documentation](https://keras.io/))
+      
+        note: Keras is only required if you want to calculate CINDEL scores. The easiest way to install is through `pip` also.
+        
+        ```
+        $ pip3 install Keras
+        ```
+    
+    - Theano module ([source](https://github.com/Theano/Theano), [whls](https://pypi.org/project/Theano/), [documentation](http://deeplearning.net/software/theano/))
+      
+        note: Theano is only required if you want to calculate CINDEL scores. You may install it with `pip` as well.
+        
+        ```
+        $ pip3 install Theano
+        ```
+    
     - Azimuth 3 module ([source](https://github.com/milescsmith/Azimuth), [documentation](https://www.microsoft.com/en-us/research/project/crispr/))
       
         note: Azimuth 3 is only required if you want to calculate Azimuth scores.

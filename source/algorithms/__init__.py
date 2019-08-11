@@ -29,6 +29,7 @@ exclusions = [
     #'housden.py',
     #'hsuzhang.py',
     #'labuhn.py',
+    #'kimsong.py',
     #'linear.py',
     #'morenomateos.py',
     'oof.py',
