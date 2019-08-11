@@ -12,7 +12,9 @@ The CRISPR/Cas9 AddTag system can be used to do the following:
  4. Make primers for "reversion" dDNA sequence amplification, with homologous sequences flanking the original "feature" specific to each site, so the "feature" can be be re-inserted back into the genome. Please note, that at this time, no special restriction sites will be taken into account.
  5. Construct conservative PCR primers for positive amplification of "feature" knock-out (excision) and knock-in (reversion).
 
-All generated sequences can be designed as either strand-specific or strand-agnostic. Additionally, generated sequences can target homologous chromosomes with the same gRNA or "donor" DNA if the input FASTA includes IUPAC ambiguity codes for polymorphisms. By default, AddTag will try to avoid all polymorphisms whenever possible.
+All generated sequences can be designed as either strand-specific or strand-agnostic. Additionally, generated sequences can target homologous chromosomes with the same gRNA or "donor" DNA if the input FASTA includes nucleotide ambiguity codes for polymorphisms.
+
+By default, AddTag will avoid designing homology regions and Targets against polymorphisms whenever possible.
 
 ### Requirements ###
 
