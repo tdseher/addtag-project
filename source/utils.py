@@ -584,6 +584,21 @@ def merge_sets(sets):
     
     return groups
 
+def dummy_homologs():
+    """
+    Function to create 1:1 Feature mapping to use when no '--homolgs' file
+    is provided by the user
+    """
+    from .feature import Feature
+    
+    homologs = {}
+    feature2gene = {}
+    for f_name, f in sorted(Feature.features.items()):
+        feature2gene[f_name] = f_name
+        homologs[f_name] = set(f_name)
+    
+    return homologs, feature2gene
+
 def load_homologs(filename, sep="\t"):
     """
     Parse homolog file.

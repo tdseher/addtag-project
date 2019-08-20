@@ -417,14 +417,6 @@ class GenerateParser(subroutine.Subroutine):
         #fasta_index, contig_index, contig_sequences = utils.load_indexed_fasta_files(args.fasta)
         contig_sequences = utils.load_multiple_fasta_files(args.fasta)
         
-        # Load '--homologs' file
-        # Make dict linking each feature to its gene
-        # Make dict linking features to each other as homologs
-        if args.homologs:
-            homologs, feature2gene = utils.load_homologs(args.homologs)
-        else:
-            homologs, feature2gene = None, None
-        
         # Open and parse the GFF file specified on the command line
         #features = utils.load_gff_file(args.gff, args.features, args.tag)
         # Filter features by what is selected
@@ -432,6 +424,14 @@ class GenerateParser(subroutine.Subroutine):
         for gff_file in args.gff:
             Feature.load_gff_file(gff_file, args.features, args.excluded_features, args.selection, args.tag)
         Feature.assert_features(args.selection, contig_sequences)
+        
+        # Load '--homologs' file
+        # Make dict linking each feature to its gene
+        # Make dict linking features to each other as homologs
+        if args.homologs:
+            homologs, feature2gene = utils.load_homologs(args.homologs)
+        else:
+            homologs, feature2gene = utils.dummy_homologs()
         
         # Assign default 'self.homologs' and 'self.gene'
         Feature.assign_homologs(homologs)
