@@ -589,7 +589,7 @@ class Target(object):
 #########################
     
     @classmethod
-    def score_batch(cls):
+    def score_batch(cls, args):
         """Performs BatchedSingleSequenceAlgorithm calculations on all sequences"""
         # Get immutable list of dict keys
         t_sorted = sorted(cls.indices.keys(), key=lambda x: int(x.split('-')[1]))
@@ -604,13 +604,14 @@ class Target(object):
         
         # Loop through the Algorithms
         for C in algorithms.batched_single_algorithms:
-            # Calculate
-            batch_scores = C.calculate(queries) # motif=cls.motif
-            
-            # Assign the score to the appropriate Target
-            for i, t_index in enumerate(t_sorted):
-                t_obj = cls.indices[t_index]
-                t_obj.score[C.name] = batch_scores[i]
+            if C.name in args.ontargetfilters:
+                # Calculate
+                batch_scores = C.calculate(queries) # motif=cls.motif
+                
+                # Assign the score to the appropriate Target
+                for i, t_index in enumerate(t_sorted):
+                    t_obj = cls.indices[t_index]
+                    t_obj.score[C.name] = batch_scores[i]
     
     def score_off_targets(self, args, homologs):
         """

@@ -570,7 +570,7 @@ class GenerateParser(subroutine.Subroutine):
                     self.logger.info('  ' + str(a))
             
             # Batch calculate with new ExcisionTarget class
-            ExcisionTarget.score_batch()
+            ExcisionTarget.score_batch(args)
             
             self.logger.info("ExcisionTarget after Azimuth calculation")
             for et_seq, et_obj in ExcisionTarget.sequences.items():
@@ -716,7 +716,7 @@ class GenerateParser(subroutine.Subroutine):
         return sorted(rank_list, key=lambda x: x[0]) # smallest insert size/gap length will be first
     
     @classmethod
-    def rank_targets(self, target_list):
+    def rank_targets(cls, args, target_list):
         """Uses a heuristic to find the best Target in the list"""
         
         # Hsu-Zhang off-target score should be >95
@@ -739,10 +739,11 @@ class GenerateParser(subroutine.Subroutine):
             
             rank = 1.0
             for C in algorithms.single_algorithms + algorithms.paired_algorithms + algorithms.batched_single_algorithms:
-                if C.off_target:
-                    rank *= C.weight(t.off_targets[C.name])
-                else:
-                    rank *= C.weight(t.score[C.name])
+                if C.name in args.offtargetfilters + args.ontargetfilters:
+                    if C.off_target:
+                        rank *= C.weight(t.off_targets[C.name])
+                    else:
+                        rank *= C.weight(t.score[C.name])
             rank_list.append((rank, t))
         
         #return sorted(target_list, key=lambda x: rank(x.score['Azimuth'], x.off_targets['Hsu-Zhang'], x.off_targets['CFD']), reverse=True)
@@ -760,7 +761,7 @@ class GenerateParser(subroutine.Subroutine):
         results = []
         # for weight, obj in self.rank_targets(ret_dict2[feature_homologs]):
         #for rt in ReversionTarget.indices.items()
-        for weight, rt in self.rank_targets(ReversionTarget.indices.values()):
+        for weight, rt in self.rank_targets(args, ReversionTarget.indices.values()):
             
             genes = set()
             features = set()
@@ -811,7 +812,7 @@ class GenerateParser(subroutine.Subroutine):
         
         results = []
         
-        for weight, et in self.rank_targets(ExcisionTarget.indices.values()):
+        for weight, et in self.rank_targets(args, ExcisionTarget.indices.values()):
         
         #for feature in sorted(Feature.features):
         #    et_list = []
@@ -905,7 +906,7 @@ class GenerateParser(subroutine.Subroutine):
                 display_num = n
             
             # Print the top N
-            for rank, obj in self.rank_targets(ret_dict2[k])[:display_num]:
+            for rank, obj in cls.rank_targets(args, ret_dict2[k])[:display_num]:
                 cls.logger.info(' ' + str(rank) + ' ' + str(obj))
                 # Get the ExcisionDonor objects for this ki-spacer, and rank them
                 rds = cls.rank_donors(obj.get_donors())
@@ -931,7 +932,7 @@ class GenerateParser(subroutine.Subroutine):
                 display_num = n
             
             # Print the top N
-            for rank, obj in self.rank_targets(et_list)[:display_num]:
+            for rank, obj in cls.rank_targets(args, et_list)[:display_num]:
                 cls.logger.info('  ' + str(rank) + ' ' + str(obj))
             
             red_list = []
@@ -1061,7 +1062,7 @@ class GenerateParser(subroutine.Subroutine):
             outputs = {}
             
             # Print the top N for each insert size and trim
-            for weight, obj in self.rank_targets(ret_dict2[feature_homologs]):
+            for weight, obj in self.rank_targets(args, ret_dict2[feature_homologs]):
                 othz = round(obj.off_targets['Hsu-Zhang'], 2)
                 otcfd = round(obj.off_targets['CFD'], 2)
                 azimuth = round(obj.score['Azimuth'], 2)
@@ -1105,7 +1106,7 @@ class GenerateParser(subroutine.Subroutine):
             
             outputs = {}
             
-            for weight, obj in self.rank_targets(ret_dict[feature_name]):
+            for weight, obj in self.rank_targets(args, ret_dict[feature_name]):
                 othz = round(obj.off_targets['Hsu-Zhang'], 2)
                 otcfd = round(obj.off_targets['CFD'], 2)
                 azimuth = round(obj.score['Azimuth'], 2)
@@ -1159,7 +1160,7 @@ class GenerateParser(subroutine.Subroutine):
             red_list = sorted(red_list, key=lambda x: int(x.name.split('-')[1]))
             
             outputs = []
-            for weight, obj in self.rank_targets(ext_dict2[feature_homologs]):
+            for weight, obj in self.rank_targets(args, ext_dict2[feature_homologs]):
                 othz = round(obj.off_targets['Hsu-Zhang'], 2)
                 otcfd = round(obj.off_targets['CFD'], 2)
                 azimuth = round(obj.score['Azimuth'], 2)
@@ -1192,7 +1193,7 @@ class GenerateParser(subroutine.Subroutine):
             
             outputs = []
             
-            for weight, obj in self.rank_targets(ext_dict[feature_name]):
+            for weight, obj in self.rank_targets(args, ext_dict[feature_name]):
                 othz = round(obj.off_targets['Hsu-Zhang'], 2)
                 otcfd = round(obj.off_targets['CFD'], 2)
                 azimuth = round(obj.score['Azimuth'], 2)
