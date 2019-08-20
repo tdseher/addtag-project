@@ -20,6 +20,8 @@ from . import scores
 from .motifs import OnTargetMotif, OffTargetMotif
 #from .donors import ExcisionDonor, ReversionDonor
 
+logger = logging.getLogger(__name__)
+
 class Alignment(object):
     """Class representing an alignment"""
     __slots__ = [
@@ -115,6 +117,8 @@ class Target(object):
     sequences = {} # key = nucleotide sequence, value = ExcisionTarget/ReversionTarget object
     indices = {} # key = exTarget-102, value = ExcisionTarget/ReversionTarget object
     
+    logger = logger.getChild('Target')
+    
     @classmethod
     def load_alignment(cls, filename, args, contigs):
         """
@@ -129,7 +133,7 @@ class Target(object):
             record = None
             while True:
                 record = args.selected_aligner.load_record(flo)
-                #logging.info(record)
+                #cls.logger.info(record)
                 if (record == None):
                     break
                 else:
@@ -175,7 +179,7 @@ class Target(object):
                         alignment_downstream,
                     )
         
-        logging.info(cls.__name__ + ' alignment file parsed: {!r}'.format(filename))
+        cls.logger.info(cls.__name__ + ' alignment file parsed: {!r}'.format(filename))
     
     @classmethod
     def generate_query_fasta(cls, filename, sep=':'):
@@ -191,7 +195,7 @@ class Target(object):
                 print(' '.join(['>'+obj.name] + sorted([obj.format_location(x, sep) for x in obj.locations])), file=flo)
                 print(sequence, file=flo)
                 
-        logging.info(cls.__name__ + ' query FASTA generated: {!r}'.format(filename))
+        cls.logger.info(cls.__name__ + ' query FASTA generated: {!r}'.format(filename))
         return filename
     
     @classmethod
@@ -212,7 +216,7 @@ class Target(object):
                     'pam=' + obj.pam
                 ]), file=flo)
                 print(obj.spacer, file=flo)
-        logging.info(cls.__name__ + ' spacers FASTA generated: {!r}'.format(filename))
+        cls.logger.info(cls.__name__ + ' spacers FASTA generated: {!r}'.format(filename))
         return filename
     
     def format_location(self, location, sep=':'):
@@ -488,7 +492,7 @@ class Target(object):
                     filtered_targets = cls.target_filter(seq, spacer, pam, upstream, downstream, args)
                     for filt_seq, filt_spacer, filt_pam in filtered_targets:
                         targets.add((orientation, sstart, send, upstream, downstream, filt_seq, side, filt_spacer, filt_pam, mymotif.motif_string, tuple([tuple(x) if isinstance(x, list) else x for x in mymotif.parsed_list])))
-                        #logging.info("DEBUG: {}, {}, {}, {}, {}, {}, {}, {}, {}".format(orientation, seq, mstart, mend, spacer, pam, mymotif.compiled_regex, sstart, send))
+                        #cls.logger.info("DEBUG: {}, {}, {}, {}, {}, {}, {}, {}, {}".format(orientation, seq, mstart, mend, spacer, pam, mymotif.compiled_regex, sstart, send))
         return sorted(targets) # becomes a list
     
     def calculate_default_scores(self):
@@ -646,7 +650,7 @@ class Target(object):
             for f in list(on_target_features):
                 on_target_features.update(homologs.get(f, set()))
         
-        logging.info('on_target_features' + str(on_target_features))
+        self.logger.info('on_target_features' + str(on_target_features))
         # Check each alignment
         for a in self.alignments:
             a_features = None
@@ -746,12 +750,12 @@ class Target(object):
             else:
                 temp_string += 'failed post-filter' + ' '
             temp_string += ' '.join([a.action.rjust(4), str(a), str(a_features)])
-            logging.info(temp_string)
+            self.logger.info(temp_string)
         
         for i, C in enumerate(calculators):
             on_str = str(len(on_targets[C.name]['gDNA'])) + ' + (' + str(args.dDNA_gDNA_ratio)+')'+str(len(on_targets[C.name]['dDNA']))
             off_str = str(len(off_targets[C.name]['gDNA'])) + ' + (' + str(args.dDNA_gDNA_ratio)+')'+str(len(off_targets[C.name]['dDNA']))
-            logging.info(' '.join([self.name, C.name, '('+on_str+')/(('+on_str+') + ('+off_str+'))']))
+            self.logger.info(' '.join([self.name, C.name, '('+on_str+')/(('+on_str+') + ('+off_str+'))']))
         
         # Perform off-target calculations
         for C in calculators:
@@ -780,6 +784,8 @@ class ExcisionTarget(Target):
     sequences = {} # key = nucleotide sequence, value = ExcisionTarget object
     indices = {} # key = exTarget-102, value = ExcisionTarget object
     
+    logger = logger.getChild('ExcisionTarget')
+    
     @classmethod
     def old_search_all_features(cls, args, features, contigs):
         for feature_name in features:
@@ -788,7 +794,7 @@ class ExcisionTarget(Target):
             if feature_contig in contigs:
                 cls.expand_feature(args, (feature_name, feature_contig, feature_start, feature_end, feature_strand), (feature_contig, contigs[feature_contig]))
             else:
-                logging.info("The contig '{}' for feature '{}' is not in the input FASTA.".format(feature_contig, feature_name))
+                cls.logger.info("The contig '{}' for feature '{}' is not in the input FASTA.".format(feature_contig, feature_name))
         
     
     @classmethod
@@ -797,7 +803,7 @@ class ExcisionTarget(Target):
         from . import feature
         
         for feature_name, f in feature.Feature.features.items():
-            logging.info("Searching Feature '{}' for ExcisionTarget objects.".format(feature_name))
+            cls.logger.info("Searching Feature '{}' for ExcisionTarget objects.".format(feature_name))
             
             # Search for targets in the feature
             contig_sequence = contigs[f.contig]
@@ -951,7 +957,7 @@ class ExcisionTarget(Target):
     #                             cls(feature, feature_contig, orientation, real_start, real_end, t_upstream, t_downstream, filt_seq, side, filt_spacer, filt_pam, motif.motif_string, motif.parsed_list)
     #                             # Maybe add to ReversionDonor here
     #         else:
-    #             logging.info("The contig '{}' for feature '{}' is not in the input FASTA.".format(feature_contig, feature))
+    #             cls.logger.info("The contig '{}' for feature '{}' is not in the input FASTA.".format(feature_contig, feature))
     
     #def get_donors(self):
     #    return [ReversionDonor.indices[x] for x in self.get_contigs()]
@@ -961,6 +967,8 @@ class ReversionTarget(Target):
     # Non-redundant dicts
     sequences = {} # key = nucleotide sequence, value = ReversionTarget object
     indices = {} # key = reTarget-234, value = ReversionTarget object
+    
+    logger = logger.getChild('ReversionTarget')
     
     @classmethod
     def get_targets(cls):

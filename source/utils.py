@@ -204,7 +204,7 @@ def write_merged_fasta(contig_sequences, filename, columns=80):
         for name, sequence in contig_sequences.items():
             print('>'+name, file=flo)
             print(wrapper.fill(sequence), file=flo)
-    logging.info('Merged FASTA written: {!r}'.format(filename))
+    logger.info('Merged FASTA written: {!r}'.format(filename))
     return filename
 
 def load_indexed_fasta_files(filenames):

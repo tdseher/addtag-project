@@ -22,10 +22,14 @@ from .feature import Feature
 from .targets import Target
 from .thermodynamics.oligo import Primer, PrimerPair
 
+logger = logging.getLogger(__name__)
+
 class Donor(object):
     prefix = 'Donor'
     sequences = {}
     indices = {}
+    
+    logger = logger.getChild('Donor')
     
     @classmethod
     def get_contig_dict(cls):
@@ -46,9 +50,9 @@ class Donor(object):
                 #don_entry = tuple(["dDNA-"+str(i), feature, contig, '+', start1, start2, end1, end2, dDNA])
                 print(' '.join(['>'+obj.name, 'spacers='+str(len(obj.spacers))] + sorted([obj.format_location(x, sep) for x in obj.locations])), file=flo)
                 print(sequence, file=flo)
-        logging.info(cls.__name__ + ' dDNA FASTA generated: {!r}'.format(filename))
+        cls.logger.info(cls.__name__ + ' dDNA FASTA generated: {!r}'.format(filename))
         if (len(cls.sequences) == 0):
-            logging.info(cls.__name__ + ' no sequences written: Possible error!')
+            cls.logger.info(cls.__name__ + ' no sequences written: Possible error!')
         return filename
     
     def search_other_locations(self, contigs):
@@ -184,6 +188,8 @@ class ExcisionDonor(Donor):
     prefix = 'exDonor'
     sequences = {}
     indices = {}
+    
+    logger = logger.getChild('ExcisionDonor')
     
     # @classmethod
     # def get_targets(cls, args, sequence):
@@ -518,9 +524,12 @@ class ExcisionDonor(Donor):
                 raise Exception("Too many features or bartags. Must be <= 200.\nYou have: features × bartags = " + str(len(Feature.features)) + " × " + str(args.bartag_number) + " = " + str(args.bartag_number * len(Feature.features)))
             
             # Generate up to 200 barcodes
-            logging.info('Calculating barcodes...')
+            cls.logger.info('Calculating barcodes...')
             barcodes, barcode_fail_n, barcode_success_n = bartag.generate_min_distance(args.bartag_motif, args.bartag_distance, max_successes=200)
-            logging.info('Found {} barcodes: {} fails, {} successes'.format(len(barcodes), barcode_fail_n, barcode_success_n))
+            cls.logger.info('Found {} barcodes: {} fails, {} successes'.format(len(barcodes), barcode_fail_n, barcode_success_n))
+            cls.logger.info('List of barcodes:')
+            for bc in barcodes:
+                cls.logger.info('  {}'.format(bc))
             
             # Assign a barcode to each feature,
             # Generate the dDNAs
@@ -535,7 +544,7 @@ class ExcisionDonor(Donor):
         
         else: ######################## NEED TO ADD FLANKTAG PROCESSING ########################
             # 'args.ko_dDNA' is the path to a FASTA file
-            logging.info('Processing ko-dDNA with FASTA as input.')
+            cls.logger.info('Processing ko-dDNA with FASTA as input.')
             
             # Load the FASTA file into memory
             ko_contigs = utils.old_load_fasta_file(args.ko_dDNA)
@@ -578,7 +587,7 @@ class ExcisionDonor(Donor):
         # exDonor-42 dDNA ACCATAACGTTTACTTGTTTAATATGCTATTGATATCTATATTTTTTTCCCTATGTGTAGTGCTTGTATATGCGTGTGTGATGAGAATAAGATGAATAGA
         # pam<spacer gRNA                                                 CCCTATGTGTAGTGCTTGTATAT
         for ind, obj in cls.indices.items():
-            logging.info(obj.name)
+            cls.logger.info(obj.name)
             segment_string = ''
             loc = next(iter(obj.locations)) # Pull an arbitrary location record
             for segment in loc[3:]:
@@ -587,8 +596,8 @@ class ExcisionDonor(Donor):
                 else:
                     length = segment[1] - segment[0]
                 segment_string += cls.make_label(length, '')
-            logging.info(segment_string)
-            logging.info(obj.sequence)
+            cls.logger.info(segment_string)
+            cls.logger.info(obj.sequence)
             for s in obj.spacers:
                 orientation = s[0]
                 start = s[1]
@@ -596,9 +605,9 @@ class ExcisionDonor(Donor):
                 spacer = s[7]
                 pam = s[8]
                 if (orientation == '+'):
-                    logging.info(' '*start + spacer + pam)
+                    cls.logger.info(' '*start + spacer + pam)
                 else:
-                    logging.info(' '*start + nucleotides.rc(spacer+pam))
+                    cls.logger.info(' '*start + nucleotides.rc(spacer+pam))
     
     @staticmethod
     def make_label(length, label):
@@ -658,6 +667,8 @@ class ReversionDonor(Donor):
     sequences = {}
     indices = {}
     
+    logger = logger.getChild('ReversionDonor')
+    
     @classmethod
     def generate_donors(cls, args, contigs, feature2gene):
         """
@@ -666,7 +677,7 @@ class ReversionDonor(Donor):
         [upstream homology][us expanded feature][feature][ds expanded feature][downstream homology]
         """
         
-        logging.info("Generating 'ReversionDonor' objects")
+        cls.logger.info("Generating 'ReversionDonor' objects")
         
         if (args.revert_amplification_primers):
             #amplicon_size = (2*min(args.revert_homology_length), 2*max(args.revert_homology_length))
@@ -694,7 +705,7 @@ class ReversionDonor(Donor):
             
             # There should be at least one ReversionDonor for each feature
             for feature_name, f in Feature.features.items():
-                logging.info("Scanning feature '{}:{}:{}:{}..{}' for amplification primers".format(feature_name, f.contig, f.strand, f.start, f.end))
+                cls.logger.info("Scanning feature '{}:{}:{}:{}..{}' for amplification primers".format(feature_name, f.contig, f.strand, f.start, f.end))
                 
                 my_contig = contigs[f.contig]
                 
@@ -743,12 +754,12 @@ class ReversionDonor(Donor):
                 AMP_F = 10
                 AMP_R = 11
                 
-                logging.info('Adding upstream_F primers to queue...')
+                cls.logger.info('Adding upstream_F primers to queue...')
                 Primer.scan(my_contig, gene=g, locus=fp.name, genome=0, region=AMP_F, contig=f.contig, orientation='+', start=region_F_start, end=region_F_stop, name='AmpF', primer_size=(19,36))
-                logging.info('Adding downstream_R primers to queue...')
+                cls.logger.info('Adding downstream_R primers to queue...')
                 Primer.scan(my_contig, gene=g, locus=fp.name, genome=0, region=AMP_R, contig=f.contig, orientation='-', start=region_R_start, end=region_R_stop, name='AmpR', primer_size=(19,36))
             
-            logging.info("Total 'Primer' objects: {}".format(len(Primer.sequences)))
+            cls.logger.info("Total 'Primer' objects: {}".format(len(Primer.sequences)))
             
             # Make simple dict to lookup the feature size given the gene/locus/contig
             gg2feature_size = {}
@@ -762,9 +773,9 @@ class ReversionDonor(Donor):
                 
                 gg2feature_size.setdefault((f_gene, f_locus, f_genome, f_contig), list()).append(f_end-f_start)
             
-            logging.info("gene-to-feature:")
+            cls.logger.info("gene-to-feature:")
             for k, v in gg2feature_size.items():
-                logging.info("  {} {}".format(k, v))
+                cls.logger.info("  {} {}".format(k, v))
             
             # Do required stuff
             for g, g_count in gene_dict.items():
@@ -782,7 +793,7 @@ class ReversionDonor(Donor):
                         feature_sizes.append(f.end-f.start)
                 
                 
-                logging.info('Using fixed primer calculation cutoffs')
+                cls.logger.info('Using fixed primer calculation cutoffs')
                 cutoffs = {
                     'length': (19, 28),
                     'last5gc_count': (1, 3),
@@ -800,7 +811,7 @@ class ReversionDonor(Donor):
                 cutoffs['folder'] = os.path.join(args.temp_folder, 'addtag', os.path.basename(args.folder))
                 
                 # Perform primer calculations
-                logging.info('Performing calculations on primers...')
+                cls.logger.info('Performing calculations on primers...')
                 for alist in [ampF_list, ampR_list]:
                     start_time = time.time()
                     time_expired = False
@@ -821,9 +832,9 @@ class ReversionDonor(Donor):
                     ttt += 1
                     if ((p.checks[0] != None) and p.summarize(p.checks)):
                         nnn += 1
-                logging.info("  Summary of all 'Primer' objects:")
-                logging.info("    Number primers with all checks passed = {}".format(nnn))
-                logging.info("    Number primers in 'Primer.sequences' = {}".format(ttt))
+                cls.logger.info("  Summary of all 'Primer' objects:")
+                cls.logger.info("    Number primers with all checks passed = {}".format(nnn))
+                cls.logger.info("    Number primers in 'Primer.sequences' = {}".format(ttt))
                 ##### Some debug code #####    
                 
                 #desired_p1_loc_set = set()
@@ -884,8 +895,8 @@ class ReversionDonor(Donor):
                 
                 ampF_list = sorted(ampF_list, reverse=True)
                 ampR_list = sorted(ampR_list, reverse=True)
-                logging.info('  len(ampF_list) = {}'.format(len(ampF_list)))
-                logging.info('  len(ampR_list) = {}'.format(len(ampR_list)))
+                cls.logger.info('  len(ampF_list) = {}'.format(len(ampF_list)))
+                cls.logger.info('  len(ampR_list) = {}'.format(len(ampR_list)))
                 
             #    for pF in ampF_list:
             #        us_gene_p_list_dict[g][pF.sequence].append(pF)
@@ -898,7 +909,7 @@ class ReversionDonor(Donor):
                 #if (args.primer_specificity == 'any'):
                 #if args.allele_specific_primers:
                 # >>> INDENT >>>
-                logging.info('Calculating: primer pairs...')
+                cls.logger.info('Calculating: primer pairs...')
                 check_count = 0
                 # For each pair, we reset the timer
                 start_time = time.time()
@@ -929,11 +940,11 @@ class ReversionDonor(Donor):
                                     pp.weight = pp.get_weight(minimize=gg2feature_size)
                                     
                                     uf_dr_paired_primers.append(pp)
-                logging.info('  checked {} primer pairs'.format(check_count))
+                cls.logger.info('  checked {} primer pairs'.format(check_count))
                 
                 uf_dr_paired_primers = sorted(uf_dr_paired_primers, reverse=True)
                 
-                logging.info('  len(uf_dr_paired_primers) = {}'.format(len(uf_dr_paired_primers)))
+                cls.logger.info('  len(uf_dr_paired_primers) = {}'.format(len(uf_dr_paired_primers)))
                 
                 
                 
@@ -941,7 +952,7 @@ class ReversionDonor(Donor):
                 
                 
                 
-                logging.info('\t'.join(['ReversionDonor', 'feature', 'weight', 'PrimerPair']))
+                cls.logger.info('\t'.join(['ReversionDonor', 'feature', 'weight', 'PrimerPair']))
             
                 for feature_name, f in Feature.features.items():
                     
@@ -1026,11 +1037,11 @@ class ReversionDonor(Donor):
                             rd = cls.sequences[dDNA]
                             
                             # Also need to list their compatible exDonors, and by extension, their exTargets
-                            logging.info('\t'.join([rd.name, feature_name, str(pp.get_joint_weight()), str(pp)])) # <<<<< In pp, the 'amplicon_size' attribute is calculated INCORRECTLY for some derived features. Also, the x-shift seems off in the alignment.
-                            #logging.info('  (new_obj == rd): {}'.format(new_obj == rd))
-                            #logging.info('  contig: {}, start1: {}, end2: {}'.format(f.contig, start1, end2))
-                            #logging.info('  F: {}'.format(sorted(pp.forward_primer.locations)))
-                            #logging.info('  R: {}'.format(sorted(pp.reverse_primer.locations)))
+                            cls.logger.info('\t'.join([rd.name, feature_name, str(pp.get_joint_weight()), str(pp)])) # <<<<< In pp, the 'amplicon_size' attribute is calculated INCORRECTLY for some derived features. Also, the x-shift seems off in the alignment.
+                            #cls.logger.info('  (new_obj == rd): {}'.format(new_obj == rd))
+                            #cls.logger.info('  contig: {}, start1: {}, end2: {}'.format(f.contig, start1, end2))
+                            #cls.logger.info('  F: {}'.format(sorted(pp.forward_primer.locations)))
+                            #cls.logger.info('  R: {}'.format(sorted(pp.reverse_primer.locations)))
                             
                             ###### alignment ######
                             pp_labels_list.append('{: 18.15f}'.format(pp.get_joint_weight()) + ' ' + rd.name)  # <<<<< In pp, the 'amplicon_size' attribute is calculated INCORRECTLY for some derived features. Also, the x-shift seems off in the alignment
@@ -1063,15 +1074,15 @@ class ReversionDonor(Donor):
                         sequence_list = [region_F, my_contig[region_F_stop:f.start], us_extend_seq, mid_feature_seq, ds_extend_seq, my_contig[f.end:region_R_start], region_R]
                         aln_out = nucleotides.make_labeled_primer_alignments(label_list, sequence_list, '{:>18}'.format('weight')+' '+f.contig, pp_labels_list, uf_dr_paired_primers[:pp_subset_size], left_pos=region_F_start)
                         
-                        logging.info(feature_name)
+                        cls.logger.info(feature_name)
                         for oline in aln_out:
-                            logging.info(oline)
+                            cls.logger.info(oline)
                         ###### alignment ######
         
         else: # This is when (args.revert_amplification_primers == False)
             # There should be at least one ReversionDonor for each feature
             for feature_name, f in Feature.features.items():
-                logging.info("Scanning feature '{}:{}:{}:{}..{}' for amplification primers".format(feature_name, f.contig, f.strand, f.start, f.end))
+                cls.logger.info("Scanning feature '{}:{}:{}:{}..{}' for amplification primers".format(feature_name, f.contig, f.strand, f.start, f.end))
                 
                 my_contig = contigs[f.contig]
                 
@@ -1129,7 +1140,7 @@ class ReversionDonor(Donor):
         [upstream homology][us expanded feature][feature][ds expanded feature][downstream homology]
         """
         
-        logging.info("Generating 'ReversionDonor' objects")
+        cls.logger.info("Generating 'ReversionDonor' objects")
         
         if (args.revert_amplification_primers):
             tm_max_difference = 4.0
@@ -1160,7 +1171,7 @@ class ReversionDonor(Donor):
             
             # There should be at least one ReversionDonor for each feature
             for feature_name, f in Feature.features.items():
-                logging.info("Scanning feature '{}:{}:{}:{}..{}' for amplification primers".format(feature_name, f.contig, f.strand, f.start, f.end))
+                cls.logger.info("Scanning feature '{}:{}:{}:{}..{}' for amplification primers".format(feature_name, f.contig, f.strand, f.start, f.end))
                 
                 my_contig = contigs[f.contig]
                 
@@ -1206,29 +1217,29 @@ class ReversionDonor(Donor):
                 region_F = my_contig[region_F_start:region_F_stop]
                 region_R = my_contig[region_R_start:region_R_stop]
                 
-                logging.info('Calculating upstream_F primers...')
+                cls.logger.info('Calculating upstream_F primers...')
                 upstream_F = sorted(
                     args.selected_oligo.scan(region_F, 'left',  primer_size=primer_length_range, tm_range=tm_range, min_delta_g=min_delta_g, folder=temp_folder, time_limit=args.primer_scan_limit),
                     key=lambda x: x.weight,
                     reverse=True
                 )
-                logging.info('  len(upstream_F) = {}'.format(len(upstream_F)))
+                cls.logger.info('  len(upstream_F) = {}'.format(len(upstream_F)))
                 #upstream_F = upstream_F[:subset_size]
                 #if ((subset_size != None) and (len(upstream_F) > subset_size)):
-                #    logging.info('upstream_F: skipping {}/{} calculated primers'.format(max(0, len(upstream_F)-subset_size), len(upstream_F)))
+                #    cls.logger.info('upstream_F: skipping {}/{} calculated primers'.format(max(0, len(upstream_F)-subset_size), len(upstream_F)))
                 for pF in upstream_F:
                     us_gene_p_list_dict[g][pF.sequence].append(pF)
                 
-                logging.info('Calculating downstream_R primers...')
+                cls.logger.info('Calculating downstream_R primers...')
                 downstream_R = sorted(
                     args.selected_oligo.scan(region_R, 'right', primer_size=primer_length_range, tm_range=tm_range, min_delta_g=min_delta_g, folder=temp_folder, time_limit=args.primer_scan_limit),
                     key=lambda x: x.weight,
                     reverse=True
                 )
-                logging.info('  len(downstream_R) = {}'.format(len(downstream_R)))
+                cls.logger.info('  len(downstream_R) = {}'.format(len(downstream_R)))
                 #downstream_R = downstream_R[:subset_size]
                 #if ((subset_size != None) and (len(downstream_R) > subset_size)):
-                #    logging.info('downstream_R: skipping {}/{} calculated primers'.format(max(0, len(downstream_R)-subset_size), len(downstream_R)))
+                #    cls.logger.info('downstream_R: skipping {}/{} calculated primers'.format(max(0, len(downstream_R)-subset_size), len(downstream_R)))
                 for pR in downstream_R:
                     ds_gene_p_list_dict[g][pR.sequence].append(pR)
                 
@@ -1237,20 +1248,20 @@ class ReversionDonor(Donor):
                 
                 if args.allele_specific_primers:
                     
-                    logging.info('Calculating: primer pairs...')
+                    cls.logger.info('Calculating: primer pairs...')
                     uf_dr_paired_primers = sorted(
                         args.selected_oligo.pair(upstream_F, downstream_R, amplicon_size_range=amplicon_size, tm_max_difference=tm_max_difference, intervening=(f.start-region_F_stop)+(region_R_start-f.end), min_delta_g=min_delta_g, folder=temp_folder, time_limit=args.primer_pair_limit),
                         key=lambda x: x.get_joint_weight(),
                         reverse=True
                     )
-                    logging.info('  len(uf_dr_paired_primers) = {}'.format(len(uf_dr_paired_primers)))
+                    cls.logger.info('  len(uf_dr_paired_primers) = {}'.format(len(uf_dr_paired_primers)))
                     
                     # Ammend the intervening sequence
                     for pp in uf_dr_paired_primers:
                         pp.intervening = region_R_start - region_F_stop
                     
                     #if ((pp_subset_size != None) and (len(uf_dr_paired_primers) > pp_subset_size)):
-                    #    logging.info('Skipping {}/{} primer pairs'.format(max(0, len(uf_dr_paired_primers)-pp_subset_size), len(uf_dr_paired_primers)))
+                    #    cls.logger.info('Skipping {}/{} primer pairs'.format(max(0, len(uf_dr_paired_primers)-pp_subset_size), len(uf_dr_paired_primers)))
                     
                     
                     ###### alignment ######
@@ -1258,7 +1269,7 @@ class ReversionDonor(Donor):
                     ###### alignment ######
                     
                     
-                    logging.info('\t'.join(['ReversionDonor', 'feature', 'weight', 'PrimerPair']))
+                    cls.logger.info('\t'.join(['ReversionDonor', 'feature', 'weight', 'PrimerPair']))
                     #for pp_count, pp in enumerate(uf_dr_paired_primers[:pp_subset_size]):
                     for pp_count, pp in enumerate(uf_dr_paired_primers):
                         start1, end1 = region_F_start + pp.forward_primer.position, f.start
@@ -1274,7 +1285,7 @@ class ReversionDonor(Donor):
                         rd = cls.sequences[dDNA]
                         
                         # Also need to list their compatible exDonors, and by extension, their exTargets
-                        logging.info('\t'.join([rd.name, feature_name, str(pp.get_joint_weight()), str(pp)])) # <<<<< In pp, the 'amplicon_size' attribute is calculated INCORRECTLY for some derived features. Also, the x-shift seems off in the alignment.
+                        cls.logger.info('\t'.join([rd.name, feature_name, str(pp.get_joint_weight()), str(pp)])) # <<<<< In pp, the 'amplicon_size' attribute is calculated INCORRECTLY for some derived features. Also, the x-shift seems off in the alignment.
                         
                         ###### alignment ######
                         pp_labels_list.append('{: 18.15f}'.format(pp.get_joint_weight()) + ' ' + rd.name)  # <<<<< In pp, the 'amplicon_size' attribute is calculated INCORRECTLY for some derived features. Also, the x-shift seems off in the alignment
@@ -1307,9 +1318,9 @@ class ReversionDonor(Donor):
                     sequence_list = [region_F, my_contig[region_F_stop:f.start], us_extend_seq, mid_feature_seq, ds_extend_seq, my_contig[f.end:region_R_start], region_R]
                     aln_out = nucleotides.make_labeled_primer_alignments(label_list, sequence_list, '{:>18}'.format('weight')+' '+f.contig, pp_labels_list, uf_dr_paired_primers[:pp_subset_size])
                     
-                    logging.info(feature_name)
+                    cls.logger.info(feature_name)
                     for oline in aln_out:
-                        logging.info(oline)
+                        cls.logger.info(oline)
                     ###### alignment ######
             
             
@@ -1341,7 +1352,7 @@ class ReversionDonor(Donor):
                 
                 
                 
-                logging.info("Scanning feature '{}:{}:{}:{}..{}' for multi-allele amplification primers".format(feature_name, f.contig, f.strand, f.start, f.end))
+                cls.logger.info("Scanning feature '{}:{}:{}:{}..{}' for multi-allele amplification primers".format(feature_name, f.contig, f.strand, f.start, f.end))
                 
                 my_contig = contigs[f.contig]
                 
@@ -1375,13 +1386,13 @@ class ReversionDonor(Donor):
                 
                 
                                     
-                logging.info('Calculating: primer pairs...')
+                cls.logger.info('Calculating: primer pairs...')
                 uf_dr_paired_primers = sorted(
                     args.selected_oligo.pair(upstream_F, downstream_R, amplicon_size_range=amplicon_size, tm_max_difference=tm_max_difference, intervening=(f.start-region_F_stop)+(region_R_start-f.end), min_delta_g=min_delta_g, folder=temp_folder, time_limit=args.primer_pair_limit),
                     key=lambda x: x.get_joint_weight(),
                     reverse=True
                 )
-                logging.info('  len(uf_dr_paired_primers) = {}'.format(len(uf_dr_paired_primers)))
+                cls.logger.info('  len(uf_dr_paired_primers) = {}'.format(len(uf_dr_paired_primers)))
                 
                 # Ammend the intervening sequence
                 for pp in uf_dr_paired_primers:
@@ -1391,7 +1402,7 @@ class ReversionDonor(Donor):
                 pp_labels_list = []
                 ###### alignment ######
                 
-                logging.info('\t'.join(['ReversionDonor', 'feature', 'weight', 'PrimerPair']))
+                cls.logger.info('\t'.join(['ReversionDonor', 'feature', 'weight', 'PrimerPair']))
                 for pp_count, pp in enumerate(uf_dr_paired_primers):
                     start1, end1 = region_F_start + pp.forward_primer.position, f.start
                     start2, end2 = f.end, region_R_start+pp.reverse_primer.position+len(pp.reverse_primer.sequence)
@@ -1406,7 +1417,7 @@ class ReversionDonor(Donor):
                     rd = cls.sequences[dDNA]
                     
                     # Also need to list their compatible exDonors, and by extension, their exTargets
-                    logging.info('\t'.join([rd.name, feature_name, str(pp.get_joint_weight()), str(pp)]))  # <<<<< In pp, the 'amplicon_size' attribute is calculated INCORRECTLY for some derived features. Also, the x-shift seems off in the alignment
+                    cls.logger.info('\t'.join([rd.name, feature_name, str(pp.get_joint_weight()), str(pp)]))  # <<<<< In pp, the 'amplicon_size' attribute is calculated INCORRECTLY for some derived features. Also, the x-shift seems off in the alignment
                     
                     ###### alignment ######
                     pp_labels_list.append('{: 18.15f}'.format(pp.get_joint_weight()) + ' ' + rd.name)  # <<<<< In pp, the 'amplicon_size' attribute is calculated INCORRECTLY for some derived features. Also, the x-shift seems off in the alignment
@@ -1417,9 +1428,9 @@ class ReversionDonor(Donor):
                 sequence_list = [region_F, my_contig[region_F_stop:f.start], us_extend_seq, mid_feature_seq, ds_extend_seq, my_contig[f.end:region_R_start], region_R]
                 aln_out = nucleotides.make_labeled_primer_alignments(label_list, sequence_list, '{:>18}'.format('weight')+' '+f.contig, pp_labels_list, uf_dr_paired_primers[:pp_subset_size])
                 
-                logging.info(feature_name)
+                cls.logger.info(feature_name)
                 for oline in aln_out:
-                    logging.info(oline)
+                    cls.logger.info(oline)
                 ###### alignment ######
                 
                 
@@ -1432,7 +1443,7 @@ class ReversionDonor(Donor):
         else: # This is when (args.revert_amplification_primers == False)
             # There should be at least one ReversionDonor for each feature
             for feature_name, f in Feature.features.items():
-                logging.info("Scanning feature '{}:{}:{}:{}..{}' for amplification primers".format(feature_name, f.contig, f.strand, f.start, f.end))
+                cls.logger.info("Scanning feature '{}:{}:{}:{}..{}' for amplification primers".format(feature_name, f.contig, f.strand, f.start, f.end))
                 
                 my_contig = contigs[f.contig]
                 

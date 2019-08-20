@@ -50,9 +50,6 @@ from .targets import Target, ExcisionTarget, ReversionTarget
 from .motifs import OnTargetMotif, OffTargetMotif
 from .feature import Feature
 
-# Create the logger
-#logger = logging.getLogger(__name__)
-
 # Define meta variables
 __author__ = "Thaddeus D. Seher (@tdseher) & Aaron Hernday"
 __date__ = utils.load_git_date()
@@ -220,7 +217,11 @@ class Main(object):
         
         # Print command line parameters (arguments) to log file
         if hasattr(args, 'folder'):
-            logging.info(args)
+            # Create the logger
+            global logger
+            logger = logging.getLogger(__name__)
+            Main.logger = logger.getChild('Main')
+            self.logger.info(args)
         
         # call the function for which action was used
         args.func(args)
@@ -229,11 +230,11 @@ class Main(object):
             # Print time taken for program to complete
             end_time = time.time()
             elapsed = end_time-start_time
-            logging.info('{} finished'.format(__program__))
-            logging.info('Start time: {}s'.format(start_time))
-            logging.info('End time: {}s'.format(end_time))
-            logging.info('Runtime: {}s'.format(elapsed))
-            logging.info('Runtime: {}'.format(str(datetime.timedelta(seconds=elapsed))))
+            self.logger.info('{} finished'.format(__program__))
+            self.logger.info('Start time: {}s'.format(start_time))
+            self.logger.info('End time: {}s'.format(end_time))
+            self.logger.info('Runtime: {}s'.format(elapsed))
+            self.logger.info('Runtime: {}'.format(str(datetime.timedelta(seconds=elapsed))))
     
     def win_restart(self):
         '''
@@ -444,7 +445,7 @@ class Main(object):
             os.makedirs(args.folder, exist_ok=True)
         
             # Create the logger, and have it write to 'folder/log.txt'
-            logging.basicConfig(filename=os.path.join(args.folder, 'log.txt'), level=logging.INFO, format='%(asctime)s - %(module)s - %(funcName)s - %(lineno)d - %(message)s') # format='%(levelname)s %(asctime)s: %(message)s'
+            logging.basicConfig(filename=os.path.join(args.folder, 'log.txt'), level=logging.INFO, format='[%(asctime)s] [%(name)s.%(funcName)s (%(lineno)d)] %(message)s') # format='%(levelname)s %(asctime)s: %(message)s' #### %(pathname)s | %(filename)s | %(module)s
         
         if hasattr(args, 'aligner'):
             # Add 'args.selected_aligner' to hold the actual aligner object

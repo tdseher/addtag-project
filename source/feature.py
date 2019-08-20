@@ -18,6 +18,8 @@ import regex
 #from . import targets
 from . import nucleotides
 
+logger = logging.getLogger(__name__)
+
 class Feature(object):
     features = {}
     excluded_features = {}
@@ -25,6 +27,9 @@ class Feature(object):
     NONE=0
     INPUT=1
     DERIVED=2
+    
+    logger = logger.getChild('Feature')
+    
     def __init__(self, contig, start, end, strand, name=None, attributes=None, source=None, feature_type=None, score=None, frame=None, origin=NONE, sep=';', parent=None, gene=None, homologs=None):
         self.contig = contig
         self.source = source
@@ -240,7 +245,7 @@ class Feature(object):
             contig_sequence = contigs[f.contig]
             if (f.origin == Feature.INPUT):
                 #ef = f.expand_feature(args, contig_sequence)
-                logging.info('Expanding feature: {}'.format(feature_name))
+                cls.logger.info('Expanding feature: {}'.format(feature_name))
                 f.expand_feature(args, contig_sequence)
     
     def calc_homology_similarity(self, args, contigs, f1, f2):
@@ -340,9 +345,9 @@ class Feature(object):
                 parent = feature.get_parent()
                 parents_per_gene.setdefault(gene, set()).add(parent)
             
-            logging.info('parents_per_gene:')
+            cls.logger.info('parents_per_gene:')
             for k, v in parents_per_gene.items():
-                logging.info(' {} {}'.format(k, v)) # BRG1 {'C1_05140W_B', 'C1_05140W_C', 'C1_05140W_A'}
+                cls.logger.info(' {} {}'.format(k, v)) # BRG1 {'C1_05140W_B', 'C1_05140W_C', 'C1_05140W_A'}
             
             # Will need to do this for each gene
             for G, parents in parents_per_gene.items():
@@ -354,23 +359,23 @@ class Feature(object):
                     if (gene == G):
                         vals.setdefault(parent, list()).append(feature)
                 order = sorted(vals, key=lambda x: x.name)
-                logging.info('order = {}'.format(order)) # order = ['C1_05140W_A', 'C1_05140W_B', 'C1_05140W_C']
+                cls.logger.info('order = {}'.format(order)) # order = ['C1_05140W_A', 'C1_05140W_B', 'C1_05140W_C']
                 
                 # Separate features into lists based on their parent
                 # All derived features of from the same parent will be in a list together
                 odat = [vals[x] for x in order]
-                logging.info('odat = {}'.format(odat)) # odat = [[Feature(C1_05140W_A_derived-0), Feature(C1_05140W_A_derived-1), Feature(C1_05140W_A_derived-2)], [Feature(C1_05140W_B_derived-0), Feature(C1_05140W_B_derived-1)], [Feature(C1_05140W_C_derived-0)]]
+                cls.logger.info('odat = {}'.format(odat)) # odat = [[Feature(C1_05140W_A_derived-0), Feature(C1_05140W_A_derived-1), Feature(C1_05140W_A_derived-2)], [Feature(C1_05140W_B_derived-0), Feature(C1_05140W_B_derived-1)], [Feature(C1_05140W_C_derived-0)]]
                 
                 # Perform pairwise comparisons for every combination of input homologies
                 similarity = {}
                 c_similarities = {}
                 couplings = list(itertools.product(*odat))
                 for c1 in couplings:
-                    logging.info(c1)
+                    cls.logger.info(c1)
                     sims = []
                     comparisons = list(itertools.combinations(c1, 2))
                     for c2 in comparisons:
-                        logging.info('  {}'.format(c2))
+                        cls.logger.info('  {}'.format(c2))
                         #sims.append(similarity.setdefault(c2, self.calc_homology_similarity(args, contigs, c2[0], c2[1])))
                         sim = similarity.get(c2, None)
                         if sim:
@@ -386,11 +391,11 @@ class Feature(object):
                     
                 
                 # Test every possible input homology group to see if they are similar enough
-                logging.info('c_similarities:')
+                cls.logger.info('c_similarities:')
                 for k, v in c_similarities.items():
-                    #logging.info(' ', k, v, all(x > 0.95 for x in v)) # (Feature(C1_05140W_A_derived-0), Feature(C1_05140W_B_derived-0), Feature(C1_05140W_C_derived-0)) [0.99, 0.98, 0.97] True
+                    #cls.logger.info(' ', k, v, all(x > 0.95 for x in v)) # (Feature(C1_05140W_A_derived-0), Feature(C1_05140W_B_derived-0), Feature(C1_05140W_C_derived-0)) [0.99, 0.98, 0.97] True
                     verdict = all(((x[0] <= args.max_homology_errors) and (x[1] <= args.max_homology_errors)) for x in v)
-                    logging.info(' {} {} {}'.format(k, v, verdict))
+                    cls.logger.info(' {} {} {}'.format(k, v, verdict))
                     if verdict:
                         for f in k:
                             features_to_keep.add(f)
@@ -619,11 +624,11 @@ class Feature(object):
                 if (exf_obj.start > self.end):
                     max_downstream_coord = min(max_downstream_coord, exf_obj.start)
                 if (Feature.overlap_coverage(self.start, self.end, exf_obj.start, exf_obj.end) > 0):
-                    logging.info("WARNING: Selected feature '{}' overlaps with excluded feature '{}'".format(self.name, exf_obj.name))
+                    self.logger.info("WARNING: Selected feature '{}' overlaps with excluded feature '{}'".format(self.name, exf_obj.name))
         
-        logging.info('    feature: {}'.format(self.name))
-        logging.info('     bounds: {}..{}'.format(self.start, self.end))
-        logging.info('     limits: {}..{}'.format(max_upstream_coord, max_downstream_coord))
+        self.logger.info('    feature: {}'.format(self.name))
+        self.logger.info('     bounds: {}..{}'.format(self.start, self.end))
+        self.logger.info('     limits: {}..{}'.format(max_upstream_coord, max_downstream_coord))
         
         
         
@@ -638,7 +643,7 @@ class Feature(object):
         
         # We scan for targets only once
         targetsl = targets.Target.get_targets(args, contig_sequence, start=ex_feature_start, end=ex_feature_end) # Does both orientations (+/-)
-        logging.info('max targets: {}'.format(len(targetsl)))
+        self.logger.info('max targets: {}'.format(len(targetsl)))
         
         # The relative coordinates of FEATURE within EX_FEATURE:
         #relative_feature_start = feature_start - ex_feature_start
@@ -724,25 +729,25 @@ class Feature(object):
                     new_pad = (size_difference+1)//2
                     derived_start -= new_pad
                     derived_end += new_pad
-                    logging.info("Added {} nt of padding bases to either side of DERIVED FEATURE".format(new_pad))
+                    self.logger.info("Added {} nt of padding bases to either side of DERIVED FEATURE".format(new_pad))
                 
                 elif (args.feature_expansion_method == 'justify_feature'):
                     if (derived_start == feature_start):
                         derived_end += size_difference
                     else:
                         derived_start -= size_difference
-                    logging.info("Added {} nt of padding bases to one side of DERIVED FEATURE".format(size_difference))
+                    self.logger.info("Added {} nt of padding bases to one side of DERIVED FEATURE".format(size_difference))
                 
                 elif (args.feature_expansion_method == 'justify_target'):
                     if (derived_start == target_start):
                         derived_end += size_difference
                     else:
                         derived_start += size_difference
-                    logging.info("Added {} nt of padding bases to one side of DERIVED FEATURE".format(size_difference))
+                    self.logger.info("Added {} nt of padding bases to one side of DERIVED FEATURE".format(size_difference))
             
-            logging.info("derived_start = {}".format(derived_start))
-            logging.info("  derived_end = {}".format(derived_end))
-            logging.info("derived_end - derived_start = {}".format(derived_end - derived_start))
+            self.logger.info("derived_start = {}".format(derived_start))
+            self.logger.info("  derived_end = {}".format(derived_end))
+            self.logger.info("derived_end - derived_start = {}".format(derived_end - derived_start))
             derived_sets.add((derived_start, derived_end))
         
         # Create a counter for the derived feature
@@ -757,9 +762,9 @@ class Feature(object):
                     new_feature = Feature(self.contig, derived_start, derived_end, self.strand, name=new_name, source=self.source, feature_type=self.feature_type, score=self.score, frame=self.frame, attributes=new_attributes, origin=Feature.DERIVED, parent=self, gene=self.gene)
                     Feature.features[new_name] = new_feature
                     count += 1
-                    logging.info("DERIVED FEATURE '{}' created.".format(new_name))
+                    self.logger.info("DERIVED FEATURE '{}' created.".format(new_name))
                 else:
-                    logging.info("DERIVED FEATURE would overlap with excluded feature.")
+                    self.logger.info("DERIVED FEATURE would overlap with excluded feature.")
         # END expand_feature()
     
     def previous_expand_feature(self, args, contig_sequence, expansion_size=20, minimum_targets_per_feature=5):
@@ -784,16 +789,16 @@ class Feature(object):
                 if (exf_obj.start > self.end):
                     max_downstream_coord = min(max_downstream_coord, exf_obj.start)
                 if (Feature.overlap_coverage(self.start, self.end, exf_obj.start, exf_obj.end) > 0):
-                    logging.info("WARNING: Selected feature '{}' overlaps with excluded feature '{}'".format(self.name, exf_obj.name))
+                    self.logger.info("WARNING: Selected feature '{}' overlaps with excluded feature '{}'".format(self.name, exf_obj.name))
         
-        logging.info('feature: {}'.format(self.name))
-        logging.info( 'bounds: {}..{}'.format(self.start, self.end))
-        logging.info(' limits: {}..{}'.format(max_upstream_coord, max_downstream_coord))
+        self.logger.info('feature: {}'.format(self.name))
+        self.logger.info( 'bounds: {}..{}'.format(self.start, self.end))
+        self.logger.info(' limits: {}..{}'.format(max_upstream_coord, max_downstream_coord))
         
         # Gradually expand feature size until the minimum number of targets is found
         feature_sequence = contig_sequence[feature_start:feature_end]
         targetsl = targets.Target.get_targets(args, feature_sequence) # Does both orientations (+/-)
-        logging.info('targets: {}'.format(len(targetsl)))
+        self.logger.info('targets: {}'.format(len(targetsl)))
         count = 0
         while ((len(targetsl) < minimum_targets_per_feature) and (((feature_start, feature_end) != (0, contig_length)) or ((feature_start, feature_end) != (max_upstream_coord, max_downstream_coord)))):
             feature_start = max(0, feature_start-expansion_size, max_upstream_coord)
@@ -801,7 +806,7 @@ class Feature(object):
             
             feature_sequence = contig_sequence[feature_start:feature_end]
             targetsl = targets.Target.get_targets(args, feature_sequence) # Does both orientations (+/-)
-            logging.info('targets: {}'.format(len(targetsl)))
+            self.logger.info('targets: {}'.format(len(targetsl)))
             count += 1
         
         # Save the new feature as a Feature object

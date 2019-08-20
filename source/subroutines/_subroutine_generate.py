@@ -24,8 +24,11 @@ from .. import algorithms
 from .. import aligners
 from .. import thermodynamics
 
+logger = logging.getLogger(__name__)
 
 class GenerateParser(subroutine.Subroutine):
+    logger = logger.getChild('GenerateParser')
+    
     def __init__(self, subparsers):
         self.subparsers = subparsers
         
@@ -434,12 +437,12 @@ class GenerateParser(subroutine.Subroutine):
         Feature.assign_homologs(homologs)
         Feature.assign_gene(feature2gene)
         
-        logging.info('Feature.features')
+        self.logger.info('Feature.features')
         for f_name, f in sorted(Feature.features.items()):
-            logging.info("  {}:{}:{}:{}..{}".format(f.name, f.contig, f.strand, f.start, f.end))
-        logging.info('Feature.excluded_features')
+            self.logger.info("  {}:{}:{}:{}..{}".format(f.name, f.contig, f.strand, f.start, f.end))
+        self.logger.info('Feature.excluded_features')
         for exf_name, f in sorted(Feature.excluded_features.items()):
-            logging.info("  {}:{}:{}:{}..{}".format(f.name, f.contig, f.strand, f.start, f.end))
+            self.logger.info("  {}:{}:{}:{}..{}".format(f.name, f.contig, f.strand, f.start, f.end))
         
         # Merge features?
         #features = merge_features(features)
@@ -489,9 +492,9 @@ class GenerateParser(subroutine.Subroutine):
                 Feature.expand_all_features(args, contig_sequences)
                 
                 # Print the set of new features
-                logging.info('Feature.features')
+                self.logger.info('Feature.features')
                 for f_name, f in sorted(Feature.features.items()):
-                    logging.info("  {}:{}:{}:{}..{} PARENT={}".format(f.name, f.contig, f.strand, f.start, f.end, f.get_parent().name))
+                    self.logger.info("  {}:{}:{}:{}..{} PARENT={}".format(f.name, f.contig, f.strand, f.start, f.end, f.get_parent().name))
         
         
         # Get list of features that have compatible homology regions
@@ -501,10 +504,10 @@ class GenerateParser(subroutine.Subroutine):
         Feature.filter_features([x.name for x in sim_features])
         
         # Print to log what the filtered Features looks like
-        logging.info('Feature.features after filtering')
-        logging.info("  {}:{}:{}:{}..{} {} {} {}".format('Name', 'Contig', 'Strand', 'Start', 'End', 'Gene', 'Parent', 'Homologs'))
+        self.logger.info('Feature.features after filtering')
+        self.logger.info("  {}:{}:{}:{}..{} {} {} {}".format('Name', 'Contig', 'Strand', 'Start', 'End', 'Gene', 'Parent', 'Homologs'))
         for f_name, f in sorted(Feature.features.items()):
-            logging.info("  {}:{}:{}:{}..{} {} {} {}".format(f.name, f.contig, f.strand, f.start, f.end, f.get_gene(), f.get_parent().name, f.homologs))
+            self.logger.info("  {}:{}:{}:{}..{} {} {} {}".format(f.name, f.contig, f.strand, f.start, f.end, f.get_gene(), f.get_parent().name, f.homologs))
         
         if (len(Feature.features) == 0):
             print("No Features match homology similarity requirements", file=sys.stderr)
@@ -558,20 +561,20 @@ class GenerateParser(subroutine.Subroutine):
             ExcisionTarget.load_alignment(exq2exdDNA_align_file, args, ExcisionDonor.get_contig_dict())
             
             # Calculate off-target/guide scores for each algorithm
-            logging.info("ExcisionTarget after SAM parsing and off-target scoring")
+            self.logger.info("ExcisionTarget after SAM parsing and off-target scoring")
             ##### Add short-circuit/heuristic #####
             for et_seq, et_obj in ExcisionTarget.sequences.items():
                 et_obj.score_off_targets(args, homologs)
-                logging.info(et_obj)
+                self.logger.info(et_obj)
                 for a in et_obj.alignments:
-                    logging.info('  ' + str(a))
+                    self.logger.info('  ' + str(a))
             
             # Batch calculate with new ExcisionTarget class
             ExcisionTarget.score_batch()
             
-            logging.info("ExcisionTarget after Azimuth calculation")
+            self.logger.info("ExcisionTarget after Azimuth calculation")
             for et_seq, et_obj in ExcisionTarget.sequences.items():
-                logging.info(str(et_obj) + '\t' + '\t'.join(map(str, et_obj.locations)))
+                self.logger.info(str(et_obj) + '\t' + '\t'.join(map(str, et_obj.locations)))
         
         # Generate the FASTA with the final scores
         excision_spacers_file = ExcisionTarget.generate_spacers_fasta(os.path.join(args.folder, 'excision-spacers.fasta'))
@@ -594,7 +597,7 @@ class GenerateParser(subroutine.Subroutine):
         
         if (args.ki_gRNA):
             # Calculate off-target/guide scores for each algorithm
-            logging.info("ReversionTarget after SAM parsing and off-target scoring")
+            self.logger.info("ReversionTarget after SAM parsing and off-target scoring")
             # Somehow need to prioritize sequences for scoring.
             # Sequences with best diversity should be scored first.
             # If calculation time runs out, then just stop.
@@ -602,21 +605,21 @@ class GenerateParser(subroutine.Subroutine):
             ##### Subroutine #####
             #start_time = time.time()
             #if (time.time() - start_time >= args.max_time):
-            #    logging.info('Site search terminated due to time constraints.')
+            #    self.logger.info('Site search terminated due to time constraints.')
             #    return
             ##### Subroutine #####
             for re_seq, re_obj in ReversionTarget.sequences.items():
                 re_obj.score_off_targets(args, homologs)
-                logging.info(re_obj)
+                self.logger.info(re_obj)
                 for a in re_obj.alignments:
-                    logging.info('  ' + str(a))
+                    self.logger.info('  ' + str(a))
             
             # Batch calculate with new ReversionTarget class
             ReversionTarget.score_batch()
             
-            logging.info("ReversionTarget after Azimuth calculation")
+            self.logger.info("ReversionTarget after Azimuth calculation")
             for rt_seq, rt_obj in ReversionTarget.sequences.items():
-                logging.info(rt_obj)
+                self.logger.info(rt_obj)
             
             # Generate the FASTA with the final scores
             reversion_spacers_file = ReversionTarget.generate_spacers_fasta(os.path.join(args.folder, 'reversion-spacers.fasta'))
@@ -662,7 +665,7 @@ class GenerateParser(subroutine.Subroutine):
         # End 'compute()'
     
     @classmethod
-    def get_reTarget_homologs(self, homologs):
+    def get_reTarget_homologs(cls, homologs):
         """Get ReversionTarget objects for each homologous feature group"""
         ret_dict2 = {}
         
@@ -695,7 +698,7 @@ class GenerateParser(subroutine.Subroutine):
         return ret_dict2
     
     @classmethod
-    def rank_donors(self, donor_list):
+    def rank_donors(cls, donor_list):
         """Uses a heuristic to find the best Donor in the list"""
         # If the best ReversionTarget has multiple locations, then
         # choose the best ExcisionDonor location:
@@ -820,13 +823,13 @@ class GenerateParser(subroutine.Subroutine):
         #    #for name, rd in ReversionDonor.indices.items():
         #    #    if feature in rd.get_location_features():
         #    #        rd_list.append(rd)
-        #    logging.info('---feature: {}'.format(feature))
-        #    logging.info('---et_list: {}'.format(et_list))
-        #    #logging.info('---rd_list: {}'.format(rd_list))
+        #    self.logger.info('---feature: {}'.format(feature))
+        #    self.logger.info('---et_list: {}'.format(et_list))
+        #    #self.logger.info('---rd_list: {}'.format(rd_list))
         #    
         #    # Print the top 20
         #    for weight, et in self.rank_targets(et_list)[:20]:
-        #    logging.info('---weight, et: {}, {}'.format(weight, et))
+        #    self.logger.info('---weight, et: {}, {}'.format(weight, et))
             
             genes = set()
             features = set()
@@ -884,16 +887,16 @@ class GenerateParser(subroutine.Subroutine):
         pass
     
     @classmethod
-    def log_results(self, args, homologs, n=None):
+    def log_results(cls, args, homologs, n=None):
         """Function that prints to the log file the best spacers and dDNAs for each feature"""
         
-        logging.info('Log of best results...')
+        cls.logger.info('Log of best results...')
         
         # Print best ReversionTargets calculated and their corresponding ExcisionDonors
-        logging.info("Best 'ReversionTarget's calculated and their corresponding 'ExcisionDonor's...")
-        ret_dict2 = self.get_reTarget_homologs(homologs)
+        cls.logger.info("Best 'ReversionTarget's calculated and their corresponding 'ExcisionDonor's...")
+        ret_dict2 = cls.get_reTarget_homologs(homologs)
         for k in ret_dict2:
-            logging.info(str(k) + ' ' + str(len(ret_dict2[k])))
+            cls.logger.info(str(k) + ' ' + str(len(ret_dict2[k])))
             
             # Get the value for N
             if (n == None):
@@ -903,19 +906,19 @@ class GenerateParser(subroutine.Subroutine):
             
             # Print the top N
             for rank, obj in self.rank_targets(ret_dict2[k])[:display_num]:
-                logging.info(' ' + str(rank) + ' ' + str(obj))
+                cls.logger.info(' ' + str(rank) + ' ' + str(obj))
                 # Get the ExcisionDonor objects for this ki-spacer, and rank them
-                rds = self.rank_donors(obj.get_donors())
+                rds = cls.rank_donors(obj.get_donors())
                 # filter out all but the top-ranked ones
                 rds = [x for x in rds if (x[0] == rds[0][0])]
                 for gap, exd_obj in rds:
-                    logging.info('   ' + str(gap) + ' ' + str(exd_obj.get_trims()) + ' ' + str(exd_obj))
+                    cls.logger.info('   ' + str(gap) + ' ' + str(exd_obj.get_trims()) + ' ' + str(exd_obj))
         
         # Print best ExcisionTargets (not necessarily homozygous) for each feature
-        logging.info("Best 'ExcisionTarget's for each feature...")
+        cls.logger.info("Best 'ExcisionTarget's for each feature...")
         # and the ReversionDonor
         for feature in sorted(Feature.features):
-            logging.info(feature)
+            cls.logger.info(feature)
             et_list = []
             for name, obj in ExcisionTarget.indices.items():
                 if feature in obj.get_location_features():
@@ -929,14 +932,14 @@ class GenerateParser(subroutine.Subroutine):
             
             # Print the top N
             for rank, obj in self.rank_targets(et_list)[:display_num]:
-                logging.info('  ' + str(rank) + ' ' + str(obj))
+                cls.logger.info('  ' + str(rank) + ' ' + str(obj))
             
             red_list = []
             for name, obj in ReversionDonor.indices.items():
                 if feature in obj.get_location_features():
                     red_list.append(obj)
             for obj in red_list: # In no particular order (ampF/ampR primers for reDonors DO have weights, however)
-                logging.info('  ' + str(obj))
+                cls.logger.info('  ' + str(obj))
     
     def rolling_picker(self):
         """
@@ -1090,7 +1093,7 @@ class GenerateParser(subroutine.Subroutine):
                     print('\t'.join(map(str, sline)))
             
             if (len(outputs) == 0):
-                logging.info('No spacers for targeting knocked-out ' + csfeatures)
+                self.logger.info('No spacers for targeting knocked-out ' + csfeatures)
         
         # Print a table of allele-specific knock-in spacer and dDNA pairs
         ret_dict = self.get_reTarget_allele_specific()
@@ -1130,10 +1133,10 @@ class GenerateParser(subroutine.Subroutine):
             
             # If there are no allele-specific records, then nothing is printed
             if (len(outputs) == 0):
-                logging.info('No allele-specific spacers for targeting knocked-out ' + feature_name)
+                self.logger.info('No allele-specific spacers for targeting knocked-out ' + feature_name)
         
         ########## Results table for cutting the wild-type genome (ExcisionTarget or ko-gRNA) ##########
-        logging.info("Results table for cutting the wild-type genome ('ExcisionTarget' or 'ko-gRNA')")
+        self.logger.info("Results table for cutting the wild-type genome ('ExcisionTarget' or 'ko-gRNA')")
         
         # to add to header: contig:strand:start..end
         header = ['gene', 'features', 'contig:strand:start..end', 'weight', 'OT:Hsu-Zhang', 'OT:CFD', 'Azimuth', 'exTarget name', 'exTarget sequence', 'reDonors']
@@ -1141,10 +1144,10 @@ class GenerateParser(subroutine.Subroutine):
         
         # Print the best homozygous ExcisionTargets for each feature set
         ext_dict2 = self.get_exTarget_homologs(homologs)
-        logging.info("len(ext_dict2) = {}".format(len(ext_dict2)))
+        self.logger.info("len(ext_dict2) = {}".format(len(ext_dict2)))
         
         for feature_homologs in sorted(ext_dict2):
-            logging.info('feature_homologs = {}'.format(feature_homologs))
+            self.logger.info('feature_homologs = {}'.format(feature_homologs))
             gene = feature2gene[feature_homologs[0]] # Get the gene name
             csfeatures = ','.join(feature_homologs) # Add the features as comma-separated list
             
@@ -1173,7 +1176,7 @@ class GenerateParser(subroutine.Subroutine):
                 print('\t'.join(map(str, sline)))
             
             if (len(outputs) == 0):
-                logging.info('No spacers for targeting ' + csfeatures)
+                self.logger.info('No spacers for targeting ' + csfeatures)
         
         # Print a table of allele-specific knock-out spacer and dDNA pairs
         ext_dict = self.get_exTarget_allele_specific()
@@ -1207,7 +1210,7 @@ class GenerateParser(subroutine.Subroutine):
             
             # If there are no allele-specific records, then nothing is printed
             if (len(outputs) == 0):
-                logging.info('No allele-specific spacers for targeting wild-type ' + feature_name)
+                self.logger.info('No allele-specific spacers for targeting wild-type ' + feature_name)
         
     def old_get_best(self, args, features, contigs):
         #exd_dict = {}
@@ -1266,13 +1269,13 @@ class GenerateParser(subroutine.Subroutine):
             # Find the ReversionDonor
             red_best = red_dict[feature]
             
-            logging.info("")
-            logging.info("  feature = " + feature)
-            logging.info("ko spacer = " + str(ext_best))
+            self.logger.info("")
+            self.logger.info("  feature = " + feature)
+            self.logger.info("ko spacer = " + str(ext_best))
             for d in exd_best:
-                logging.info("  ko dDNA = " + str(d))
-            logging.info("ki spacer = " + str(ret_best))
+                self.logger.info("  ko dDNA = " + str(d))
+            self.logger.info("ki spacer = " + str(ret_best))
             for d in red_best:
-                logging.info("  ki dDNA = " + str(d))
+                self.logger.info("  ki dDNA = " + str(d))
     
     ######################## End DEPRECATED ########################
