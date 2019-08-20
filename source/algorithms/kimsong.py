@@ -30,11 +30,12 @@ import math
 import fractions
 import random
 import logging
-logger = logging.getLogger(__name__)
 
 # Import non-standard packages
 import regex
 import subprocess
+
+logger = logging.getLogger(__name__)
 
 # Treat modules in PACKAGE_PARENT as in working directory
 if (__name__ == "__main__"):
@@ -59,6 +60,8 @@ class DeepCpf1(BatchedSingleSequenceAlgorithm):
     CHROMATIN_IGNORED = 0
     CHROMATIN_INACCESSIBLE = 1
     CHROMATIN_ACCESSIBLE = 2
+    
+    logger = logger.getChild('DeepCpf1')
         
     def __init__(self):
         super().__init__("DeepCpf1", "Kim, Song, et al", 2016,
@@ -116,7 +119,7 @@ class DeepCpf1(BatchedSingleSequenceAlgorithm):
         return 1.0/(1+1.08**(60-x))
     
     def build_seq_model(self):
-        logging.info("Building models")
+        self.logger.info("Building models")
         Seq_deepCpf1_Input_SEQ = Input(shape=(34,4))
         Seq_deepCpf1_C1 = Convolution1D(80, 5, activation='relu')(Seq_deepCpf1_Input_SEQ)
         Seq_deepCpf1_P1 = AveragePooling1D(2)(Seq_deepCpf1_C1)
@@ -133,7 +136,7 @@ class DeepCpf1(BatchedSingleSequenceAlgorithm):
         
         # Load scores from the data file into the model
         try:
-            logging.info("Loading scores for the SEQ models")
+            self.logger.info("Loading scores for the SEQ models")
             Seq_deepCpf1.load_weights(os.path.join(os.path.dirname(__file__), 'kimsong_seq_scores.h5')) # Renamed 'Seq_deepCpf1_weights.h5' file
         except FileNotFoundError:
             raise Exception("Could not find DeepCpf1 data files containing scores")
@@ -162,7 +165,7 @@ class DeepCpf1(BatchedSingleSequenceAlgorithm):
         
         # Load scores from the data file into the model
         try:
-            logging.info("Loading scores for the CA model")
+            self.logger.info("Loading scores for the CA model")
             DeepCpf1.load_weights(os.path.join(os.path.dirname(__file__), 'kimsong_ca_scores.h5')) # Renamed 'DeepCpf1_weights.h5' file
         except FileNotFoundError:
             raise Exception("Could not find DeepCpf1 data files containing scores")
@@ -279,7 +282,7 @@ class DeepCpf1(BatchedSingleSequenceAlgorithm):
                     if 'T' in iupac[qq]:
                         SEQ[i, j, 3] = 1
         
-        logging.info("Predicting on test data")
+        self.logger.info("Predicting on test data")
         if (chromatin == self.CHROMATIN_IGNORED):
             score_seq = self.seq_model.predict([SEQ], batch_size=50, verbose=0)
         elif (chromatin == self.CHROMATIN_INACCESSIBLE):
@@ -298,7 +301,7 @@ class DeepCpf1(BatchedSingleSequenceAlgorithm):
                 if q[1]:
                     q[3] = float(score_seq[i]) # float(score_ca_0[i]) float(score_ca_1[i])
                 #else:
-                #    logging.info("Skipping DeepCpf1 calculation: {}".format(q))
+                #    self.logger.info("Skipping DeepCpf1 calculation: {}".format(q))
             
             q_avg_list = []
             current_i = None

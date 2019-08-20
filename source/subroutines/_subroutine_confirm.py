@@ -31,7 +31,11 @@ from .. import thermodynamics
 from ..thermodynamics.oligo import Primer, PrimerPair, PrimerDesign
 from .. import cache
 
+logger = logging.getLogger(__name__)
+
 class ConfirmParser(subroutine.Subroutine):
+    logger = logger.getChild('ConfirmParser')
+    
     def __init__(self, subparsers):
         self.subparsers = subparsers
         
@@ -275,7 +279,7 @@ class ConfirmParser(subroutine.Subroutine):
         #Datum = namedtuple('Datum', ['dDNA_r', 'dDNA_contig', 'genome_r', 'genome_contig', 'ush_start', 'ush_end', 'dsh_start', 'dsh_end', 'ins_start', 'ins_end'])
         
         # Create 'r0'
-        logging.info('Working on round r{}'.format(0))
+        self.logger.info('Working on round r{}'.format(0))
         # Parse the input FASTA
         genome_contigs_list.append(utils.load_multiple_fasta_files(args.fasta))
         dDNA_contigs_list.append(None) # The 'r0' round of genome engineering has no dDNA
@@ -321,7 +325,7 @@ class ConfirmParser(subroutine.Subroutine):
             r = j+1
             
             # Let the user know which round is being processed
-            logging.info('Working on round r{}'.format(r))
+            self.logger.info('Working on round r{}'.format(r))
             
             # Load input dDNA FASTA into the list of dicts
             dDNA_contigs_list.append(utils.old_load_fasta_file(dDNA_filename))
@@ -360,8 +364,8 @@ class ConfirmParser(subroutine.Subroutine):
                 # Should be able to comment this condition out as it is already accounted for in the record population/filtering step
                 if (len(record_list) == 2):
                     if (record_list[0].flags & 16 == record_list[1].flags & 16): # Each homology region should have identical strand orientation
-                        logging.info('Working on {} vs {}'.format(qname, sname))
-                        logging.info("crossover: " + str((i, qname, sname, record_list)))
+                        self.logger.info('Working on {} vs {}'.format(qname, sname))
+                        self.logger.info("crossover: " + str((i, qname, sname, record_list)))
                         
                         # Identify which record is upstream, and which is downstream (by query)
                         us_record, ds_record = sorted(record_list, key=lambda x: x.query_position)
@@ -379,7 +383,7 @@ class ConfirmParser(subroutine.Subroutine):
                         
                         # Get the SUBJECT homology coordinates
                         if (us_record.flags & 16): # Reverse complement means upstream/downstream are swapped
-                            logging.info('  us_record is reverse complemented')
+                            self.logger.info('  us_record is reverse complemented')
                             sush_start, sush_end = ds_record.subject_position[0], ds_record.subject_position[1]
                             sdsh_start, sdsh_end = us_record.subject_position[0], us_record.subject_position[1]
                         else: # not reverse-complemented
@@ -510,7 +514,7 @@ class ConfirmParser(subroutine.Subroutine):
                         group_links.append(Datum(r, qname, r-1, sname, sush_start, sush_end, sdsh_start, sdsh_end, qush_end, qdsh_start))
                         
                 else:
-                    logging.info(qname + ' vs ' + sname + ' has ' + str(len(record_list)) + ' regions of homology (2 needed)')
+                    self.logger.info(qname + ' vs ' + sname + ' has ' + str(len(record_list)) + ' regions of homology (2 needed)')
             
             # Rename the contigs based on the modifications
             # This code only works for a single-locus per chromosome! <=----- need to update this so it works for multiple loci per chromosome
@@ -549,7 +553,7 @@ class ConfirmParser(subroutine.Subroutine):
             r = j+1
             
             # Let the user know which round is being processed
-            logging.info('Working on round r{}'.format(r))
+            self.logger.info('Working on round r{}'.format(r))
             
             # Align each dDNA to the genome it produced
             genome_index_file = args.selected_aligner.index(genome_fasta_file_list[r], os.path.basename(genome_fasta_file_list[r]), args.folder, args.processors)
@@ -564,7 +568,7 @@ class ConfirmParser(subroutine.Subroutine):
                 qname, sname = qs_pair
                 record = records[qs_pair]
                 
-                logging.info('Working on {} vs {}'.format(qname, sname))
+                self.logger.info('Working on {} vs {}'.format(qname, sname))
                 
                 scontig = genome_contigs_list[r][sname]
                 qcontig = dDNA_contigs_list[r][qname]
@@ -587,7 +591,7 @@ class ConfirmParser(subroutine.Subroutine):
                 ins_start, ins_end = None, None
                 
                 if (record.flags & 16): # Reverse complement if necessary
-                    logging.info('  us_record is reverse complemented')
+                    self.logger.info('  us_record is reverse complemented')
                     # We must reverse-complement these dDNA substrings so their orientation matches the genome
                     q_hih_seq = nucleotides.rc(q_hih_seq)
                 else: # not reverse-complemented
@@ -615,14 +619,14 @@ class ConfirmParser(subroutine.Subroutine):
         
         
         for i, dg in enumerate(datum_groups):
-            logging.info('Analyzing locus: {}'.format(i))
+            self.logger.info('Analyzing locus: {}'.format(i))
             
             # Add DatumGroup to 'output0' table
             output0.append([i, dg])
             
             fus_seq, fds_seq = pcr_regions[i]
             
-            logging.info("Grabbing contig substrings for 'Insert' objects...")
+            self.logger.info("Grabbing contig substrings for 'Insert' objects...")
             
             # insert_seqs = [
             #     Insert(qname='ko-dDNA', genome_r=0, genome_contig='chr1',               seq='ACGTAACA') 
@@ -636,7 +640,7 @@ class ConfirmParser(subroutine.Subroutine):
             # And use those to calculate the 'before'=feature, and 'after'=insert
             # sequences (with their up/downstream flanking regions)
             for di, datum in enumerate(dg):
-                logging.info("Parsing 'Datum' {}".format(di))
+                self.logger.info("Parsing 'Datum' {}".format(di))
                 if (datum.ins_start != None):
                     # Add feature
                     insert_seqs.append(Insert(
@@ -682,17 +686,17 @@ class ConfirmParser(subroutine.Subroutine):
             
             # Old code for 6-set:
             #initial_pair_list, final_pair_list = self.make_primer_set(args, qname, us_seq, ds_seq, insert_seq, feature_seq, q_hih_seq, s_ush_seq, q_ush_seq, s_dsh_seq, q_dsh_seq)
-            logging.info('Calculating primers for locus {}'.format(i))
+            self.logger.info('Calculating primers for locus {}'.format(i))
             #                                                                             shared_forward  shared_reverse  features/inserts
 #            pair_list, insert_pair_list, round_labels, weighted_d_set_list = self.calculate_them_primers(args, fus_seq,        fds_seq,        insert_seqs)
             pair_list, insert_pair_list, round_labels, weighted_d_set_list = [], [], [], []
             
             # Filter 'pair_list' to get the top 10
-            logging.info("Sorting Amp 'A/B/C' list...")
+            self.logger.info("Sorting Amp 'A/B/C' list...")
             pair_list = sorted(pair_list, reverse=True)[:args.max_number_designs_reported]
             
             # Make Amp-D pp list non-redundant
-            logging.info("Sorting Amp 'D' list...")
+            self.logger.info("Sorting Amp 'D' list...")
             ppdict = {}
             for wdsl in weighted_d_set_list:
                 w, pp_list = wdsl
@@ -714,10 +718,10 @@ class ConfirmParser(subroutine.Subroutine):
             weighted_d_set_list = sorted(weighted_d_set_list, reverse=True)[:args.max_number_designs_reported]
             
             # Let user know program is still working
-            logging.info("Appending Locus {} results to output lists...".format(i))
+            self.logger.info("Appending Locus {} results to output lists...".format(i))
             
             # Add the calculated weights of the sF/sR/oF/oR sets to 'output1' table
-            logging.info("Appending 'output1'...")
+            self.logger.info("Appending 'output1'...")
             for ppli, (w, pp_list) in enumerate(pair_list):
                 output1.append([ppli, i, w, 'A/B/C'])
             
@@ -725,7 +729,7 @@ class ConfirmParser(subroutine.Subroutine):
                 output1.append([ppli, i, w, 'D'])
             
             # Print the primers for 'output2' table
-            logging.info("Appending 'output2'...")
+            self.logger.info("Appending 'output2'...")
             for ppli, (w, pp_list) in enumerate(pair_list):
                 round_labels_iter = iter(round_labels)
                 
@@ -786,7 +790,7 @@ class ConfirmParser(subroutine.Subroutine):
                             output2.append([ppli, pp_i, i, amp_name, rac, converted_genome_round, 'r'+round_n+'-iF', 'r'+round_n+'-iR', '-', '-'])
                     
             # Add Primer sequences to 'output3' table
-            logging.info("Appending 'output3'...")
+            self.logger.info("Appending 'output3'...")
             for ppli, (w, pp_list) in enumerate(pair_list):
                 round_labels_iter = iter(round_labels)
                 #non_redundant_primers = {}
@@ -830,7 +834,7 @@ class ConfirmParser(subroutine.Subroutine):
                     output3.append([ppli, pp_i, i, rname, rseq])
             
             # Add the primer locations to 'output4' table
-            logging.info("Appending 'output4'...")
+            self.logger.info("Appending 'output4'...")
             for ppli, (w, pp_list) in enumerate(pair_list):
                 round_labels_iter = iter(round_labels)
                 for pp_i, pp in enumerate(pp_list):
@@ -876,7 +880,7 @@ class ConfirmParser(subroutine.Subroutine):
                         output4.append([ppli, pp_i, i, 'r'+round_n+'-iF', '-', '-', '-', '-', '-', '+'])
                         output4.append([ppli, pp_i, i, 'r'+round_n+'-iR', '-', '-', '-', '-', '-', '-'])
         
-        logging.info('Printing to STDOUT...')
+        self.logger.info('Printing to STDOUT...')
         
         # Print output header information describing the amplicons
         print('#                                          Genome')
@@ -928,7 +932,7 @@ class ConfirmParser(subroutine.Subroutine):
           masked characters
         '''
         
-        logging.info("Starting 'primer_queue_test()'...")
+        self.logger.info("Starting 'primer_queue_test()'...")
         # This should be input to this function
         # loci = datum_list/datum_groups
         #loci = ['hapA', 'hapB']
@@ -986,11 +990,11 @@ class ConfirmParser(subroutine.Subroutine):
                         nname = None
                         Primer.scan(sequence, 0, locus, datum.genome_r, region, contig, orientation, start, end, nname, primer_size=(19,36))
         
-        logging.info("Total 'Primer' objects before filtering: {}".format(len(Primer.sequences)))
+        self.logger.info("Total 'Primer' objects before filtering: {}".format(len(Primer.sequences)))
         
         # Determine the minimal set of loci/genomes/contigs to constitute correct specificity
         # Filter the primer queue in 'Primer.sequences' so only valid primers remain
-        logging.info("Removing 'Primer' objects that don't meet desired: specificity='{}'".format(args.specificity))
+        self.logger.info("Removing 'Primer' objects that don't meet desired: specificity='{}'".format(args.specificity))
         
         if (args.specificity == 'exclusive'): # allele-specific
             # Primer must be present in only one locus and not any others
@@ -1012,10 +1016,10 @@ class ConfirmParser(subroutine.Subroutine):
             # Primer can be present in any number of loci
             pass
         
-        logging.info("Total 'Primer' objects after filtering: {}".format(len(Primer.sequences)))
+        self.logger.info("Total 'Primer' objects after filtering: {}".format(len(Primer.sequences)))
         
         # Set up 'PrimerPair' objects, and place them in a queue 'PrimerPair.pairs'
-        logging.info("Setting up 'PrimerPair' objects")
+        self.logger.info("Setting up 'PrimerPair' objects")
         
         
         clist = [
@@ -1050,8 +1054,8 @@ class ConfirmParser(subroutine.Subroutine):
             cutoffs['o_oligo'] = args.selected_oligo
             cutoffs['folder'] = os.path.join(args.temp_folder, 'addtag', os.path.basename(args.folder))
             
-            logging.info("cycle {}".format(cycle_n))
-            logging.info("  cutoffs = {}".format(cutoffs))
+            self.logger.info("cycle {}".format(cycle_n))
+            self.logger.info("  cutoffs = {}".format(cutoffs))
             
             # Do 'Primer' calculations until the time limit is reached
             p_tot = 0
@@ -1087,7 +1091,7 @@ class ConfirmParser(subroutine.Subroutine):
                 
                 p_tot += 1
             
-            logging.info("  'Primer' objects: checked_now={}, passed_previously={}, not_checked={}, skipped={}, total={}".format(p_checked_now, p_passed_previously, p_rejected, p_skipped, p_tot))
+            self.logger.info("  'Primer' objects: checked_now={}, passed_previously={}, not_checked={}, skipped={}, total={}".format(p_checked_now, p_passed_previously, p_rejected, p_skipped, p_tot))
             
             
             ##### Some debug code #####
@@ -1109,13 +1113,13 @@ class ConfirmParser(subroutine.Subroutine):
                     ddd += 1
                 if (p.o_reverse_complement != None):
                     ooo += 1
-            logging.info("   sss={}, nnn={}, ttt={}, hhh={}, ddd={}, ooo={}".format(sss, nnn, ttt, hhh, ddd, ooo))
+            self.logger.info("   sss={}, nnn={}, ttt={}, hhh={}, ddd={}, ooo={}".format(sss, nnn, ttt, hhh, ddd, ooo))
             ##### Some debug code #####
             
             
             
             subset_size = 1000
-            logging.info("  Queueing 'PrimerPair' objects")
+            self.logger.info("  Queueing 'PrimerPair' objects")
             #pair_queue = []
             # pair_queue = [
             #     [                        # Locus 0
@@ -1132,7 +1136,7 @@ class ConfirmParser(subroutine.Subroutine):
             pair_queue = []
             
             for (f_reg, f_ori, f_name), (r_reg, r_ori, r_name) in pairs:
-                logging.info("  pair: F={}, R={}".format((f_reg, f_ori, f_name), (r_reg, r_ori, r_name)))
+                self.logger.info("  pair: F={}, R={}".format((f_reg, f_ori, f_name), (r_reg, r_ori, r_name)))
                 f_list = []
                 r_list = []
                 #loci_needed = list(range(len(loci)))
@@ -1159,7 +1163,7 @@ class ConfirmParser(subroutine.Subroutine):
                         if all(r_in):
                             r_list.append(seq)
                             p.set_name('r?-'+r_name)
-                logging.info("    len(f_list)={}, len(r_list)={}".format(len(f_list), len(r_list)))
+                self.logger.info("    len(f_list)={}, len(r_list)={}".format(len(f_list), len(r_list)))
                 pp_list = []
                 for p1 in sorted(f_list, reverse=True)[:subset_size]:
                     for p2 in sorted(r_list, reverse=True)[:subset_size]:
@@ -1173,7 +1177,7 @@ class ConfirmParser(subroutine.Subroutine):
                         if ((pp.checks[0] != None) and Primer.summarize(pp.checks)):
                             pp_list.append(pair)
                 pair_queue.append(pp_list)
-                logging.info("    Added {} 'PrimerPair' objects for pair: F={}, R={}".format(len(pp_list), (f_reg, f_ori, f_name), (r_reg, r_ori, r_name)))
+                self.logger.info("    Added {} 'PrimerPair' objects for pair: F={}, R={}".format(len(pp_list), (f_reg, f_ori, f_name), (r_reg, r_ori, r_name)))
             
             
             
@@ -1189,7 +1193,7 @@ class ConfirmParser(subroutine.Subroutine):
             # Go through the 'pair_queue' one sF sR pair at a time
             design_count = 0
             for loop_i, sF_sR_pair in enumerate(sorted(sF_sR_paired_primers, reverse=True)):
-                logging.info('  loop {}:'.format(loop_i))
+                self.logger.info('  loop {}:'.format(loop_i))
                 pp_sources = []
                 pp_sources.append([sF_sR_pair])
                 
@@ -1209,7 +1213,7 @@ class ConfirmParser(subroutine.Subroutine):
                         pp_sources.append(pp_list)
                 
                 current_pp_sources = [len(x) for x in pp_sources]
-                logging.info('  length of sources: {}'.format(current_pp_sources))
+                self.logger.info('  length of sources: {}'.format(current_pp_sources))
                 
                 
                 # Ideally, similar code should be executed, but before the 'PrimerPair.progressive_check()' is calculated
@@ -1224,10 +1228,10 @@ class ConfirmParser(subroutine.Subroutine):
                     if ((req_str not in ['y', 'Y', '1', 'T', 't', 'TRUE', 'True', 'true']) and (num_pp > 0)):
                         should_mask = True
                 if should_skip:
-                    logging.info('  skipping...')
+                    self.logger.info('  skipping...')
                     continue
                 if should_mask:
-                    logging.info('  masking...')
+                    self.logger.info('  masking...')
                     continue
                 
                 
@@ -1254,7 +1258,7 @@ class ConfirmParser(subroutine.Subroutine):
         #    sets = calculate_primer_sets()
         #    for s in sets[:max_sets]:
         #        print(s)
-        logging.info("Function 'primer_queue_test()' completed.")
+        self.logger.info("Function 'primer_queue_test()' completed.")
         
     
     def primer_queue_test(self, args, loci, genome_contigs_list, dDNA_contigs_list):
@@ -1268,7 +1272,7 @@ class ConfirmParser(subroutine.Subroutine):
           masked amplicons (not yet)
         '''
         
-        logging.info("Starting 'primer_queue_test()'...")
+        self.logger.info("Starting 'primer_queue_test()'...")
         
         #### BEGIN 3/28 ####
         
@@ -1325,7 +1329,7 @@ class ConfirmParser(subroutine.Subroutine):
         #   Datum(dDNA_r=2, dDNA_contig='reDonor-0', genome_r=2, genome_contig='Ca22chr4A_C_albicans_SC5314-r1[exDonor-5]-r2[reDonor-0]', ush_start=1044347, ush_end=None, dsh_start=None, dsh_end=1044813, ins_start=None, ins_end=None)
         # ]
         
-        logging.info('Starting test of new 2D simplification of the data')
+        self.logger.info('Starting test of new 2D simplification of the data')
         
         # Define regions as constants for low-memory reference variables
         FAR_UPSTREAM = 1
@@ -1419,7 +1423,7 @@ class ConfirmParser(subroutine.Subroutine):
             print('\t'.join(map(str, d)), flush=True)
         ##### END OUTPUT 1 #####
         
-        logging.info('Finished testing new 2D simplification of the data')
+        self.logger.info('Finished testing new 2D simplification of the data')
         
         gene_list = list(sorted(set(d[0] for d in data)))
         locus_list = list(sorted(set(d[1] for d in data)))
@@ -1432,7 +1436,7 @@ class ConfirmParser(subroutine.Subroutine):
                 Primer.scan(sequence, gene=d[0], locus=d[1], genome=d[2], region=d[3], contig=d[4], orientation=d[5], start=d[6], end=d[7], name=None, primer_size=(19,36), case=args.case, min_junction_overlap=None)
             else:
                 Primer.scan(sequence, gene=d[0], locus=d[1], genome=d[2], region=d[3], contig=d[4], orientation=d[5], start=d[6], end=d[7], name=None, primer_size=(19,36), case=args.case)
-        logging.info("Total 'Primer' objects before filtering: {}".format(len(Primer.sequences)))
+        self.logger.info("Total 'Primer' objects before filtering: {}".format(len(Primer.sequences)))
         
         
         # Load cached primer objects if instructed to
@@ -1481,12 +1485,12 @@ class ConfirmParser(subroutine.Subroutine):
                 #   For instance, ADE2 should be 1707 nt, but it is reporting 1706.
                 gg2feature_size.setdefault((d_gene, d_locus, d_genome, d_contig), list()).append(d_end-d_start)
         
-        logging.info("gene-to-feature:")
+        self.logger.info("gene-to-feature:")
         for k, v in gg2feature_size.items():
-            logging.info("  {} {}".format(k, v))
+            self.logger.info("  {} {}".format(k, v))
         
         for gene in gene_list:
-            logging.info("Processing gene: {}".format(gene))
+            self.logger.info("Processing gene: {}".format(gene))
             # Make list of SHARED sF primers, and perform progressive checks on them
             sF_seq_list = []
             sR_seq_list = []
@@ -1541,11 +1545,11 @@ class ConfirmParser(subroutine.Subroutine):
                         featureR_seq_lists[r].append(seq)
                 ###### END THIS ######
             
-            logging.info("Total 'sF' 'Primer' sequences after filtering: {}".format(len(sF_seq_list)))
-            logging.info("Total 'sR' 'Primer' sequences after filtering: {}".format(len(sR_seq_list)))
+            self.logger.info("Total 'sF' 'Primer' sequences after filtering: {}".format(len(sF_seq_list)))
+            self.logger.info("Total 'sR' 'Primer' sequences after filtering: {}".format(len(sR_seq_list)))
             for r in range(len(genome_list)):
-                logging.info("Total 'iF/oF-r{}' 'Primer' sequences after filtering: {}".format(genome_list[r], len(featureF_seq_lists[r])))
-                logging.info("Total 'iR/oR-r{}' 'Primer' sequences after filtering: {}".format(genome_list[r], len(featureR_seq_lists[r])))
+                self.logger.info("Total 'iF/oF-r{}' 'Primer' sequences after filtering: {}".format(genome_list[r], len(featureF_seq_lists[r])))
+                self.logger.info("Total 'iR/oR-r{}' 'Primer' sequences after filtering: {}".format(genome_list[r], len(featureR_seq_lists[r])))
             
             # Define cutoff start and ends (default)
             clist = [
@@ -1573,29 +1577,29 @@ class ConfirmParser(subroutine.Subroutine):
             cycle_n = 0
             
             while (cycle_n < args.cycle_start):
-                logging.info("gene: {}, cycle: {}".format(gene, cycle_n))
+                self.logger.info("gene: {}, cycle: {}".format(gene, cycle_n))
                 try:
-                    logging.info("  Calculating next set of cutoffs")
+                    self.logger.info("  Calculating next set of cutoffs")
                     # Get the initial cutoffs (if this is the first loop)
                     # or get the next-most relaxed cutoffs (if this isn't the first loop)
                     cutoffs = next(citer)
                     cycle_n += 1
                 except StopIteration:
-                    logging.info("  No additional cutoffs. Ending loop")
+                    self.logger.info("  No additional cutoffs. Ending loop")
                     break
             
             optimal_designs = []
             while ((design_found == False) and (cycle_n <= args.cycle_stop)):
                 
-                logging.info("gene: {}, cycle: {}".format(gene, cycle_n))
+                self.logger.info("gene: {}, cycle: {}".format(gene, cycle_n))
                 try:
-                    logging.info("  Calculating next set of cutoffs")
+                    self.logger.info("  Calculating next set of cutoffs")
                     # Get the initial cutoffs (if this is the first loop)
                     # or get the next-most relaxed cutoffs (if this isn't the first loop)
                     cutoffs = next(citer)
                     cycle_n += 1
                 except StopIteration:
-                    logging.info("  No additional cutoffs. Ending loop")
+                    self.logger.info("  No additional cutoffs. Ending loop")
                     break
                 
                 # Add the invariant cutoff parameters
@@ -1603,7 +1607,7 @@ class ConfirmParser(subroutine.Subroutine):
                 cutoffs['folder'] = os.path.join(args.temp_folder, 'addtag', os.path.basename(args.folder))
                 
                 
-                logging.info("  cutoffs = {}".format(cutoffs))
+                self.logger.info("  cutoffs = {}".format(cutoffs))
                 
                 # Do 'Primer' calculations until the time limit is reached
                 p_queue = [sF_seq_list, sR_seq_list] + featureF_seq_lists + featureR_seq_lists
@@ -1654,7 +1658,7 @@ class ConfirmParser(subroutine.Subroutine):
 #                        
 #                        p_tot += 1
 #                
-#                    logging.info("  'Primer' objects: checked_now={}, passed_previously={}, newly_passed={}, not_checked={}, skipped={}, total={}".format(p_checked_now, p_passed_previously, p_newly_passed, p_rejected, p_skipped, p_tot))
+#                    self.logger.info("  'Primer' objects: checked_now={}, passed_previously={}, newly_passed={}, not_checked={}, skipped={}, total={}".format(p_checked_now, p_passed_previously, p_newly_passed, p_rejected, p_skipped, p_tot))
                 
                 
                 ##### Some debug code #####
@@ -1676,19 +1680,19 @@ class ConfirmParser(subroutine.Subroutine):
                         ddd += 1
                     if (p.o_reverse_complement != None):
                         ooo += 1
-                logging.info("  Summary of all 'Primer' objects:")
-                logging.info("    Number primers with summarize() passed = {}".format(sss))
-                logging.info("    Number primers with all checks passed = {}".format(nnn))
-                logging.info("    Number primers in 'Primer.sequences' = {}".format(ttt))
-                logging.info("    Number primers with hairpins calculated = {}".format(hhh))
-                logging.info("    Number primers with self-dimers calculated = {}".format(ddd))
-                logging.info("    Number primers with Tm calculated = {}".format(ooo))
+                self.logger.info("  Summary of all 'Primer' objects:")
+                self.logger.info("    Number primers with summarize() passed = {}".format(sss))
+                self.logger.info("    Number primers with all checks passed = {}".format(nnn))
+                self.logger.info("    Number primers in 'Primer.sequences' = {}".format(ttt))
+                self.logger.info("    Number primers with hairpins calculated = {}".format(hhh))
+                self.logger.info("    Number primers with self-dimers calculated = {}".format(ddd))
+                self.logger.info("    Number primers with Tm calculated = {}".format(ooo))
                 ##### Some debug code #####
                 
                 
                 
                 # Set up 'PrimerPair' objects, and place them in a queue 'PrimerPair.pairs'
-                logging.info("  Queueing 'PrimerPair' objects")
+                self.logger.info("  Queueing 'PrimerPair' objects")
                 
                 #pair_queue = []
                 # pair_queue = [
@@ -1749,7 +1753,7 @@ class ConfirmParser(subroutine.Subroutine):
                     #      for j in range(10000):
                     #          t += i*j
                     #   ##### END SAMPLE #####
-                    logging.info("    Number potential 'PrimerPair' objects for pair: {} = {} x {}".format(len(p1_list) * len(p2_list), len(p1_list), len(p2_list)))
+                    self.logger.info("    Number potential 'PrimerPair' objects for pair: {} = {} x {}".format(len(p1_list) * len(p2_list), len(p1_list), len(p2_list)))
                     pp_seq_list = []
                     primerpairs_to_process_list = []
                     for i1, p1 in enumerate(sorted(p1_list, reverse=True)[:subset_size]):
@@ -1757,7 +1761,7 @@ class ConfirmParser(subroutine.Subroutine):
                             time_expired = True
                         
                         if (i1 % 100 == 0):
-                            logging.info("      Processed/Queued {} pairs".format(i1*len(p2_list)))
+                            self.logger.info("      Processed/Queued {} pairs".format(i1*len(p2_list)))
                         
                         if not time_expired:
                             for i2, p2 in enumerate(sorted(p2_list, reverse=True)[:subset_size]):
@@ -1796,7 +1800,7 @@ class ConfirmParser(subroutine.Subroutine):
                                     pp_seq_list.append(pair)
                         
                     pp_queue.append(pp_seq_list)
-                    logging.info("    Added {} 'PrimerPair' objects for pair: '{}', '{}', amp={}, required={}".format(len(pp_seq_list), lab1, lab2, amp, required_pattern[pi]))
+                    self.logger.info("      Added {} 'PrimerPair' objects for pair: '{}', '{}', amp={}, required={}".format(len(pp_seq_list), lab1, lab2, amp, required_pattern[pi]))
                     
                     # Ideally:
                     #   Each pp should have its own cutoffs:
@@ -1812,7 +1816,7 @@ class ConfirmParser(subroutine.Subroutine):
                 # Continue performing the pp calculations for the current round,
                 # Then skip without doing any simulated annealing
                 if should_skip:
-                    logging.info("  Skipping simulated annealing")
+                    self.logger.info("  Skipping simulated annealing")
                     continue
                 
                 # Now we need to take the 'pp_queue' and slot it into a 'PrimerDesign', and optimize
@@ -1821,7 +1825,7 @@ class ConfirmParser(subroutine.Subroutine):
                 # Populate sF_sR_paired_primers with primer objects
                 sF_sR_paired_primers = []
                 
-                #logging.info("    Gene={}, number_features={}, Features={}".format(gene, ))
+                #self.logger.info("    Gene={}, number_features={}, Features={}".format(gene, ))
                 
                 for pair in pp_queue[0]:
                     pp = PrimerPair.pairs[pair]
@@ -1834,7 +1838,7 @@ class ConfirmParser(subroutine.Subroutine):
                 design_count = 0
                 mpd_list = []
                 for loop_i, sF_sR_pair in enumerate(sorted(sF_sR_paired_primers, reverse=True)):
-                    logging.info('  loop {}:'.format(loop_i))
+                    self.logger.info('  loop {}:'.format(loop_i))
                     pp_sources = []
                     pp_sources.append([sF_sR_pair])
                     
@@ -1857,7 +1861,7 @@ class ConfirmParser(subroutine.Subroutine):
                             pp_sources.append(pp_list)
                     
                     current_pp_sources = [len(x) for x in pp_sources]
-                    logging.info('  length of sources: {}'.format(current_pp_sources))
+                    self.logger.info('  length of sources: {}'.format(current_pp_sources))
                     
                     
                     # Ideally, similar code should be executed, but before the 'PrimerPair.progressive_check()' is calculated
@@ -1870,10 +1874,10 @@ class ConfirmParser(subroutine.Subroutine):
                         if ((req_str not in ['y', 'Y', '1', 'T', 't', 'TRUE', 'True', 'true']) and (num_pp > 0)):
                             should_mask = True
                     if should_skip:
-                        logging.info('  skipping...')
+                        self.logger.info('  skipping...')
                         continue
                     if should_mask:
-                        logging.info('  masking...')
+                        self.logger.info('  masking...')
                         continue
                     
                     # Evaluate if any new primer designs are adequate
@@ -1892,7 +1896,7 @@ class ConfirmParser(subroutine.Subroutine):
                     design_count += 1
                     
                     if (design_count >= subset_size):
-                        logging.info("  Stopped queueing designs for 'optimization' because 'subset_size' has been reached.")
+                        self.logger.info("  Stopped queueing designs for 'optimization' because 'subset_size' has been reached.")
                         break
                 
                 ###### Start multiprocessing ######
@@ -1912,7 +1916,7 @@ class ConfirmParser(subroutine.Subroutine):
             for od in optimal_designs:
                 print(gene, od)
             
-        logging.info("Function 'primer_queue_test()' completed.")
+        self.logger.info("Function 'primer_queue_test()' completed.")
     
     def mp_setup(self, args, cutoffs, data):
         '''
@@ -1928,7 +1932,7 @@ class ConfirmParser(subroutine.Subroutine):
         data_lock = multiprocessing.Lock()
         
         # Create a number of processes equal to input cores
-        logging.info('Creating mp jobs...')
+        self.logger.info('Creating mp jobs...')
         jobs = []
         for i in range(args.processors):
             w = PrimerWorker(args, cutoffs, mp_queue, results_queue, log_lock, data_lock)
@@ -1936,18 +1940,18 @@ class ConfirmParser(subroutine.Subroutine):
             w.start()
         
         # After the jobs are created, we populate the queue
-        logging.info('Adding data to qeueue...')
+        self.logger.info('Adding data to qeueue...')
         for d in data:
             mp_queue.put(d)
         
         # Add a poison pill for each processor
-        logging.info('Adding kill signals to qeueue...')
+        self.logger.info('Adding kill signals to qeueue...')
         for i in range(args.processors):
             mp_queue.put(None)
         
         # exitcode - The child’s exit code will be None if the process has not yet terminated.
         # A negative value -N indicates that the child was terminated by signal N.
-        logging.info('Waiting for threads to finish...')
+        self.logger.info('Waiting for threads to finish...')
         while any([j.exitcode == None for j in jobs]):
         #while any([j.is_alive() for j in jobs]):
             try:
@@ -1955,13 +1959,13 @@ class ConfirmParser(subroutine.Subroutine):
                 p = Primer.sequences[seq]
                 p.mp_update(results)
             except queue.Empty:
-                logging.info('queue empty')
+                self.logger.info('queue empty')
         
         # Wait for all processes to end
         for j in jobs:
             j.join()
         
-        logging.info('mp finished')
+        self.logger.info('mp finished')
     
     def mpp_setup(self, args, cutoffs, data):
         '''
@@ -1978,7 +1982,7 @@ class ConfirmParser(subroutine.Subroutine):
         data_lock = multiprocessing.Lock()
         
         # Create a number of processes equal to input cores
-        logging.info('Creating mp jobs...')
+        self.logger.info('Creating mpp jobs...')
         jobs = []
         for i in range(args.processors):
             w = PrimerPairWorker(args, cutoffs, mp_queue, results_queue, log_lock, data_lock)
@@ -1986,18 +1990,18 @@ class ConfirmParser(subroutine.Subroutine):
             w.start()
         
         # After the jobs are created, we populate the queue
-        logging.info('Adding data to qeueue...')
+        self.logger.info('Adding data to qeueue...')
         for d in data:
             mp_queue.put(d)
         
         # Add a poison pill for each processor
-        logging.info('Adding kill signals to qeueue...')
+        self.logger.info('Adding kill signals to qeueue...')
         for i in range(args.processors):
             mp_queue.put(None)
         
         # exitcode - The child’s exit code will be None if the process has not yet terminated.
         # A negative value -N indicates that the child was terminated by signal N.
-        logging.info('Waiting for threads to finish...')
+        self.logger.info('Waiting for threads to finish...')
         while any([j.exitcode == None for j in jobs]):
         #while any([j.is_alive() for j in jobs]):
             try:
@@ -2006,13 +2010,13 @@ class ConfirmParser(subroutine.Subroutine):
                 if pp:
                     pp.mp_update(results)
             except queue.Empty:
-                logging.info('queue empty')
+                self.logger.info('queue empty')
         
         # Wait for all processes to end
         for j in jobs:
             j.join()
         
-        logging.info('mp finished')
+        self.logger.info('mpp finished')
     
     def mpd_setup(self, args, data):
         '''
@@ -2028,7 +2032,7 @@ class ConfirmParser(subroutine.Subroutine):
         data_lock = multiprocessing.Lock()
         
         # Create a number of processes equal to input cores
-        logging.info('Creating mp jobs...')
+        self.logger.info('Creating mpd jobs...')
         jobs = []
         for i in range(args.processors):
             w = PrimerDesignWorker(args, mp_queue, results_queue, log_lock, data_lock)
@@ -2036,18 +2040,18 @@ class ConfirmParser(subroutine.Subroutine):
             w.start()
         
         # After the jobs are created, we populate the queue
-        logging.info('Adding data to qeueue...')
+        self.logger.info('Adding data to qeueue...')
         for d in data:
             mp_queue.put(d)
         
         # Add a poison pill for each processor
-        logging.info('Adding kill signals to qeueue...')
+        self.logger.info('Adding kill signals to qeueue...')
         for i in range(args.processors):
             mp_queue.put(None)
         
         # exitcode - The child’s exit code will be None if the process has not yet terminated.
         # A negative value -N indicates that the child was terminated by signal N.
-        logging.info('Waiting for threads to finish...')
+        self.logger.info('Waiting for threads to finish...')
         data = []
         while any([j.exitcode == None for j in jobs]):
         #while any([j.is_alive() for j in jobs]):
@@ -2055,22 +2059,22 @@ class ConfirmParser(subroutine.Subroutine):
                 d = results_queue.get(timeout=1) # May need to use try/except block, or include a timeout (in seconds)
                 data.append(d)
             except queue.Empty:
-                logging.info('queue empty')
+                self.logger.info('queue empty')
         
         # Wait for all processes to end
         for j in jobs:
             j.join()
         
-        logging.info('mp finished')
+        self.logger.info('mpd finished')
         
         return data
     
     def make_datum_groups(self, group_links, contig_groups, genome_contigs_list):
         ######## Begin for linking the loci ########
         
-        logging.info('contig_groups:')
+        self.logger.info('contig_groups:')
         for cg in contig_groups:
-            logging.info('  ' + str(cg))
+            self.logger.info('  ' + str(cg))
         
         def in_same_contig_group(contig1, contig2, cgroups=contig_groups):
             for g in cgroups:
@@ -2084,9 +2088,9 @@ class ConfirmParser(subroutine.Subroutine):
         # Make a copy of 'group_links' that we can pop stuff from
         datum_list = copy.deepcopy(group_links)
         
-        logging.info('datum_list:')
+        self.logger.info('datum_list:')
         for datum in datum_list:
-            logging.info('  ' + str(datum))
+            self.logger.info('  ' + str(datum))
         
         
         # For each (round, locus), we need the (contig name, upstream_homology_length, downstream_homology_length)
@@ -2108,13 +2112,13 @@ class ConfirmParser(subroutine.Subroutine):
             datum_list.pop(di)
         to_pop = []
         
-        logging.info('datum_groups (r0):')
+        self.logger.info('datum_groups (r0):')
         for dg in datum_groups:
-            logging.info('  ' + str(dg))
+            self.logger.info('  ' + str(dg))
         
-        logging.info('datum_list:')
+        self.logger.info('datum_list:')
         for datum in datum_list:
-            logging.info('  ' + str(datum))
+            self.logger.info('  ' + str(datum))
         
         # Populate the intermediary groups
         # New try:
@@ -2171,14 +2175,14 @@ class ConfirmParser(subroutine.Subroutine):
                     #    genome-r3: locus A ki
                     
                     # Since this is a terminal, then we need to select the correct "before" using homology
-                    logging.info("DEBUG: This means (datum_after == None)")
+                    self.logger.info("DEBUG: This means (datum_after == None)")
                 
                 # Write some debug log messages
-                logging.info("DEBUG:")
-                logging.info("     datum_after={}".format(datum_after))
-                logging.info("    datum_before={}".format(datum_before))
-                logging.info("   no_more_after={}".format(no_more_after))
-                logging.info("  no_more_before={}".format(no_more_before))
+                self.logger.info("DEBUG:")
+                self.logger.info("     datum_after={}".format(datum_after))
+                self.logger.info("    datum_before={}".format(datum_before))
+                self.logger.info("   no_more_after={}".format(no_more_after))
+                self.logger.info("  no_more_before={}".format(no_more_before))
                 
                 if ((datum_after != None) and (datum_before != None)):
                     # Now that the two datum are selected, determine whether or not they overlap
@@ -2196,17 +2200,17 @@ class ConfirmParser(subroutine.Subroutine):
                     # Otherwise, they are non-overlapping engineering events on the same genome contig
                     else:
                         # Do nothing
-                        logging.info('DEBUG: This means that (overlap <= 0)')
+                        self.logger.info('DEBUG: This means that (overlap <= 0)')
         
-        logging.info('groups:')
+        self.logger.info('groups:')
         for gi, (datum_after, datum_before) in enumerate(groups):
-            logging.info('  i={}'.format(gi))
-            logging.info('      datum_after={}'.format(datum_after))
-            logging.info('     datum_before={}'.format(datum_before))
+            self.logger.info('  i={}'.format(gi))
+            self.logger.info('      datum_after={}'.format(datum_after))
+            self.logger.info('     datum_before={}'.format(datum_before))
         
-        logging.info('datum_list:')
+        self.logger.info('datum_list:')
         for datum in datum_list:
-            logging.info('  {}'.format(datum))
+            self.logger.info('  {}'.format(datum))
         
         # Assuming we have 'group' with the [datum_after, datum_before]
         # Now we match homology regions with r0
@@ -2229,19 +2233,19 @@ class ConfirmParser(subroutine.Subroutine):
                 g_dsh_seq = genome_contigs_list[datum_after.genome_r][datum_after.genome_contig][datum_after.dsh_end-dsh_len:datum_after.dsh_end]
                 
                 ##### DEBUG CODE #####
-                logging.info("  dgi = {}".format(dgi))
-                logging.info("    ush_len = {}, 0.9*ush_len = {}".format(ush_len, 0.9*ush_len))
-                logging.info("    dsh_len = {}, 0.9*dsh_len = {}".format(dsh_len, 0.9*dsh_len))
+                self.logger.info("  dgi = {}".format(dgi))
+                self.logger.info("    ush_len = {}, 0.9*ush_len = {}".format(ush_len, 0.9*ush_len))
+                self.logger.info("    dsh_len = {}, 0.9*dsh_len = {}".format(dsh_len, 0.9*dsh_len))
                 us_lcs = nucleotides.lcs(dg_ush_seq, g_ush_seq)
                 ds_lcs = nucleotides.lcs(dg_dsh_seq, g_dsh_seq)
-                logging.info("    nucleotides.lcs(dg_ush_seq, g_ush_seq) = {}".format(us_lcs))
-                logging.info("    nucleotides.lcs(dg_dsh_seq, g_dsh_seq) = {}".format(ds_lcs))
-                logging.info("    us_lcs > 0.9*ush_len = {}".format(us_lcs.size > 0.9*ush_len))
-                logging.info("    ds_lcs > 0.9*dsh_len = {}".format(ds_lcs.size > 0.9*dsh_len))
+                self.logger.info("    nucleotides.lcs(dg_ush_seq, g_ush_seq) = {}".format(us_lcs))
+                self.logger.info("    nucleotides.lcs(dg_dsh_seq, g_dsh_seq) = {}".format(ds_lcs))
+                self.logger.info("    us_lcs > 0.9*ush_len = {}".format(us_lcs.size > 0.9*ush_len))
+                self.logger.info("    ds_lcs > 0.9*dsh_len = {}".format(ds_lcs.size > 0.9*dsh_len))
                 us_pident = nucleotides.pident(dg_ush_seq, g_ush_seq)
                 ds_pident = nucleotides.pident(dg_dsh_seq, g_dsh_seq)
-                logging.info("    us_pident = {}, us_pident > 0.9 = {}".format(us_pident, us_pident > 0.9))
-                logging.info("    ds_pident = {}, ds_pident > 0.9 = {}".format(ds_pident, ds_pident > 0.9))
+                self.logger.info("    us_pident = {}, us_pident > 0.9 = {}".format(us_pident, us_pident > 0.9))
+                self.logger.info("    ds_pident = {}, ds_pident > 0.9 = {}".format(ds_pident, ds_pident > 0.9))
                 ######################
                 
                 # If the rounds match, the dDNA_contigs match, and the genome_contigs match
@@ -2262,11 +2266,11 @@ class ConfirmParser(subroutine.Subroutine):
                     # Then add them to the same group
                     dg.append(datum_after)
                     dg.append(datum_before)
-                    logging.info('group [datum_after, datum_before] appended to current datum_group.')
+                    self.logger.info('group [datum_after, datum_before] appended to current datum_group.')
         
-        logging.info('datum_groups:')
+        self.logger.info('datum_groups:')
         for dg in datum_groups:
-            logging.info('  {}'.format(dg))
+            self.logger.info('  {}'.format(dg))
         
         # Populate the final/terminal group 'rN'
         # Using homology! (like we did with r0 above)
@@ -2288,13 +2292,13 @@ class ConfirmParser(subroutine.Subroutine):
                 d_dsh_seq = genome_contigs_list[datum.genome_r][datum.genome_contig][datum.dsh_end-dsh_len:datum.dsh_end]
                 
                 ##### DEBUG CODE #####
-                logging.info("  dgi = {}".format(dgi))
-                logging.info("    ush_len = {}, 0.9*ush_len = {}".format(ush_len, 0.9*ush_len))
-                logging.info("    dsh_len = {}, 0.9*dsh_len = {}".format(dsh_len, 0.9*dsh_len))
+                self.logger.info("  dgi = {}".format(dgi))
+                self.logger.info("    ush_len = {}, 0.9*ush_len = {}".format(ush_len, 0.9*ush_len))
+                self.logger.info("    dsh_len = {}, 0.9*dsh_len = {}".format(dsh_len, 0.9*dsh_len))
                 us_pident = nucleotides.pident(dg_ush_seq, d_ush_seq)
                 ds_pident = nucleotides.pident(dg_dsh_seq, d_dsh_seq)
-                logging.info("    us_pident = {}, us_pident > 0.9 = {}".format(us_pident, us_pident > 0.9))
-                logging.info("    ds_pident = {}, ds_pident > 0.9 = {}".format(ds_pident, ds_pident > 0.9))
+                self.logger.info("    us_pident = {}, us_pident > 0.9 = {}".format(us_pident, us_pident > 0.9))
+                self.logger.info("    ds_pident = {}, ds_pident > 0.9 = {}".format(ds_pident, ds_pident > 0.9))
                 ######################
                 
                 # If the rounds match, the dDNA_contigs match, and the genome_contigs match
@@ -2324,16 +2328,16 @@ class ConfirmParser(subroutine.Subroutine):
         #    ------A-----A-----  contig has 2 locations that should be targeted
         #                        Should PCR be allele/paralog-specific?
         #                        Or should the PCR try to encompass both alleles/paralogs?
-        logging.info('datum_groups (finished):')
+        self.logger.info('datum_groups (finished):')
         for dg in datum_groups:
-            logging.info('  ' + str(dg))
+            self.logger.info('  ' + str(dg))
         
-        logging.info('datum_list (finished):')
+        self.logger.info('datum_list (finished):')
         if (len(datum_list) == 0):
-            logging.info('  EMPTY')
+            self.logger.info('  EMPTY')
         else:
             for datum in datum_list:
-                logging.info('  ' + str(datum))
+                self.logger.info('  ' + str(datum))
         
         ######## End code for linking the loci ########
         
@@ -2383,14 +2387,14 @@ class ConfirmParser(subroutine.Subroutine):
                 fus0 = genome_contigs_list[dg[0].genome_r][dg[0].genome_contig][max(0, dg[0].ush_start-us_dist):dg[0].ush_start]
                 for di, datum in enumerate(dg[1:]):
                     if ((us_dist > dg[0].ush_start) or (us_dist > datum.ush_start)):
-                        logging.info('too far')
+                        self.logger.info('too far')
                         us_done = True
                     fus = genome_contigs_list[datum.genome_r][datum.genome_contig][max(0, datum.ush_start-us_dist):datum.ush_start]
                     m = nucleotides.lcs(fus0, fus)
-                    logging.info('us_dist = ' + str(us_dist))
-                    logging.info('   fus0 = ' + fus0)
-                    logging.info(('fus'+str(di+1)).rjust(7) +' = ' + fus)
-                    logging.info('      m = ' + str(m))
+                    self.logger.info('us_dist = ' + str(us_dist))
+                    self.logger.info('   fus0 = ' + fus0)
+                    self.logger.info(('fus'+str(di+1)).rjust(7) +' = ' + fus)
+                    self.logger.info('      m = ' + str(m))
                     if (m.size < 200):
                         us_dist += 100
                         break
@@ -2399,8 +2403,8 @@ class ConfirmParser(subroutine.Subroutine):
                 else:
                     us_done = True
             
-            logging.info('far_upstream_dist: ' + str(us_dist))
-            logging.info('far_upstream_seq >= 200: ' + fus0)
+            self.logger.info('far_upstream_dist: ' + str(us_dist))
+            self.logger.info('far_upstream_seq >= 200: ' + fus0)
             
             # Find the downstream LCS
             ds_dist = 600
@@ -2410,14 +2414,14 @@ class ConfirmParser(subroutine.Subroutine):
                 fds0 = genome_contigs_list[dg[0].genome_r][dg[0].genome_contig][dg[0].dsh_end:dg[0].dsh_end+ds_dist]
                 for di, datum in enumerate(dg[1:]):
                     if ((dg[0].dsh_end+ds_dist > len(genome_contigs_list[dg[0].genome_r][dg[0].genome_contig])) or (datum.dsh_end+ds_dist > len(genome_contigs_list[datum.genome_r][datum.genome_contig]))):
-                        logging.info('too far')
+                        self.logger.info('too far')
                         ds_done = True
                     fds = genome_contigs_list[datum.genome_r][datum.genome_contig][datum.dsh_end:datum.dsh_end+ds_dist]
                     m = nucleotides.lcs(fds0, fds)
-                    logging.info('us_dist = ' + str(ds_dist))
-                    logging.info('   fus0 = ' + fds0)
-                    logging.info(('fus'+str(di+1)).rjust(7) +' = ' + fds)
-                    logging.info('      m = ' + str(m))
+                    self.logger.info('us_dist = ' + str(ds_dist))
+                    self.logger.info('   fus0 = ' + fds0)
+                    self.logger.info(('fus'+str(di+1)).rjust(7) +' = ' + fds)
+                    self.logger.info('      m = ' + str(m))
                     if (m.size < 200):
                         ds_dist += 100
                         break
@@ -2426,8 +2430,8 @@ class ConfirmParser(subroutine.Subroutine):
                 else:
                     ds_done = True
             
-            logging.info('far_downstream_dist: ' + str(ds_dist))
-            logging.info('far_downstream_seq >= 200: ' + fds0)
+            self.logger.info('far_downstream_dist: ' + str(ds_dist))
+            self.logger.info('far_downstream_seq >= 200: ' + fds0)
             
             # Add PCR regions to data structure
             pcr_regions.append((fus0, fds0))
@@ -2450,14 +2454,14 @@ class ConfirmParser(subroutine.Subroutine):
                 pcr_region_positions[-1][-1].append(fds_start)
                 pcr_region_positions[-1][-1].append(fds_end)
             
-            logging.info("checking 'sF' region:")
-            logging.info("              fus0: " + fus0)
+            self.logger.info("checking 'sF' region:")
+            self.logger.info("              fus0: " + fus0)
             for prpi2, prp2 in enumerate(pcr_region_positions[-1]):
-                logging.info(str(prpi2) + ' ' + str(prp2[:2]).rjust(16) + ": " + genome_contigs_list[dg[prpi2].genome_r][dg[prpi2].genome_contig][prp2[0]:prp2[1]] + ' ' + str(dg[prpi2]))
-            logging.info("checking 'sR' region:")
-            logging.info("              fds0: " + fds0)
+                self.logger.info(str(prpi2) + ' ' + str(prp2[:2]).rjust(16) + ": " + genome_contigs_list[dg[prpi2].genome_r][dg[prpi2].genome_contig][prp2[0]:prp2[1]] + ' ' + str(dg[prpi2]))
+            self.logger.info("checking 'sR' region:")
+            self.logger.info("              fds0: " + fds0)
             for prpi2, prp2 in enumerate(pcr_region_positions[-1]):
-                logging.info(str(prpi2) + ' ' + str(prp2[2:]).rjust(16) + ": " + genome_contigs_list[dg[prpi2].genome_r][dg[prpi2].genome_contig][prp2[2]:prp2[3]] + ' ' + str(dg[prpi2]))
+                self.logger.info(str(prpi2) + ' ' + str(prp2[2:]).rjust(16) + ": " + genome_contigs_list[dg[prpi2].genome_r][dg[prpi2].genome_contig][prp2[2]:prp2[3]] + ' ' + str(dg[prpi2]))
         
         return pcr_regions, pcr_region_positions
     
@@ -2470,45 +2474,45 @@ class ConfirmParser(subroutine.Subroutine):
         # At most, there will be 1000*1000 = 1 millon possible pairs
         subset_size = 1000
         
-        logging.info('Scanning the regions (shared upstream (sF), shared downstream (sR), feature/insert (rN-oF,rN-oR,rN-iF,rN-iR) for all decent primers')
+        self.logger.info('Scanning the regions (shared upstream (sF), shared downstream (sR), feature/insert (rN-oF,rN-oR,rN-iF,rN-iR) for all decent primers')
         
         # Make the 'temp_folder' path
         temp_folder = os.path.join('/dev/shm/addtag', os.path.basename(args.folder))
         
-        logging.info("Scanning far upstream for 'sF' primers:")
+        self.logger.info("Scanning far upstream for 'sF' primers:")
         sF_list = sorted(
             args.selected_oligo.scan(far_us_seq, 'left', primer_size=primer_length_range, folder=temp_folder, time_limit=args.primer_scan_limit),
             key=lambda x: x.weight,
             reverse=True
         )
-        logging.info('  len(sF_list) = {}'.format(len(sF_list)))
-        logging.info('  sF: skipping {}/{} calculated primers'.format(max(0, len(sF_list)-subset_size), len(sF_list)))
+        self.logger.info('  len(sF_list) = {}'.format(len(sF_list)))
+        self.logger.info('  sF: skipping {}/{} calculated primers'.format(max(0, len(sF_list)-subset_size), len(sF_list)))
         sF_list = sF_list[:subset_size]
         # Need to add a condition that if (len(sF_list) < N), then it should re-evaluate the far-upstream region to try to get
         # more sequence to search.
         
-        logging.info("Scanning far downstream for 'sR' primers:")
+        self.logger.info("Scanning far downstream for 'sR' primers:")
         sR_list = sorted(
             args.selected_oligo.scan(far_ds_seq, 'right', primer_size=primer_length_range, folder=temp_folder, time_limit=args.primer_scan_limit),
             key=lambda x: x.weight,
             reverse=True
         )
-        logging.info('  len(sR_list) = {}'.format(len(sR_list)))
-        logging.info('  sR: skipping {}/{} calculated primers'.format(max(0, len(sR_list)-subset_size), len(sR_list)))
+        self.logger.info('  len(sR_list) = {}'.format(len(sR_list)))
+        self.logger.info('  sR: skipping {}/{} calculated primers'.format(max(0, len(sR_list)-subset_size), len(sR_list)))
         sR_list = sR_list[:subset_size]
         # Need to add condition that if there aren't enough putative 'sR' primers, then the sR region is expanded
         # Otherwise, the script can just end prematurely
         
         insert_list = []
         for ins in insert_seqs:
-            logging.info("Scanning feature/insert for 'rN-oF', 'rN-oR', 'rN-iF', 'rN-iR' primers:")
+            self.logger.info("Scanning feature/insert for 'rN-oF', 'rN-oR', 'rN-iF', 'rN-iR' primers:")
             iF_list = sorted(
                 args.selected_oligo.scan(ins.seq, 'left',  primer_size=primer_length_range, folder=temp_folder, us_seq=ins.us_seq, ds_seq=ins.ds_seq, time_limit=args.primer_scan_limit),
                 key=lambda x: x.weight,
                 reverse=True
             )
-            logging.info('  len(iF_list) = {}'.format(len(iF_list)))
-            logging.info('  insert_F: skipping {}/{} calculated primers'.format(max(0, len(iF_list)-subset_size), len(iF_list)))
+            self.logger.info('  len(iF_list) = {}'.format(len(iF_list)))
+            self.logger.info('  insert_F: skipping {}/{} calculated primers'.format(max(0, len(iF_list)-subset_size), len(iF_list)))
             iF_list = iF_list[:subset_size]
             
             iR_list = sorted(
@@ -2516,8 +2520,8 @@ class ConfirmParser(subroutine.Subroutine):
                 key=lambda x: x.weight,
                 reverse=True
             )
-            logging.info('  len(iR_list) = {}'.format(len(iR_list)))
-            logging.info('  insert_R: skipping {}/{} calculated primers'.format(max(0, len(iR_list)-subset_size), len(iR_list)))
+            self.logger.info('  len(iR_list) = {}'.format(len(iR_list)))
+            self.logger.info('  insert_R: skipping {}/{} calculated primers'.format(max(0, len(iR_list)-subset_size), len(iR_list)))
             iR_list = iR_list[:subset_size]
             
             insert_list.append([iF_list, iR_list])
@@ -2527,7 +2531,7 @@ class ConfirmParser(subroutine.Subroutine):
         # to be 100 x 100 = 10,000
         
         # Do the pair calculations that involve 'sF' and 'sR'
-        logging.info("Calculating: 'sF' 'sR' paired primers...")
+        self.logger.info("Calculating: 'sF' 'sR' paired primers...")
         sF_sR_paired_primers = args.selected_oligo.pair(sF_list, sR_list, intervening=0, folder=temp_folder, time_limit=args.primer_pair_limit)
         
         for pp in sF_sR_paired_primers:
@@ -2544,7 +2548,7 @@ class ConfirmParser(subroutine.Subroutine):
             key=lambda x: x.get_joint_weight(),
             reverse=True
         )
-        logging.info('  len(sF_sR_paired_primers) = {}'.format(len(sF_sR_paired_primers)))
+        self.logger.info('  len(sF_sR_paired_primers) = {}'.format(len(sF_sR_paired_primers)))
         
         # pair_list[ins index] = [sF_oR_paired_primers, oF_sR_paired_primers, iF_iR_paired_primers]
         pair_list = []
@@ -2555,7 +2559,7 @@ class ConfirmParser(subroutine.Subroutine):
             iF_list, iR_list = insert_list[i]
             ins = insert_seqs[i]
             
-            logging.info('Pairing primers: ' + str(i))
+            self.logger.info('Pairing primers: ' + str(i))
         
             # If there is a hard constraint for primers that should be used
             # That is, if flanktag primers should be used
@@ -2564,7 +2568,7 @@ class ConfirmParser(subroutine.Subroutine):
             # Otherwise, no flanktags are specified
             else:
                 # sF rN-oR
-                logging.info("  Calculating: 'sF' 'r"+str(ins.genome_r)+ins.type+"-oR' paired_primers...")
+                self.logger.info("  Calculating: 'sF' 'r"+str(ins.genome_r)+ins.type+"-oR' paired_primers...")
                 sF_oR_paired_primers = sorted(
                     args.selected_oligo.pair(sF_list, iR_list, intervening=ins.fus_dist, folder=temp_folder, time_limit=args.primer_pair_limit),
                     key=lambda x: x.get_joint_weight(),
@@ -2573,10 +2577,10 @@ class ConfirmParser(subroutine.Subroutine):
                 for pp in sF_oR_paired_primers:
                     pp.forward_primer.set_name('sF')
                     pp.reverse_primer.set_name('r'+str(ins.genome_r)+ins.type+'-oR')
-                logging.info('  len(sF_oR_paired_primers) = {}'.format(len(sF_oR_paired_primers)))
+                self.logger.info('  len(sF_oR_paired_primers) = {}'.format(len(sF_oR_paired_primers)))
             
                 # rN-0F sR
-                logging.info("  Calculating: 'r"+str(ins.genome_r)+ins.type+"-oF' 'sR' paired_primers...")
+                self.logger.info("  Calculating: 'r"+str(ins.genome_r)+ins.type+"-oF' 'sR' paired_primers...")
                 oF_sR_paired_primers = sorted(
                     args.selected_oligo.pair(iF_list, sR_list, intervening=ins.fds_dist, folder=temp_folder, time_limit=args.primer_pair_limit),
                     key=lambda x: x.get_joint_weight(),
@@ -2585,10 +2589,10 @@ class ConfirmParser(subroutine.Subroutine):
                 for pp in oF_sR_paired_primers:
                     pp.forward_primer.set_name('r'+str(ins.genome_r)+ins.type+'-oF')
                     pp.reverse_primer.set_name('sR')
-                logging.info('  len(oF_sR_paired_primers) = {}'.format(len(oF_sR_paired_primers)))
+                self.logger.info('  len(oF_sR_paired_primers) = {}'.format(len(oF_sR_paired_primers)))
                 
                 # rN-iF rN-iR
-                logging.info("  Calculating: 'r"+str(ins.genome_r)+ins.type+"-iF' 'r"+str(ins.genome_r)+ins.type+"-iR' paired_primers...")
+                self.logger.info("  Calculating: 'r"+str(ins.genome_r)+ins.type+"-iF' 'r"+str(ins.genome_r)+ins.type+"-iR' paired_primers...")
                 iF_iR_paired_primers = sorted(
                     args.selected_oligo.pair(iF_list, iR_list, intervening=0, same_template=True, folder=temp_folder, time_limit=args.primer_pair_limit),
                     key=lambda x: x.get_joint_weight(),
@@ -2597,7 +2601,7 @@ class ConfirmParser(subroutine.Subroutine):
                 for pp in iF_iR_paired_primers:
                     pp.forward_primer.set_name('r'+str(ins.genome_r)+ins.type+'-iF')
                     pp.reverse_primer.set_name('r'+str(ins.genome_r)+ins.type+'-iR')
-                logging.info('  len(iF_iR_paired_primers) = {}'.format(len(iF_iR_paired_primers)))
+                self.logger.info('  len(iF_iR_paired_primers) = {}'.format(len(iF_iR_paired_primers)))
                 
                 # Add calculated primer pairs to the list
                 pair_list.append([sF_oR_paired_primers, oF_sR_paired_primers, ins])
@@ -2716,7 +2720,7 @@ class ConfirmParser(subroutine.Subroutine):
                         # replace values for next iteration
                         pp_set = pp_set2
                         joint_weight = new_joint_weight
-                        logging.info('          t-set: ' + str((joint_weight, pp_set)))
+                        self.logger.info('          t-set: ' + str((joint_weight, pp_set)))
                         break
                 else:
                     # If no pp swap in 'source_pp' is higher-weighted, then return 0 rather than the last-calculated 'weight_delta'
@@ -2832,7 +2836,7 @@ class ConfirmParser(subroutine.Subroutine):
                     
                     Ltest = None if (pp1Ls == pp2Ls == None) else pp1Ls == pp2Ls
                     Rtest = None if (pp1Rs == pp2Rs == None) else pp1Rs == pp2Rs
-                    logging.info('PrimerPair equals ({} vs {}): L={}, R={}'.format(t1, t2, Ltest, Rtest))
+                    self.logger.info('PrimerPair equals ({} vs {}): L={}, R={}'.format(t1, t2, Ltest, Rtest))
     
     def calculate_them_best_set(self, args, sF_sR_paired_primers, pair_list, max_iterations=10000):
         """
@@ -2870,7 +2874,7 @@ class ConfirmParser(subroutine.Subroutine):
         sF_sR_iterator = iter(sF_sR_paired_primers)
         
         if ((max_iterations != None) and (len(sF_sR_paired_primers) > max_iterations)):
-            logging.info('sF_sR_paired_primers: skipping {}/{} calculated primer pairs'.format(max(0, len(sF_sR_paired_primers)-max_iterations), len(sF_sR_paired_primers)))
+            self.logger.info('sF_sR_paired_primers: skipping {}/{} calculated primer pairs'.format(max(0, len(sF_sR_paired_primers)-max_iterations), len(sF_sR_paired_primers)))
         
         while (iteration_count < max_iterations):
             # Increment the count
@@ -2883,7 +2887,7 @@ class ConfirmParser(subroutine.Subroutine):
             except StopIteration:
                 break
             
-            logging.info('loop {}:'.format(iteration_count))
+            self.logger.info('loop {}:'.format(iteration_count))
             
             # Populate set with all primer pairs that have 'sF' and 'sR'
             pp_sources = []
@@ -2895,7 +2899,7 @@ class ConfirmParser(subroutine.Subroutine):
                 # Add the 'oF' from 'oF-sR' pair. These should already be sorted by weight from highest to lowest.
                 pp_sources.append(self.filter_primer_pairs(oF_sR_paired_primers, reverse=sF_sR_pair.reverse_primer))
             
-            logging.info('  length of sources: ' + str([len(x) for x in pp_sources]))
+            self.logger.info('  length of sources: ' + str([len(x) for x in pp_sources]))
             
             # Only proceed with calculations (finally adding this primer to
             # 'starting_set' and 'finished_set') if it has potential internal
@@ -2914,7 +2918,7 @@ class ConfirmParser(subroutine.Subroutine):
                     if ((req_str not in ['y', 'Y', '1', 'T', 't', 'TRUE', 'True', 'true']) and (num_pp > 0)):
                         should_mask = True
                 if should_skip:
-                    logging.info('  skipping...')
+                    self.logger.info('  skipping...')
                     continue
             
             # If required_list=['y', 'n', 'n', 'y']
@@ -2927,8 +2931,8 @@ class ConfirmParser(subroutine.Subroutine):
             
             # Oldish code to test
             test_starting, test_final = self.optimize_pp_list_by_weight(args, [[sF_sR_pair]]+pp_sources, semirandom=False)
-            logging.info('  test-starting: ' + str(test_starting))
-            logging.info('     test-final: ' + str(test_final))
+            self.logger.info('  test-starting: ' + str(test_starting))
+            self.logger.info('     test-final: ' + str(test_final))
             # Report whether the "optimal" PrimerPairs chosen are identical
             self.which_pp_equal(test_final[1])
             starting_set.append(test_starting)
@@ -2938,7 +2942,7 @@ class ConfirmParser(subroutine.Subroutine):
             pp_set = PrimerDesign([[sF_sR_pair]]+pp_sources)
             for oo in range(2):
                 pp_set.optimize()
-            logging.info('NEW >= OLD: ' + str(pp_set.optimal.weight >= test_final[0]))
+            self.logger.info('NEW >= OLD: ' + str(pp_set.optimal.weight >= test_final[0]))
             
             
             # If necessary, we "mask" the non-required PrimerPairs, then calculate.
@@ -2951,8 +2955,8 @@ class ConfirmParser(subroutine.Subroutine):
                         else:
                             masked_pp_sources.append([])
                     masked_starting, masked_final = self.optimize_pp_list_by_weight(args, [[sF_sR_pair]]+masked_pp_sources, semirandom=False)
-                    logging.info('masked-starting: ' + str(masked_starting))
-                    logging.info('   masked-final: ' + str(masked_final))
+                    self.logger.info('masked-starting: ' + str(masked_starting))
+                    self.logger.info('   masked-final: ' + str(masked_final))
                     # Report whether the "optimal" PrimerPairs chosen are identical
                     self.which_pp_equal(masked_final[1])
                     starting_set.append(masked_starting)
@@ -2962,7 +2966,7 @@ class ConfirmParser(subroutine.Subroutine):
                     pp_set = PrimerDesign([[sF_sR_pair]]+masked_pp_sources)
                     for oo in range(2):
                         pp_set.optimize()
-                    logging.info('NEW >= OLD: ' + str(pp_set.optimal.weight >= masked_final[0]))
+                    self.logger.info('NEW >= OLD: ' + str(pp_set.optimal.weight >= masked_final[0]))
             
             # Report the number of PrimerPairs that are shared among the inserts
             t_num = len(pp_sources)//2
@@ -2977,7 +2981,7 @@ class ConfirmParser(subroutine.Subroutine):
                         tL_den = len(t1L_set.union(t2L_set))
                         tR_num = len(t1R_set.intersection(t2R_set))
                         tR_den = len(t1R_set.union(t2R_set))
-                        logging.info('number shared insert PrimerPairs ({} vs {}): L={}/{}, R={}/{}'.format(t1, t2, tL_num, tL_den, tR_num, tR_den))
+                        self.logger.info('number shared insert PrimerPairs ({} vs {}): L={}/{}, R={}/{}'.format(t1, t2, tL_num, tL_den, tR_num, tR_den))
         
         return starting_set, finished_set, round_labels
     
@@ -3000,7 +3004,7 @@ class ConfirmParser(subroutine.Subroutine):
                         j_seq = (None, None)
                     
                     comparison = None if (i_seq == j_seq == (None, None)) else (i_seq == j_seq)
-                    logging.info("Amp 'D' PrimerPair {} equals PrimerPair {}: {}".format(i, j, comparison))
+                    self.logger.info("Amp 'D' PrimerPair {} equals PrimerPair {}: {}".format(i, j, comparison))
     
     def calculate_amp_d_set(self, args, insert_pair_list, max_iterations=1000):
         iteration_count = 0
@@ -3011,9 +3015,9 @@ class ConfirmParser(subroutine.Subroutine):
         while (iteration_count < max_iterations):
             # Increment the count
             iteration_count += 1
-            logging.info('loop {}:'.format(iteration_count))
+            self.logger.info('loop {}:'.format(iteration_count))
             
-            logging.info('  length of sources: ' + str([len(x) for x in insert_pair_list]))
+            self.logger.info('  length of sources: ' + str([len(x) for x in insert_pair_list]))
             if args.internal_primers_required:
                 current_pp_sources = [len(x) for x in insert_pair_list]
                 should_mask = False
@@ -3025,12 +3029,12 @@ class ConfirmParser(subroutine.Subroutine):
                     if ((req_str not in ['y', 'Y', '1', 'T', 't', 'TRUE', 'True', 'true']) and (num_pp > 0)):
                         should_mask = True
                 if should_skip:
-                    logging.info('  skipping...')
+                    self.logger.info('  skipping...')
                     continue
                 
             d_starting, d_final = self.optimize_pp_list_by_weight(args, insert_pair_list, semirandom=True)
-            logging.info('  test-starting: ' + str(d_starting))
-            logging.info('    Amp-D-final: ' + str(d_final))
+            self.logger.info('  test-starting: ' + str(d_starting))
+            self.logger.info('    Amp-D-final: ' + str(d_final))
             # Report whether the "optimal" PrimerPairs chosen are identical
             self.which_d_equal(d_final[1])
             starting_set.append(d_starting)
@@ -3040,7 +3044,7 @@ class ConfirmParser(subroutine.Subroutine):
             pp_set = PrimerDesign(insert_pair_list)
             for oo in range(2):
                 pp_set.optimize()
-            logging.info('NEW >= OLD: ' + str(pp_set.optimal.weight >= d_final[0]))
+            self.logger.info('NEW >= OLD: ' + str(pp_set.optimal.weight >= d_final[0]))
             
             # If necessary, we "mask" the non-required PrimerPairs, then calculate.
             if args.internal_primers_required:
@@ -3052,8 +3056,8 @@ class ConfirmParser(subroutine.Subroutine):
                         else:
                             masked_insert_pair_list.append([])
                     masked_starting, masked_final = self.optimize_pp_list_by_weight(args, masked_insert_pair_list, semirandom=True)
-                    logging.info('masked-starting: ' + str(masked_starting))
-                    logging.info('   masked-final: ' + str(masked_final))
+                    self.logger.info('masked-starting: ' + str(masked_starting))
+                    self.logger.info('   masked-final: ' + str(masked_final))
                     # Report whether the "optimal" PrimerPairs chosen are identical
                     self.which_d_equal(masked_final[1])
                     starting_set.append(masked_starting)
@@ -3063,7 +3067,7 @@ class ConfirmParser(subroutine.Subroutine):
                     pp_set = PrimerDesign(masked_insert_pair_list)
                     for oo in range(2):
                         pp_set.optimize()
-                    logging.info('NEW >= OLD: ' + str(pp_set.optimal.weight >= masked_final[0]))
+                    self.logger.info('NEW >= OLD: ' + str(pp_set.optimal.weight >= masked_final[0]))
         
         return starting_set, finished_set
     
@@ -3109,19 +3113,19 @@ class ConfirmParser(subroutine.Subroutine):
                             if (records[qs_pair][0] == None):
                                 records[qs_pair][0] = record
                             else:
-                                logging.info(str(qs_pair) + ' has too many valid alignments')
+                                self.logger.info(str(qs_pair) + ' has too many valid alignments')
                                 invalid_records.add(qs_pair)
                         
                         elif (record.query_position[1] > len(dDNA_contigs[record.query_name])-permitted_edge): # right
                             if (records[qs_pair][1] == None):
                                 records[qs_pair][1] = record
                             else:
-                                logging.info(str(qs_pair) + ' has too many valid alignments')
+                                self.logger.info(str(qs_pair) + ' has too many valid alignments')
                                 invalid_records.add(qs_pair)
         
-        logging.info("before filtering:")
+        self.logger.info("before filtering:")
         for kkk, vvv in records.items():
-            logging.info("  "+str(kkk) + " " + str(vvv))
+            self.logger.info("  "+str(kkk) + " " + str(vvv))
         
         # Queue for removal the (query, subject) pairs that only have 1 of the 2 required alignments
         for qs_pair, record_pair in records.items():
@@ -3131,11 +3135,11 @@ class ConfirmParser(subroutine.Subroutine):
         # Remove the (query, subject) pairs that had too many valid alignments
         for bad_key in invalid_records:
             records.pop(bad_key)
-            logging.info('Removing invalid record: ' + str(bad_key))
+            self.logger.info('Removing invalid record: ' + str(bad_key))
         
-        logging.info("after filtering:")
+        self.logger.info("after filtering:")
         for kkk, vvv in records.items():
-            logging.info("  "+str(kkk) + " " + str(vvv))
+            self.logger.info("  "+str(kkk) + " " + str(vvv))
         
         return records
     
@@ -3169,11 +3173,11 @@ class ConfirmParser(subroutine.Subroutine):
                             if (qs_pair not in records):
                                 records[qs_pair] = record
                             else:
-                                logging.info(str(qs_pair) + ' has too many valid alignments')
+                                self.logger.info(str(qs_pair) + ' has too many valid alignments')
                                 invalid_records.add(qs_pair)
         for bad_qs_pair in invalid_records:
             records.pop(bad_qs_pair)
-            logging.info('Removing invalid record: ' + str(bad_qs_pair))
+            self.logger.info('Removing invalid record: ' + str(bad_qs_pair))
         
         return records
 

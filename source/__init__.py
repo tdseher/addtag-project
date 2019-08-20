@@ -445,7 +445,8 @@ class Main(object):
             os.makedirs(args.folder, exist_ok=True)
         
             # Create the logger, and have it write to 'folder/log.txt'
-            logging.basicConfig(filename=os.path.join(args.folder, 'log.txt'), level=logging.INFO, format='[%(asctime)s] [%(name)s.%(funcName)s (%(lineno)d)] %(message)s') # format='%(levelname)s %(asctime)s: %(message)s' #### %(pathname)s | %(filename)s | %(module)s
+            #logging.basicConfig(filename=os.path.join(args.folder, 'log.txt'), level=logging.INFO, format='[%(asctime)s] [%(name)s.%(funcName)s] [%(lineno)d] %(message)s') # format='%(levelname)s %(asctime)s: %(message)s' #### %(pathname)s | %(filename)s | %(module)s
+            logging.basicConfig(filename=os.path.join(args.folder, 'log.txt'), level=logging.INFO, style='{', format='[{asctime}] [{name:>70}.{funcName:<50}] [{lineno:>4}] {message}')
         
         if hasattr(args, 'aligner'):
             # Add 'args.selected_aligner' to hold the actual aligner object

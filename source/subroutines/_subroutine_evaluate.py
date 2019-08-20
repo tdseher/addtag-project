@@ -5,6 +5,8 @@
 
 # source/subroutines/_subroutine_evaluate.py
 
+import logging
+
 # Import included AddTag-specific modules
 from . import subroutine
 from .. import utils
@@ -12,8 +14,11 @@ from ..feature import Feature
 from ..targets import Target, ExcisionTarget, ReversionTarget
 from ..donors import Donor, ExcisionDonor, ReversionDonor
 
+logger = logging.getLogger(__name__)
 
 class EvaluateParser(subroutine.Subroutine):
+    logger = logger.getChild('EvaluateParser')
+    
     def __init__(self, subparsers):
         self.subparsers = subparsers
         
@@ -121,20 +126,20 @@ class EvaluateParser(subroutine.Subroutine):
         ExcisionTarget.load_alignment(q2exdDNA_align_file, args, ExcisionDonor.get_contig_dict())
         
         # Calculate off-target/guide scores for each algorithm
-        logging.info("ExcisionTarget after SAM parsing and off-target scoring")
+        self.logger.info("ExcisionTarget after SAM parsing and off-target scoring")
         ##### Add short-circuit/heuristic #####
         for et_seq, et_obj in ExcisionTarget.sequences.items():
             et_obj.score_off_targets(args, homologs)
-            logging.info(et_obj)
+            self.logger.info(et_obj)
             for a in et_obj.alignments:
-                logging.info('  ' + str(a))
+                self.logger.info('  ' + str(a))
         
         # Batch calculate with new ExcisionTarget class
         ExcisionTarget.score_batch()
         
-        logging.info("ExcisionTarget after Azimuth calculation")
+        self.logger.info("ExcisionTarget after Azimuth calculation")
         for et_seq, et_obj in ExcisionTarget.sequences.items():
-            logging.info(et_obj)
+            self.logger.info(et_obj)
         
         # End 'compute()'
         

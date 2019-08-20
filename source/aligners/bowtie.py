@@ -8,12 +8,15 @@
 import sys
 import os
 import subprocess
+import logging
 
 # import non-standard package
 import regex
 
 # import AddTag-specific packages
 from .. import utils
+
+logger = logging.getLogger(__name__)
 
 def index_reference():
     pass

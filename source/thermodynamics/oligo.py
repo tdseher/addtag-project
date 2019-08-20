@@ -19,6 +19,8 @@ import random
 # Import non-standard packages
 import regex
 
+logger = logging.getLogger(__name__)
+
 # Treat modules in PACKAGE_PARENT as in working directory
 if ((__name__ == "__main__") or (os.path.basename(inspect.stack()[-1][1]) in ['_primer3.py', '_unafold.py'])): # or __name__ == 'unafold'):
     # Relative path for package to import
@@ -57,6 +59,9 @@ class Oligo(object): # Name of the subclass
     General class that should be subclassed when adding a new thermodynamics
     calculation program.
     """
+    
+    logger = logger.getChild('Oligo')
+    
     def __init__(self, 
         name,
         author,
@@ -168,7 +173,7 @@ class Oligo(object): # Name of the subclass
         n_max = 0
         n_count = 0
         
-        logging.info("  Primer scan: Scanning '{}'".format(side))
+        self.logger.info("  Primer scan: Scanning '{}'".format(side))
         
         # First, create the primers
         # Second, filter the Primer objects
@@ -183,9 +188,9 @@ class Oligo(object): # Name of the subclass
                 j_seq = l_seq + seq + r_seq
                 
                 if (len(j_seq) != len(seq)):
-                    logging.info('l_seq = ' + l_seq)
-                    logging.info('  seq = ' + ' '*len(l_seq) + seq)
-                    logging.info('r_seq = ' + ' '*len(l_seq+seq) + r_seq)
+                    self.logger.info('l_seq = ' + l_seq)
+                    self.logger.info('  seq = ' + ' '*len(l_seq) + seq)
+                    self.logger.info('r_seq = ' + ' '*len(l_seq+seq) + r_seq)
                 
                 for i in range(len(j_seq)-p_len+1):
                     if not time_expired:
@@ -199,7 +204,7 @@ class Oligo(object): # Name of the subclass
                         n_count += 1
                     n_max += 1
                 
-                logging.info('  Primer scan: {}/~{}, time_expired: {}'.format(n_count, n_est, time_expired))
+                self.logger.info('  Primer scan: {}/~{}, time_expired: {}'.format(n_count, n_est, time_expired))
                 #if ((subset_size != None) and (n_count >= subset_size)): ##### Temporary early break for testing purposes ##### Should remove eventually
                 if ((time.time()-start_time) > time_limit):
                     time_expired = True
@@ -213,9 +218,9 @@ class Oligo(object): # Name of the subclass
                 j_seq = l_seq + seq + r_seq
                 
                 if (len(j_seq) != len(seq)):
-                    logging.info('l_seq = ' + l_seq)
-                    logging.info('  seq = ' + ' '*len(l_seq) + seq)
-                    logging.info('r_seq = ' + ' '*len(l_seq+seq) + r_seq)
+                    self.logger.info('l_seq = ' + l_seq)
+                    self.logger.info('  seq = ' + ' '*len(l_seq) + seq)
+                    self.logger.info('r_seq = ' + ' '*len(l_seq+seq) + r_seq)
                 
                 for i in range(len(j_seq)-p_len+1):
                     if not time_expired:
@@ -229,14 +234,14 @@ class Oligo(object): # Name of the subclass
                         n_count += 1
                     n_max += 1
                 
-                logging.info('  Primer scan: {}/~{}, time_expired: {}'.format(n_max, n_est, time_expired))
+                self.logger.info('  Primer scan: {}/~{}, time_expired: {}'.format(n_max, n_est, time_expired))
                 #if ((subset_size != None) and (n_count >= subset_size)): ##### Temporary early break for testing purposes ##### Should remove eventually
                 if ((time.time()-start_time) > time_limit):
                     time_expired = True
         
-        logging.info('  Primer scan: analyzed {}/{} potential primers'.format(n_count, n_max))
-        logging.info('  Primer scan: found {} good primers'.format(len(good_primers)))
-        logging.info('  Primer scan: time elapsed: {}s'.format(time.time()-start_time))
+        self.logger.info('  Primer scan: analyzed {}/{} potential primers'.format(n_count, n_max))
+        self.logger.info('  Primer scan: found {} good primers'.format(len(good_primers)))
+        self.logger.info('  Primer scan: time elapsed: {}s'.format(time.time()-start_time))
         
         return good_primers
     
@@ -287,13 +292,13 @@ class Oligo(object): # Name of the subclass
                 n_count += 1
             n_max += 1
             if (n_max % 1000 == 0):
-                logging.info('  Primer pair: {}/~{}, time_expired: {}'.format(n_max, n_est, time_expired))
+                self.logger.info('  Primer pair: {}/~{}, time_expired: {}'.format(n_max, n_est, time_expired))
                 if ((time.time()-start_time) > time_limit):
                     time_expired = True
         
-        logging.info('  Primer pair: analyzed {}/{} potential pairs'.format(n_count, n_max))
-        logging.info('  Primer pair: found {} good primer pairs'.format(len(good_pairs)))
-        logging.info('  Primer pair: time elapsed: {}s'.format(time.time()-start_time))
+        self.logger.info('  Primer pair: analyzed {}/{} potential pairs'.format(n_count, n_max))
+        self.logger.info('  Primer pair: found {} good primer pairs'.format(len(good_pairs)))
+        self.logger.info('  Primer pair: time elapsed: {}s'.format(time.time()-start_time))
         
         return good_pairs # unsorted
     
@@ -303,7 +308,7 @@ class Oligo(object): # Name of the subclass
         
         Overload this method.
         """
-        logging.info("THIS CODE SHOULD NOT BE EXECUTED")
+        self.logger.info("THIS CODE SHOULD NOT BE EXECUTED")
         return []
     
     # Only in this class because of the 'logistic_updown()' function
@@ -405,6 +410,8 @@ class Primer(object):
     """
     
     sequences = {} # key: nucleotide sequence, value: 'Primer' object
+    
+    logger = logger.getChild('Primer')
     
     def __init__(self, sequence, gene, locus, genome, region, contig, strand, start, end, name=None):
         self.sequence = sequence
@@ -563,7 +570,7 @@ class Primer(object):
         n_max = 0
         n_count = 0
         
-        logging.info("  Primer scan: Scanning '{}'".format(orientation))
+        cls.logger.info("  Primer scan: Scanning '{}'".format(orientation))
         
         # First, create the primers
         # Second, filter the Primer objects
@@ -592,9 +599,9 @@ class Primer(object):
                 j_seq = l_seq + seq + r_seq
                 
                 if (len(j_seq) != len(seq)):
-                    logging.info('    l_seq = ' + l_seq)
-                    logging.info('      seq = ' + ' '*len(l_seq) + seq)
-                    logging.info('    r_seq = ' + ' '*len(l_seq+seq) + r_seq)
+                    cls.logger.info('    l_seq = ' + l_seq)
+                    cls.logger.info('      seq = ' + ' '*len(l_seq) + seq)
+                    cls.logger.info('    r_seq = ' + ' '*len(l_seq+seq) + r_seq)
                 
                 for i in range(len(j_seq)-p_len+1):
                     #pos = i-len(l_seq) # Position on sequence (can take negative number if hanging off the edge)
@@ -609,7 +616,7 @@ class Primer(object):
                     n_count += 1
                     n_max += 1
                 
-                logging.info('    Primer scan: {}/~{}'.format(n_count, n_est))
+                cls.logger.info('    Primer scan: {}/~{}'.format(n_count, n_est))
         
         elif (orientation in ['right', 'R', 'r', 'reverse', '-']):
             strand = '-'
@@ -632,9 +639,9 @@ class Primer(object):
                 j_seq = l_seq + seq + r_seq
                 
                 if (len(j_seq) != len(seq)):
-                    logging.info('    l_seq = ' + l_seq)
-                    logging.info('      seq = ' + ' '*len(l_seq) + seq)
-                    logging.info('    r_seq = ' + ' '*len(l_seq+seq) + r_seq)
+                    cls.logger.info('    l_seq = ' + l_seq)
+                    cls.logger.info('      seq = ' + ' '*len(l_seq) + seq)
+                    cls.logger.info('    r_seq = ' + ' '*len(l_seq+seq) + r_seq)
                 
                 for i in range(len(j_seq)-p_len+1):
                     #pos = i-len(l_seq) # Position on sequence (can take negative number if hanging off the edge)
@@ -649,9 +656,9 @@ class Primer(object):
                     n_count += 1
                     n_max += 1
                 
-                logging.info('    Primer scan: {}/~{}'.format(n_count, n_est))
+                cls.logger.info('    Primer scan: {}/~{}'.format(n_count, n_est))
         
-        logging.info('    Primer scan: added {}/{} potential primers'.format(n_count, n_max))
+        cls.logger.info('    Primer scan: added {}/{} potential primers'.format(n_count, n_max))
     
     @classmethod
     def scan_seqs_only(cls, seq, side, primer_size=(18,26), us_seq='', ds_seq='', min_junction_overlap=(4,8)):
@@ -695,7 +702,7 @@ class Primer(object):
         # Code to temporarily limit number of primers computed set to None to disable
         #subset_size = 5000 # 1000 # 9000
         
-        logging.info("  Preliminary primer sequence scan: Scanning '{}'".format(side))
+        cls.logger.info("  Preliminary primer sequence scan: Scanning '{}'".format(side))
         
         primer_list = []
         if (side in ['left', 'L', 'forward', 'F', '+']):
@@ -724,7 +731,7 @@ class Primer(object):
                     pr = rc(j_seq[i:i+p_len])
                     primer_list.append(pr)
         
-        logging.info('  Preliminary primer sequence scan: found {} primers'.format(len(primer_list)))
+        cls.logger.info('  Preliminary primer sequence scan: found {} primers'.format(len(primer_list)))
         
         return primer_list
     
@@ -1071,13 +1078,13 @@ class Primer(object):
     
     def check_tm(self, tm=(52,65), folder='/dev/shm/addtag', o_oligo=None, **kwargs):
         #o3 = None
-        #logging.info('      check_tm()')
+        #self.logger.info('      check_tm()')
         # Tm (against reverse_complement) should be between 50-70 or 55-65
         if ((tm != None) and (o_oligo != None)): # 'None' means skip this calculation
-            #logging.info('        if(True)')
+            #self.logger.info('        if(True)')
             # Calculate reverse-complement delta-G and Tm
             if (self.o_reverse_complement == None):
-                #logging.info('          calculating o_reverse_complement')
+                #self.logger.info('          calculating o_reverse_complement')
                 #o3 = Structure.new_calculate_simple(folder, self.sequence, rc(self.sequence))
                 self.o_reverse_complement = o_oligo.find_structures(folder, self.sequence, rc(self.sequence))
         
@@ -1146,6 +1153,8 @@ class PrimerPair(object):
     Class that stores 2 Primer objects and their heterodimer thermodynamic calculations.
     """
     pairs = {}
+    
+    logger = logger.getChild('PrimerPair')
     
     def __init__(self, forward_primer, reverse_primer):
         self.forward_primer = forward_primer
@@ -1644,6 +1653,9 @@ class PrimerDesign(object):
       design.optimize()
       optimal = design.optimal
     """
+    
+    logger = logger.getChild('PrimerDesign')
+    
     def __init__(self, primer_pair_list):
         self.primer_pair_list = primer_pair_list
         self.optimal = None # Store 'PrimerSet' object
@@ -1778,7 +1790,7 @@ class PrimerDesign(object):
         
         weight_factor = -math.log(weight_max/weight_min) # (log base 'e' by default)
         
-        #logging.info('\t'.join(['i', 'threshold', 'dW', 'weight_threshold']))
+        #self.logger.info('\t'.join(['i', 'threshold', 'dW', 'weight_threshold']))
         
         for i in range(iterations):
             # As 'i' approaches 'iterations', W decreases
@@ -1831,17 +1843,17 @@ class PrimerDesign(object):
                     optimal = current
                     optimizes += 1
             
-            #logging.info('\t'.join(map(str, [i, threshold, dW, weight_threshold])))
+            #self.logger.info('\t'.join(map(str, [i, threshold, dW, weight_threshold])))
         
         def add_to_log():
-            logging.info('     accepts = {}'.format(accepts))
-            logging.info('     rejects = {}'.format(rejects))
-            logging.info('     ignores = {}'.format(ignores))
-            logging.info('    improves = {}'.format(improves))
-            logging.info('retrogresses = {}'.format(retrogresses))
-            logging.info('   optimizes = {}'.format(optimizes))
-            logging.info('  iterations = {}'.format(iterations))
-            logging.info('     optimal = {}'.format(optimal))
+            self.logger.info('     accepts = {}'.format(accepts))
+            self.logger.info('     rejects = {}'.format(rejects))
+            self.logger.info('     ignores = {}'.format(ignores))
+            self.logger.info('    improves = {}'.format(improves))
+            self.logger.info('retrogresses = {}'.format(retrogresses))
+            self.logger.info('   optimizes = {}'.format(optimizes))
+            self.logger.info('  iterations = {}'.format(iterations))
+            self.logger.info('     optimal = {}'.format(optimal))
         
         if lock:
             with lock:
@@ -1902,7 +1914,7 @@ class PrimerDesign(object):
                 lines[-1] += ' ' + outputs[(i1, i2)]
         lines.append('{:>3}'.format('R'))
         
-        logging.info('\n'.join(lines))
+        self.logger.info('\n'.join(lines))
     
             # # Report the number of PrimerPairs that are shared among the inserts
             # t_num = len(pp_sources)//2
@@ -1917,7 +1929,7 @@ class PrimerDesign(object):
             #             tL_den = len(t1L_set.union(t2L_set))
             #             tR_num = len(t1R_set.intersection(t2R_set))
             #             tR_den = len(t1R_set.union(t2R_set))
-            #             logging.info('number shared insert PrimerPairs ({} vs {}): L={}/{}, R={}/{}'.format(t1, t2, tL_num, tL_den, tR_num, tR_den))
+            #             self.logger.info('number shared insert PrimerPairs ({} vs {}): L={}/{}, R={}/{}'.format(t1, t2, tL_num, tL_den, tR_num, tR_den))
         
         
     
@@ -1993,7 +2005,7 @@ class PrimerDesign(object):
                 lines[-1] += ' ' + outputs[(i1, i2)]
         lines.append('{:>3}'.format('R'))
         
-        logging.info('\n'.join(lines))
+        self.logger.info('\n'.join(lines))
     
     @classmethod
     def make_non_redundant(cls, set_list, sort=True):
