@@ -7,16 +7,20 @@
 # Import standard packages
 import sys
 import os
+import logging
+import math
 
 # Import non-standard packages
 import regex
 import primer3
 
+logger = logging.getLogger(__name__)
+
 # import included AddTag-specific modules
 if (__name__ == "__main__"):
-    from oligo import Oligo, Primer, PrimerPair
+    from oligo import Oligo, Structure
 else:
-    from .oligo import Oligo, Primer, PrimerPair
+    from .oligo import Oligo, Structure
 
 # Treat modules in PACKAGE_PARENT as in working directory
 if (__name__ == "__main__"):
@@ -37,7 +41,42 @@ class Primer3(Oligo):
             citation="Untergasser, et al. Primer3--new capabilities and interfaces. Nucleic Acids Research 40(15): e115 (2012)"
         )
     
+    @classmethod
+    def find_structures(cls, folder, seq1, seq2=None, sodium=0.05, magnesium=0.0, temperature=25, concentration=0.00000025, **kwargs):
+        """
+        Should return the list of 'Structure' objects with delta-G, deltaH, deltaS, and Tm values.
+        
+        Accepts 1 or 2 input sequences. Automatically runs either:
+         * Hairpin     (1 input sequence: A=seq1, UNAFold run on A)
+         * Homodimer   (2 identical input sequences: A=seq1=seq2, UNAFold run on A & A)
+         * Heterodimer (2 input sequences: A=seq1 B=seq2, UNAFold run on A & B)
+        """
+        mv_conc = sodium*1000 # 50.0 # in mM
+        dv_conc = magnesium*1000 # 0.0 # in mM
+        dntp_conc = 0.6 # in mM
+        dna_conc = concentration*1000*1000*1000 # 250.0 # in nM
+        #temperature = 25 # keep as-is
+        
+        if (seq1 == seq2): # Homodimer calculation
+            t = primer3.calcHomodimer(seq1, mv_conc=mv_conc, dv_conc=dv_conc, dntp_conc=dntp_conc, dna_conc=dna_conc, temp_c=temperature)
+        elif (seq2 == None): # Hairpin calculation
+            t = primer3.calcHairpin(seq1, mv_conc=mv_conc, dv_conc=dv_conc, dntp_conc=dntp_conc, dna_conc=dna_conc, temp_c=temperature)
+        else: # Heterodimer calculation, Tm calculation [seq1, rc(seq1)]
+            t = primer3.calcHeterodimer(seq1, seq2, mv_conc=mv_conc, dv_conc=dv_conc, dntp_conc=dntp_conc, dna_conc=dna_conc, temp_c=temperature)
+        
+        if t.structure_found:
+            s = Structure(seq1, seq2, t.dg/1000, t.dh/1000, t.ds, t.tm, sodium, magnesium, temperature, concentration)
+        else:
+            s = Structure(seq1, seq2, math.inf, math.inf, math.inf, math.inf, sodium, magnesium, temperature, concentration)
+        
+        return [s]
+    
     def scan_sequence(self, seq, primer_size=(18,26), amplicon_size=(50,60)):
+        if (__name__ == "__main__"):
+            from oligo import Primer, PrimerPair
+        else:
+            from .oligo import Primer, PrimerPair
+        
         number_records = 20
         
         mv_conc = 50.0 # in mM
@@ -189,7 +228,7 @@ class Primer3(Oligo):
         
         return outputs
 
-def test():
+def old_test():
     """Code to test the classes and functions in 'source/oligos/_primer3.py'"""
     
     C = Primer3()
@@ -204,6 +243,29 @@ def test():
     print(seq)
     for pp in primer_pairs:
         print(' '*pp.forward_primer.position + pp.get_formatted())
+
+def test():
+    """Code to test the classes and functions in 'source/oligos/_unafold.py'"""
+    
+    C = Primer3()
+    print("===", C.name, "===")
+    
+    a = 'GAAATCGCTTAGCGCGAACTCAGACCAT'
+    b = 'CCTAGCTATTTAATAAATC'
+    c = 'TTCTCCACTTCCATCACCGT'
+    
+    print('Hairpin: {}'.format(repr(a)))
+    for s in C.find_structures('.', a, None):
+        print('', s)
+    print('Homodimer: {} {}'.format(repr(a), repr(a)))
+    for s in C.find_structures('.', a, a):
+        print('', s)
+    print('Heterodimer: {} {}'.format(repr(a), repr(b)))
+    for s in C.find_structures('.', a, b):
+        print('', s)
+    print('Reverse-complements: {} {}'.format(repr(a), repr(rc(a))))
+    for s in C.find_structures('.', a, rc(a)):
+        print('', s)
 
 if (__name__ == "__main__"):
     test()

@@ -243,7 +243,7 @@ class GenerateParser(subroutine.Subroutine):
             help="Program to calculate pairwise alignments. Please note that the 'addtag' internal aligner is very slow.")
         
         oligo_choices = [x.name for x in thermodynamics.oligos]
-        self.parser.add_argument("--oligo", type=str, choices=oligo_choices, default='UNAFold',
+        self.parser.add_argument("--oligo", type=str, choices=oligo_choices, default='Primer3',
             help="Program to perform thermodynamic calculations.")
         
         prefilter_choices = [C.name for C in algorithms.single_algorithms + algorithms.paired_algorithms + algorithms.batched_single_algorithms if C.prefilter]

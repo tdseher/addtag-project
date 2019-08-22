@@ -111,7 +111,7 @@ class ConfirmParser(subroutine.Subroutine):
             must be used for that round. Usually, these correspond to flanktags.")
         
         oligo_choices = [x.name for x in thermodynamics.oligos]
-        self.parser.add_argument("--oligo", type=str, choices=oligo_choices, default='UNAFold',
+        self.parser.add_argument("--oligo", type=str, choices=oligo_choices, default='Primer3',
             help="Program to perform thermodynamic calculations.")
         
         self.parser.add_argument("--max_evalue", metavar="N", type=float, default=0.001,
