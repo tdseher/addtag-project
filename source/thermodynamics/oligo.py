@@ -783,17 +783,17 @@ class Primer(object):
         return p
     
     def get_tm(self):
-        if (self.o_reverse_complement.__class__.__name__ == 'ThermoResult'):
-            return self.o_reverse_complement.tm
-        else:
-            return min(self.o_reverse_complement).melting_temperature
+        #if (self.o_reverse_complement.__class__.__name__ == 'ThermoResult'):
+        #    return self.o_reverse_complement.tm
+        #else:
+        return min(self.o_reverse_complement).melting_temperature
     
     def get_min_delta_G(self):
         if ((self.o_hairpin != None) and (self.o_self_dimer != None)):
-            if (self.o_hairpin.__class__.__name__ == 'ThermoResult'):
-                return min(self.o_hairpin.dg, self.o_self_dimer.dg)/1000
-            else:
-                return min(self.o_hairpin + self.o_self_dimer).delta_G
+            #if (self.o_hairpin.__class__.__name__ == 'ThermoResult'):
+            #    return min(self.o_hairpin.dg, self.o_self_dimer.dg)/1000
+            #else:
+            return min(self.o_hairpin + self.o_self_dimer).delta_G
         else:
             return -math.inf
     
@@ -1353,15 +1353,16 @@ class PrimerPair(object):
     
     def get_min_delta_G(self):
         if self.o_heterodimer:
-            if (self.o_heterodimer.__class__.__name__ == 'ThermoResult'):
-                return min(self.forward_primer.get_min_delta_G(), self.reverse_primer.get_min_delta_G(), self.o_heterodimer.dg/1000)
-            else:
-                return min(
-                    self.forward_primer.o_hairpin +
-                    self.forward_primer.o_self_dimer +
-                    self.reverse_primer.o_hairpin +
-                    self.reverse_primer.o_self_dimer +
-                    self.o_heterodimer).delta_G
+            #if (self.o_heterodimer.__class__.__name__ == 'ThermoResult'):
+            #    return min(self.forward_primer.get_min_delta_G(), self.reverse_primer.get_min_delta_G(), self.o_heterodimer.dg/1000)
+            #else:
+            return min(
+                self.forward_primer.o_hairpin +
+                self.forward_primer.o_self_dimer +
+                self.reverse_primer.o_hairpin +
+                self.reverse_primer.o_self_dimer +
+                self.o_heterodimer
+            ).delta_G
         else:
             return min(self.forward_primer.get_min_delta_G(), self.reverse_primer.get_min_delta_G())
     
