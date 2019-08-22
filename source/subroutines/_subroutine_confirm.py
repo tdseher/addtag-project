@@ -138,7 +138,8 @@ class ConfirmParser(subroutine.Subroutine):
         
         self.parser.add_argument("--cache", action="store_true", default=False,
             help="If you will be re-running designs on these same input files, \
-                 Intermediate results can be stored to speed up total calculations.")
+                 Intermediate results can be stored and retrieved to speed up \
+                 total calculations.")
         
         # Temporary: this expects 2 for each dDNA: a before and an after
 #        self.parser.add_argument("--internal_primers_required", metavar="y/n",
@@ -1439,11 +1440,12 @@ class ConfirmParser(subroutine.Subroutine):
         self.logger.info("Total 'Primer' objects before filtering: {}".format(len(Primer.sequences)))
         
         
-        # Load cached primer objects if instructed to
+        # Load cached Primer objects if instructed to
         if args.cache:
             cache_dir = os.path.join(args.folder, 'cache')
             object_name = 'Primer.sequences.pickle'
             if os.path.exists(os.path.join(cache_dir, object_name)):
+                self.logger.info("Loading 'Primer' objects from 'cache' folder")
                 cache_data = cache.load_object(object_name, cache_dir)
                 
                 # This simple nested loop is the fastest way to do this
@@ -1689,7 +1691,12 @@ class ConfirmParser(subroutine.Subroutine):
                 self.logger.info("    Number primers with Tm calculated = {}".format(ooo))
                 ##### Some debug code #####
                 
-                
+                # Save cached Primer objects if instructed to
+                if args.cache:
+                    self.logger.info("Saving 'Primer' objects to 'cache' folder")
+                    cache_dir = os.path.join(args.folder, 'cache')
+                    object_name = 'Primer.sequences.pickle'
+                    cache.save_object(Primer.sequences, object_name, cache_dir)
                 
                 # Set up 'PrimerPair' objects, and place them in a queue 'PrimerPair.pairs'
                 self.logger.info("  Queueing 'PrimerPair' objects")
@@ -1783,6 +1790,19 @@ class ConfirmParser(subroutine.Subroutine):
 #                                    if ((pp.checks[0] != None) and Primer.summarize(pp.checks)):
 #                                        pp_seq_list.append(pair)
                     
+                    # Load cached PrimerPair objects if instructed to
+                    if args.cache:
+                        cache_dir = os.path.join(args.folder, 'cache')
+                        object_name = 'PrimerPair.pairs.pickle'
+                        if os.path.exists(os.path.join(cache_dir, object_name)):
+                            self.logger.info("Loading 'PrimerPair' objects from 'cache' folder")
+                            cache_data = cache.load_object(object_name, cache_dir)
+                            
+                            # This simple nested loop is the fastest way to do this
+                            for k in PrimerPair.pairs:
+                                if k in cache_data:
+                                    PrimerPair.pairs[k] = cache_data[k]
+                    
                     ###### Start multiprocessing ######
                     
                     self.mpp_setup(args, cutoffs, primerpairs_to_process_list)
@@ -1833,6 +1853,13 @@ class ConfirmParser(subroutine.Subroutine):
                     #pp.weight = pp.get_weight(minimize=True)
                     pp.weight = pp.get_weight(minimize=gg2feature_size)
                     sF_sR_paired_primers.append(pp)
+                
+                # Save cached PrimerPair objects if instructed to
+                if args.cache:
+                    self.logger.info("Saving 'PrimerPair' objects to 'cache' folder")
+                    cache_dir = os.path.join(args.folder, 'cache')
+                    object_name = 'PrimerPair.pairs.pickle'
+                    cache.save_object(PrimerPair.pairs, object_name, cache_dir)
                 
                 # Go through the 'pp_queue' one sF sR pair at a time
                 design_count = 0
