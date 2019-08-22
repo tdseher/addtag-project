@@ -54,6 +54,32 @@ def gamma(z):
 def gamma_pdf(x, shape, scale=1):
     return (x**(shape-1) * math.exp(-x/scale))/(scale**shape * gamma(shape))
 
+class Structure(object):
+    def __init__(self, seq1, seq2, delta_G, delta_H, delta_S, melting_temperature, sodium, magnesium, temperature, concentration):
+        self.seq1 = seq1
+        self.seq2 = seq2
+        self.delta_G = delta_G
+        self.delta_H = delta_H
+        self.delta_S = delta_S
+        self.melting_temperature = melting_temperature
+        self.sodium = sodium
+        self.magnesium = magnesium
+        self.temperature = temperature
+        self.concentration = concentration
+    
+    def __lt__(self, other):
+        if (other != None):
+            return ((self.delta_G, -self.melting_temperature) < (other.delta_G, -other.melting_temperature))
+        else:
+            return False
+    # __gt__(), __le__(), __ne__(), __ge__(), __eq__()
+    
+    def __repr__(self):
+        labs = ['dG', 'dH', 'dS', 'Tm']
+        vals = [self.delta_G, self.delta_H, self.delta_S, self.melting_temperature]
+            
+        return 'Structure(' + ', '.join('='.join(map(str, x)) for x in zip(labs, vals)) + ')'
+
 class Oligo(object): # Name of the subclass
     """
     General class that should be subclassed when adding a new thermodynamics

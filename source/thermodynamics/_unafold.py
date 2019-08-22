@@ -19,9 +19,9 @@ logger = logging.getLogger(__name__)
 
 # import included AddTag-specific modules
 if (__name__ == "__main__"):
-    from oligo import Oligo
+    from oligo import Oligo, Structure
 else:
-    from .oligo import Oligo
+    from .oligo import Oligo, Structure
 
 # Treat modules in PACKAGE_PARENT as in working directory
 if (__name__ == "__main__"):
@@ -142,39 +142,9 @@ class UNAFold(Oligo):
         Should return the list of structures with delta-G values.
         """
         
-        return Structure.new_calculate_simple(*args, **kwargs)
-    
+        return UNAFoldStructure.new_calculate_simple(*args, **kwargs)
 
-    
-        
-
-    
-
-class Structure(object):
-    def __init__(self, seq1, seq2, delta_G, delta_H, delta_S, melting_temperature, sodium, magnesium, temperature, concentration):
-        self.seq1 = seq1
-        self.seq2 = seq2
-        self.delta_G = delta_G
-        self.delta_H = delta_H
-        self.delta_S = delta_S
-        self.melting_temperature = melting_temperature
-        self.sodium = sodium
-        self.magnesium = magnesium
-        self.temperature = temperature
-        self.concentration = concentration
-    
-    def __lt__(self, other):
-        if (other != None):
-            return ((self.delta_G, -self.melting_temperature) < (other.delta_G, -other.melting_temperature))
-        else:
-            return False
-    # __gt__(), __le__(), __ne__(), __ge__(), __eq__()
-    
-    def __repr__(self):
-        labs = ['dG', 'dH', 'dS', 'Tm']
-        vals = [self.delta_G, self.delta_H, self.delta_S, self.melting_temperature]
-            
-        return 'Structure(' + ', '.join('='.join(map(str, x)) for x in zip(labs, vals)) + ')'
+class UNAFoldStructure(Structure):
     
     @staticmethod
     def load_det_file(filename):
@@ -203,11 +173,11 @@ class Structure(object):
     
     @staticmethod
     def make_objects(det_filename, sodium, magnesium, temperature, concentration, seq1, seq2=None):
-        data = Structure.load_det_file(det_filename)
+        data = UNAFoldStructure.load_det_file(det_filename)
         
         object_list = []
         for i, d in data.items():
-            object_list.append(Structure(seq1, seq2, d['dG'], d['dH'], d['dS'], d['Tm'], sodium, magnesium, temperature, concentration))
+            object_list.append(UNAFoldStructure(seq1, seq2, d['dG'], d['dH'], d['dS'], d['Tm'], sodium, magnesium, temperature, concentration))
         return object_list
     
     @classmethod
@@ -414,9 +384,9 @@ class Structure(object):
         Faster than running 'UNAFold.pl'.
         
         Accepts 1 or 2 input sequences. Automatically runs either:
-         * hairpin     (1 input sequence: A=seq1, UNAFold run on A)
-         * homodimer   (2 identical input sequences: A=seq1=seq2, UNAFold run on A & A)
-         * heterodimer (2 input sequences: A=seq1 B=seq2, UNAFold run on A & B)
+         * Hairpin     (1 input sequence: A=seq1, UNAFold run on A)
+         * Homodimer   (2 identical input sequences: A=seq1=seq2, UNAFold run on A & A)
+         * Heterodimer (2 input sequences: A=seq1 B=seq2, UNAFold run on A & B)
          
         Writes '*.det' file to temp 'folder'
         
@@ -448,8 +418,8 @@ class Structure(object):
             '--tmin='+str(temperature),
             '--tmax='+str(temperature),
             '--tinc=1',
-            '--sodium='+Structure.float_to_str(sodium),
-            '--magnesium='+Structure.float_to_str(magnesium),
+            '--sodium='+UNAFoldStructure.float_to_str(sodium),
+            '--magnesium='+UNAFoldStructure.float_to_str(magnesium),
             '--maxloop='+str(30),
             '--mfold='+','.join(map(str, [5, -1, 100])),
         ]
@@ -505,8 +475,8 @@ class Structure(object):
         parameters_2 = [
             '--NA=DNA',
             '--temperature='+str(temperature),
-            '--sodium='+Structure.float_to_str(sodium),
-            '--magnesium='+Structure.float_to_str(magnesium),
+            '--sodium='+UNAFoldStructure.float_to_str(sodium),
+            '--magnesium='+UNAFoldStructure.float_to_str(magnesium),
         ]
         command_list = ['ct-energy'] + parameters_2 + [prefix+'.ct']
         cp = subprocess.run(command_list, shell=False, check=True, cwd=folder, stdout=subprocess.PIPE, stderr=None)
@@ -594,35 +564,58 @@ def test():
     C = UNAFold()
     print("===", C.name, "===")
     
+    a = 'GAAATCGCTTAGCGCGAACTCAGACCAT'
+    b = 'CCTAGCTATTTAATAAATC'
+    c = 'TTCTCCACTTCCATCACCGT'
+    
+    print('Hairpin: {}'.format(repr(a)))
+    for s in C.find_structures('.', a, None):
+        print('', s)
+    print('Homodimer: {} {}'.format(repr(a), repr(a)))
+    for s in C.find_structures('.', a, a):
+        print('', s)
+    print('Heterodimer: {} {}'.format(repr(a), repr(b)))
+    for s in C.find_structures('.', a, b):
+        print('', s)
+    print('Reverse-complements: {} {}'.format(repr(a), repr(rc(a))))
+    for s in C.find_structures('.', a, rc(a)):
+        print('', s)
+
+def old_test():
+    C = UNAFold()
+    
+    # Test out the Structure methods
+    print("===", C.name, "===")
+    
     print('single sequence/hairpin:')
-    print(Structure.nnn_unafold('.', 'GAAATCGCTTAGCGCGAACTCAGACCAT'))
+    print(UNAFoldStructure.nnn_unafold('.', 'GAAATCGCTTAGCGCGAACTCAGACCAT'))
     print('homodimer:')
-    print(Structure.nnn_unafold('.', 'GAAATCGCTTAGCGCGAACTCAGACCAT', 'GAAATCGCTTAGCGCGAACTCAGACCAT'))
+    print(UNAFoldStructure.nnn_unafold('.', 'GAAATCGCTTAGCGCGAACTCAGACCAT', 'GAAATCGCTTAGCGCGAACTCAGACCAT'))
     print('heterodimer:')
-    print(Structure.nnn_unafold('.', 'GAAATCGCTTAGCGCGAACTCAGACCAT', 'CCTAGCTATTTAATAAATC'))
+    print(UNAFoldStructure.nnn_unafold('.', 'GAAATCGCTTAGCGCGAACTCAGACCAT', 'CCTAGCTATTTAATAAATC'))
     
     # Try out the problem sequence
     print('problem single:')
-    print(Structure.nnn_unafold('.', 'TTCTCCACTTCCATCACCGT'))
+    print(UNAFoldStructure.nnn_unafold('.', 'TTCTCCACTTCCATCACCGT'))
     print('problem homodimer:')
-    print(Structure.nnn_unafold('.', 'TTCTCCACTTCCATCACCGT', 'TTCTCCACTTCCATCACCGT'))
+    print(UNAFoldStructure.nnn_unafold('.', 'TTCTCCACTTCCATCACCGT', 'TTCTCCACTTCCATCACCGT'))
     
-    p_results, o_a, o_aa, o_ar, p_gc = C.check_potential_primer('TTCTCCACTTCCATCACC') # problematic primer sequence
-    print(p_results)
-    print(o_a)
-    print(o_aa)
-    print(o_ar)
-    print(p_gc)
+#    p_results, o_a, o_aa, o_ar, p_gc = C.check_potential_primer('TTCTCCACTTCCATCACC') # problematic primer sequence
+#    print(p_results)
+#    print(o_a)
+#    print(o_aa)
+#    print(o_ar)
+#    print(p_gc)
     
-    print("===", C.name, "===")
-    seq = 'TTCGTGTAGGATCACACCCGTTCCAAGATGTATAATCAGGAGACTCTTACGGTTACGAGGGACCCTCATCCAAGGACTCTAGGTGCAAAGTAACCGGTGG' # 2 pairs
-    
-    left_primers = C.scan(seq, 'left', primer_size=(18,22))
-    print('left_primer =', left_primers)
-    right_primers = C.scan(seq, 'right', primer_size=(18,22))
-    print('right_primer =', right_primers)
-    primer_pairs = C.pair(left_primers, right_primers, amplicon_size=(50,60))
-    print('primer_pairs =', primer_pairs)
+#    print("===", C.name, "===")
+#    seq = 'TTCGTGTAGGATCACACCCGTTCCAAGATGTATAATCAGGAGACTCTTACGGTTACGAGGGACCCTCATCCAAGGACTCTAGGTGCAAAGTAACCGGTGG' # 2 pairs
+#    
+#    left_primers = C.scan(seq, 'left', primer_size=(18,22))
+#    print('left_primer =', left_primers)
+#    right_primers = C.scan(seq, 'right', primer_size=(18,22))
+#    print('right_primer =', right_primers)
+#    primer_pairs = C.pair(left_primers, right_primers, amplicon_size=(50,60))
+#    print('primer_pairs =', primer_pairs)
     ##############
     #primer_pairs = C.scan_sequence(seq)
     #for pp in primer_pairs:
