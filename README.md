@@ -40,7 +40,7 @@ Certain optional AddTag functionality depends on the following:
 
 For oligo design, AddTag requires one of the following third-party thermodynamics solutions to be installed:
 
- * UNAFold ([documentation](http://unafold.rna.albany.edu/))
+ * UNAFold >= 3.8 ([source](http://rnaspace.sourceforge.net/software/unafold-3.8.tar.gz), [documentation](http://unafold.rna.albany.edu/)) with [patch440](http://unafold.rna.albany.edu/?q=node/440)
 
  * primer3-py Python module ([source](https://github.com/libnano/primer3-py), [whls](https://pypi.org/project/primer3-py/), [documentation](https://libnano.github.io/primer3-py/))
    
@@ -55,7 +55,7 @@ For oligo design, AddTag requires one of the following third-party thermodynamic
 Certain Target scoring algorithms have additional requirements:
 
  * Keras Python module ([source](https://github.com/keras-team/keras), [whls](https://pypi.org/project/Keras/), [documentation](https://keras.io/))
-   
+     
      note: Keras is only required if you want to calculate CINDEL scores. The easiest way to install is through `pip` also.
      
      ```
@@ -63,7 +63,7 @@ Certain Target scoring algorithms have additional requirements:
      ```
  
  * Theano Python module ([source](https://github.com/Theano/Theano), [whls](https://pypi.org/project/Theano/), [documentation](http://deeplearning.net/software/theano/))
-   
+     
      note: Theano is only required if you want to calculate CINDEL scores. You may install it with `pip` as well.
      
      ```
@@ -171,7 +171,7 @@ $ man ./addtag.1
 Scoring algorithms have been broken down into two general types.
 
  * `SingleSequenceAlgorithm` objects calculate scores by comparing a potential spacer to a model trained on empirical data.
- 
+     
      The following scoring algorithms are subclasses of `SingleSequenceAlgorithm`.
      
       - Azimuth ([Doench, Fusi, et al (2016)](http://dx.doi.org/10.1038/nbt.3437))
@@ -183,7 +183,7 @@ Scoring algorithms have been broken down into two general types.
       - DeepCpf1/CINDEL ([Kim, Song, et al (2016)](http://dx.doi.org/10.1038/nmeth.4104))
       - PAM Identity
 
- * `PairedSequenceAlgorithm` instances generate scores that compare a potential spacer to a target using a model
+ * `PairedSequenceAlgorithm` instances generate scores that compare a potential spacer to a target using a model.
      
      The following scoring algorithms are subclasses of `PairedSequenceAlgorithm`.
      
