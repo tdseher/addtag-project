@@ -173,6 +173,7 @@ Scoring algorithms have been broken down into two general types.
  * `SingleSequenceAlgorithm` objects calculate scores by comparing a potential spacer to a model trained on empirical data.
  
      The following scoring algorithms are subclasses of `SingleSequenceAlgorithm`.
+     
       - Azimuth ([Doench, Fusi, et al (2016)](http://dx.doi.org/10.1038/nbt.3437))
       - Doench-2014 ([Doench, et al (2014)](http://dx.doi.org/10.1038/nbt.3026))
       - GC
@@ -185,6 +186,7 @@ Scoring algorithms have been broken down into two general types.
  * `PairedSequenceAlgorithm` instances generate scores that compare a potential spacer to a target using a model
      
      The following scoring algorithms are subclasses of `PairedSequenceAlgorithm`.
+     
       - CFD ([Doench, Fusi, et al (2016)](http://dx.doi.org/10.1038/nbt.3437))
       - Substitutions, Insertions, Deletions, Errors ([Needleman, Wunsch (1970)](https://dx.doi.org/10.1016/0022-2836%2870%2990057-4))
       - Hsu-Zhang ([Hsu, et al (2013)](http://dx.doi.org/10.1038/nbt.2647))
