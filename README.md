@@ -19,6 +19,7 @@ By default, AddTag will avoid designing homology regions and Targets against pol
 ### Requirements ###
 
 Base operation of AddTag requires the following:
+
  * Python >= 3.5.1 ([source](https://www.python.org/downloads/), [binaries](https://www.python.org/downloads/), [documentation](https://docs.python.org/3/))
  * regex Python module ([source](https://bitbucket.org/mrabarnett/mrab-regex), [whls](https://pypi.org/project/regex/), [documentation](https://pypi.org/project/regex/))
    
@@ -31,9 +32,11 @@ Base operation of AddTag requires the following:
  * Bowtie 2 >= 2.3.4.1 ([source](https://github.com/BenLangmead/bowtie2), [binaries](https://sourceforge.net/projects/bowtie-bio/files/bowtie2/), [documentation](http://bowtie-bio.sourceforge.net/bowtie2/manual.shtml))
 
 Certain optional AddTag functionality depends on the following:
+
  * Git >= 1.7.1 ([source](https://github.com/git/git), [binaries](https://git-scm.com/downloads), [documentation](https://git-scm.com/doc))
 
 For oligo design, AddTag requires one of the following third-party thermodynamics solutions to be installed:
+
  * UNAFold ([documentation](http://unafold.rna.albany.edu/))
  * primer3-py Python module ([source](https://github.com/libnano/primer3-py), [whls](https://pypi.org/project/primer3-py/), [documentation](https://libnano.github.io/primer3-py/))
    
@@ -45,6 +48,7 @@ For oligo design, AddTag requires one of the following third-party thermodynamic
  * ViennaRNA Python module ([source](https://github.com/ViennaRNA/ViennaRNA), [official binaries](https://www.tbi.univie.ac.at/RNA/), [bioconda binaries](https://anaconda.org/bioconda/viennarna/files), [documentation](https://www.tbi.univie.ac.at/RNA/documentation.html))
 
 Certain Target scoring algorithms have additional requirements:
+
  * Keras Python module ([source](https://github.com/keras-team/keras), [whls](https://pypi.org/project/Keras/), [documentation](https://keras.io/))
    
      note: Keras is only required if you want to calculate CINDEL scores. The easiest way to install is through `pip` also.
@@ -89,7 +93,8 @@ Certain Target scoring algorithms have additional requirements:
 
 ##### The following third-party integrations are currently incomplete #####
 
-For speed, we recommend at least one third-party pairwise nucleotide sequence alignment program.
+For speed, we recommend at least one third-party pairwise nucleotide sequence alignment program:
+
  * BLAT ([source](https://genome.ucsc.edu/goldenPath/help/blatSpec.html), [binaries](http://hgdownload.cse.ucsc.edu/admin/exe/), [documentation](https://genome.ucsc.edu/goldenPath/help/blatSpec.html))
  * Bowtie ([source](https://github.com/BenLangmead/bowtie), [binaries](https://sourceforge.net/projects/bowtie-bio/files/bowtie/), [documentation](http://bowtie-bio.sourceforge.net/manual.shtml))
  * BWA ([source](https://github.com/lh3/bwa), [documentation](http://bio-bwa.sourceforge.net/bwa.shtml))
