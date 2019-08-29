@@ -1929,9 +1929,9 @@ class ConfirmParser(subroutine.Subroutine):
                 ###### Start multiprocessing ######
                 
                 mpd_list = self.mpd_setup(args, mpd_list)
-                for design in mpd_list:
-                    if design.optimal:
-                        optimal_designs.append(design.optimal)
+                for optimal_set in mpd_list:
+                    if optimal_set:
+                        optimal_designs.append(optimal_set)
                         design_found = True
                 
                 ###### End multiprocessing ######
@@ -3299,7 +3299,7 @@ class PrimerDesignWorker(multiprocessing.Process):
             d.optimize(mode='direct', lock=self.log_lock)
             #design.optimize(iterations=3000, lock=self.log_lock)
             
-            self.results_queue.put(d)
+            self.results_queue.put(d.optimal)
             
             self.queue.task_done()
         

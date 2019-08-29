@@ -13,7 +13,7 @@ if (__name__ == "__main__"):
 else:
     from .algorithm import SingleSequenceAlgorithm
 
-class Stemmer(SingleSequenceAlgorithm):
+class CRISPRater(SingleSequenceAlgorithm):
     def __init__(self):
         super().__init__("CRISPRater", "Labuhn, et al", 2018,
             citation="Labuhn, et al. Refined sgRNA efficacy prediction improves large- and small-scale CRISPR-Cas9 applications. Nucleic Acids Research, 46(3), (2018).",
@@ -106,7 +106,7 @@ def test():
     ]
     
     print("=== CRISPRater ===")
-    C = Stemmer()
+    C = CRISPRater()
     for d in data:
         print(C.calculate(d))
 

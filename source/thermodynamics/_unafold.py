@@ -568,17 +568,19 @@ def test():
     b = 'CCTAGCTATTTAATAAATC'
     c = 'TTCTCCACTTCCATCACCGT'
     
+    tempdir = '.'
+    
     print('Hairpin: {}'.format(repr(a)))
-    for s in C.find_structures('.', a, None):
+    for s in C.find_structures(tempdir, a, None):
         print('', s)
     print('Homodimer: {} {}'.format(repr(a), repr(a)))
-    for s in C.find_structures('.', a, a):
+    for s in C.find_structures(tempdir, a, a):
         print('', s)
     print('Heterodimer: {} {}'.format(repr(a), repr(b)))
-    for s in C.find_structures('.', a, b):
+    for s in C.find_structures(tempdir, a, b):
         print('', s)
     print('Reverse-complements: {} {}'.format(repr(a), repr(rc(a))))
-    for s in C.find_structures('.', a, rc(a)):
+    for s in C.find_structures(tempdir, a, rc(a)):
         print('', s)
 
 def old_test():

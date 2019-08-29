@@ -22,6 +22,7 @@ exclusions = [
     'addtagprimer.py',
     'bioprimer3.py',
     'oligo.py',
+    #'_viennarna.py',
 ]
 
 path = os.path.dirname(os.path.abspath(__file__))

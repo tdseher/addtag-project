@@ -22,7 +22,12 @@ import regex
 logger = logging.getLogger(__name__)
 
 # Treat modules in PACKAGE_PARENT as in working directory
-if ((__name__ == "__main__") or (os.path.basename(inspect.stack()[-1][1]) in ['_primer3.py', '_unafold.py'])): # or __name__ == 'unafold'):
+
+dir_path = os.path.abspath(os.path.dirname(__file__))
+dir_contents = os.listdir(dir_path)
+dir_contents = [f for f in dir_contents if f not in ['__init__.py', '__pycache__']] # ['_primer3.py', '_unafold.py', '_viennarna.py']
+
+if ((__name__ == "__main__") or (os.path.basename(inspect.stack()[-1][1]) in dir_contents)):
     # Relative path for package to import
     PACKAGE_PARENT = '..'
     # Obtain path of currently-running file

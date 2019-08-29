@@ -8,6 +8,11 @@
 import sys
 import math
 
+if (__name__ == "__main__"):
+    from algorithm import PairedSequenceAlgorithm
+else:
+    from .algorithm import PairedSequenceAlgorithm
+
 class Stemmer(PairedSequenceAlgorithm):
     def __init__(self):
         super().__init__("StemmerOffTarget", "Stemmer, et al", 2015,
@@ -113,24 +118,15 @@ def test():
     j = ('',   'GTTAGCGGTATGTATATGTG', 'TGG', 'GGGA', 'CTCA')
     k = ('', 'CTCAACATGGTATGTATATGTG', 'TGG', 'TCGA', 'TTCA')
     
-    print("=== Doench2014 ===")
-    C = Doench2014()
-    print(C.calculate(a)) # 49.18420140306892
-    print(C.calculate(b)) # 16.668179672077244
-    print(C.calculate(c)) # 32.30335056113513
-    print(C.calculate(d)) # 43.173287661422385
-    print(C.calculate(e)) # 62.564461061593754
-    print(C.calculate(f)) # 22.59673843434246
+    print("=== Stemmer ===")
+    C = Stemmer()
+    print(C.calculate(a, b)) # 
+    print(C.calculate(b, c)) # 
+    print(C.calculate(c, d)) # 
+    print(C.calculate(d, e)) # 
+    print(C.calculate(e, f)) # 
+    print(C.calculate(f, g)) # 
     
-    print("=== Doench2016 ===")
-    C = Doench2016()
-    print(C.calculate(a, a)) # 100.0
-    print(C.calculate(a, b)) # 0.0
-    print(C.calculate(a, c)) # 0.0
-    print(C.calculate(a, d)) # 0.008843903254636097
-    print(C.calculate(a, e)) # 21.482277090941643
-    print(C.calculate(a, f)) # 42.8571429
-    print(C.calculate(j, k)) # 12.26204765820043
 
 if (__name__ == "__main__"):
     test()
