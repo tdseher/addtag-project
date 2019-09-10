@@ -12,11 +12,13 @@ import math
 import fractions
 import random
 import logging
+import subprocess
+import importlib.util
+
 logger = logging.getLogger(__name__)
 
 # Import non-standard packages
 import regex
-import subprocess
 
 # Treat modules in PACKAGE_PARENT as in working directory
 if (__name__ == "__main__"):
@@ -298,12 +300,12 @@ class Azimuth(BatchedSingleSequenceAlgorithm):
         #else:
         #    disambiguate_samples = 512
         
-        if sys.platform.startswith('win'):
-            # Command line limit:   32768 characters = 2**15, /32=1024
-            batch_size = 1000
-        else:
-            # Command line limit: 2097152 characters = 2**21, /32=65536
-            batch_size = 10000
+#        if sys.platform.startswith('win'):
+#            # Command line limit:   32768 characters = 2**15, /32=1024
+#            batch_size = 1000
+#        else:
+#            # Command line limit: 2097152 characters = 2**21, /32=65536
+#            batch_size = 10000
         
         # unpack the input sequences
         for i, query in enumerate(batch):
@@ -335,52 +337,78 @@ class Azimuth(BatchedSingleSequenceAlgorithm):
         WRAPPER_PATH = os.path.join(SCRIPT_DIR, "azimuth_wrapper.py")
         # Should use args.python2_path
         
-        PYTHON2 = 'python'
-        if sys.platform.startswith('win'):
-            if which('py.exe'):
-                PYTHON2 = 'py.exe'
-            else:
-                ppl = which('python.exe', full=True)
-                for pp in ppl:
-                    if 'python27' in pp.lower():
-                        PYTHON2 = pp
-                        break
-        #print('PYHTON2 =', PYTHON2)
+        spec = importlib.util.find_spec('azimuth')
+        if spec:
+            PYTHON = sys.executable
+            command_list = [PYTHON, WRAPPER_PATH]
+        else:
+            PYTHON = 'python'
+            if sys.platform.startswith('win'):
+                if which('py.exe'):
+                    PYTHON = 'py.exe'
+                else:
+                    ppl = which('python.exe', full=True)
+                    for pp in ppl:
+                        if 'python27' in pp.lower():
+                            PYTHON = pp
+                            break
+            #print('PYHTON2 =', PYTHON2)
         
-        program_path_list = [PYTHON2, WRAPPER_PATH]
-        if (PYTHON2 == 'py.exe'):
-            program_path_list.insert(1, '-2')
+            command_list = [PYTHON]
+            if (PYTHON == 'py.exe'):
+                command_list.append('-2.7')
+            command_list.append(WRAPPER_PATH)
         
         #print("queries2", queries2)
         
         batch_list = []
-        batch_count = 0
-        for bi, q in enumerate(queries2):
-            if (batch_count % batch_size == 0):
-                batch_list.append([])
+        for q in queries2:
             if q[1]:
-                batch_list[-1].append(q[2]) # Append the sequence
-                batch_count += 1
+                batch_list.append(q[2])
+        
+        cp = subprocess.run(command_list, input=bytes(' '.join(batch_list), 'utf-8'), shell=False, stdout=subprocess.PIPE)
+        out_lines = cp.stdout.decode().splitlines()
         
         batch_scores = []
-        for current_batch in batch_list:
-            if (len(current_batch) > 0):
-            #for batch_start in range(0, len(queries2), batch_size):
-            #    current_batch = queries2[batch_start:batch_start+batch_size]
-            #    command_list = ['python', WRAPPER_PATH] + [ x[2] for x in current_batch if x[1] ]
-                #command_list = [PYTHON2, WRAPPER_PATH] + current_batch
-                command_list = program_path_list + current_batch
-                
-                #print('command_list =', command_list[:10], '...'+str(len(command_list)) if (len(command_list) > 10) else '')
-                #with open(error_file, 'w+') as flo:
-                #    cp = subprocess.run(command_list, shell=False, check=True, stdout=flo, stderr=subprocess.STDOUT)
-                #print(command_list)
-                cp = subprocess.run(command_list, shell=False, check=True, stdout=subprocess.PIPE)
-                output = cp.stdout.decode()
-                
-                for line in output.splitlines()[1:]: #skip first line: line.startswith('No model file specified')
-                    i_seq, i_score = line.split(" ")
-                    batch_scores.append(100*float(i_score))
+        for line in out_lines:
+            if line.startswith('No model file specified'):
+                pass
+            else:
+                i_seq, i_score = line.split(" ")
+                batch_scores.append(100*float(i_score))
+        
+        
+        
+        
+        
+#        batch_list = []
+#        batch_count = 0
+#        for bi, q in enumerate(queries2):
+#            if (batch_count % batch_size == 0):
+#                batch_list.append([])
+#            if q[1]:
+#                batch_list[-1].append(q[2]) # Append the sequence
+#                batch_count += 1
+        
+#        batch_scores = []
+#        for current_batch in batch_list:
+#            if (len(current_batch) > 0):
+#            #for batch_start in range(0, len(queries2), batch_size):
+#            #    current_batch = queries2[batch_start:batch_start+batch_size]
+#            #    command_list = ['python', WRAPPER_PATH] + [ x[2] for x in current_batch if x[1] ]
+#                #command_list = [PYTHON2, WRAPPER_PATH] + current_batch
+#                command_list = program_path_list + current_batch
+#                
+#                #print('command_list =', command_list[:10], '...'+str(len(command_list)) if (len(command_list) > 10) else '')
+#                #with open(error_file, 'w+') as flo:
+#                #    cp = subprocess.run(command_list, shell=False, check=True, stdout=flo, stderr=subprocess.STDOUT)
+#                #print(command_list)
+#                cp = subprocess.run(command_list, shell=False, check=True, stdout=subprocess.PIPE)
+#                output = cp.stdout.decode()
+#                
+#                for line in output.splitlines()[1:]: #skip first line: line.startswith('No model file specified')
+#                    i_seq, i_score = line.split(" ")
+#                    batch_scores.append(100*float(i_score))
                 
         # Deal with skipped queries
         queries2_iter = iter(queries2)
@@ -586,7 +614,7 @@ def test():
     
     start = time.time()
     seqs = []
-    for I in range(100000):
+    for I in range(10000):
         seqs.append(('', random_sequence(20), random_sequence(3), random_sequence(4), random_sequence(3)))
     scores = C.calculate(seqs, disambiguate=True)
     
