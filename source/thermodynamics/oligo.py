@@ -74,7 +74,10 @@ class Structure(object):
     
     def __lt__(self, other):
         if (other != None):
-            return ((self.delta_G, -self.melting_temperature) < (other.delta_G, -other.melting_temperature))
+            if ((self.melting_temperature != None) and (other.melting_temperature != None)):
+                return ((self.delta_G, -self.melting_temperature) < (other.delta_G, -other.melting_temperature))
+            else:
+                return (self.delta_G < other.delta_G)
         else:
             return False
     # __gt__(), __le__(), __ne__(), __ge__(), __eq__()
