@@ -203,9 +203,9 @@ class UNAFoldStructure(Structure):
             'UNAFold.pl',
             '--NA=DNA',
             '--temp='+str(temperature),
-            '--sodium='+cls.float_to_str(sodium),
-            '--magnesium='+cls.float_to_str(magnesium),
-            '--Ct='+cls.float_to_str(concentration),
+            '--sodium='+Oligo.float_to_str(sodium),
+            '--magnesium='+Oligo.float_to_str(magnesium),
+            '--Ct='+Oligo.float_to_str(concentration),
             '--max=100'
         ]
         if output_basename:
@@ -289,9 +289,9 @@ class UNAFoldStructure(Structure):
             'UNAFold.pl',
             '--NA=DNA',
             '--temp='+str(temperature),
-            '--sodium='+cls.float_to_str(sodium),
-            '--magnesium='+cls.float_to_str(magnesium),
-            '--Ct='+cls.float_to_str(concentration),
+            '--sodium='+Oligo.float_to_str(sodium),
+            '--magnesium='+Oligo.float_to_str(magnesium),
+            '--Ct='+Oligo.float_to_str(concentration),
             '--max=100'
         ]
         if output_basename:
@@ -320,24 +320,6 @@ class UNAFoldStructure(Structure):
             return cls.make_objects(os.path.join(folder, 'A-B.det'), sodium, magnesium, temperature, concentration, seq1, seq2)
         else:
             return cls.make_objects(os.path.join(folder, 'A.det'), sodium, magnesium, temperature, concentration, seq1)
-    
-    @staticmethod
-    def float_to_str(f):
-        """
-        Retrieved from https://stackoverflow.com/questions/38847690/convert-float-to-string-without-scientific-notation-and-false-precision/38847691#38847691
-        """
-        float_string = repr(f)
-        if 'e' in float_string:  # detect scientific notation
-            digits, exp = float_string.split('e')
-            digits = digits.replace('.', '').replace('-', '')
-            exp = int(exp)
-            zero_padding = '0' * (abs(int(exp)) - 1)  # minus 1 for decimal point in the sci notation
-            sign = '-' if (f < 0) else ''
-            if (exp > 0):
-                float_string = '{}{}{}.0'.format(sign, digits, zero_padding)
-            else:
-                float_string = '{}0.{}{}'.format(sign, zero_padding, digits)
-        return float_string
     
     @staticmethod
     def parse_ct_file(filename):
@@ -420,8 +402,8 @@ class UNAFoldStructure(Structure):
             '--tmin='+str(temperature),
             '--tmax='+str(temperature),
             '--tinc=1',
-            '--sodium='+UNAFoldStructure.float_to_str(sodium),
-            '--magnesium='+UNAFoldStructure.float_to_str(magnesium),
+            '--sodium='+Oligo.float_to_str(sodium),
+            '--magnesium='+Oligo.float_to_str(magnesium),
             '--maxloop='+str(30),
             '--mfold='+','.join(map(str, [5, -1, 100])),
         ]
@@ -477,8 +459,8 @@ class UNAFoldStructure(Structure):
         parameters_2 = [
             '--NA=DNA',
             '--temperature='+str(temperature),
-            '--sodium='+UNAFoldStructure.float_to_str(sodium),
-            '--magnesium='+UNAFoldStructure.float_to_str(magnesium),
+            '--sodium='+Oligo.float_to_str(sodium),
+            '--magnesium='+Oligo.float_to_str(magnesium),
         ]
         command_list = ['ct-energy'] + parameters_2 + [prefix+'.ct']
         cp = subprocess.run(command_list, shell=False, check=True, cwd=folder, stdout=subprocess.PIPE, stderr=None)
