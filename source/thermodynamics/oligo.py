@@ -1911,6 +1911,8 @@ class PrimerDesign(object):
                     if (current.weight > optimal.weight):
                         optimal = current
                         optimizes += 1
+                    elif ((current.weight == optimal.weight) and (mode == 'direct')):
+                        break
                 else:
                     optimal = current
                     optimizes += 1
