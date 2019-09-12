@@ -28,8 +28,9 @@ from .. import utils
 from .. import nucleotides
 from .. import aligners
 from .. import thermodynamics
-from ..thermodynamics.oligo import Primer, PrimerPair, PrimerDesign
+from ..thermodynamics.oligo import Oligo, Primer, PrimerPair, PrimerDesign
 from .. import cache
+from ..algorithms import detect_overridden_methods
 
 logger = logging.getLogger(__name__)
 
@@ -1621,6 +1622,28 @@ class ConfirmParser(subroutine.Subroutine):
                 for seq_list in p_queue:
                     primers_to_process_list = [Primer.sequences[s] for s in seq_list]
                     self.mp_setup(args, cutoffs, primers_to_process_list)
+                
+                # Calculate Tm for Primers if missing
+                #batch_tm_fxn = getattr(args.selected_oligo, 'find_tms', None)
+                #if callable(batch_tm_fxn):
+                
+                if 'find_tms' in detect_overridden_methods(Oligo, args.selected_oligo):
+                    # Make list of sequences whose Tm should be calculated
+                    s_list = []
+                    for s, p in Primer.sequences.items():
+                        # If the RevComp structure was found
+                        if p.o_reverse_complement:
+                            # If the Tm has not been calculated
+                            if (min(p.o_reverse_complement).melting_temperature == None):
+                                s_list.append(s)
+                    
+                    # Find Tms as a batch operation
+                    tm_list = args.selected_oligo.find_tms(s_list)
+                    
+                    # Apply the Tms to each RevComp Structure
+                    for sl, tl in zip(s_list, tm_list):
+                        for x in Primer.sequences[sl].o_reverse_complement:
+                            x.melting_temperature = tl
                 
                 ###### End multiprocessing ######
                 

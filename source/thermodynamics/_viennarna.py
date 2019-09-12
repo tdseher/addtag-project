@@ -9,6 +9,8 @@ import sys
 import os
 import logging
 import math
+import subprocess
+from collections import OrderedDict
 
 # Import non-standard packages
 import regex
@@ -38,46 +40,55 @@ class ViennaRNA(Oligo):
     logger = logger.getChild(__qualname__)
     
     loaded = False
+    parameters = None
+    
     def __init__(self):
-        super().__init__("ViennaRNA", "", 0,
-            citation=""
+        super().__init__("ViennaRNA", "Lorenz, et al", 2011,
+            citation="Lorenz, et al. ViennaRNA Package 2.0. Algorithms for Molecular Biology 6:1, 26 (2011)."
         )
     
     @classmethod
-    def load(cls):
-        global RNA
+    def parameter_path(cls):
+        # A list to hold the most-likely paths of the DNA parameters file
+        dna_paths = []
         
-        import RNA
-        # If ViennaRNA is not installed correctly, then this error will be raised:
-        #   ModuleNotFoundError: No module named 'RNA'
+        dna_paths.append(
+            os.path.abspath(os.path.join(os.path.dirname(RNA.__file__), '..', '..', '..', '..', 'share', 'ViennaRNA', 'dna_mathews2004.par'))
+        )
         
-        try:
-            RNA.params_load_DNA_Mathews2004()
-            # If the ViennaRNA version does not support DNA parameters, then this error will be raised:
-            #   AttributeError: module 'RNA' has no attribute 'params_load_DNA_Mathews2004'
-        except AttributeError:
-            # We try to load the DNA parameters manually
-            
-            # A list to hold the most-likely paths of the DNA parameters file
-            dna_paths = []
-            
+        prog_path = which('RNAfold')
+        if prog_path:
             dna_paths.append(
-                os.path.abspath(os.path.join(os.path.dirname(RNA.__file__), '..', '..', '..', '..', 'share', 'ViennaRNA', 'dna_mathews2004.par'))
+                os.path.abspath(os.path.join(os.path.dirname(prog_path), 'Misc', 'dna_mathews2004.par'))
             )
+        
+        
+        for dp in dna_paths:
+            if os.path.exists(dp):
+                return dp
+        
+        raise FileNotFoundError('Cannot find file encoding DNA thermodynamics parameters required by ViennaRNA: {!r}'.format(dna_paths))
+    
+    @classmethod
+    def load(cls):
+        if not cls.loaded:
+            global RNA
             
-            prog_path = which('RNAfold')
-            if prog_path:
-                dna_paths.append(
-                    os.path.abspath(os.path.join(os.path.dirname(prog_path), 'Misc', 'dna_mathews2004.par'))
-                )
+            import RNA
+            # If ViennaRNA is not installed correctly, then this error will be raised:
+            #   ModuleNotFoundError: No module named 'RNA'
             
-            for dp in dna_paths:
-                if os.path.exists(dp):
-                    RNA.params_load(dp)
-                    break
-            else:
-                raise FileNotFoundError('Cannot find file encoding DNA thermodynamics parameters required by ViennaRNA: {}'.format(repr(dna_paths)))
-        cls.loaded = True
+            try:
+                RNA.params_load_DNA_Mathews2004()
+                # If the ViennaRNA version does not support DNA parameters, then this error will be raised:
+                #   AttributeError: module 'RNA' has no attribute 'params_load_DNA_Mathews2004'
+            except AttributeError:
+                # We try to load the DNA parameters manually
+                
+                cls.parameters = cls.parameter_path()
+                RNA.params_load(cls.parameters)
+                
+            cls.loaded = True
     
     @classmethod
     def find_structures(cls, folder, seq1, seq2=None, sodium=0.05, magnesium=0.0, temperature=25, concentration=0.00000025, **kwargs):
@@ -89,8 +100,7 @@ class ViennaRNA(Oligo):
          * Homodimer   (2 identical input sequences: A=seq1=seq2, UNAFold run on A & A)
          * Heterodimer (2 input sequences: A=seq1 B=seq2, UNAFold run on A & B)
         """
-        if not cls.loaded:
-            cls.load()
+        cls.load()
         
         mfe = None
         if (seq1 == seq2): # Homodimer calculation
@@ -108,6 +118,69 @@ class ViennaRNA(Oligo):
             s = Structure(seq1, seq2, math.inf, math.inf, math.inf, math.inf, sodium, magnesium, temperature, concentration)
         
         return [s]
+    
+    @classmethod
+    def find_tms(cls, sequences, sodium=0.05, magnesium=0.0, temperature=25, concentration=0.00000025, **kwargs):
+        cls.load()
+        
+        def flatten(iterable, remove_none=False, add_equal=False):
+            """Make a flat list out of a list of lists"""
+            # Will remove None
+            if remove_none:
+                if add_equal:
+                    return ['{}={}'.format(par, val) if (val != None) else par for (par, val) in iterable]
+                else:
+                    return [item for sublist in iterable for item in sublist if item != None]
+            else:
+                if add_equal:
+                    return ['{}={}'.format(par, val) for (par, val) in iterable]
+                else:
+                    return [item for sublist in iterable for item in sublist]
+        
+        options = OrderedDict([
+            ('--paramFile', cls.parameters),
+            ('--probe-mode', None),
+            ('--probe-concentration', Oligo.float_to_str(concentration)),
+            ('--na-concentration', Oligo.float_to_str(sodium)),
+            ('--mg-concentration', Oligo.float_to_str(magnesium)),
+            ('--tris-concentration', Oligo.float_to_str(0.0)),
+            ('--k-concentration', Oligo.float_to_str(0.0)),
+            ('--temp', temperature),
+        ])
+        flat_options = flatten(options.items(), remove_none=True, add_equal=True)
+        command_list = ['RNAplex'] + list(map(str, flat_options))
+        command_str = ' '.join(command_list)
+        
+        logger.info('command: {!r}'.format(command_str))
+        
+        cp = subprocess.run(command_list, input=bytes('\n'.join(sequences), 'utf-8'), shell=False, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        # The output typically looks like this:
+        #   Probe mode
+        #   Concentration K:0.000 TNP:0.000 Mg:0.000 Na:0.050 probe:0.000
+        #   
+        #                                                                                               sequence  DDSL98  DDSL04  DRSU95  RRXI98 CURRENT
+        #                                                                                   AGGCTTTAGGGCTATAGGAA   51.78  50.76   50.74   62.06   52.13
+        #                                                                                    CGAATTTAGAGCCTATAAT   43.60  42.90   39.52   48.07   43.46
+        #                                                                                      GGCTATGAGATAGCTAA   43.14  42.68   41.24   52.81   43.44
+        
+        out_lines = cp.stdout.decode().splitlines()
+        data_found = False
+        
+        tm_list = []
+        for line in out_lines:
+            line = line.rstrip()
+            if not data_found:
+                m = regex.search(r'^\s+sequence\s+DDSL98\s+DDSL04\s+DRSU95\s+RRXI98\s+CURRENT', line)
+                if m:
+                    data_found = True
+            else:
+                m = regex.match(r'^\s*(\S+)(?:\s+(\S+)){5}$', line)
+                if m:
+                    seq = m.captures(1)[0]
+                    tm = float(m.captures(2)[-1]) # Use the 'CURRENT' column
+                    tm_list.append(tm)
+        
+        return tm_list
 
 def test():
     """Code to test the classes and functions in 'source/oligos/_unafold.py'"""
@@ -133,6 +206,27 @@ def test():
     print('Reverse-complements: {} {}'.format(repr(a), repr(rc(a))))
     for s in C.find_structures(tempdir, a, rc(a)):
         print('', s)
+    
+    print('Tms:')
+    seqs = [a, b, c]
+    tm_list = C.find_tms(seqs)
+    for s, tm in zip(seqs, tm_list):
+        print('', s, tm)
+    
+    # Expected output:
+    #   === ViennaRNA ===
+    #   Hairpin: 'GAAATCGCTTAGCGCGAACTCAGACCAT'
+    #    Structure(dG=-3.5, dH=None, dS=None, Tm=None)
+    #   Homodimer: 'GAAATCGCTTAGCGCGAACTCAGACCAT' 'GAAATCGCTTAGCGCGAACTCAGACCAT'
+    #    Structure(dG=-10.399999618530273, dH=None, dS=None, Tm=None)
+    #   Heterodimer: 'GAAATCGCTTAGCGCGAACTCAGACCAT' 'CCTAGCTATTTAATAAATC'
+    #    Structure(dG=-4.800000190734863, dH=None, dS=None, Tm=None)
+    #   Reverse-complements: 'GAAATCGCTTAGCGCGAACTCAGACCAT' 'ATGGTCTGAGTTCGCGCTAAGCGATTTC'
+    #    Structure(dG=-37.900001525878906, dH=None, dS=None, Tm=None)
+    #   Tms:
+    #    GAAATCGCTTAGCGCGAACTCAGACCAT 63.51
+    #    CCTAGCTATTTAATAAATC 39.73
+    #    TTCTCCACTTCCATCACCGT 54.09
 
 if (__name__ == "__main__"):
     test()

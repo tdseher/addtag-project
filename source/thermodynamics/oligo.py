@@ -347,6 +347,15 @@ class Oligo(object): # Name of the subclass
         self.logger.info("THIS CODE SHOULD NOT BE EXECUTED")
         return []
     
+    def find_tms(self, *args, **kwargs):
+        """
+        Should return list of Tm values given an input list of sequences
+        
+        Overload this method.
+        """
+        self.logger.info("THIS CODE SHOULD NOT BE EXECUTED")
+        return []
+    
     # Only in this class because of the 'logistic_updown()' function
     def p_group_weight(self, primers, merge_duplicates=True, *args, **kwargs):
         """
@@ -1141,8 +1150,12 @@ class Primer(object):
                 #self.logger.info('          calculating o_reverse_complement')
                 #o3 = Structure.new_calculate_simple(folder, self.sequence, rc(self.sequence))
                 self.o_reverse_complement = o_oligo.find_structures(folder, self.sequence, rc(self.sequence))
-        
-            tm_passed = tm[0] <= min(self.o_reverse_complement).melting_temperature <= tm[1]
+            
+            min_tm = min(self.o_reverse_complement).melting_temperature
+            if min_tm != None:
+                tm_passed = tm[0] <= min_tm <= tm[1]
+            else:
+                tm_passed = None
         else:
             tm_passed = None
         
