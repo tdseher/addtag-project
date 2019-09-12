@@ -55,13 +55,14 @@ else:
     from ..utils import which
 
 class DeepCpf1(BatchedSingleSequenceAlgorithm):
+    
+    logger = logger.getChild(__qualname__)
+    
     METHOD_EXCLUSIVE = 0
     METHOD_UNION = 1
     CHROMATIN_IGNORED = 0
     CHROMATIN_INACCESSIBLE = 1
     CHROMATIN_ACCESSIBLE = 2
-    
-    logger = logger.getChild('DeepCpf1')
         
     def __init__(self):
         super().__init__("DeepCpf1", "Kim, Song, et al", 2016,

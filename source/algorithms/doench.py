@@ -247,6 +247,8 @@ class Doench2016(PairedSequenceAlgorithm):
         return score * 100
 
 class Azimuth(BatchedSingleSequenceAlgorithm):
+    logger = logger.getChild(__qualname__)
+    
     def __init__(self):
         super().__init__("Azimuth", "Doench, Fusi, et al", 2016,
             citation="Doench, Fusi, et al. Optimized sgRNA design to maximize activity and minimize off-target effects of CRISPR-Cas9. Nature Biotechnology 34, 184-191 (2016).",
@@ -419,7 +421,7 @@ class Azimuth(BatchedSingleSequenceAlgorithm):
             #s = next(batch_scores_iter)
             
             while (q[1] == False):
-                logger.info("Skipping Azimuth Calculation: {}".format(q))
+                self.logger.info("Skipping Azimuth Calculation: {}".format(q))
                 q = next(queries2_iter)
             
             q[3] = s

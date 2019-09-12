@@ -130,7 +130,7 @@ class Aligner(object): # Name of the subclass
         command_str = ' '.join(command_list)
         
         # Perform alignment
-        logger.info('command: {!r}'.format(command_str))
+        self.logger.info('command: {!r}'.format(command_str))
         if capture_stdout:
             with open(error_filename, 'w+') as err_flo:
                 with open(output_filename, 'w+') as out_flo:
@@ -139,8 +139,8 @@ class Aligner(object): # Name of the subclass
             with open(error_filename, 'w+') as flo:
                 cp = subprocess.run(command_list, shell=False, check=True, stdout=flo, stderr=subprocess.STDOUT)
         
-        logger.info('errors: {!r}'.format(error_filename))
-        logger.info('output: {!r}'.format(output_filename))
+        self.logger.info('errors: {!r}'.format(error_filename))
+        self.logger.info('output: {!r}'.format(output_filename))
         return output_filename
     
     def load_record(self, flo, *args, **kwargs):

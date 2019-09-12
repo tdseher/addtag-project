@@ -151,7 +151,7 @@ class ViennaRNA(Oligo):
         command_list = ['RNAplex'] + list(map(str, flat_options))
         command_str = ' '.join(command_list)
         
-        logger.info('command: {!r}'.format(command_str))
+        cls.logger.info('command: {!r}'.format(command_str))
         
         cp = subprocess.run(command_list, input=bytes('\n'.join(sequences), 'utf-8'), shell=False, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
         # The output typically looks like this:
