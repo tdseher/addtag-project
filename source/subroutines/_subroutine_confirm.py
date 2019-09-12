@@ -34,7 +34,7 @@ from .. import cache
 logger = logging.getLogger(__name__)
 
 class ConfirmParser(subroutine.Subroutine):
-    logger = logger.getChild('ConfirmParser')
+    logger = logger.getChild(__qualname__)
     
     def __init__(self, subparsers):
         self.subparsers = subparsers

@@ -37,6 +37,8 @@ else:
     from ..nucleotides import rc
 
 class UNAFold(Oligo):
+    logger = logger.getChild(__qualname__)
+    
     def __init__(self):
         super().__init__("UNAFold", "Markham, et al", 2008,
             citation="Markham, et al. UNAFold: Software for Nucleic Acid Folding and Hybridization. Bioinformatics: Structure, Function and Applications. Humana Press. p.3-31 (2008)."

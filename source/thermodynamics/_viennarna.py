@@ -35,6 +35,8 @@ else:
     from .oligo import Oligo, Structure
 
 class ViennaRNA(Oligo):
+    logger = logger.getChild(__qualname__)
+    
     loaded = False
     def __init__(self):
         super().__init__("ViennaRNA", "", 0,

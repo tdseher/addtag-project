@@ -24,6 +24,8 @@ class Aligner(object): # Name of the subclass
     """
     General class that should be subclassed when adding a new alignment program
     """
+    logger = logger.getChild(__qualname__)
+    
     def __init__(self, 
         name,
         author,

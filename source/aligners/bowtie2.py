@@ -41,6 +41,8 @@ else:
     from ..evalues import EstimateVariables, load_scores
 
 class Bowtie2(Aligner):
+    logger = logger.getChild(__qualname__)
+    
     def __init__(self):
         super().__init__("bowtie2", "Langmead & Salzberg", 2012,
             citation="Langmead & Salzberg. Fast gapped-read alignment with Bowtie 2. Nature Methods 9, 357-359 (2012).",

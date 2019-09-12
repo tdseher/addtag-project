@@ -60,6 +60,8 @@ def gamma_pdf(x, shape, scale=1):
     return (x**(shape-1) * math.exp(-x/scale))/(scale**shape * gamma(shape))
 
 class Structure(object):
+    logger = logger.getChild(__qualname__)
+    
     def __init__(self, seq1, seq2, delta_G, delta_H, delta_S, melting_temperature, sodium, magnesium, temperature, concentration):
         self.seq1 = seq1
         self.seq2 = seq2
@@ -94,7 +96,7 @@ class Oligo(object): # Name of the subclass
     calculation program.
     """
     
-    logger = logger.getChild('Oligo')
+    logger = logger.getChild(__qualname__)
     
     def __init__(self, 
         name,
@@ -443,9 +445,9 @@ class Primer(object):
     as attributes.
     """
     
-    sequences = {} # key: nucleotide sequence, value: 'Primer' object
+    logger = logger.getChild(__qualname__)
     
-    logger = logger.getChild('Primer')
+    sequences = {} # key: nucleotide sequence, value: 'Primer' object
     
     def __init__(self, sequence, gene, locus, genome, region, contig, strand, start, end, name=None):
         self.sequence = sequence
@@ -1186,9 +1188,10 @@ class PrimerPair(object):
     """
     Class that stores 2 Primer objects and their heterodimer thermodynamic calculations.
     """
-    pairs = {}
     
-    logger = logger.getChild('PrimerPair')
+    logger = logger.getChild(__qualname__)
+    
+    pairs = {}
     
     def __init__(self, forward_primer, reverse_primer):
         self.forward_primer = forward_primer
@@ -1588,6 +1591,9 @@ class PrimerSet(object):
     """
     Holds a list of primers and their weight
     """
+    
+    logger = logger.getChild(__qualname__)
+    
     def __init__(self, primer_pair_list=()):
         self.pp_list = [pp for pp in primer_pair_list]
         self.weight = self.calculate_weight()
@@ -1689,7 +1695,7 @@ class PrimerDesign(object):
       optimal = design.optimal
     """
     
-    logger = logger.getChild('PrimerDesign')
+    logger = logger.getChild(__qualname__)
     
     def __init__(self, primer_pair_list):
         self.primer_pair_list = primer_pair_list

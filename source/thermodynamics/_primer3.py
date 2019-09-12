@@ -36,6 +36,8 @@ else:
     from ..nucleotides import rc
 
 class Primer3(Oligo):
+    logger = logger.getChild(__qualname__)
+    
     def __init__(self):
         super().__init__("Primer3", "Untergasser, et al", 2012,
             citation="Untergasser, et al. Primer3--new capabilities and interfaces. Nucleic Acids Research 40(15): e115 (2012)"

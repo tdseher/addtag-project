@@ -191,10 +191,46 @@ example:
      2> analysis.err
 """.format(**locals())
 
-
-
-class TempPrimer(object):
-    sequences = {} # key = nucleotide sequence, value = Primer object
+class CustomFormatter(logging.Formatter):
+    # logging.Formatter methods:
+    #   self.formatTime(record, datefmt=None)
+    #   self.formatException(ei)
+    #   self.usesTime()
+    #   self.formatMessage(record)
+    #   self.formatStack(stack_info)
+    #   self.format(record)
+    
+    def format(self, record):
+        # logging.LogRecord attributes/methods:
+        #   self.args
+        #   self.name
+        #   self.levelname
+        #   self.levelno
+        #   self.pathname
+        #   self.filename
+        #   self.module
+        #   self.lineno
+        #   self.created           # this is a time.time() value
+        #   self.relativeCreated   # number milliseconds since created
+        #   self.thread
+        #   self.threadName
+        #   self.process
+        #   self.processName
+        #   self.msg
+        #   self.exec_info
+        #   self.stack_info
+        #   self.funcName
+        #   self.getMessage()
+        
+        record.extname = '{name}.{funcName}()'.format(**record.__dict__)
+        record.message = record.getMessage()
+        #if self.usesTime():
+        record.asctime = self.formatTime(record, self.datefmt)
+        #s = self.formatMessage(record)
+        
+        return '[{asctime}] [{levelname:<8}] [{extname:<110}] [{lineno:>4}] {message}'.format(**record.__dict__)
+        #else:
+        #    return '[{levelname:<8}] [{extname:<110}] [{lineno:>4}] {message}'.format(**record.__dict__)
 
 class Main(object):
     def __init__(self):
@@ -446,7 +482,12 @@ class Main(object):
         
             # Create the logger, and have it write to 'folder/log.txt'
             #logging.basicConfig(filename=os.path.join(args.folder, 'log.txt'), level=logging.INFO, format='[%(asctime)s] [%(name)s.%(funcName)s] [%(lineno)d] %(message)s') # format='%(levelname)s %(asctime)s: %(message)s' #### %(pathname)s | %(filename)s | %(module)s
-            logging.basicConfig(filename=os.path.join(args.folder, 'log.txt'), level=logging.INFO, style='{', format='[{asctime}] [{name:>70}.{funcName:<50}] [{lineno:>4}] {message}')
+            #logging.basicConfig(filename=os.path.join(args.folder, 'log.txt'), level=logging.INFO, style='{', format='[{asctime}] [{name:<70}] [{funcName:<40}] [{lineno:>4}] {message}')
+            logging.basicConfig(filename=os.path.join(args.folder, 'log.txt'), level=logging.INFO, style='{')
+            formatter = CustomFormatter(style='{')
+            root_logger = logging.getLogger(name=None)
+            for h in root_logger.handlers:
+                h.setFormatter(formatter)
         
         if hasattr(args, 'aligner'):
             # Add 'args.selected_aligner' to hold the actual aligner object
