@@ -1,5 +1,8 @@
 # Ignore local Python cache
 __pycache__/
 
+# Ignore PyCharm project configurations
+.idea/
+
 # Ignore compiled python bytecode, optimized bytecode, and dynamic link libraries
 *.py[cod]
