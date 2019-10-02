@@ -17,11 +17,14 @@ def suffix_strip(text, suffix):
 # Import all Algorithm subclasses defined in python files within this same folder
 exclusions = [
     '__init__.py',
+    'abadi.py',
     'algorithm.py',
     'azimuth_wrapper.py',
     'bae.py',
+    'bauer.py',
     'chakraborty.py',
     'chari.py',
+    'chuai.py',
     #'distance.py',
     'distance_matrix.py',
     #'doench.py',
@@ -37,6 +40,7 @@ exclusions = [
     'proxgc.py',
     'stemmer.py',
     'wang.py',
+    'wong.py',
     'xu.py',
 ]
 path = os.path.dirname(os.path.abspath(__file__))

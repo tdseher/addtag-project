@@ -10,6 +10,8 @@
 #   trained on data from 1235 guides targeting sequences that were also
 #   transfected with a lentivirus into human 293T cells. See Chari et al.:
 #   http://www.nature.com/nmeth/journal/v12/n9/abs/nmeth.3473.html
+#   https://www.nature.com/articles/nmeth.3473
+#   Chari R, Mali P, Moosburner M, et al. Unraveling CRISPR-Cas9 genome engineering parameters via a library-on-library approach. Nat Methods. 2015;12:823–826. DOI: 10.1038/nmeth.3473
 
 # Requires support vector machine program 'svm_classify'
 # see:

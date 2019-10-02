@@ -502,6 +502,29 @@ class Azimuth(BatchedSingleSequenceAlgorithm):
             pass
         pass
 
+class Elevation(): # Subclass needed
+    # Paper:
+    #  https://www.nature.com/articles/s41551-017-0178-6
+    # Source code:
+    #  https://github.com/Microsoft/Elevation
+    # Website:
+    #  https://www.microsoft.com/en-us/research/project/crispr/
+    # Web interface:
+    #  https://crispr.ml/
+
+    def __init__(self):
+        super().__init__("Elevation", "Listgarten, et al", 2018,
+            citation=("Listgarten, et al. Prediction of off-target activities for the end-to-end design of "
+                      "CRISPR guide RNAs. Nature Biomedical Engineering volume 2, pages 38–47 (2018)"),
+            off_target=True,
+            on_target=True,
+            prefilter=False,
+            postfilter=False,
+            minimum=1.0,
+            maximum=100.0,
+            default=None
+        )
+
 def load_mismatch_scores(file_path, sep="\t", approximation=False):
     """Load the mismatch scores defined by Doench et al (2016)"""
     # Data extracted into tab-delimited text as 'doench_mismatch_scores.txt'
