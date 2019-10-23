@@ -13,7 +13,6 @@ import pytest
 def test_no_args():
     cp = subprocess.run([sys.executable, 'addtag'], shell=False, check=True, stdout=subprocess.PIPE)
     output = cp.stdout.decode().rstrip()
-    assert cp.returncode == 0
     assert output == 'usage: addtag [-h] [-v] action ...'
 
 def test_helps():
