@@ -11,7 +11,9 @@ import subprocess
 import pytest
 
 def test_no_args():
-    cp = subprocess.run([sys.executable, 'addtag'], shell=False, check=True, stdout=subprocess.PIPE)
+    # Linux: exit status = 1
+    # Windows: exit status = 0
+    cp = subprocess.run([sys.executable, 'addtag'], shell=False, check=False, stdout=subprocess.PIPE)
     output = cp.stdout.decode().rstrip()
     assert output == 'usage: addtag [-h] [-v] action ...'
 
