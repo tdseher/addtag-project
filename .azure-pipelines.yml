@@ -30,11 +30,27 @@ steps:
     pip install primer3-py
   displayName: 'Install dependencies'
 
+#- script: |
+#    pip install pytest pytest-azurepipelines
+#    pytest
+#  displayName: 'pytest'
+
 - script: |
-    pip install pytest pytest-azurepipelines
-    pytest
-  displayName: 'pytest'
+    ls
+  displayName: 'List contents of default folder $(Build.SourcesDirectory)'
+
+- script: |
+    ls
+  workingDirectory: $(Agent.BuildDirectory)
+  displayName: 'List contents of folder $(Agent.BuildDirectory)'
 
 - script: |
     ./addtag --help
   displayName: 'Usage'
+
+- task: PublishCodeCoverageResults@1
+  inputs:
+    codeCoverageTool: Cobertura
+    summaryFileLocation: '$(System.DefaultWorkingDirectory)/**/coverage.xml'
+    reportDirectory: '$(System.DefaultWorkingDirectory)/**/htmlcov'
+  displayName: 'Publish code coverage results'
