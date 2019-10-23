@@ -4,5 +4,11 @@ __pycache__/
 # Ignore PyCharm project configurations
 .idea/
 
+# Ignore PyTest files
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
+
 # Ignore compiled python bytecode, optimized bytecode, and dynamic link libraries
 *.py[cod]
