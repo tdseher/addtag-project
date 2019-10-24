@@ -25,6 +25,8 @@ steps:
 #  displayName: 'Use Python 3.6'
 
 # Linux
+# /usr/bin/python
+# /usr/bin/python3
 - bash: |
     export PYTHON2=python
     echo "##vso[task.setvariable variable=PYTHON2]$PYTHON2"
@@ -34,6 +36,8 @@ steps:
   displayName: Get 'python2' and 'python3' on Linux
 
 # macOS
+# /usr/local/opt/python@2/bin/python2.7
+# /usr/local/opt/python/bin/python3.7
 - bash: |
     export PYTHON2=python
     echo "##vso[task.setvariable variable=PYTHON2]$PYTHON2"
@@ -56,11 +60,12 @@ steps:
     echo The PYTHON3 is $(PYTHON3)
     $(PYTHON2) --version
     $(PYTHON3) --version
-    $(PYTHON2) -c 'import sys; print(sys.executable)'
-    $(PYTHON3) -c 'import sys; print(sys.executable)'
+    $(PYTHON2) -c "import sys; print(sys.executable)"
+    $(PYTHON3) -c "import sys; print(sys.executable)"
   displayName: Test the 'python2' and 'python3' variables
 
 - script: |
+    $(PYTHON3) -m pip install setuptools
     $(PYTHON3) -m pip install --upgrade pip
     $(PYTHON3) -m pip install regex
     $(PYTHON3) -m pip install primer3-py
