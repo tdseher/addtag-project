@@ -56,26 +56,28 @@ steps:
     echo The PYTHON3 is $(PYTHON3)
     $(PYTHON2) --version
     $(PYTHON3) --version
+    $(PYTHON2) -c 'import sys; print(sys.executable)'
+    $(PYTHON3) -c 'import sys; print(sys.executable)'
   displayName: Test the 'python2' and 'python3' variables
 
 - script: |
-    python -m pip install --upgrade pip
-    pip install regex
-    pip install primer3-py
-  displayName: 'Install dependencies'
+    $(PYTHON3) -m pip install --upgrade pip
+    $(PYTHON3) -m pip install regex
+    $(PYTHON3) -m pip install primer3-py
+  displayName: Install dependencies
 
 - script: |
-    pip install pytest pytest-azurepipelines pytest-cov
-    python -m pytest --cov source --cov-report xml --cov-report html tests/
-  displayName: 'pytest'
+    $(PYTHON3) -m pip install pytest pytest-azurepipelines pytest-cov
+    $(PYTHON3) -m pytest --cov source --cov-report xml --cov-report html tests/
+  displayName: pytest
 
 #- script: |
 #    ls
 #  displayName: 'List contents of default folder $(Build.SourcesDirectory)'
 
 - script: |
-    python addtag --help
-  displayName: 'Usage'
+    $(PYTHON3) addtag --help
+  displayName: Usage
 
 - task: PublishCodeCoverageResults@1
   inputs:
