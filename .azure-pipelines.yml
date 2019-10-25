@@ -72,6 +72,7 @@ steps:
 - script: |
     $(python2.pythonLocation)/python -m pip install setuptools
     $(python2.pythonLocation)/python -m pip install --upgrade pip
+    $(python2.pythonLocation)/python -m pip install numpy==1.16.4
     $(python2.pythonLocation)/python -m pip install git+https://github.com/MicrosoftResearch/Azimuth.git
   displayName: Install 'Azimuth' dependencies
 
