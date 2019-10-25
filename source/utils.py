@@ -525,9 +525,9 @@ def load_git_date():
         date = str(datetime.datetime.fromtimestamp(seconds[-1]))
     except FileNotFoundError:
         try:
-            command_list = ['git', 'log', '-n', '1', 'master']
+            command_list = ['git', 'log', '-n', '1', '--format=%cd']
             cp = subprocess.run(command_list, cwd=working_dir, shell=False, check=True, stdout=subprocess.PIPE)
-            date = regex.split('\s+', cp.stdout.decode().splitlines()[2], 1)[1]
+            date = cp.stdout.decode().splitlines()[0]
         except (FileNotFoundError, subprocess.CalledProcessError):
             date = 'missing'
     return date
@@ -556,9 +556,9 @@ def load_git_version():
             version = flo.readline().rstrip()
     except FileNotFoundError:
         try:
-            command_list = ['git', 'log', '-n', '1', 'master']
+            command_list = ['git', 'log', '-n', '1', '--format=%H']
             cp = subprocess.run(command_list, cwd=working_dir, shell=False, check=True, stdout=subprocess.PIPE)
-            version = cp.stdout.decode().splitlines()[0].split(' ')[1]
+            version = cp.stdout.decode().splitlines()[0]
         except (FileNotFoundError, subprocess.CalledProcessError):
             version = 'missing'
     return version
