@@ -81,7 +81,6 @@ steps:
     wget ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/2.9.0/ncbi-blast-2.9.0+-x64-linux.tar.gz
     tar -xf ncbi-blast-2.9.0+-x64-linux.tar.gz
     echo "##vso[task.prependpath]$(Build.SourcesDirectory)/ncbi-blast-2.9.0+/bin"
-    echo $PATH
   condition: eq( variables['Agent.OS'], 'Linux' )
   displayName: Install 'BLAST+' dependencies on Linux
 
@@ -95,22 +94,16 @@ steps:
     curl -O ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/2.9.0/ncbi-blast-2.9.0+-x64-macosx.tar.gz
     tar -xf ncbi-blast-2.9.0+-x64-macosx.tar.gz
     echo "##vso[task.prependpath]$(Build.SourcesDirectory)/ncbi-blast-2.9.0+/bin"
-    echo $PATH
   condition: eq( variables['Agent.OS'], 'Darwin' )
   displayName: Install 'BLAST+' dependencies on macOS
 
 # Windows
 #   $env:PATH += "$(Build.SourcesDirectory)\ncbi-blast-2.9.0+\bin;"
-#- powershell: |
-#    Invoke-WebRequest -Uri ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/2.9.0/ncbi-blast-2.9.0+-x64-win64.tar.gz -OutFile ncbi-blast-2.9.0+-x64-win64.tar.gz
-#    tar -xf ncbi-blast-2.9.0+-x64-win64.tar.gz
-#    echo "##vso[task.prependpath]$(Build.SourcesDirectory)\ncbi-blast-2.9.0+\bin"
-#    echo $env:PATH
-- bash: |
-    wget ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/2.9.0/ncbi-blast-2.9.0+-x64-win64.tar.gz
-    tar -xf ncbi-blast-2.9.0+-x64-win64.tar.gz
+- powershell: |
+    Invoke-WebRequest -Uri ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/2.9.0/ncbi-blast-2.9.0+-x64-win64.tar.gz -OutFile ncbi-blast-2.9.0+-x64-win64.tar.gz
+    7z.exe x .\ncbi-blast-2.6.0+-x64-win64.tar.gz
+    7z.exe x .\ncbi-blast-2.6.0+-x64-win64.tar
     echo "##vso[task.prependpath]$(Build.SourcesDirectory)\ncbi-blast-2.9.0+\bin"
-    echo $PATH
   condition: eq( variables['Agent.OS'], 'Windows_NT' )
   displayName: Install 'BLAST+' dependencies on Windows
 
