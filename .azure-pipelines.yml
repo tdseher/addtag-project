@@ -25,6 +25,8 @@ steps:
 #  displayName: 'Use Python 3.6'
 
 # Linux
+# Python 2.7.12
+# Python 3.5.2
 # /usr/bin/python
 # /usr/bin/python3
 - bash: |
@@ -36,6 +38,8 @@ steps:
   displayName: Get 'python2' and 'python3' on Linux
 
 # macOS
+# Python 2.7.16
+# Python 3.7.4
 # /usr/local/opt/python@2/bin/python2.7
 # /usr/local/opt/python/bin/python3.7
 - bash: |
@@ -47,6 +51,10 @@ steps:
   displayName: Get 'python2' and 'python3' on macOS
 
 # Windows
+# Python 2.7.16
+# Python 3.7.4
+# C:\hostedtoolcache\windows\Python\2.7.16\x64\python.exe
+# C:\hostedtoolcache\windows\Python\3.7.4\x64\python.exe
 - powershell: |
     Set-Variable -Name PYTHON2 -Value "py -2"
     Write-Host "##vso[task.setvariable variable=PYTHON2]$PYTHON2"
@@ -69,12 +77,18 @@ steps:
     $(PYTHON3) -m pip install --user --upgrade pip
     $(PYTHON3) -m pip install --user regex
     $(PYTHON3) -m pip install --user primer3-py
-  displayName: Install dependencies
+  displayName: Install 'AddTag' dependencies
+
+- script: |
+    $(PYTHON2) -m pip install --user setuptools
+    $(PYTHON2) -m pip install --user --upgrade pip
+    $(PYTHON2) -m pip install --user git+https://github.com/MicrosoftResearch/Azimuth.git
+  displayName: Install 'Azimuth' dependencies
 
 - script: |
     $(PYTHON3) -m pip install --user pytest pytest-azurepipelines pytest-cov
     $(PYTHON3) -m pytest --cov source --cov-report xml --cov-report html tests/
-  displayName: pytest
+  displayName: PyTest
 
 #- script: |
 #    ls
