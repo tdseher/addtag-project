@@ -76,14 +76,59 @@ steps:
     $(python2.pythonLocation)/python -m pip install git+https://github.com/MicrosoftResearch/Azimuth.git
   displayName: Install 'Azimuth' dependencies
 
+# Linux
+- bash: |
+    wget ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/2.9.0/ncbi-blast-2.9.0+-x64-linux.tar.gz
+    tar -xf ncbi-blast-2.9.0+-x64-linux.tar.gz
+    echo "##vso[task.prependpath]$(Build.SourcesDirectory)/ncbi-blast-2.9.0+/bin"
+    echo $PATH
+  condition: eq( variables['Agent.OS'], 'Linux' )
+  displayName: Install 'BLAST+' dependencies on Linux
+
+# macOS
+#   IMAGE=ncbi-blast-2.9.0+
+#   curl -O ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/2.9.0/${IMAGE}.dmg
+#   sudo hdiutil attach ${IMAGE}.dmg
+#   sudo installer -package /Volumes/${IMAGE}/${IMAGE}.pkg -target /
+#   sudo hdiutil detach /Volumes/${IMAGE}
+- bash: |
+    curl -O ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/2.9.0/ncbi-blast-2.9.0+-x64-macosx.tar.gz
+    tar -xf ncbi-blast-2.9.0+-x64-macosx.tar.gz
+    echo "##vso[task.prependpath]$(Build.SourcesDirectory)/ncbi-blast-2.9.0+/bin"
+    echo $PATH
+  condition: eq( variables['Agent.OS'], 'Darwin' )
+  displayName: Install 'BLAST+' dependencies on macOS
+
+# Windows
+#   $env:PATH += "$(Build.SourcesDirectory)\ncbi-blast-2.9.0+\bin;"
+#- powershell: |
+#    Invoke-WebRequest -Uri ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/2.9.0/ncbi-blast-2.9.0+-x64-win64.tar.gz -OutFile ncbi-blast-2.9.0+-x64-win64.tar.gz
+#    tar -xf ncbi-blast-2.9.0+-x64-win64.tar.gz
+#    echo "##vso[task.prependpath]$(Build.SourcesDirectory)\ncbi-blast-2.9.0+\bin"
+#    echo $env:PATH
+- bash: |
+    wget ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/2.9.0/ncbi-blast-2.9.0+-x64-win64.tar.gz
+    tar -xf ncbi-blast-2.9.0+-x64-win64.tar.gz
+    echo "##vso[task.prependpath]$(Build.SourcesDirectory)\ncbi-blast-2.9.0+\bin"
+    echo $PATH
+  condition: eq( variables['Agent.OS'], 'Windows_NT' )
+  displayName: Install 'BLAST+' dependencies on Windows
+
+- script: |
+    blastn -version
+  displayName: Show version of 'blastn' binary
+
 - script: |
     $(python3.pythonLocation)/python -m pip install pytest pytest-azurepipelines pytest-cov
     $(python3.pythonLocation)/python -m pytest --cov source --cov-report xml --cov-report html tests/
   displayName: PyTest
 
-#- script: |
-#    ls
-#  displayName: 'List contents of default folder $(Build.SourcesDirectory)'
+- script: |
+    pwd
+    ls
+    ls $(Build.SourcesDirectory)
+    ls $(System.DefaultWorkingDirectory)
+  displayName: List folder contents
 
 - script: |
     $(python3.pythonLocation)/python addtag --help
