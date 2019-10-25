@@ -65,14 +65,14 @@ steps:
   displayName: Test the 'python2' and 'python3' variables
 
 - script: |
-    $(PYTHON3) -m pip install setuptools
-    $(PYTHON3) -m pip install --upgrade pip
-    $(PYTHON3) -m pip install regex
-    $(PYTHON3) -m pip install primer3-py
+    $(PYTHON3) -m pip install --user setuptools
+    $(PYTHON3) -m pip install --user --upgrade pip
+    $(PYTHON3) -m pip install --user regex
+    $(PYTHON3) -m pip install --user primer3-py
   displayName: Install dependencies
 
 - script: |
-    $(PYTHON3) -m pip install pytest pytest-azurepipelines pytest-cov
+    $(PYTHON3) -m pip install --user pytest pytest-azurepipelines pytest-cov
     $(PYTHON3) -m pytest --cov source --cov-report xml --cov-report html tests/
   displayName: pytest
 
