@@ -509,9 +509,10 @@ def load_git_date():
     '''
     # Repository versions stored in this file:
     #   .../addtag-project/.git/logs/regs/heads/master
-    root = os.path.join(os.path.dirname(__file__), '..')
+    #root = os.path.join(os.path.dirname(__file__), '..')
+    working_dir = os.path.realpath(os.path.join(os.path.dirname(__file__), '..'))
     filename = os.path.join('.git', 'logs', 'refs', 'heads', 'master')
-    filepath = os.path.join(root, filename)
+    filepath = os.path.join(working_dir, filename)
     seconds = []
     try:
         with open(filepath, 'r') as flo:
@@ -523,7 +524,12 @@ def load_git_date():
                     seconds.append(int(secs)) # Don't convert time, as it will display in the correct local time
         date = str(datetime.datetime.fromtimestamp(seconds[-1]))
     except FileNotFoundError:
-        date = 'missing'
+        try:
+            command_list = ['git', 'log', '-n', '1', 'master']
+            cp = subprocess.run(command_list, cwd=working_dir, shell=False, check=True, stdout=subprocess.PIPE)
+            date = regex.split('\s+', cp.stdout.decode().splitlines()[2], 1)[1]
+        except (FileNotFoundError, subprocess.CalledProcessError):
+            date = 'missing'
     return date
 
 def load_git_revision():
@@ -540,15 +546,21 @@ def load_git_version():
     '''Returns the git hash for the current head and master'''
     # Current repository version stored in this file:
     #   .../addtag-project/.git/refs/heads/master
-    root = os.path.join(os.path.dirname(__file__), '..')
+    #root = os.path.join(os.path.dirname(__file__), '..')
+    working_dir = os.path.realpath(os.path.join(os.path.dirname(__file__), '..'))
     filename = os.path.join('.git', 'refs', 'heads', 'master')
-    filepath = os.path.join(root, filename)
+    filepath = os.path.join(working_dir, filename)
     version = None
     try:
         with open(filepath, 'r') as flo:
             version = flo.readline().rstrip()
     except FileNotFoundError:
-        version = 'missing'
+        try:
+            command_list = ['git', 'log', '-n', '1', 'master']
+            cp = subprocess.run(command_list, cwd=working_dir, shell=False, check=True, stdout=subprocess.PIPE)
+            version = cp.stdout.decode().splitlines()[0].split(' ')[1]
+        except (FileNotFoundError, subprocess.CalledProcessError):
+            version = 'missing'
     return version
 
 def merge_sets(sets):
