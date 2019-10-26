@@ -2,52 +2,70 @@
 
 Program for identifying exclusive endogenous gRNA sites and creating unique synthetic gRNA sites.
 
-### Description ###
+![Linux](https://img.shields.io/badge/Linux-✓-lightgrey.svg?logo=linux)
+![Windows](https://img.shields.io/badge/Windows-✓-lightgrey.svg?logo=windows)
+![macOS](https://img.shields.io/badge/macOS-✓-lightgrey.svg?logo=apple)
+[![Build Status](https://dev.azure.com/tdseher/addtag-project/_apis/build/status/tdseher.addtag-project?branchName=master)](https://dev.azure.com/tdseher/addtag-project/_build/latest?definitionId=1&branchName=master)
+[![Code coverage](https://img.shields.io/azure-devops/coverage/tdseher/addtag-project/1)]()
 
-The CRISPR/Cas AddTag system can be used to do the following:
+[![Python](https://img.shields.io/badge/Python-≥3.5.1-1f425f.svg?logo=python)](https://www.python.org/downloads/release/python-360/)
+[![downloads](https://img.shields.io/github/downloads/tdseher/addtag-project/total.svg)](https://github.com/tdseher/addtag-project/releases)
+[![PRs](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
+[![](https://img.shields.io/badge/doi-...-blue.svg)]()
 
- 1. Generate gRNAs that target specific Features uniquely (specified as GFF input), with low probabilities of off-target binding across the entire genome (specified as FASTA input).
- 2. Create donor DNA (dDNA) sequences that contains a Target (genome-wide unique gRNA-binding site) with upstream and downstream homologous flanking regions, for use with complete gene knock-outs (excision).
- 3. Design gRNAs that target these unique dDNA sites for RGN cutting.
- 4. Make primers for "reversion" dDNA sequence amplification, with homologous sequences flanking the original "feature" specific to each site, so the "feature" can be be re-inserted back into the genome. Please note, that at this time, no special restriction sites will be taken into account.
- 5. Construct conservative PCR primers for positive amplification of "feature" knock-out (excision) and knock-in (reversion).
+[Features](#-features) • [Requirements](#-requirements) • [Installing](#-installing-addtag) • [Usage](#-program-usage) • [Aligners](#-implemented-sequence-aligners) • [Algorithms](#-implemented-scoring-algorithms) • [Thermodynamics](#-implemented-thermodynamics-calculators) • [Citing](#-citing-addtag) • [Contributing](#-contributing)
 
-All generated sequences can be designed as either strand-specific or strand-agnostic. Additionally, generated sequences can target homologous chromosomes with the same gRNA or "donor" DNA if the input FASTA includes nucleotide ambiguity codes for polymorphisms.
-
-By default, AddTag will avoid designing homology regions and Targets against polymorphisms whenever possible.
-
-### Requirements ###
+## ☑ Features ##
+Basic Features:
+The CRISPR/Cas AddTag software system can be used to do the following:
+ * [x] Find ![Target][Target]s with arbitrary SPACER≷PAM sequences and orientations
+ * [x] Find the optimal ![Target][Target] within a ![Feature][Feature] (locus) of interest (multi-allelic, allele-specific, and allele-agnostic).
+ * [x] Calculate **on-target** and **off-target** scores (see [Algorithms](#implemented-scoring-algorithms)).
+ * [x] Generate unique ![Target][Target]s that don't resemble any genomic DNA (gDNA), thus maximizing **on-target** and **off-target** scores.
+ * [x] Find RNA-guided nuclease (![RGN][RGN]) cut sites with arbitrary ![Spacer][Spacer]s using your favorite pairwise alignment program (see [Aligners](#implemented-sequence-aligners)).
+ * [x] Perform *in silico* recombination between gDNA and exogenous, donor DNA (![dDNA][dDNA]).
+ * [x] Find thermodynamic properties of arbitrary sets of ![Primer][Primer] pairs.
+ * [x] See all known ![RGN][RGN] SPACER≷PAM motifs.
+ * [x] Analyze gDNA with ambiguous characters or polymorphisms.
+ * [x] Find ![Spacer][Spacer]s and ![Primer][Primer]s while respecting case-masked gDNA.
+ 
+Advanced Features:
+ * [x] Design homology-aware ![dDNA][dDNA]s (multi-allelic, allele-specific, and allele-agnostic).
+ * [x] Create ![dDNA][dDNA]s with exceptional ![Target][Target]s while introducing minimal amounts of extrinsic DNA.
+ * [x] Engineer a single set of conservative PCR (cPCR) ![Primer][Primer]s that work for all genotypes (wild type, knock-out, and add-back) to validate if a ![Feature][Feature] was engineered correctly.
+ 
+## 📋 Requirements ##
 
 Base operation of AddTag requires the following:
 
- * Python >= 3.5.1 ([source](https://www.python.org/downloads/), [binaries](https://www.python.org/downloads/), [documentation](https://docs.python.org/3/))
+ * Python ≥ 3.5.1 ([source](https://www.python.org/downloads/), [binaries](https://www.python.org/downloads/), [documentation](https://docs.python.org/3/))
 
  * regex Python module ([source](https://bitbucket.org/mrabarnett/mrab-regex), [whls](https://pypi.org/project/regex/), [documentation](https://pypi.org/project/regex/))
    
      note: The easy way to install this is through `pip`.
      
      ```
-     $ pip3 install regex
+     pip3 install regex
      ```
 
- * BLAST+ >= 2.6.0 ([source](ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST), [binaries](ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST), [documentation](https://www.ncbi.nlm.nih.gov/books/NBK279690/))
+ * BLAST+ ≥ 2.6.0 ([source](ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST), [binaries](ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST), [documentation](https://www.ncbi.nlm.nih.gov/books/NBK279690/))
 
- * Bowtie 2 >= 2.3.4.1 ([source](https://github.com/BenLangmead/bowtie2), [binaries](https://sourceforge.net/projects/bowtie-bio/files/bowtie2/), [documentation](http://bowtie-bio.sourceforge.net/bowtie2/manual.shtml))
+ * Bowtie 2 ≥ 2.3.4.1 ([source](https://github.com/BenLangmead/bowtie2), [binaries](https://sourceforge.net/projects/bowtie-bio/files/bowtie2/), [documentation](http://bowtie-bio.sourceforge.net/bowtie2/manual.shtml))
 
 Certain optional AddTag functionality depends on the following:
 
- * Git >= 1.7.1 ([source](https://github.com/git/git), [binaries](https://git-scm.com/downloads), [documentation](https://git-scm.com/doc))
+ * Git ≥ 1.7.1 ([source](https://github.com/git/git), [binaries](https://git-scm.com/downloads), [documentation](https://git-scm.com/doc))
 
 For oligo design, AddTag requires one of the following third-party thermodynamics solutions to be installed:
 
- * UNAFold >= 3.8 ([source](http://rnaspace.sourceforge.net/software/unafold-3.8.tar.gz), [documentation](http://unafold.rna.albany.edu/)) with [patch440](http://unafold.rna.albany.edu/?q=node/440)
+ * UNAFold ≥ 3.8 ([source](http://rnaspace.sourceforge.net/software/unafold-3.8.tar.gz), [documentation](http://unafold.rna.albany.edu/)) with [patch440](http://unafold.rna.albany.edu/?q=node/440)
 
  * primer3-py Python module ([source](https://github.com/libnano/primer3-py), [whls](https://pypi.org/project/primer3-py/), [documentation](https://libnano.github.io/primer3-py/))
    
      note: The easy way to install this is through `pip`.
      
      ```
-     $ pip3 install primer3-py
+     pip3 install primer3-py
      ```
 
  * ViennaRNA Python module ([source](https://github.com/ViennaRNA/ViennaRNA), [official binaries](https://www.tbi.univie.ac.at/RNA/), [bioconda binaries](https://anaconda.org/bioconda/viennarna/files), [documentation](https://www.tbi.univie.ac.at/RNA/documentation.html))
@@ -59,7 +77,7 @@ Certain Target scoring algorithms have additional requirements:
      note: Keras is only required if you want to calculate CINDEL scores. The easiest way to install is through `pip` also.
      
      ```
-     $ pip3 install Keras
+     pip3 install Keras
      ```
  
  * Theano Python module ([source](https://github.com/Theano/Theano), [whls](https://pypi.org/project/Theano/), [documentation](http://deeplearning.net/software/theano/))
@@ -67,7 +85,7 @@ Certain Target scoring algorithms have additional requirements:
      note: Theano is only required if you want to calculate CINDEL scores. You may install it with `pip` as well.
      
      ```
-     $ pip3 install Theano
+     pip3 install Theano
      ```
  
  * Azimuth 3 Python module ([source](https://github.com/milescsmith/Azimuth), [documentation](https://www.microsoft.com/en-us/research/project/crispr/))
@@ -80,10 +98,10 @@ Certain Target scoring algorithms have additional requirements:
      You can install it using `pip`, assuming `git` is available in the `PATH` environmental variable.
      
      ```
-     $ pip3 install git+https://github.com/milescsmith/Azimuth.git
+     pip3 install git+https://github.com/milescsmith/Azimuth.git
      ```
 
- * 3.0.0 > Python >= 2.7.10 ([source](https://www.python.org/downloads/), [binaries](https://www.python.org/downloads/), [documentation](https://docs.python.org/2/))
+ * 3.0.0 > Python ≥ 2.7.10 ([source](https://www.python.org/downloads/), [binaries](https://www.python.org/downloads/), [documentation](https://docs.python.org/2/))
    with Azimuth 2 Python module ([source](https://github.com/MicrosoftResearch/Azimuth), [documentation](https://www.microsoft.com/en-us/research/project/crispr/))
       
      note: Either Azimuth2 or Azimuth 3 is only required if you want to calculate Azimuth scores.
@@ -93,9 +111,10 @@ Certain Target scoring algorithms have additional requirements:
      The easiest way to install it and take care of all dependencies is to use `pip`, assuming `git` is available in the `PATH` environmental variable.
      
      ```
-     $ pip2.7 install git+https://github.com/MicrosoftResearch/Azimuth.git
+     pip2.7 install git+https://github.com/MicrosoftResearch/Azimuth.git
      ```
 
+<!--
 ##### The following third-party integrations are currently incomplete #####
 
 For speed, we recommend at least one third-party pairwise nucleotide sequence alignment program:
@@ -107,124 +126,141 @@ For speed, we recommend at least one third-party pairwise nucleotide sequence al
  * BWA ([source](https://github.com/lh3/bwa), [documentation](http://bio-bwa.sourceforge.net/bwa.shtml))
 
  * Cas-OFFinder ([source](https://github.com/snugel/cas-offinder), [binaries](https://sourceforge.net/projects/cas-offinder/files/Binaries/), [documentation](http://www.rgenome.net/cas-offinder/portable))
+-->
 
-### Obtaining AddTag ###
-You can download the latest version of AddTag over HTTPS using `git` with the following command (replacing `username` with your BitBucket account name).
+## ⤵ Installing AddTag ##
+You can download the latest version of AddTag over HTTPS using `git` with the following command.
 ```sh
-$ git clone https://username@bitbucket.org/tdseher/addtag-project.git
+git clone https://github.com/tdseher/addtag-project.git
 ```
 
-This will ask you for your Atlassian password associated with the `username`.
-
-Or you can download AddTag over SSH without typing your password if the repository is configured with your 'publickey'.
+This will download AddTag into a folder called `addtag-project/` in your current working directory. Go ahead and change the working directory into the AddTag folder.
 ```sh
-$ git clone git@bitbucket.org:tdseher/addtag-project.git
-```
-
-Either of these options will download the AddTag into a folder called `addtag-project/` in your current working directory. Go ahead and change the working directory into the AddTag folder.
-```sh
-$ cd addtag-project/
+cd addtag-project/
 ```
 
 `git` should automatically make the `addtag` program executable. If it does not, you can use the following command to do it. 
 ```sh
-$ chmod +x addtag
+chmod +x addtag
 ```
 
-### Updating AddTag ###
+## 🔁 Updating AddTag ##
 The commands in this section assume the working directory is the AddTag folder.
 ```sh
-$ cd addtag-project/
+cd addtag-project/
 ```
 
 If you would like to update your local copy to the newest version available, use the following command from within the `addtag-project/` directory.
 ```sh
-$ ./addtag update
+./addtag update
 ```
 
 If you want the newest version, but you made changes to the source code, then you can first discard your changes, and then update. Use the following command from inside the `addtag-project/` folder.
 ```sh
-$ ./addtag update --discard_local_changes
+./addtag update --discard_local_changes
 ```
 
 Alternatively, if you want to keep the local modifications, you can use the `--keep_local_changes` option to stash, pull, then reapply them afterwards.
 ```sh
-$ ./addtag update --keep_local_changes
+./addtag update --keep_local_changes
 ```
 
 Each one of these methods uses `git`, and may require your Atlassian login credentials.
 
-### Program usage ###
+## 💻 Program usage ##
 Because AddTag is being updated regularly, the most current feature set and usage can be viewed by running AddTag with the `--help` command line option.
 
 The following commands assume the current working directory is the AddTag folder `addtag-project/`. This will print out command line parameter descriptions and examples.
 ```sh
-$ ./addtag --help
+./addtag --help
 ```
 
 Additionally, you may view the included man page, which is probably not up-to-date.
 ```sh
-$ man ./addtag.1
+man ./addtag.1
 ```
 
-### Scoring algorithms ###
-Scoring algorithms have been broken down into two general types.
+## 📈 Implemented scoring Algorithms ##
 
- * `SingleSequenceAlgorithm` objects calculate scores by comparing a potential spacer to a model trained on empirical data.
+The following scoring algorithms are subclasses of `SingleSequenceAlgorithm`.
      
-     The following scoring algorithms are subclasses of `SingleSequenceAlgorithm`.
-     
-      - Azimuth ([Doench, Fusi, et al (2016)](http://dx.doi.org/10.1038/nbt.3437))
-      - Doench-2014 ([Doench, et al (2014)](http://dx.doi.org/10.1038/nbt.3026))
-      - GC
-      - PolyT
-      - Housden ([Housden, et al (2015)](http://dx.doi.org/10.1126/scisignal.aab3729))
-      - Moreno-Mateos ([Moreno-Mateos, et al (2015)](http://dx.doi.org/10.1038/nmeth.3543))
-      - DeepCpf1/CINDEL ([Kim, Song, et al (2016)](http://dx.doi.org/10.1038/nmeth.4104))
-      - PAM Identity
+ * Azimuth ([Doench, Fusi, et al (2016)](http://dx.doi.org/10.1038/nbt.3437))
+ * Doench-2014 ([Doench, et al (2014)](http://dx.doi.org/10.1038/nbt.3026))
+ * GC
+ * PolyT
+ * Housden ([Housden, et al (2015)](http://dx.doi.org/10.1126/scisignal.aab3729))
+ * Moreno-Mateos ([Moreno-Mateos, et al (2015)](http://dx.doi.org/10.1038/nmeth.3543))
+ * DeepCpf1/CINDEL ([Kim, Song, et al (2016)](http://dx.doi.org/10.1038/nmeth.4104))
+ * PAM Identity
 
- * `PairedSequenceAlgorithm` instances generate scores that compare a potential spacer to a target using a model.
-     
-     The following scoring algorithms are subclasses of `PairedSequenceAlgorithm`.
-     
-      - CFD ([Doench, Fusi, et al (2016)](http://dx.doi.org/10.1038/nbt.3437))
-      - Substitutions, Insertions, Deletions, Errors ([Needleman, Wunsch (1970)](https://dx.doi.org/10.1016/0022-2836%2870%2990057-4))
-      - Hsu-Zhang ([Hsu, et al (2013)](http://dx.doi.org/10.1038/nbt.2647))
-      - Linear
-      - CRISPRater ([Labuhn, et al. (2018)](http://dx.doi.org/10.1093/nar/gkx1268))
+The following scoring algorithms are subclasses of `PairedSequenceAlgorithm`.
 
-To add a new scoring algorithm, you must subclass one of the the above types, and add it to a `*.py` file in the `source/algorithms/` subdirectory. AddTag will automatically calculate the score on every generated spacer.
+ * CFD ([Doench, Fusi, et al (2016)](http://dx.doi.org/10.1038/nbt.3437))
+ * Substitutions, Insertions, Deletions, Errors ([Needleman, Wunsch (1970)](https://dx.doi.org/10.1016/0022-2836%2870%2990057-4))
+ * Hsu-Zhang ([Hsu, et al (2013)](http://dx.doi.org/10.1038/nbt.2647))
+ * Linear
+ * CRISPRater ([Labuhn, et al. (2018)](http://dx.doi.org/10.1093/nar/gkx1268))
+
+## 📐 Implemented sequence Aligners ##
+
+ * Bowtie2
+ * BLAST+
+
+## 🌡 Implemented thermodynamics calculators ##
+
+* Primer3
+* UNAFold
+* ViennaRNA
+
+## 📝 Citing AddTag ##
+If you use AddTag for your research, please cite us.
+
+## 👥 Contributing ##
+### ✍ Authors ###
+💬 Who do I talk to?
+ * Aaron Hernday (🔬 PI leading the project)
+ * Thaddeus Seher (💻 programmer) ([@tdseher][tdseher])
+
+See also the list of [contributors](https://github.com/tdseher/addtag-project/graphs/contributors) who participated in this project.
+
+### ⚠ Issue reporting ###
+ * How do I submit bug reports?
+ * How do I make a feature request?
+ * How do I add my code to the AddTag software?
+
+### Adding scoring Algorithms ###
+Scoring Algorithms have been broken down into two general types.
+
+ * `SingleSequenceAlgorithm` objects calculate scores by comparing a potential ![Spacer][Spacer] to a model trained on empirical data.
+ * `PairedSequenceAlgorithm` instances generate scores that compare a potential ![Spacer][Spacer] to a target using a model.
+ 
+To add a new scoring algorithm, you must subclass one of the the above types, and add it to a `*.py` file in the `source/algorithms/` subdirectory. AddTag will automatically calculate the score on every generated ![Spacer][Spacer].
 
 We welcome any `git pull` requests to widen the repertoire of scoring algorithms available to AddTag. The easiest way to get started is to copy and modify one of the provided subclasses.
 
-### Alignment programs ###
+### Adding sequence Aligners ###
 AddTag comes with wrappers for several alignment programs. Depending on your experimental design and computing system, you may decide to use an aligner with no included wrapper. To implement your own, create a subclass of `Aligner`, and put it in a `*.py` file in the `source/aligners/` subdirectory. AddTag will automatically make that aligner available for you.
 
 Share your code with us so we can make it available to all AddTag users.
 
-### Thermodynamics calculations ###
+### Adding Thermodynamics calculators ###
 Several wrappers to popular oligonucleotide conformation, free energy, and melting temperature calculation programs are included. You can add your own by subclassing the `Oligo` class, and then adding its `*.py` file to the `source/thermodynamics/` subdirectory.
 
 If you create your own wrapper, please submit a `git pull` request so we can add it to the next version of the software.
 
-### Citing AddTag ###
-If you use AddTag for your research, please cite us.
+## 📖 License ##
+Add License here.
 
-### Who do I talk to? ###
+## Notes ##
 
- * Aaron Hernday (PI leading the project)
- * Thaddeus Seher (programmer)
+ * The ![RGN][RGN] protein you use should be engineered specifically for your organism. It should be codon-optomized, and if using eukarya, contain an appropriate nuclear localization sequence.
+ * Sequences in FASTA files should have unique names. In other words, the primary sequence header--everything following the '`>`' character and preceding the first whitespace/tab '` `' character--should exist only once across all input `*.fasta` files.
+ * By default, AddTag will avoid designing homology regions and Targets against polymorphisms whenever possible.
 
-### Notes ###
-
- * The RGN protein you use should be engineered specifically for your organism. It should be codon-optomized, and if using eukarya, contain an appropriate nuclear localization sequence.
-
-### References ###
- * [Nguyen, Quail, & Hernday (2017)](http://dx.doi.org/10.1128/mSphereDirect.00149-17) for AddTag concept.
- * [Lin, et al (2014)](http://dx.doi.org/10.1093/nar/gku402) The GC content of Cas9 target may affects binding specificity; gRNA may bind off-target if it has insertions/deletions (RNA-bulge/DNA-bulge) relative to multiple genome locations.
- * [Fu, et al (2014)](http://dx.doi.org/10.1038/nbt.2808) Using a shorter gRNAs (17-19 nt) can greatly improve specificity by reducing off-target binding
- * [Vyas, et al (2015)](http://dx.doi.org/10.1126/sciadv.1500248) Anecdotally, gRNA may target sites less efficiently if they have differences within 12 nt of the PAM.
- * [Braglia, et al (2005)](http://dx.doi.org/10.1074/jbc.M412238200) sequences containing consecutive Ts may cause polymerase termination
- * [Ronda, et al (2015)](http://dx.doi.org/10.1186/s12934-015-0288-3) 60 bp flanking homology is sufficient to drive HR in *Saccharomyces cerevisiae*.
- * [Ryan, et al (2014)](http://dx.doi.org/10.7554/eLife.03703) indicates that 50 bp flanking homology is sufficient to drive homologous recombination "donor" DNA knock-in.
- * [Haeussler, et al (2016)](http://dx.doi.org/10.1186/s13059-016-1012-2) CRISPOR paper for implementation of certain scoring algorithms
+[tdseher]:https://twitter.com/tdseher
+[Spacer]:docs/spacer.svg
+[Target]:docs/target.svg
+[dDNA]:docs/ddna.svg
+[RGN]:docs/rgn.svg
+[Feature]:docs/feature.svg
+[Primer]:docs/primer.svg
