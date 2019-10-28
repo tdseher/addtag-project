@@ -2,7 +2,7 @@
 
 """AddTag Copyright (c) 2016 Thaddeus D. Seher & Aaron Hernday"""
 
-# source/aligners/addtag.py
+# source/aligners/inbuilt.py
 
 # List general Python imports
 import sys
@@ -18,6 +18,33 @@ sys.path.append( os.path.join( os.path.dirname(__file__), os.path.pardir ) )
 import utils
 import nucleotides
 import cigarstrings
+
+class Inbuilt(Aligner):
+    logger = logger.getChild(__qualname__)
+
+    def __init__(self):
+        super().__init__(
+            name="inbuilt",
+            authors=['Seher, Thaddeus D.'],
+            title='',
+            journal='',
+            issuing='',
+            year=2016,
+            doi='',
+            input='fasta',
+            output='sam',
+            truncated=False,
+            classification='pairwise'
+        )
+
+    def index(self, fasta, output_filename, output_folder, threads, *args, **kwargs):
+        pass
+
+    def align(self, query, subject, output_filename, output_folder, threads, *args, **kwargs):
+        pass
+
+    def load_record(self, flo, *args, **kwargs):
+        pass
 
 def find_target_matches(compiled_regex, contigs, overlap=False):
     '''
