@@ -328,6 +328,10 @@ def load_fasta_file(filename):
     
     return contig_index, contig_sequences
 
+# TODO: Need the FASTA parser to keep track of header attributes. For example on automatically determining the
+#       delimiter, see
+#       https://stackoverflow.com/questions/3395267/how-to-find-out-if-csv-file-fields-are-tab-delimited-or-comma-delimited
+
 def old_load_fasta_file(filename):
     """
     Load contig sequences from file into dict()
@@ -656,8 +660,26 @@ def load_homologs(filename, sep="\t"):
     logger.info('Homologs file parsed: {!r}'.format(filename))
     return homologs, feature2gene
 
+def parse_and_wrap_local_file(filename):
+    import textwrap
+
+    filepath = os.path.join(os.path.dirname(__file__), filename)
+
+    output = []
+    with open(filepath, 'r') as flo:
+        for line in flo:
+            line = line.rstrip()
+            if (len(line) == 0):
+                output.append('')
+            else:
+                w = textwrap.wrap(line)
+                for l in w:
+                    output.append(l)
+    return output
+
 def print_local_file(filename):
     filepath = os.path.join(os.path.dirname(__file__), filename)
+
     with open(filepath, 'r') as flo:
         for line in flo:
             print(line.rstrip())
