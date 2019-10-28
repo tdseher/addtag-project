@@ -1,23 +1,22 @@
-# CRISPR/Cas AddTag README #
+# CRISPR/Cas AddTag Readme #
 
 Program for identifying exclusive endogenous gRNA sites and creating unique synthetic gRNA sites.
 
-![Linux](https://img.shields.io/badge/Linux-✓-lightgrey.svg?logo=linux)
-![Windows](https://img.shields.io/badge/Windows-✓-lightgrey.svg?logo=windows)
-![macOS](https://img.shields.io/badge/macOS-✓-lightgrey.svg?logo=apple)
+[![Linux](https://img.shields.io/badge/Linux-✓-lightgrey.svg?logo=linux)](#)
+[![Windows](https://img.shields.io/badge/Windows-✓-lightgrey.svg?logo=windows)](#)
+[![macOS](https://img.shields.io/badge/macOS-✓-lightgrey.svg?logo=apple)](#)
 [![Build Status](https://dev.azure.com/tdseher/addtag-project/_apis/build/status/tdseher.addtag-project?branchName=master)](https://dev.azure.com/tdseher/addtag-project/_build/latest?definitionId=1&branchName=master)
-[![Code coverage](https://img.shields.io/azure-devops/coverage/tdseher/addtag-project/1)]()
+[![Code coverage](https://img.shields.io/azure-devops/coverage/tdseher/addtag-project/1)](#)
 
 [![Python](https://img.shields.io/badge/Python-≥3.5.1-1f425f.svg?logo=python)](https://www.python.org/downloads/release/python-360/)
 [![downloads](https://img.shields.io/github/downloads/tdseher/addtag-project/total.svg)](https://github.com/tdseher/addtag-project/releases)
 [![PRs](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
-[![](https://img.shields.io/badge/doi-...-blue.svg)]()
+[![](https://img.shields.io/badge/doi-...-blue.svg)](#)
 
 [Features](#-features) • [Requirements](#-requirements) • [Installing](#-installing-addtag) • [Usage](#-program-usage) • [Aligners](#-implemented-sequence-aligners) • [Algorithms](#-implemented-scoring-algorithms) • [Thermodynamics](#-implemented-thermodynamics-calculators) • [Citing](#-citing-addtag) • [Contributing](#-contributing)
 
 ## ☑ Features ##
 Basic Features:
-The CRISPR/Cas AddTag software system can be used to do the following:
  * [x] Find ![Target][Target]s with arbitrary SPACER≷PAM sequences and orientations
  * [x] Find the optimal ![Target][Target] within a ![Feature][Feature] (locus) of interest (multi-allelic, allele-specific, and allele-agnostic).
  * [x] Calculate **on-target** and **off-target** scores (see [Algorithms](#implemented-scoring-algorithms)).
