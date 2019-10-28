@@ -12,38 +12,16 @@ import argparse
 import time
 import datetime
 import logging
-import random
-import math
-import copy
-import signal
-from collections import namedtuple
-
-# Import non-standard packages
-import regex
 
 # Import included AddTag-specific modules
 from . import utils
 from . import nucleotides
-#from . import scores
 from . import algorithms
 from . import aligners
 from . import thermodynamics
 from . import bartag
-#from . import evalues
 
 from . import subroutines
-#from . import subroutine
-#from . import _subroutine_glossary
-#from . import _subroutine_motifs
-#from . import _subroutine_algorithms
-#from . import _subroutine_aligners
-#from . import _subroutine_thermodynamics
-#from . import _subroutine_search
-#from . import _subroutine_feature
-#from . import _subroutine_extract
-#from . import _subroutine_evaluate
-#from . import _subroutine_generate
-#from . import _subroutine_confirm
 from .subroutines import subroutine
 
 from .donors import Donor, ExcisionDonor, ReversionDonor
@@ -353,7 +331,7 @@ class Main(object):
         )
         
         # Create the subparsers
-        subparsers = parser.add_subparsers(metavar='action', help='choose an action to perform (required)', dest='action')
+        subparsers = parser.add_subparsers(metavar='action', help='Choose an action to perform (required)', dest='action')
         
         # Change the help text of the "-h" flag
         parser._actions[0].help='Show this help message and exit.'
@@ -370,65 +348,11 @@ class Main(object):
         Create parser object, populate it with options, then parse command line
         input.
         '''
-        
+        # Create the main parser
         parser, subparsers = self._parser_general()
-        #parser_glossary = self._parser_glossary(subparsers)
-        #parser_motifs = self._parser_motifs(subparsers)
-        #parser_algorithms = self._parser_algorithms(subparsers)
-        #parser_aligners = self._parser_aligners(subparsers)
-        #parser_oligos = self._parser_oligos(subparsers)
-        #parser_search = self._parser_search(subparsers)
-        #parser_feature = self._parser_feature(subparsers)
-        #parser_extract = self._parser_extract(subparsers)
-        #parser_evaluate = self._parser_evaluate(subparsers)
-        #parser_generate = self._parser_generate(subparsers)
-        #parser_confirm = self._parser_confirm(subparsers)
-        
-        # 'subroutine.py' should automatically search all '_subroutine_*.py' files for 'Subroutine' subclasses, then add them to 'subparsers'
-        #parser_glossary = _subroutine_glossary.GlossaryParser(subparsers)
-        #parser_motifs = _subroutine_motifs.MotifsParser(subparsers)
-        #parser_algorithms = _subroutine_algorithms.AlgorithmsParser(subparsers)
-        #parser_aligners = _subroutine_aligners.AlignersParser(subparsers)
-        #parser_oligos = _subroutine_thermodynamics.ThermodynamicsParser(subparsers)
-        #parser_search = _subroutine_search.SearchParser(subparsers)
-        #parser_feature = _subroutine_feature.FeatureParser(subparsers)
-        #parser_extract = _subroutine_extract.ExtractParser(subparsers)
-        #parser_evaluate = _subroutine_evaluate.EvaluateParser(subparsers)
-        #parser_generate = _subroutine_generate.GenerateParser(subparsers)
-        #parser_confirm = _subroutine_confirm.ConfirmParser(subparsers)
-        
+
+        # Make all subroutines
         subroutines.make_subroutines(subparsers)
-        
-        
-        
-        
-        # Add special arguments for additional help messages: These have been deprecated
-        #parser.add_argument("-s", "--show", nargs=0, action=ValidateShowMotifs, default=argparse.SUPPRESS,
-        #    help="Show list of common RGN motifs, then exit.")
-        #parser.add_argument("-g", "--glossary", nargs=0, action=ValidateShowGlossary, default=argparse.SUPPRESS,
-        #    help="Show glossary of common CRISPR/RGN terms, then exit.")
-        
-        # Add optional arguments: Deprecated
-        #parser.add_argument("--design", nargs='+', type=str, action=ValidateDesign, default=['cut','addtag'],
-        #    help="Choose 1 or 2 from {cut, addtag, sigtag}")
-        
-        
-        #parser.add_argument("--python2_path", type=str, default="python",
-        #    help="Path to the Python 2.7+ program")
-        #parser.add_argument("--bowtie_path", type=str, default="bowtie",
-        #    help="Path to the 'bowtie' executable")
-        #parser.add_argument("--bowtie-build_path", type=str, default="bowtie-build",
-        #    help="Path to the 'bowtie-build' executable")
-        #parser.add_argument("--bowtie2_path", type=str, default="bowtie2",
-        #    help="Path to the 'bowtie2' executable")
-        #parser.add_argument("--bowtie2-build_path", type=str, default="bowtie2-build",
-        #    help="Path to the 'bowtie2-build' executable")
-        #parser.add_argument("--bwa_path", type=str, default="bwa",
-        #    help="Path to the 'bwa' executable")
-        #parser.add_argument("--blastn_path", type=str, default="blastn",
-        #    help="Path to the 'blastn' executable")
-        #parser.add_argument("--blat_path", type=str, default="blat",
-        #    help="Path to the 'blat' executable")
         
         # Parse the arguments
         args = parser.parse_args()
@@ -521,6 +445,11 @@ class Main(object):
         #    if args.internal_primers_required:
         #        if (2*len(args.dDNAs) != len(args.internal_primers_required)):
         #            parser.error('argument {f}: expected {n} arguments'.format(f='--internal_primers_required', n=2*len(args.dDNAs)))
+        
+        # Actions don't activate when the argument retains its default value.
+#        if hasattr(args, 'cycle_stop'):
+#            if (args.cycle_stop == None):
+#                args.cycle_stop = args.cycle_start
     
     def filter_features(self, features, selection):
         """
