@@ -18,6 +18,7 @@ sys.path.append( os.path.join( os.path.dirname(__file__), os.path.pardir ) )
 import utils
 import nucleotides
 import cigarstrings
+from .aligner import Aligner, Record
 
 class Inbuilt(Aligner):
     logger = logger.getChild(__qualname__)
