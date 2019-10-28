@@ -11,8 +11,15 @@ else:
 
 class Linear(PairedSequenceAlgorithm):
     def __init__(self):
-        super().__init__("Linear", "Seher", 2017,
-            citation="AddTag",
+        super().__init__(
+            name="Linear",
+            authors=['Seher, Thaddeus D.'],
+            title='',
+            journal='',
+            issuing='',
+            year=2017,
+            doi='',
+            #citation="AddTag",
             off_target=True,
             prefilter=False,
             postfilter=False,

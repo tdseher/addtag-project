@@ -12,8 +12,15 @@ else:
 
 class PolyT(SingleSequenceAlgorithm):
     def __init__(self):
-        super().__init__("PolyT", "Seher", 2017,
-            citation="AddTag",
+        super().__init__(
+            name="PolyT",
+            authors=['Seher, Thaddeus D.'],
+            title='',
+            journal='',
+            issuing='',
+            year=2017,
+            doi='',
+            #citation="AddTag",
             off_target=False,
             prefilter=True,
             postfilter=False,

@@ -18,8 +18,15 @@ else:
 
 class Housden(SingleSequenceAlgorithm):
     def __init__(self):
-        super().__init__("Housden", "Housden, et al", 2015,
-            citation="Housden, et al. Identification of potential drug targets for tuberous sclerosis complex by synthetic screens combining CRISPR-based knockouts with RNAi. Science Signaling 8(393), rs9 (2015)",
+        super().__init__(
+            name="Housden",
+            authors=['Housden, Benjamin E.', 'Valvezan, Alexander J.', 'Kelley, Colleen', 'Sopko, Richelle', 'Hu, Yanhui', 'Roesel, Charles', 'Lin, Shuailiang', 'Buckner, Michael', 'Tao, Rong', 'Yilmazel, Bahar', 'Mohr, Stephanie E.', 'Manning, Brendan D.', 'Perrimon, Norbert'],
+            title='Identification of potential drug targets for tuberous sclerosis complex by synthetic screens combining CRISPR-based knockouts with RNAi',
+            journal='Science Signaling',
+            issuing='8(393):rs9',
+            year=2015,
+            doi='https://doi.org/10.1126/scisignal.aab3729',
+            #citation="Housden, et al. Identification of potential drug targets for tuberous sclerosis complex by synthetic screens combining CRISPR-based knockouts with RNAi. Science Signaling 8(393), rs9 (2015)",
             off_target=True,
             on_target=True,
             prefilter=False,

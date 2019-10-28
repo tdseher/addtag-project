@@ -299,8 +299,15 @@ class GlobalAlignment(object):
 
 class Substitutions(PairedSequenceAlgorithm):
     def __init__(self):
-        super().__init__("Substitutions", "Seher", 2017,
-            citation="AddTag",
+        super().__init__(
+            name="Substitutions",
+            authors=["Seher, Thaddeus D."],
+            title='',
+            journal='',
+            issuing='',
+            year=2017,
+            doi='',
+            #citation="AddTag",
             off_target=False,
             prefilter=False,
             postfilter=True,
@@ -321,8 +328,15 @@ class Substitutions(PairedSequenceAlgorithm):
 
 class Insertions(PairedSequenceAlgorithm):
     def __init__(self):
-        super().__init__("Insertions", "Seher", 2017,
-            citation="AddTag",
+        super().__init__(
+            name="Insertions",
+            authors=["Seher, Thaddeus D."],
+            title='',
+            journal='',
+            issuing='',
+            year=2017,
+            doi='',
+            #citation="AddTag",
             off_target=False,
             prefilter=False,
             postfilter=True,
@@ -343,8 +357,15 @@ class Insertions(PairedSequenceAlgorithm):
 
 class Deletions(PairedSequenceAlgorithm):
     def __init__(self):
-        super().__init__("Deletions", "Seher", 2017,
-            citation="AddTag",
+        super().__init__(
+            name="Deletions",
+            authors=["Seher, Thaddeus D."],
+            title='',
+            journal='',
+            issuing='',
+            year=2017,
+            doi='',
+            #citation="AddTag",
             off_target=False,
             prefilter=False,
             postfilter=True,
@@ -365,8 +386,15 @@ class Deletions(PairedSequenceAlgorithm):
 
 class Errors(PairedSequenceAlgorithm):
     def __init__(self):
-        super().__init__("Errors", "Seher", 2017,
-            citation="AddTag",
+        super().__init__(
+            name="Errors",
+            authors=["Seher, Thaddeus D."],
+            title='',
+            journal='',
+            issuing='',
+            year=2017,
+            doi='',
+            #citation="AddTag",
             off_target=False,
             prefilter=False,
             postfilter=True,
@@ -393,8 +421,15 @@ class PamIdentity(SingleSequenceAlgorithm):
         possible bitscores. Returns the maximum for all pams that follow the
         motif.
         """
-        super().__init__("PAM-Identity", "Seher", 2017,
-            citation="AddTag",
+        super().__init__(
+            name="PAM-Identity",
+            authors=["Seher, Thaddeus D."],
+            title='',
+            journal='',
+            issuing='',
+            year=2017,
+            doi='',
+            #citation="AddTag",
             off_target=False,
             prefilter=False, # Filter spacers before aligning
             postfilter=True, # Filter alignments before calculating scores

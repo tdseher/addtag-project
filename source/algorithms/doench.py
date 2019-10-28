@@ -39,15 +39,23 @@ else:
 
 class Doench2014(SingleSequenceAlgorithm):
     def __init__(self):
-        super().__init__("Doench-2014", "Doench, et al", 2014,
-            citation="Doench, et al. Rational design of highly active sgRNAs for CRISPR-Cas9–mediated gene inactivation. Nature Biotechnology 32, 1262–1267 (2014)",
+        super().__init__(
+            name="Doench-2014",
+            authors=['Doench, John G.', 'Hartenian, Ella', 'Graham, Daniel B.', 'Tothova, Zuzana', 'Hegde, Mudra', 'Smith, Ian', 'Sullender, Meagan', 'Ebert, Benjamin L.', 'Xavier, Ramnik J.', 'Root, David E.'],
+            title='Rational design of highly active sgRNAs for CRISPR-Cas9–mediated gene inactivation',
+            journal='Nature Biotechnology',
+            issuing='32(12):1262-1267',
+            year=2014,
+            doi='https://doi.org/10.1038/nbt.3026',
+            #citation="Doench, et al. Rational design of highly active sgRNAs for CRISPR-Cas9–mediated gene inactivation. Nature Biotechnology 32, 1262–1267 (2014)",
             off_target=True,
             on_target=True,
             prefilter=False,
             postfilter=False,
             minimum=1.0,
             maximum=100.0,
-            default=None
+            default=None,
+            rgns=('Cas9')
         )
     
     def calculate(self, intended, *args, **kwargs):
@@ -127,14 +135,22 @@ class Doench2014(SingleSequenceAlgorithm):
 
 class Doench2016(PairedSequenceAlgorithm):
     def __init__(self):
-        super().__init__("CFD", "Doench, Fusi, et al", 2016,
-            citation="Doench, Fusi, et al. Optimized sgRNA design to maximize activity and minimize off-target effects of CRISPR-Cas9. Nature Biotechnology 34, 184–191 (2016).",
+        super().__init__(
+            name="CFD",
+            authors=['Doench, John G.', 'Fusi, Nicolo', 'Sullender, Meagan', 'Hegde, Mudra', 'Vaimberg, Emma W.', 'Donovan, Katherine F.', 'Smith, Ian', 'Tothova, Zuzana', 'Wilen, Craig', 'Orchard, Robert', 'Virgin, Herbert W.', 'Listgarten, Jennifer', 'Root, David E.'],
+            title='Optimized sgRNA design to maximize activity and minimize off-target effects of CRISPR-Cas9',
+            journal='Nature Biotechnology',
+            issuing='34(2):184-191',
+            year=2016,
+            doi='https://doi.org/10.1038/nbt.3437',
+            #citation="Doench, Fusi, et al. Optimized sgRNA design to maximize activity and minimize off-target effects of CRISPR-Cas9. Nature Biotechnology 34, 184–191 (2016).",
             off_target=True,
             prefilter=False,
             postfilter=False,
             minimum=1.0,
             maximum=100.0,
-            default=100.0
+            default=100.0,
+            rgns=('Cas9')
         )
     
     def weight(self, x):
@@ -250,15 +266,23 @@ class Azimuth(BatchedSingleSequenceAlgorithm):
     logger = logger.getChild(__qualname__)
     
     def __init__(self):
-        super().__init__("Azimuth", "Doench, Fusi, et al", 2016,
-            citation="Doench, Fusi, et al. Optimized sgRNA design to maximize activity and minimize off-target effects of CRISPR-Cas9. Nature Biotechnology 34, 184-191 (2016).",
+        super().__init__(
+            name="Azimuth",
+            authors=['Doench, John G.', 'Fusi, Nicolo', 'Sullender, Meagan', 'Hegde, Mudra', 'Vaimberg, Emma W.', 'Donovan, Katherine F.', 'Smith, Ian', 'Tothova, Zuzana', 'Wilen, Craig', 'Orchard, Robert', 'Virgin, Herbert W.', 'Listgarten, Jennifer', 'Root, David E.'],
+            title='Optimized sgRNA design to maximize activity and minimize off-target effects of CRISPR-Cas9',
+            journal='Nature Biotechnology',
+            issuing='34(2):184-191',
+            year=2016,
+            doi='https://doi.org/10.1038/nbt.3437',
+            #citation="Doench, Fusi, et al. Optimized sgRNA design to maximize activity and minimize off-target effects of CRISPR-Cas9. Nature Biotechnology 34, 184-191 (2016).",
             off_target=False,
             on_target=True,
             prefilter=False,
             postfilter=False,
             minimum=1.0,
             maximum=100.0,
-            default=None
+            default=None,
+            rgns=('Cas9')
         )
     
     def weight(self, x):
@@ -513,9 +537,16 @@ class Elevation(): # Subclass needed
     #  https://crispr.ml/
 
     def __init__(self):
-        super().__init__("Elevation", "Listgarten, et al", 2018,
-            citation=("Listgarten, et al. Prediction of off-target activities for the end-to-end design of "
-                      "CRISPR guide RNAs. Nature Biomedical Engineering volume 2, pages 38–47 (2018)"),
+        super().__init__(
+            name="Elevation",
+            authors=['Listgarten, Jennifer', 'Weinstein, Michael', 'Kleinstiver, Benjamin P.', 'Sousa, Alexander A.', 'Joung, J. Keith', 'Crawford, Jake', 'Gao, Kevin', 'Hoang, Luong', 'Elibol, Melih', 'Doench, John G.', 'Fusi, Nicolo'],
+            title='Prediction of off-target activities for the end-to-end design of CRISPR guide RNAs',
+            journal='Nature Biomedical Engineering',
+            issuing='2(1):38-47',
+            year=2018,
+            doi='https://doi.org/10.1038/s41551-017-0178-6',
+            #citation=("Listgarten, et al. Prediction of off-target activities for the end-to-end design of "
+            #          "CRISPR guide RNAs. Nature Biomedical Engineering volume 2, pages 38–47 (2018)"),
             off_target=True,
             on_target=True,
             prefilter=False,

@@ -17,8 +17,15 @@ else:
 
 class HsuZhang(PairedSequenceAlgorithm):
     def __init__(self):
-        super().__init__("Hsu-Zhang", "Hsu, et al", 2013,
-            citation="Hsu, et al. DNA targeting specificity of RNA-guided Cas9 nucleases. Nature Biotechnology 31, 827–832 (2013)",
+        super().__init__(
+            name="Hsu-Zhang",
+            authors=['Hsu, Patrick D.', 'Scott, David A.', 'Weinstein, Joshua A.', 'Ran, F. Ann', 'Konermann, Silvana', 'Agarwala, Vineeta', 'Li, Yinqing', 'Fine, Eli J.', 'Wu, Xuebing', 'Shalem, Ophir', 'Cradick, Thomas J.', 'Marraffini, Luciano A.', 'Bao, Gang', 'Zhang, Feng'],
+            title='DNA targeting specificity of RNA-guided Cas9 nucleases',
+            journal='Nature Biotechnology',
+            issuing='31(9):827-832',
+            year=2013,
+            doi='https://doi.org/10.1038/nbt.2647',
+            #citation="Hsu, et al. DNA targeting specificity of RNA-guided Cas9 nucleases. Nature Biotechnology 31, 827–832 (2013)",
             off_target=True,
             prefilter=False,
             postfilter=False,

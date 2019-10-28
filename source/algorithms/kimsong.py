@@ -65,8 +65,15 @@ class DeepCpf1(BatchedSingleSequenceAlgorithm):
     CHROMATIN_ACCESSIBLE = 2
         
     def __init__(self):
-        super().__init__("DeepCpf1", "Kim, Song, et al", 2016,
-            citation="Kim, Song, et al. In vivo high-throughput profiling of CRISPR-Cpf1 activity. Nature Methods 14, 153-159 (2017).",
+        super().__init__(
+            name="DeepCpf1",
+            authors=['Kim, Hui K.', 'Song, Myungjae', 'Lee, Jinu', 'Menon, A. Vipin', 'Jung, Soobin', 'Kang, Young-Mook', 'Choi, Jae W.', 'Woo, Euijeon', 'Koh, Hyun C.', 'Nam, Jin-Wu', 'Kim, Hyongbum'],
+            title='In vivo high-throughput profiling of CRISPR-Cpf1 activity',
+            journal='Nature Methods',
+            issuing='14:153-159',
+            year=2016,
+            doi='https://doi.org/10.1038/nmeth.4104',
+            #citation="Kim, Song, et al. In vivo high-throughput profiling of CRISPR-Cpf1 activity. Nature Methods 14, 153-159 (2017).",
             off_target=False,
             on_target=True,
             prefilter=False,

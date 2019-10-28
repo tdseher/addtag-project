@@ -15,9 +15,17 @@ else:
 
 class CRISPRater(SingleSequenceAlgorithm):
     def __init__(self):
-        super().__init__("CRISPRater", "Labuhn, et al", 2018,
-            citation="Labuhn, et al. Refined sgRNA efficacy prediction improves large- and small-scale CRISPR-Cas9 applications. Nucleic Acids Research, 46(3), (2018).",
-            off_target=False,
+        super().__init__(
+            name="CRISPRater",
+            authors=['Labuhn, Maurice', 'Adams, Felix F', 'Ng, Michelle', 'Knoess, Sabine', 'Schambach, Axel', 'Charpentier, Emmanuelle M', 'Schwarzer, Adrian', 'Mateo, Juan L', 'Klusmann, Jan-Henning', 'Heckl, Dirk'],
+            title='Refined sgRNA efficacy prediction improves large- and small-scale CRISPR–Cas9 applications',
+            journal='Nucleic Acids Research',
+            issuing='46(3):1375-1385',
+            year=2018,
+            doi='https://doi.org/10.1093/nar/gkx1268',
+            #citation="Labuhn, et al. Refined sgRNA efficacy prediction improves large- and small-scale CRISPR-Cas9 applications. Nucleic Acids Research, 46(3), (2018).",
+            off_target=True, # The CRISPRater paper asserts this can be used for off-target scores
+            on_target=True,
             prefilter=False,
             postfilter=False,
             minimum=1.0,

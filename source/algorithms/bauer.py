@@ -45,8 +45,15 @@ class Tuscan(SingleSequenceAlgorithm): # Need to pick an Algorithm subclass
     #  https://github.com/BauerLab/TUSCAN
 
     def __init__(self):
-        super().__init__("TUSCAN", "Wilson, et al", 2018,
-            citation="Wilson, et al. High Activity Target-Site Identification Using Phenotypic Independent CRISPR-Cas9 Core Functionality. The CRISPR Journal 1(2) (2018)",
+        super().__init__(
+            name="TUSCAN",
+            authors=['Wilson, Laurence O. W.', 'Reti, Daniel', "O'Brien, Aidan R.", 'Dunne, Robert A.', 'Bauer, Denis C.'],
+            title='High Activity Target-Site Identification Using Phenotypic Independent CRISPR-Cas9 Core Functionality',
+            journal='The CRISPR Journal',
+            issuing='1(2):182-190',
+            year=2018,
+            doi='https://doi.org/10.1089/crispr.2017.0021',
+            #citation="Wilson, et al. High Activity Target-Site Identification Using Phenotypic Independent CRISPR-Cas9 Core Functionality. The CRISPR Journal 1(2) (2018)",
             off_target=False,
             on_target=True,
             prefilter=False,
@@ -64,10 +71,17 @@ class Varscot(SingleSequenceAlgorithm): # Need to pick an Algorithm subclass
     #  https://github.com/BauerLab/VARSCOT
     
     def __init__(self):
-        super().__init__("VARSCOT", "Wilson, et al", 2018,
-            citation=("Wilson, et al. VARSCOT: variant-aware detection and scoring enables sensitive and "
-                      "personalized off-target detection for CRISPR-Cas9. BMC Biotechnologyvolume 19, "
-                      "Article number: 40 (2019)"),
+        super().__init__(
+            name="VARSCOT",
+            authors=['Wilson, Laurence O. W.', 'Hetzel, Sara', 'Pockrandt, Christopher', 'Reinert, Knut', 'Bauer, Denis C.'],
+            title='VARSCOT: variant-aware detection and scoring enables sensitive and personalized off-target detection for CRISPR-Cas9',
+            journal='BMC Biotechnology',
+            issuing='19(1):40',
+            year=2019,
+            doi='https://doi.org/10.1186/s12896-019-0535-5',
+            #citation=("Wilson, et al. VARSCOT: variant-aware detection and scoring enables sensitive and "
+            #          "personalized off-target detection for CRISPR-Cas9. BMC Biotechnologyvolume 19, "
+            #          "Article number: 40 (2019)"),
             off_target=True,
             on_target=False,
             prefilter=False,

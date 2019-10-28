@@ -12,8 +12,15 @@ else:
 
 class GC(SingleSequenceAlgorithm):
     def __init__(self):
-        super().__init__("GC", "Seher", 2017,
-            citation="AddTag",
+        super().__init__(
+            name="GC",
+            authors=['Seher, Thaddeus D.'],
+            title='',
+            journal='',
+            issuing='',
+            year=2017,
+            doi='',
+            #citation="AddTag",
             off_target=False,
             prefilter=True,
             postfilter=False,

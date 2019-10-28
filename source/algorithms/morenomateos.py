@@ -27,8 +27,15 @@ else:
 
 class MorenoMateos(SingleSequenceAlgorithm):
     def __init__(self):
-        super().__init__("Moreno-Mateos", "Moreno-Mateos, et al", 2015,
-            citation="Moreno-Mateos, et al. CRISPRscan: designing highly efficient sgRNAs for CRISPR-Cas9 targeting in vivo. Nature Methods 12, 982–988 (2015)",
+        super().__init__(
+            name="Moreno-Mateos",
+            authors=['Moreno-Mateos, Miguel A.', 'Vejnar, Charles E.', 'Beaudoin, Jean-Denis', 'Fernandez, Juan P.', 'Mis, Emily K.', 'Khokha, Mustafa K.', 'Giraldez, Antonio J.'],
+            title='CRISPRscan: designing highly efficient sgRNAs for CRISPR-Cas9 targeting in vivo',
+            journal='Nature Methods',
+            issuing='12:982',
+            year=2015,
+            doi='https://doi.org/10.1038/nmeth.3543',
+            #citation="Moreno-Mateos, et al. CRISPRscan: designing highly efficient sgRNAs for CRISPR-Cas9 targeting in vivo. Nature Methods 12, 982–988 (2015)",
             off_target=True,
             on_target=True,
             prefilter=False,

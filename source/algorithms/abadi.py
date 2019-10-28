@@ -52,10 +52,17 @@ else:
 
 class Crista(SingleSequenceAlgorithm):
     def __init__(self):
-        super().__init__("CRISTA", "Abadi, et al", 2017,
-            citation=("Abadi, et al. A machine learning approach for predicting CRISPR-Cas9 cleavage efficiencies "
-                      "and patterns underlying its mechanism of action. "
-                      "PLOS Computational Biology 13(10): e1005807 (2017)."),
+        super().__init__(
+            name="CRISTA",
+            authors=['Abadi, Shiran', 'Yan, Winston X.', 'Amar, David', 'Mayrose, Itay'],
+            title='A machine learning approach for predicting CRISPR-Cas9 cleavage efficiencies and patterns underlying its mechanism of action',
+            journal='PLOS Computational Biology',
+            issuing='13(10):e1005807',
+            year=2017,
+            doi='https://doi.org/10.1371/journal.pcbi.1005807',
+            #citation=("Abadi, et al. A machine learning approach for predicting CRISPR-Cas9 cleavage efficiencies "
+            #          "and patterns underlying its mechanism of action. "
+            #          "PLOS Computational Biology 13(10): e1005807 (2017)."),
             off_target=False,
             on_target=True,
             prefilter=False,

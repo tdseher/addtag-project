@@ -45,9 +45,16 @@ else:
 
 class DeepCrispr(SingleSequenceAlgorithm):
     def __init__(self):
-        super().__init__("DeepCRISPR", "Chuai, et al", 2018,
-            citation=("Chuai, et al. DeepCRISPR: optimized CRISPR guide RNA design by deep learning. "
-                      "Genome Biology. 19(1):80 (2018)."),
+        super().__init__(
+            name="DeepCRISPR",
+            authors=['Chuai, Guohui', 'Ma, Hanhui', 'Yan, Jifang', 'Chen, Ming', 'Hong, Nanfang', 'Xue, Dongyu', 'Zhou, Chi', 'Zhu, Chenyu', 'Chen, Ke', 'Duan, Bin', 'Gu, Feng', 'Qu, Sheng', 'Huang, Deshuang', 'Wei, Jia', 'Liu, Qi'],
+            title='DeepCRISPR: optimized CRISPR guide RNA design by deep learning',
+            journal='Genome Biology',
+            issuing='19(1):80',
+            year=2018,
+            doi='https://doi.org/10.1186/s13059-018-1459-4',
+            #citation=("Chuai, et al. DeepCRISPR: optimized CRISPR guide RNA design by deep learning. "
+            #          "Genome Biology. 19(1):80 (2018)."),
             off_target=False,
             on_target=True,
             prefilter=False,
