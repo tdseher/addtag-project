@@ -9,6 +9,7 @@ import sys
 import os
 import logging
 import math
+import importlib.util
 
 # Import non-standard packages
 import regex
@@ -49,6 +50,9 @@ class Primer3(Oligo):
             doi='https://doi.org/10.1093/nar/gks596'
             #citation="Untergasser, et al. Primer3--new capabilities and interfaces. Nucleic Acids Research 40(15): e115 (2012)"
         )
+        spec = importlib.util.find_spec('primer3')
+        if spec:
+            self.available = True
     
     @classmethod
     def find_structures(cls, folder, seq1, seq2=None, sodium=0.05, magnesium=0.0, temperature=25, concentration=0.00000025, **kwargs):

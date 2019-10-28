@@ -120,6 +120,9 @@ class Oligo(object): # Name of the subclass
         self.year = year             # Year calculator published (int)
         self.doi = doi
         #self.citation = citation     # Citation (None/str)
+
+        # Indicate whether this third party software was detected on the system
+        self.available = False
     
     # def scan_sequence(self, *args, **kwargs):
     #     """
