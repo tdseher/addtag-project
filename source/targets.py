@@ -118,7 +118,83 @@ class Target(object):
     indices = {} # key = exTarget-102, value = ExcisionTarget/ReversionTarget object
     
     logger = logger.getChild('Target')
-    
+
+    def __init__(self, feature, contig, orientation, start, end, upstream, downstream, sequence, side, spacer, pam, motif, parsed_motif, add=True):
+        """Create a structure for holding individual sequence information"""
+        location = (feature, contig, orientation, start, end, upstream, downstream)
+        self.locations = set()
+
+        self.sequence = sequence
+        self.side = side
+        self.spacer = spacer
+        self.pam = pam
+        self.motif = motif
+        self.parsed_motif = parsed_motif
+
+        # List to store alignments
+        self.alignments = []
+
+        # Get the index number
+        self.index = len(self.sequences)
+        self.name = self.prefix + '-' + str(self.index)
+
+        if add:
+            the_target = self.sequences.setdefault(self.sequence, self)
+            the_target.locations.add(location)
+            self.indices.setdefault(the_target.name, the_target)
+
+        # Scores for this sequence only (not PairedSequenceAlgorithm)
+        self.score = {}
+
+        # We need an off-target score for each algorithm and each potential dDNA
+        # Thus it will be structured as a dict nested within a dict:
+        # self.off_targets = {'CFD': {'exDonor-0': 10.0, 'exDonor-1': 12.0}}
+        self.off_targets = {}
+        if (len(self.locations) > 0):
+            self.calculate_default_scores()
+
+    @classmethod
+    def load_spacers(cls, args, filenames):
+        '''
+        Populate '*Target.sequences' and '*Target.indices' according to input FASTA files
+        '''
+
+        # The 'excision-spacers.fasta' file has the following format:
+        #  >exTarget-17 motif=N{17}|N{3}>NGG locations=2 alignments=2/12 on-target=69.01 off-target=100.0 pam=GGG
+        #  CCTCGAGCACTTCCACTGTG
+        # The PAM motif should be obtained from either the 'motif=...' attribute,
+        # or from the '--motifs ...' command line option
+
+        for filename in filenames:
+            with open(filename, 'r') as flo:
+                # For now, we will ignore the 'motif=...' attribute
+                contigs = utils.old_load_fasta_file(filename)
+
+                for header, sequence in contigs.items():
+                    # Search 'sequence' for any number of SPACER>PAM motif matches
+                    # Get the 'spacer', 'side', and 'pam' for each 'motif' for this 'sequence'
+                    # Pass through 'prefilter'
+                    targets = cls.get_targets(args, sequence)
+
+                    for t in targets:
+                        # Create the *Target object, and add to *Target.sequences and *Target.indices
+                        cls(
+                            feature="Feature",
+                            contig=header,
+                            orientation=t[0],
+                            start=t[1],
+                            end=t[2], # should be equal to len(sequence)
+                            upstream=t[3],
+                            downstream=t[4],
+                            squence=t[5],
+                            side=t[6],
+                            spacer=t[7],
+                            pam=t[8],
+                            motif=t[9], # also called 'motif_string'
+                            parsed_motif=t[10]
+                        )
+        return None
+
     @classmethod
     def load_alignment(cls, filename, args, contigs):
         """
@@ -232,40 +308,6 @@ class Target(object):
         else:
             return self.pam + '<' + self.spacer
     
-    def __init__(self, feature, contig, orientation, start, end, upstream, downstream, sequence, side, spacer, pam, motif, parsed_motif, add=True):
-        """Create a structure for holding individual sequence information"""
-        location = (feature, contig, orientation, start, end, upstream, downstream)
-        self.locations = set()
-        
-        self.sequence = sequence
-        self.side = side
-        self.spacer = spacer
-        self.pam = pam
-        self.motif = motif
-        self.parsed_motif = parsed_motif
-        
-        # List to store alignments
-        self.alignments = []
-        
-        # Get the index number
-        self.index = len(self.sequences)
-        self.name = self.prefix + '-' + str(self.index)
-        
-        if add:
-            the_target = self.sequences.setdefault(self.sequence, self)
-            the_target.locations.add(location)
-            self.indices.setdefault(the_target.name, the_target)
-        
-        # Scores for this sequence only (not PairedSequenceAlgorithm)
-        self.score = {}
-        
-        # We need an off-target score for each algorithm and each potential dDNA
-        # Thus it will be structured as a dict nested within a dict:
-        # self.off_targets = {'CFD': {'exDonor-0': 10.0, 'exDonor-1': 12.0}}
-        self.off_targets = {}
-        if (len(self.locations) > 0):
-            self.calculate_default_scores()
-    
     @classmethod
     def target_filter(cls, sequence, target, pam, upstream, downstream, args):
         '''
@@ -277,6 +319,9 @@ class Target(object):
         
         Returns list of validated sequences
         '''
+        # TODO: The 'Target.target_filter()' method should also return WHY a potential target was rejected.
+        #       Something like the following:
+        #         [case=pass, ambiguities=pass, motifs=pass, polyT=fail, %GC=skipped]
         
         seq = sequence
         
@@ -457,6 +502,8 @@ class Target(object):
         Returns list of matches (as a tuple) from all OnTargetMotif motifs.
         Does NOT evaluate how good each Target is (in terms of score).
         """
+        # TODO: Add argument 'search=True' that when false, will disable searching for multiple Targets.
+        #       Thus, 'start=0' and 'end=len(sequence)'
         if (end == None):
             end = len(sequence)
         
