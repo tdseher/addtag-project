@@ -78,7 +78,7 @@ steps:
 
 # Linux
 - bash: |
-    wget ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/2.9.0/ncbi-blast-2.9.0+-x64-linux.tar.gz
+    wget -nv ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/2.9.0/ncbi-blast-2.9.0+-x64-linux.tar.gz
     tar -xf ncbi-blast-2.9.0+-x64-linux.tar.gz
     echo "##vso[task.prependpath]$(Build.SourcesDirectory)/ncbi-blast-2.9.0+/bin"
   condition: eq( variables['Agent.OS'], 'Linux' )
@@ -118,10 +118,11 @@ steps:
 
 - script: |
     pwd
-    ls
-    ls $(Build.SourcesDirectory)
-    ls $(System.DefaultWorkingDirectory)
-  displayName: List folder contents
+    cd $(Build.SourcesDirectory)
+    pwd
+    cd $(System.DefaultWorkingDirectory)
+    pwd
+  displayName: Show values of built-in pipeline paths
 
 - script: |
     $(python3.pythonLocation)/python addtag --help
