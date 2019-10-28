@@ -51,16 +51,18 @@ def test_oligo():
                 assert around(heterodimers[0].delta_G, -4.013193909188849, 0.1)
                 assert around(revcomps[0].delta_G, -35.37314759135284, 0.1)
                 assert around(revcomps[0].melting_temperature, 62.994719476938315, 1)
-            elif (oligo.name == 'UNAFold')
+            elif (oligo.name == 'UNAFold'):
                 assert around(hairpins[0].delta_G, -3.43067, 0.1)
                 assert around(homodimers[0].delta_G, -8.09575, 0.1)
                 assert around(heterodimers[0].delta_G, -3.54803, 0.1)
                 assert around(revcomps[0].delta_G, -35.2562, 0.1)
                 assert around(revcomps[0].melting_temperature, 62.798723427739105, 1)
-            elif (oligo.name == 'ViennaRNA')
+            elif (oligo.name == 'ViennaRNA'):
                 assert around(hairpins[0].delta_G, -3.5, 0.1)
                 assert around(homodimers[0].delta_G, -10.399999618530273, 0.1)
                 assert around(heterodimers[0].delta_G, -4.800000190734863, 0.1)
                 assert around(revcomps[0].delta_G, -37.900001525878906, 0.1)
                 assert around(revcomps[0].melting_temperature, 63.51, 1)
+            else:
+                assert False, 'No thermodyanmics calculator detected'
 
