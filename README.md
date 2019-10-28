@@ -249,10 +249,10 @@ Several wrappers to popular oligonucleotide conformation, free energy, and melti
 If you create your own wrapper, please submit a `git pull` request so we can add it to the next version of the software.
 
 ## 📖 License ##
-Add License here.
+Please see the [LICENSE.md](License.md) file.
 
 ## Notes ##
-
+Here is some miscellaneous information:
  * The ![RGN][RGN] protein you use should be engineered specifically for your organism. It should be codon-optomized, and if using eukarya, contain an appropriate nuclear localization sequence.
  * Sequences in FASTA files should have unique names. In other words, the primary sequence header--everything following the '`>`' character and preceding the first whitespace/tab '` `' character--should exist only once across all input `*.fasta` files.
  * By default, AddTag will avoid designing homology regions and Targets against polymorphisms whenever possible.

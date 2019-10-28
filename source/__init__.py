@@ -44,20 +44,13 @@ from . import subroutines
 #from . import _subroutine_evaluate
 #from . import _subroutine_generate
 #from . import _subroutine_confirm
+from .subroutines import subroutine
 
 from .donors import Donor, ExcisionDonor, ReversionDonor
 from .targets import Target, ExcisionTarget, ReversionTarget
 from .motifs import OnTargetMotif, OffTargetMotif
 from .feature import Feature
 
-# Define meta variables
-__author__ = "Thaddeus D. Seher (@tdseher) & Aaron Hernday"
-__date__ = utils.load_git_date()
-__fullversion__ = utils.load_git_version()
-__version__ = __fullversion__[:7]
-__revision__ = utils.load_git_revision()
-__program__ = os.path.basename(sys.argv[0])
-__citation__ = "{__author__}. AddTag. Unpublished ({__date__})".format(**locals())
 __description__ = """\
 description:
   Program for identifying exclusive endogenous gRNA sites and creating unique
@@ -127,16 +120,7 @@ copyright:
   All rights reserved.
 
 license:
-  You may not hold the authors liable for damages or data loss regarding the
-  use or inability to use the software. AddTag is provided without any
-  warranty. You may use the software for academic or private purposes without
-  purchasing a license. However, using the software for commercial purposes
-  requires purchase of a license. You may modify and distribute the software
-  as long as you make the modifications open source, and grant patent license
-  to the authors for inclusion in AddTag.
-  
-  Some AddTag features rely on code written by other people, provided under
-  different licenses. Please review them individually for more information.
+  {__license__}
 
 protein:
   The Cas9 or Cpf1 protein you use should be engineered specifically for your
@@ -175,7 +159,7 @@ outputs:
   folder/protection-primers.fasta   Primers for amplifying protection DNAs
   folder/primers.fasta              Primers to check for KO/KI (contains
                                     expected amplicon sizes in header)
-""".format(**locals())
+""".format(**subroutine.__dict__) #.format(**locals())
 __epilog__ = """\
 example:
   At a minimum, AddTag needs to be executed with the '--fasta', '--gff', and
@@ -189,7 +173,7 @@ example:
      --feature_homologs homologs.txt --excise_insert_lengths 0 3
      --excise_downstream_homology 47 50 --folder analysis > analysis.out
      2> analysis.err
-""".format(**locals())
+""".format(**subroutine.__dict__) #.format(**locals())
 
 class CustomFormatter(logging.Formatter):
     # logging.Formatter methods:
@@ -377,7 +361,7 @@ class Main(object):
         # Special version action optional argument
         parser.add_argument("-v", "--version", action='version',
             help="Show program's version number and exit.",
-            version='{__program__} {__version__} (revision {__revision__})'.format(**globals()))
+            version='{__program__} {__version__} (revision {__revision__})'.format(**subroutine.__dict__)) # .format(**globals()))
         
         return parser, subparsers
     

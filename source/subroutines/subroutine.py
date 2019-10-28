@@ -20,7 +20,9 @@ __fullversion__ = utils.load_git_version()
 __version__ = __fullversion__[:7]
 __revision__ = utils.load_git_revision()
 __program__ = os.path.basename(sys.argv[0])
+__repository__ = 'https://github.com/tdseher/addtag-project.git'
 __citation__ = "{__author__}. AddTag. Unpublished ({__date__})".format(**locals())
+__license__ = '\n'.join([x if (i == 0) else '  '+x for i, x in enumerate(utils.parse_and_wrap_local_file(os.path.join('..', 'LICENSE.md'))[1:])])
 
 class Subroutine():
     """ Template code to move Subroutines into."""
