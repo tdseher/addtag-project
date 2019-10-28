@@ -26,11 +26,16 @@ class Aligner(object): # Name of the subclass
     """
     logger = logger.getChild(__qualname__)
     
-    def __init__(self, 
+    def __init__(
+        self,
         name,
-        author,
+        authors,
+        title,
+        journal,
+        issuing,
         year,
-        citation=None,
+        doi,
+        #citation=None,
         input='fasta',
         output='sam',
         truncated=False,
@@ -41,9 +46,13 @@ class Aligner(object): # Name of the subclass
         Aligner class.
         """
         self.name = name                     # Unique name for the algorithm (str). No other Aligner objects should have this name.
-        self.author = author                 # Author of the algorithm (str)
+        self.authors = authors               # Author of the algorithm (list of str objects)
+        self.title = title
+        self.journal = journal
+        self.issuing = issuing
         self.year = year                     # Year algorithm published (int)
-        self.citation = citation             # Citation (None, str)
+        self.doi = doi
+        #self.citation = citation             # Citation (None, str)
         self.input = input                   # Format of expected input (STDIN, fasta, fastq, etc)
         self.output = output                 # Designate the output format the alignment will be in, so AddTag can select the correct parser
         self.truncated = truncated           # Normally, the entire short read is locally aligned to the genome contigs. This tells the parser that what is reported in the SAM file in the 10th column is incomplete.
@@ -132,9 +141,8 @@ class Aligner(object): # Name of the subclass
         # Perform alignment
         self.logger.info('command: {!r}'.format(command_str))
         if capture_stdout:
-            with open(error_filename, 'w+') as err_flo:
-                with open(output_filename, 'w+') as out_flo:
-                    cp = subprocess.run(command_list, shell=False, check=True, stdout=out_flo, stderr=err_flo)
+            with open(error_filename, 'w+') as err_flo, open(output_filename, 'w+') as out_flo:
+                cp = subprocess.run(command_list, shell=False, check=True, stdout=out_flo, stderr=err_flo)
         else:
             with open(error_filename, 'w+') as flo:
                 cp = subprocess.run(command_list, shell=False, check=True, stdout=flo, stderr=subprocess.STDOUT)
@@ -199,7 +207,7 @@ class Aligner(object): # Name of the subclass
         """
         Return the string representation of the Aligner
         """
-        return self.__class__.__name__ + '(' + ', '.join(['name='+repr(self.name), 'author='+repr(self.author), 'year='+repr(self.year)]) + ')'
+        return self.__class__.__name__ + '(' + ', '.join(['name='+repr(self.name), 'authors='+repr(self.authors), 'year='+repr(self.year)]) + ')'
 
 class Record(object):
     def __init__(self,

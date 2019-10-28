@@ -18,8 +18,15 @@ else:
 
 class CasOFFinder(Aligner):
     def __init__(self):
-        super().__init__("cas-offinder", "Bae, Park, & Kim", 2014,
-            citation="Bae, Park, & Kim. Cas-OFFinder: a fast and versatile algorithm that searches for potential off-target sites of Cas9 RNA-guided endonucleases. Bioinformatics 30(10), 1473-1475 (2014).",
+        super().__init__(
+            name="cas-offinder",
+            authors=['Bae, Sangsu', 'Park, Jeongbin', 'Kim, Jin-Soo'],
+            title='Cas-OFFinder: a fast and versatile algorithm that searches for potential off-target sites of Cas9 RNA-guided endonucleases',
+            journal='Bioinformatics',
+            issuing='30(10):1473-1475',
+            year=2014,
+            doi='https://doi.org/10.1093/bioinformatics/btu048',
+            #citation="Bae, Park, & Kim. Cas-OFFinder: a fast and versatile algorithm that searches for potential off-target sites of Cas9 RNA-guided endonucleases. Bioinformatics 30(10), 1473-1475 (2014).",
             input='casoffinder',
             output='casoffinder',
             truncated=False,

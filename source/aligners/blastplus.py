@@ -29,8 +29,15 @@ else:
 
 class BlastPlus(Aligner):
     def __init__(self):
-        super().__init__("blastn", "Altschul, et al.", 1990,
-            citation="Altschul, et al. Basic local alignment search tool. Journal of Molecular Biology 215, 403-410 (1990).",
+        super().__init__(
+            name="blastn",
+            authors=['Altschul, Stephen F.', 'Gish, Warren', 'Miller, Webb', 'Myers, Eugene W.', 'Lipman, David J.,'],
+            title='Basic local alignment search tool',
+            journal='Journal of Molecular Biology',
+            issuing='215(3):403-410',
+            year=1990,
+            doi='https://doi.org/10.1016/S0022-2836(05)80360-2',
+            #citation="Altschul, et al. Basic local alignment search tool. Journal of Molecular Biology 215, 403-410 (1990).",
             input='fasta',
             output='blastn',
             truncated=False,

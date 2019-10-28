@@ -44,8 +44,15 @@ class Bowtie2(Aligner):
     logger = logger.getChild(__qualname__)
     
     def __init__(self):
-        super().__init__("bowtie2", "Langmead & Salzberg", 2012,
-            citation="Langmead & Salzberg. Fast gapped-read alignment with Bowtie 2. Nature Methods 9, 357-359 (2012).",
+        super().__init__(
+            name="bowtie2",
+            authors=['Langmead, Ben', 'Salzberg, Steven L.'],
+            title='Fast gapped-read alignment with Bowtie 2',
+            journal='Nature Methods',
+            issuing='9:357-359',
+            year=2012,
+            doi='https://doi.org/10.1038/nmeth.1923',
+            #citation="Langmead & Salzberg. Fast gapped-read alignment with Bowtie 2. Nature Methods 9, 357-359 (2012).",
             input='fasta',
             output='sam',
             truncated=False,
