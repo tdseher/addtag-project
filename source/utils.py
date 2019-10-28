@@ -517,7 +517,7 @@ def load_git_date():
     try:
         with open(filepath, 'r') as flo:
             for line in flo:
-                m = regex.search(' (\d{10,}) ([-+]?\d{4})\t', line) # only works for ints
+                m = regex.search(r' (\d{10,}) ([-+]?\d{4})\t', line) # only works for ints
                 if m:
                     secs, off = m.groups()
                     # seconds.append(int(secs) + int(off[:-2])*60*60) # Convert to GMT time
@@ -694,7 +694,7 @@ def which(cmd, mode=os.F_OK|os.X_OK, path=None, full=False):
         return None
     path = path.split(os.pathsep)
 
-    if sys.platform == "win32":
+    if sys.platform.startswith('win'):
         # The current directory takes precedence on Windows.
         if not os.curdir in path:
             path.insert(0, os.curdir)
