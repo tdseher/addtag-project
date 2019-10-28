@@ -248,7 +248,7 @@ Several wrappers to popular oligonucleotide conformation, free energy, and melti
 If you create your own wrapper, please submit a `git pull` request so we can add it to the next version of the software.
 
 ## 📖 License ##
-Please see the [LICENSE.md](License.md) file.
+Please see the [LICENSE.md](LICENSE.md) file.
 
 ## Notes ##
 Here is some miscellaneous information:
