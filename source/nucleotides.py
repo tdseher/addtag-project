@@ -287,6 +287,7 @@ def rc(seq, kind="dna"):
         raise ValueError("'" + str(kind) + "' is an invalid argument for rc()")
     return seq.translate(complements)[::-1]
 
+# TODO: Remove this function?
 def ngg():
     '''
     Generator that returns NGG
@@ -434,6 +435,59 @@ def filter_polyt(sequences, max_allowed=4):
     #            yield s
     
     return list(filter(lambda x: 'T'*(max_allowed+1) not in x, sequences))
+
+def get_nt_freq(nts, seq):
+    '''
+    :param nts: str or list of nucleotides to count. For instance 'GC' or ['G', 'C']
+    :param seq: sequence to count
+    :return: float
+    '''
+    iupac = {
+        'a': ['a'],
+        'c': ['c'],
+        'g': ['g'],
+        't': ['t'],
+        'r': ['a', 'g'],
+        'y': ['c', 't'],
+        'm': ['a', 'c'],
+        'k': ['g', 't'],
+        'w': ['a', 't'],
+        's': ['c', 'g'],
+        'b': ['c', 'g', 't'],
+        'd': ['a', 'g', 't'],
+        'h': ['a', 'c', 't'],
+        'v': ['a', 'c', 'g'],
+        'n': ['a', 'c', 'g', 't'],
+
+        'A': ['A'],
+        'C': ['C'],
+        'G': ['G'],
+        'T': ['T'],
+        'R': ['A', 'G'],
+        'Y': ['C', 'T'],
+        'M': ['A', 'C'],
+        'K': ['G', 'T'],
+        'W': ['A', 'T'],
+        'S': ['C', 'G'],
+        'B': ['C', 'G', 'T'],
+        'D': ['A', 'G', 'T'],
+        'H': ['A', 'C', 'T'],
+        'V': ['A', 'C', 'G'],
+        'N': ['A', 'C', 'G', 'T'],
+    }
+
+    nt_set = set()
+    for nt in nts:
+        nt_set.update(iupac[nt])
+
+    nt_count = 0
+
+    for s in seq:
+        nt_denom = iupac[s]
+        nt_num = nt_set.intersection(nt_denom)
+        nt_count += len(nt_num)/len(nt_denom)
+
+    return nt_count/len(seq)
 
 def get_gc_freq(seq):
     """
