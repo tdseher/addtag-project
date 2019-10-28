@@ -3,17 +3,17 @@
 
 """AddTag Copyright (c) 2016 Thaddeus D. Seher & Aaron Hernday"""
 
-# source/subroutines/_subroutine_glossary.py
+# source/subroutines/_subroutine_list_terms.py
 
 # Import included AddTag-specific modules
 from . import subroutine
 from .. import utils
 
-class GlossaryParser(subroutine.Subroutine):
+class ListTermsParser(subroutine.Subroutine):
     def __init__(self, subparsers):
         self.subparsers = subparsers
         
-        self.name = 'glossary'
+        self.name = 'list_terms'
         self.description = (
             "description:" "\n"
             "  Show glossary of common CRISPR/Cas terms, then exit." "\n"

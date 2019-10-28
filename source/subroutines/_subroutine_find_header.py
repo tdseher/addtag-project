@@ -3,7 +3,7 @@
 
 """AddTag Copyright (c) 2016 Thaddeus D. Seher & Aaron Hernday"""
 
-# source/subroutines/_subroutine_extract.py
+# source/subroutines/_subroutine_find_header.py
 
 # Import non-standard packages
 import regex
@@ -15,7 +15,7 @@ class ExtractParser(subroutine.Subroutine):
     def __init__(self, subparsers):
         self.subparsers = subparsers
         
-        self.name = 'extract'
+        self.name = 'find_header'
         self.description = (
             "description:" "\n"
             "  Extracts selected sequences from input FASTA by matching their primary" "\n"

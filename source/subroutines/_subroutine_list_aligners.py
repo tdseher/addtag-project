@@ -3,17 +3,17 @@
 
 """AddTag Copyright (c) 2016 Thaddeus D. Seher & Aaron Hernday"""
 
-# source/subroutines/_subroutine_aligners.py
+# source/subroutines/_subroutine_list_aligners.py
 
 # Import included AddTag-specific modules
 from . import subroutine
 from .. import aligners
 
-class AlignersParser(subroutine.Subroutine):
+class ListAlignersParser(subroutine.Subroutine):
     def __init__(self, subparsers):
         self.subparsers = subparsers
         
-        self.name = 'aligners'
+        self.name = 'list_aligners'
         self.description = (
             "description:" "\n"
             "  Show list of all supported alignment programs." "\n"
@@ -37,9 +37,13 @@ class AlignersParser(subroutine.Subroutine):
         # Other aligners to consider: 'rmap', 'maq', 'shrimp2', 'soap2', 'star', 'rhat', 'mrsfast', 'stampy'
         for x in aligners.aligners:
             print('==========', x.name, '==========')
-            print('     Author:', x.author)
+            print('    Authors:', x.authors)
+            print('      Title:', x.title)
+            print('    Journal:', x.journal)
+            print('    Issuing:', x.issuing)
             print('       Year:', x.year)
-            print('   Citation:', x.citation)
+            print('        doi:', x.doi)
+            #print('   Citation:', x.citation)
             print('      Input:', x.input)
             print('     Output:', x.output)
             print('  Truncated:', x.truncated)

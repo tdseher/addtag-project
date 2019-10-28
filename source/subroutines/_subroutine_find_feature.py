@@ -3,7 +3,7 @@
 
 """AddTag Copyright (c) 2016 Thaddeus D. Seher & Aaron Hernday"""
 
-# source/subroutines/_subroutine_feature.py
+# source/subroutines/_subroutine_find_feature.py
 
 # Import standard packages
 import sys
@@ -15,11 +15,11 @@ import regex
 from . import subroutine
 from .. import feature
 
-class FeatureParser(subroutine.Subroutine):
+class FindFeatureParser(subroutine.Subroutine):
     def __init__(self, subparsers):
         self.subparsers = subparsers
         
-        self.name = 'feature'
+        self.name = 'find_feature'
         self.description = (
             "description:" "\n"
             "  Search GFF features for specific text." "\n"

@@ -3,7 +3,7 @@
 
 """AddTag Copyright (c) 2016 Thaddeus D. Seher & Aaron Hernday"""
 
-# source/subroutines/_subroutine_generate.py
+# source/subroutines/_subroutine_generate_all.py
 
 # Import standard packages
 import sys
@@ -17,8 +17,8 @@ import logging
 #from .__init__ import Donor, ExcisionDonor, ReversionDonor, Target, ExcisionTarget, ReversionTarget
 from . import subroutine
 from ..feature import Feature
-from ..targets import Target, ExcisionTarget, ReversionTarget
-from ..donors import Donor, ExcisionDonor, ReversionDonor
+from ..targets import ExcisionTarget, ReversionTarget
+from ..donors import ExcisionDonor, ReversionDonor
 from .. import utils
 from .. import algorithms
 from .. import aligners
@@ -26,17 +26,22 @@ from .. import thermodynamics
 
 logger = logging.getLogger(__name__)
 
-class GenerateParser(subroutine.Subroutine):
+class GenerateAllParser(subroutine.Subroutine):
     logger = logger.getChild('GenerateParser')
     
     def __init__(self, subparsers):
         self.subparsers = subparsers
         
-        self.name = 'generate'
+        self.name = 'generate_all'
         self.description = (
             "description:" "\n"
             "  Design full sets of oligonucleotide sequences for CRISPR/Cas genome" "\n"
             "  engineering experiment." "\n"
+            "  " "\n"
+            "  The objective of the 'generate' subroutine is to identify gDNA" "\n"
+            "  Targets within or near to specific genomic Features that can be" "\n"
+            "  cut with an experimenter’s RGN of choice, and then produce" "\n"
+            "  dDNAs that will replace the Features." "\n"
         )
         self.help = "Design full sets of oligonucleotide sequences for CRISPR/Cas genome engineering experiment."
         self.epilog = (
@@ -403,7 +408,7 @@ class GenerateParser(subroutine.Subroutine):
         if sys.platform.startswith('win'):
             from tempfile import gettempdir
             temp_default = gettempdir()
-        else:
+        else: # 'linux' or 'darwin'
             temp_default = '/dev/shm'
         self.parser.add_argument("--temp_folder", type=str, default=temp_default,
             help="Directory to store temporary files. RAMdisk recommended.")
@@ -570,6 +575,7 @@ class GenerateParser(subroutine.Subroutine):
                     self.logger.info('  ' + str(a))
             
             # Batch calculate with new ExcisionTarget class
+            # TODO: Ideally, all scoring Algorithms will be run in batch
             ExcisionTarget.score_batch(args)
             
             self.logger.info("ExcisionTarget after Azimuth calculation")
@@ -615,6 +621,7 @@ class GenerateParser(subroutine.Subroutine):
                     self.logger.info('  ' + str(a))
             
             # Batch calculate with new ReversionTarget class
+            # TODO: Ideally, all scoring Algorithms will be run in batch
             ReversionTarget.score_batch()
             
             self.logger.info("ReversionTarget after Azimuth calculation")

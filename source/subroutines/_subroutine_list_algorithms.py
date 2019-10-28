@@ -3,17 +3,17 @@
 
 """AddTag Copyright (c) 2016 Thaddeus D. Seher & Aaron Hernday"""
 
-# source/subroutines/_subroutine_algorithms.py
+# source/subroutines/_subroutine_list_algorithms.py
 
 # Import included AddTag-specific modules
 from . import subroutine
 from .. import algorithms
 
-class AlgorithmsParser(subroutine.Subroutine):
+class ListAlgorithmsParser(subroutine.Subroutine):
     def __init__(self, subparsers):
         self.subparsers = subparsers
         
-        self.name = 'algorithms'
+        self.name = 'list_algorithms'
         self.description = (
             "description:" "\n"
             "  Show list of all implemented gRNA evaluation algorithms." "\n"
@@ -35,9 +35,13 @@ class AlgorithmsParser(subroutine.Subroutine):
         """Print information on the implemented algorithms"""
         for C in algorithms.single_algorithms + algorithms.paired_algorithms + algorithms.batched_single_algorithms:
             print('==========', C.name, '==========')
-            print('     Author:', C.author)
+            print('    Authors:', C.authors)
+            print('      Title:', C.title)
+            print('    Journal:', C.journal)
+            print('    Issuing:', C.issuing)
             print('       Year:', C.year)
-            print('   Citation:', C.citation)
+            print('        doi:', C.doi)
+            #print('   Citation:', C.citation)
             print(' Off-target:', C.off_target)
             print('  On-target:', C.on_target)
             print('  Prefilter:', C.prefilter)

@@ -3,7 +3,7 @@
 
 """AddTag Copyright (c) 2016 Thaddeus D. Seher & Aaron Hernday"""
 
-# source/subroutines/_subroutine_confirm.py
+# source/subroutines/_subroutine_generate_primers.py
 
 # Import standard packages
 import sys
@@ -13,7 +13,6 @@ import copy
 import random
 import math
 import time
-import copy
 import multiprocessing
 import queue
 #from collections import namedtuple
@@ -34,13 +33,13 @@ from ..algorithms import detect_overridden_methods
 
 logger = logging.getLogger(__name__)
 
-class ConfirmParser(subroutine.Subroutine):
+class GeneratePrimersParser(subroutine.Subroutine):
     logger = logger.getChild(__qualname__)
     
     def __init__(self, subparsers):
         self.subparsers = subparsers
         
-        self.name = 'confirm'
+        self.name = 'generate_primers'
         self.description = (
             "description:" "\n"
             "  Design primers for confirming whether each step of genome engineering is" " \n"
@@ -49,8 +48,12 @@ class ConfirmParser(subroutine.Subroutine):
         self.help = "Design primers for confirming whether each step of genome engineering is successful or not."
         self.epilog = (
             "example:" "\n"
-            "  You can list CRISPR/Cas motifs by running:" "\n"
+            "  You can generate cPCR oligos by running:" "\n"
             "   $ python3 {__program__} {__subroutine__}" "\n"
+            "     --fasta genome.fasta" "\n"
+            "     --dDNAs ko-dDNA.fasta ki-dDNA.fasta" "\n"
+            "     --folder output" "\n"
+            "     > {__subroutine__}.out 2> {__subroutine__}.err"
         ).format(**dict(list(subroutine.__dict__.items()) + list({"__subroutine__": self.name}.items()))) # key:value pairs in the latter dict will replace any instances in the prior dict
         
         self.define_parser()
@@ -201,7 +204,7 @@ class ConfirmParser(subroutine.Subroutine):
         if sys.platform.startswith('win'):
             from tempfile import gettempdir
             temp_default = gettempdir()
-        else:
+        else: # 'linux' or 'darwin'
             temp_default = '/dev/shm'
         self.parser.add_argument("--temp_folder", type=str, default=temp_default,
             help="Directory to store temporary files. RAMdisk recommended.")

@@ -3,7 +3,7 @@
 
 """AddTag Copyright (c) 2016 Thaddeus D. Seher & Aaron Hernday"""
 
-# source/subroutines/_subroutine_search.py
+# source/subroutines/_subroutine_find_sequence.py
 
 # Import non-standard packages
 import regex
@@ -13,11 +13,11 @@ from . import subroutine
 from .. import utils
 from .. import nucleotides
 
-class SearchParser(subroutine.Subroutine):
+class FindSequenceParser(subroutine.Subroutine):
     def __init__(self, subparsers):
         self.subparsers = subparsers
         
-        self.name = 'search'
+        self.name = 'find_sequence'
         self.description = (
             "description:" "\n"
             "  Search input FASTA for DNA sequence, and output a GFF file for use as input" "\n"
