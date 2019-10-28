@@ -40,104 +40,16 @@ class UNAFold(Oligo):
     logger = logger.getChild(__qualname__)
     
     def __init__(self):
-        super().__init__("UNAFold", "Markham, et al", 2008,
-            citation="Markham, et al. UNAFold: Software for Nucleic Acid Folding and Hybridization. Bioinformatics: Structure, Function and Applications. Humana Press. p.3-31 (2008)."
+        super().__init__(
+            name="UNAFold",
+            authors=['Markham, Nicholas R.', 'Zuker, Michael'],
+            title='UNAFold: Software for Nucleic Acid Folding and Hybridization',
+            journal='Bioinformatics: Structure, Function and Applications. Humana Press',
+            issuing='3-31',
+            year=2008,
+            doi='https://doi.org/10.1007/978-1-60327-429-6_1'
+            #citation="Markham, et al. UNAFold: Software for Nucleic Acid Folding and Hybridization. Bioinformatics: Structure, Function and Applications. Humana Press. p.3-31 (2008)."
         )
-    
-    # def weighted_scan(self, seq, side, *args, primer_sizes =(20, 21, 19, 22, 23, 18, 24, 25, 26), tm_range=(52, 68), **kwargs): ##### unfinished #####
-    #     """
-    #     New function to make list of all potential primers, but only
-    #     evaluate their 'weight' if they are good enough
-    #     """
-    #     good_primers = []
-    #     if (side in ['left', 'forward']):
-    #         for p_len in primer_sizes:
-    #             for pos in range(len(seq)-p_len+1):
-    #                 pf = seq[pos:pos+p_len]
-    #                 pf_results, o_a, o_aa, o_ar, pf_gc = self.check_potential_primer(pf, tm=tm_range)
-    #                 if self.summarize(pf_results):
-    #                     good_primers.append(Primer(sequence=pf, position=pos, strand='+', o_hairpin=o_a, o_self_dimer=o_aa, o_reverse_complement=o_ar, gc=pf_gc, checks=pf_results))
-    #     return good_primers
-    
-    def relaxing_scan(self, seq, side, *args, **kwargs): ##### unfinished #####
-        """
-        Repeatedly scans the region for primers. If no primers are found, then
-        the constraints are relaxed, and the region is scanned again.
-        Tries its best to find something.
-        """
-        range_primer_length = (18, 26)
-        range_tm = (55, 65)
-        min_delta_g = -3
-        range_last5gc_count =(1,3)
-        range_gc_clamp_length = (1,2)
-        range_gc = (0.25,0.75)
-        max_run_length = 4
-        
-        primer_set = []
-        max_retries = 10
-        retries = 0
-        while ((len(primer_set) == 0) and (retries < max_retries)):
-            primer_set = self.scan(seq, side, primer_size=range_primer_length, tm_range=range_tm)
-            range_primer_length[1] += 2
-            range_tm[0] -= 1
-            range_tm[1] += 1
-            range_gc[0] -= 0.05
-            range_gc[1] += 0.05
-            min_delta_g -= 1
-        return primer_set
-    
-    # def scan_sequence(self, seq, primer_size=(20,24), amplicon_size=(50,60)):
-    #     """
-    #     Finds optimal primer pairs for input sequence
-    #     """
-    #     # sliding window for F and R
-    #     good_forward = []
-    #     good_reverse = []
-    #     for p_len in range(primer_size[0], primer_size[1]+1):
-    #         if debug:
-    #             print(seq)
-    #         for pos in range(len(seq) - p_len+1):
-    #             pf = seq[pos:pos+p_len]
-    #             
-    #             # Check pf (constraints) & (self, homodimer, rc) to see if it is good.
-    #             pf_results, o_a, o_aa, o_ar, pf_gc = self.check_potential_primer(pf)
-    #             
-    #             if self.summarize(pf_results):
-    #                 good_forward.append(Primer(sequence=pf, position=pos, strand='+', o_hairpin=o_a, o_self_dimer=o_aa, o_reverse_complement=o_ar, gc=pf_gc, checks=pf_results))
-    #             
-    #             if debug:
-    #                 print(lr_justify(
-    #                     ' '*pos + pf,
-    #                     'fwd '+str(pf_results)
-    #                 ))
-    #             
-    #             pr = rc(pf)
-    #             # check pr (constraints) & (self, homodimer, rc) to see if it is good.
-    #             pr_results, o_b, o_bb, o_br, pr_gc = self.check_potential_primer(pr)
-    #                         
-    #             if self.summarize(pr_results):
-    #                 good_reverse.append(Primer(sequence=pr, position=pos, strand='-', o_hairpin=o_b, o_self_dimer=o_bb, o_reverse_complement=o_br, gc=pr_gc, checks=pr_results))
-    #             
-    #             if debug:
-    #                 print(lr_justify(
-    #                     ' '*pos + pr,
-    #                     'rev '+str(pr_results)
-    #                 ))
-    #     
-    #     # Filter pairs by amplicon size
-    #     good_pairs = []
-    #     for gf in good_forward:
-    #         for gr in good_reverse:
-    #             pp = PrimerPair(gf, gr, o_heterodimer=None, checks=None)
-    #             
-    #             if (amplicon_size[0] <= pp.get_amplicon_size() <= amplicon_size[1]):
-    #                 het_results, o_ab = self.check_potential_primer_pair(gf.sequence, gr.sequence, min(gf.o_reverse_complement).melting_temperature, min(gr.o_reverse_complement).melting_temperature)
-    #                 if self.summarize(het_results):
-    #                     pp.o_heterodimer = o_ab
-    #                     pp.checks = het_results
-    #                     good_pairs.append(pp)
-    #     
-    #     return good_pairs
     
     def find_structures(self, *args, **kwargs):
         """

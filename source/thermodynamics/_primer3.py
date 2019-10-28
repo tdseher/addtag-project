@@ -39,8 +39,15 @@ class Primer3(Oligo):
     logger = logger.getChild(__qualname__)
     
     def __init__(self):
-        super().__init__("Primer3", "Untergasser, et al", 2012,
-            citation="Untergasser, et al. Primer3--new capabilities and interfaces. Nucleic Acids Research 40(15): e115 (2012)"
+        super().__init__(
+            name="Primer3",
+            authors=['Untergasser, Andreas', 'Cutcutache, Ioana', 'Koressaar, Triinu', 'Ye, Jian', 'Faircloth, Brant C.', 'Remm, Maido', 'Rozen, Steven G.'],
+            title='Primer3--new capabilities and interfaces',
+            journal='Nucleic Acids Research',
+            issuing='40(15):e115',
+            year=2012,
+            doi='https://doi.org/10.1093/nar/gks596'
+            #citation="Untergasser, et al. Primer3--new capabilities and interfaces. Nucleic Acids Research 40(15): e115 (2012)"
         )
     
     @classmethod
@@ -72,7 +79,8 @@ class Primer3(Oligo):
             s = Structure(seq1, seq2, math.inf, math.inf, math.inf, math.inf, sodium, magnesium, temperature, concentration)
         
         return [s]
-    
+
+    # TODO: Either remove or re-incorporate using Primer3 to create 'PrimerPair' objects
     def scan_sequence(self, seq, primer_size=(18,26), amplicon_size=(50,60)):
         if (__name__ == "__main__"):
             from oligo import Primer, PrimerPair

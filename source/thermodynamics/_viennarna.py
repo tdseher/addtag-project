@@ -43,8 +43,15 @@ class ViennaRNA(Oligo):
     parameters = None
     
     def __init__(self):
-        super().__init__("ViennaRNA", "Lorenz, et al", 2011,
-            citation="Lorenz, et al. ViennaRNA Package 2.0. Algorithms for Molecular Biology 6:1, 26 (2011)."
+        super().__init__(
+            name='ViennaRNA',
+            authors=['Lorenz, Ronny', 'Bernhart, Stephan H.', 'Höner zu Siederdissen, Christian', 'Tafer, Hakim', 'Flamm, Christoph', 'Stadler, Peter F.', 'Hofacker, Ivo L.'],
+            title='ViennaRNA Package 2.0',
+            journal='Algorithms for Molecular Biology',
+            issuing='6(1):26',
+            year=2011,
+            doi='https://doi.org/10.1186/1748-7188-6-26'
+            #citation="Lorenz, et al. ViennaRNA Package 2.0. Algorithms for Molecular Biology 6:1, 26 (2011)."
         )
     
     @classmethod
@@ -136,7 +143,9 @@ class ViennaRNA(Oligo):
                     return ['{}={}'.format(par, val) for (par, val) in iterable]
                 else:
                     return [item for sublist in iterable for item in sublist]
-        
+
+        # RNAplex in 'probe mode' only calculates the reverse-complement Tm, and cannot
+        # calculate the hairpin, homodimer, or heterodimer Tms.
         options = OrderedDict([
             ('--paramFile', cls.parameters),
             ('--probe-mode', None),
@@ -206,8 +215,8 @@ def test():
     print('Reverse-complements: {} {}'.format(repr(a), repr(rc(a))))
     for s in C.find_structures(tempdir, a, rc(a)):
         print('', s)
-    
-    print('Tms:')
+
+    print('Reverse-complement Tms:')
     seqs = [a, b, c]
     tm_list = C.find_tms(seqs)
     for s, tm in zip(seqs, tm_list):
