@@ -8,12 +8,14 @@
 # Import standard packages
 import sys
 import os
+import shutil
 import subprocess
 
 # Import included AddTag-specific modules
 from . import subroutine
+from .subroutine import __repository__
 
-class ExtractParser(subroutine.Subroutine):
+class UpdateParser(subroutine.Subroutine):
     def __init__(self, subparsers):
         self.subparsers = subparsers
         
@@ -22,7 +24,7 @@ class ExtractParser(subroutine.Subroutine):
             "description:" "\n"
             "  Use the 'git' program to download the most recent version of" "\n"
             "  AddTag from the Git repository. Then update the software." "\n"
-            "  May require your Atlassian login credentials." "\n"
+            "  If the Git repository is private, it may request your login credentials." "\n"
         )
         self.help = "Update AddTag to the most recent version."
         self.epilog = (
@@ -48,7 +50,7 @@ class ExtractParser(subroutine.Subroutine):
         """
         Perform the update
         """
-        
+
         # Set the working directory as the AddTag folder.
         working_dir = os.path.realpath(os.path.join(os.path.dirname(__file__), '..', '..'))
         
@@ -59,33 +61,62 @@ class ExtractParser(subroutine.Subroutine):
             #print(cp.stdout.decode().splitlines())
         except FileNotFoundError:
             # If 'git' is not on PATH, then exit with a non-zero status
-            print("'git' program not found on PATH.", file=sys.stderr)
+            print("ERROR: 'git' program not found on PATH. No update performed.", file=sys.stderr)
             sys.exit(1)
+        except subprocess.CalledProcessError:
+            # This error occurrs if '.git' folder does not exist.
+            # If it doesn't, then the source should be checked out
+            print("WARNING: '.git' folder does not exist.')")
+            print("Running: '{}'".format('git clone {}'.format(__repository__)))
+            command_list = ['git', 'clone', __repository__, 'update']
+            cp = subprocess.run(command_list, cwd=working_dir, shell=False, check=True, stdout=subprocess.PIPE)
+            print("Moving '.git' folder")
+            shutil.move('update/.git', '.git')
+            print("Removing 'update' folder")
+            shutil.rmtree('update')
         
         # First, ask the user for confirmation (as their local files will may be re-written)
         user = input('Some local files may be removed or re-written. Proceed with update (y/n)? ')
         
         if (user in ['y', 'Y', 'yes', 'YES', 'Yes']):
             if args.discard_local_changes:
-                # If you want the newest version, but you made local changes, then you can first discard your changes, and then update. Use the following two commands from inside the `addtag-project/` folder.
+                # If you want the newest version, but you made local changes, then you can first discard your changes,
+                # and then update. Use the following two commands from inside the `addtag-project/` folder.
                 command_list = ['git', 'reset', '--hard']
+                print("Running: '{}'".format(' '.join(command_list)))
                 cp = subprocess.run(command_list, cwd=working_dir, shell=False, check=True, stdout=subprocess.PIPE)
+
                 command_list = ['git', 'pull']
+                print("Running: '{}'".format(' '.join(command_list)))
                 cp = subprocess.run(command_list, cwd=working_dir, shell=False, check=True, stdout=subprocess.PIPE)
             
             elif args.keep_local_changes:
-                # Alternatively, if you want to keep the local modifications, you can use stash to hide them away before pulling, then reapply them afterwards.
+                # Alternatively, if you want to keep the local modifications, you can use stash to hide them away
+                # before pulling, then reapply them afterwards.
                 command_list = ['git', 'stash']
+                print("Running: '{}'".format(' '.join(command_list)))
                 cp = subprocess.run(command_list, cwd=working_dir, shell=False, check=True, stdout=subprocess.PIPE)
+
                 command_list = ['git', 'pull']
+                print("Running: '{}'".format(' '.join(command_list)))
                 cp = subprocess.run(command_list, cwd=working_dir, shell=False, check=True, stdout=subprocess.PIPE)
+
                 command_list = ['git', 'stash', 'pop']
+                print("Running: '{}'".format(' '.join(command_list)))
                 cp = subprocess.run(command_list, cwd=working_dir, shell=False, check=True, stdout=subprocess.PIPE)
             
             else:
-                # If you would like to update your local copy to the newest version available, use the following command from within the `addtag-project/` directory.
-                command_list = ['git', 'pull']
-                cp = subprocess.run(command_list, cwd=working_dir, shell=False, check=True, stdout=subprocess.PIPE)
+                # If you would like to update your local copy to the newest version available, use the following
+                # command from within the `addtag-project/` directory.
+                try:
+                    command_list = ['git', 'pull']
+                    print("Running: '{}'".format(' '.join(command_list)))
+                    cp = subprocess.run(command_list, cwd=working_dir, shell=False, check=True, stdout=subprocess.PIPE)
+                except subprocess.CalledProcessError:
+                    print("ERROR: 'git pull' returned non-zero exit status.", file=sys.stderr)
+                    print("You may have local changes that must either be discarded or kept.", file=sys.stderr)
+                    print("Please see 'addtag update --help' for more information.", file=sys.stderr)
+                    sys.exit(1)
                 
                 # ./addtag update
                 # Some local files may be removed or re-written. Proceed with update (y/n)? y
@@ -113,12 +144,9 @@ class ExtractParser(subroutine.Subroutine):
                 #   File "/usr/lib/python3.5/subprocess.py", line 398, in run
                 #     output=stdout, stderr=stderr)
                 # subprocess.CalledProcessError: Command '['git', 'pull']' returned non-zero exit status 1
-
-                
                 
             print('Update finished.')
         else:
             print('No update performed.')
         
         # End 'compute()'
-        
