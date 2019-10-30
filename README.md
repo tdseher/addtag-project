@@ -224,18 +224,21 @@ Who do I talk to?
 See also the list of [contributors](https://github.com/tdseher/addtag-project/graphs/contributors) who participated in this project.
 
 ### ⚠ Issue reporting ###
-<details><summary>How do I submit bug reports?</summary><p>
+<details><summary>How do I submit bug reports?</summary>
+
 First, check to see if the problem you are having has already been added to the [issue tracker](https://github.com/tdseher/addtag-project/issues).
 If not, then please submit a new issue.
-</p></details>
+</details>
 
-<details><summary>How do I make a feature request?</summary><p>
+<details><summary>How do I make a feature request?</summary>
+
 Send a message to [@tdseher][tdseher].
-</p></details>
+</details>
 
-<details><summary>How do I add my code to the AddTag software?</summary><p>
+<details><summary>How do I add my code to the AddTag software?</summary>
+
 Please submit a [pull request](https://github.com/tdseher/addtag-project/pulls).
-</p></details>
+</details>
 
 ### Adding scoring Algorithms ###
 Scoring Algorithms have been broken down into two general types.
