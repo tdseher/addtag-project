@@ -17,7 +17,8 @@ Program for identifying exclusive endogenous gRNA sites and creating unique synt
 
 ## ☑ Features ##
 Basic Features:
- * [x] Find ![Target][Target]s with arbitrary SPACER≷PAM sequences and orientations
+ * [x] Find ![Target][Target]s with 5'-adjacent PAM (such as Cas12a) or 3'-adjacent PAM (Such as Cas9) sequences
+ * [x] Find ![Target][Target]s with arbitrary length ![Spacer][Spacer]s.
  * [x] Find the optimal ![Target][Target] within a ![Feature][Feature] (locus) of interest (multi-allelic, allele-specific, and allele-agnostic).
  * [x] Calculate **on-target** and **off-target** scores (see [Algorithms](#implemented-scoring-algorithms)).
  * [x] Generate unique ![Target][Target]s that don't resemble any genomic DNA (gDNA), thus maximizing **on-target** and **off-target** scores.
@@ -25,7 +26,7 @@ Basic Features:
  * [x] Perform *in silico* recombination between gDNA and exogenous, donor DNA (![dDNA][dDNA]).
  * [x] Find thermodynamic properties of arbitrary sets of ![Primer][Primer] pairs.
  * [x] See all known ![RGN][RGN] SPACER≷PAM motifs.
- * [x] Analyze gDNA with ambiguous characters or polymorphisms.
+ * [x] Analyze gDNA with ambiguous characters or polymorphisms (`RYMKWSBDHVN`).
  * [x] Find ![Spacer][Spacer]s and ![Primer][Primer]s while respecting case-masked gDNA.
  
 Advanced Features:
@@ -216,16 +217,25 @@ If you use AddTag for your research, please cite us.
 
 ## 👥 Contributing ##
 ### ✍ Authors ###
-💬 Who do I talk to?
+Who do I talk to?
  * Aaron Hernday (🔬 PI leading the project)
- * Thaddeus Seher (💻 programmer) ([@tdseher][tdseher])
+ * Thaddeus D. Seher (💻 programmer) (💬[@tdseher][tdseher])
 
 See also the list of [contributors](https://github.com/tdseher/addtag-project/graphs/contributors) who participated in this project.
 
 ### ⚠ Issue reporting ###
- * How do I submit bug reports?
- * How do I make a feature request?
- * How do I add my code to the AddTag software?
+<details><summary>How do I submit bug reports?</summary><p>
+First, check to see if the problem you are having has already been added to the [issue tracker](https://github.com/tdseher/addtag-project/issues).
+If not, then please submit a new issue.
+</p></details>
+
+<details><summary>How do I make a feature request?</summary><p>
+Send a message to [@tdseher][tdseher].
+</p></details>
+
+<details><summary>How do I add my code to the AddTag software?</summary><p>
+Please submit a [pull request](https://github.com/tdseher/addtag-project/pulls).
+</p></details>
 
 ### Adding scoring Algorithms ###
 Scoring Algorithms have been broken down into two general types.
