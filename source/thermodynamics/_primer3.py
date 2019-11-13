@@ -13,7 +13,6 @@ import importlib.util
 
 # Import non-standard packages
 import regex
-import primer3
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +63,8 @@ class Primer3(Oligo):
          * Homodimer   (2 identical input sequences: A=seq1=seq2, UNAFold run on A & A)
          * Heterodimer (2 input sequences: A=seq1 B=seq2, UNAFold run on A & B)
         """
+        import primer3
+
         mv_conc = sodium*1000 # 50.0 # in mM
         dv_conc = magnesium*1000 # 0.0 # in mM
         dntp_conc = 0.6 # in mM
@@ -90,7 +91,9 @@ class Primer3(Oligo):
             from oligo import Primer, PrimerPair
         else:
             from .oligo import Primer, PrimerPair
-        
+
+        import primer3
+
         number_records = 20
         
         mv_conc = 50.0 # in mM
