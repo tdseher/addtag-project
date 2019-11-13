@@ -208,36 +208,38 @@ The following scoring algorithms are subclasses of `PairedSequenceAlgorithm`.
 
 ## 🌡 Implemented thermodynamics calculators ##
 
-* Primer3
-* UNAFold
-* ViennaRNA
+ * Primer3
+ * UNAFold
+ * ViennaRNA
 
 ## 📝 Citing AddTag ##
 If you use AddTag for your research, please cite us.
 
-## 👥 Contributing ##
-### ✍ Authors ###
+## ✍ Authors ##
 Who do I talk to?
  * Aaron Hernday (🔬 PI leading the project)
  * Thaddeus D. Seher (💻 programmer) (💬[@tdseher][tdseher])
 
 See also the list of [contributors](https://github.com/tdseher/addtag-project/graphs/contributors) who participated in this project.
 
-### ⚠ Issue reporting ###
-<details><summary>How do I submit bug reports?</summary>
+## 👥 Contributing ##
+<details>
+  <summary>🐞 How do I submit a bug report?</summary>
 
-First, check to see if the problem you are having has already been added to the [issue tracker](https://github.com/tdseher/addtag-project/issues).
-If not, then please submit a new issue.
+  First, check to see if the problem you are having has already been added to the [issue tracker](https://github.com/tdseher/addtag-project/issues).
+  If not, then please submit a new issue.
 </details>
 
-<details><summary>How do I make a feature request?</summary>
+<details>
+  <summary>⚠ How do I make a feature request?</summary>
 
-Send a message to [@tdseher][tdseher].
+  Send a message to [@tdseher][tdseher].
 </details>
 
-<details><summary>How do I add my code to the AddTag software?</summary>
+<details>
+  <summary>⤴ How do I add my code to the AddTag software?</summary>
 
-Please submit a [pull request](https://github.com/tdseher/addtag-project/pulls).
+  Please submit a [pull request](https://github.com/tdseher/addtag-project/pulls).
 </details>
 
 ### Adding scoring Algorithms ###
