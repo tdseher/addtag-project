@@ -33,8 +33,10 @@ if (__name__ == "__main__"):
     sys.path.append(os.path.normpath(os.path.join(SCRIPT_DIR, PACKAGE_PARENT)))
     
     from nucleotides import rc
+    from utils import which
 else:
     from ..nucleotides import rc
+    from ..utils import which
 
 class UNAFold(Oligo):
     logger = logger.getChild(__qualname__)
@@ -50,7 +52,10 @@ class UNAFold(Oligo):
             doi='https://doi.org/10.1007/978-1-60327-429-6_1'
             #citation="Markham, et al. UNAFold: Software for Nucleic Acid Folding and Hybridization. Bioinformatics: Structure, Function and Applications. Humana Press. p.3-31 (2008)."
         )
-    
+
+        if all([which(x) for x in ['UNAFold.pl', 'hybrid-ss-min', 'hybrid-min', 'ct-energy']]):
+            self.available = True
+
     def find_structures(self, *args, **kwargs):
         """
         Should return the list of structures with delta-G values.

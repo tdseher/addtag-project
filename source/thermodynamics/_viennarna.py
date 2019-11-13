@@ -11,6 +11,7 @@ import logging
 import math
 import subprocess
 from collections import OrderedDict
+import importlib.util
 
 # Import non-standard packages
 import regex
@@ -53,6 +54,9 @@ class ViennaRNA(Oligo):
             doi='https://doi.org/10.1186/1748-7188-6-26'
             #citation="Lorenz, et al. ViennaRNA Package 2.0. Algorithms for Molecular Biology 6:1, 26 (2011)."
         )
+        spec = importlib.util.find_spec('RNA')
+        if spec:
+            self.available = True
     
     @classmethod
     def parameter_path(cls):
