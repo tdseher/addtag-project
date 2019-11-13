@@ -1,0 +1,50 @@
+# Scoring matrix of log-likelihood ratios with weights for
+# transitions/transversions, gap penalties, etc
+# query	subject	type	score
+# Matches
+A	A		1
+C	C		1
+G	G		1
+T	T		1
+# BWA does not appear to penalize transversions more than transitions.
+# Transitions (Purines: A<->G, Pyrimidines: C<->T)
+# Purines
+A	G		-3
+G	A		-3
+# Pyrimidines
+C	T		-3
+T	C		-3
+# Transversions
+# Weak
+A	T		-3
+T	A		-3
+# Strong
+C	G		-3
+G	C		-3
+# Amino
+A	C		-3
+C	A		-3
+# Keto
+G	T		-3
+T	G		-3
+# Insertions
+-	A	open	-11
+-	C	open	-11
+-	G	open	-11
+-	T	open	-11
+-	A	extend	-4
+-	C	extend	-4
+-	G	extend	-4
+-	T	extend	-4
+# Deletions
+A	-	open	-11
+C	-	open	-11
+G	-	open	-11
+T	-	open	-11
+A	-	extend	-4
+C	-	extend	-4
+G	-	extend	-4
+T	-	extend	-4
+# Gaps should never be aligned to each other
+-	-	open	-11
+-	-	extend	-4

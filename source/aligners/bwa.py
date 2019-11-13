@@ -5,121 +5,277 @@
 # source/aligners/bwa.py
 
 # List general Python imports
-import sys
 import os
-import subprocess
+from collections import OrderedDict
+import logging
+logger = logging.getLogger(__name__)
 
-# import non-standard package
+# Import non-standard packages
 import regex
 
 # import AddTag-specific packages
-from .. import utils
+from .aligner import Aligner, Record
+from ..cigarstrings import cigar2query_position, cigar2query_aligned_length, cigar2subject_aligned_length, cigar2score, specificate_cigar, collapse_cigar
+from ..utils import old_load_fasta_file, which
+from ..evalues import EstimateVariables, load_scores
+from ..nucleotides import rc
 
-def index_reference():
-    pass
+class Bwa(Aligner):
+    logger = logger.getChild(__qualname__)
 
-def align():
-    pass
+    def __init__(self):
+        super().__init__(
+            name="bwa",
+            authors=['Li, Heng', 'Durbin, Richard'],
+            title='Fast and accurate short read alignment with Burrows–Wheeler transform',
+            journal='Bioinformatics',
+            issuing='25(14):1754-1760',
+            year=2009,
+            doi='https://doi.org/10.1093/bioinformatics/btp324',
+            input='fasta', # 'fastq',
+            output='sam',
+            truncated=False,
+            classification='pairwise'
+        )
+        self.score_matrix = {}
+        self.ev = {}
+        self.references = {}
 
-# Code from CRISPOR
-def findOfftargetsBwa(queue, batchId, batchBase, faFname, genome, pam, bedFname):
-    " align faFname to genome and create matchedBedFname "
+    def is_available(self):
+        if which('bwa'):
+            return True
+        else:
+            return False
+
+    def index(self, fasta, output_prefix, output_folder, threads, *args, **kwargs):
+        """
+        Call 'bwa index' on non-compressed FASTA file.
+
+        The indexed FASTA will be stored in 'folder'.
+        The 'fasta' basename will be used as both 'folder' and index name.
+
+        Additionally, compute the Karlin-Altschul statistics parameters
+        necessary for E-value calculations
+        """
+        # Karlin-Altschul calculations
+        score_matrix = load_scores(os.path.join(os.path.dirname(__file__), 'bwa_scores.txt'))
+        scontigs = old_load_fasta_file(fasta)
+        ev = EstimateVariables(score_matrix, scontigs)
+
+        # Find the FASTA basename
+        #name = os.path.splitext(os.path.basename(output_filename))[0]
+        name = output_prefix
+
+        # Make the directory if it does not yet exist
+        os.makedirs(os.path.join(output_folder, name), exist_ok=True)
+
+        index_file = os.path.join(output_folder, name, name)
+
+        options = OrderedDict([
+            ('index', None), # Command
+            ('-p', index_file), # Prefix of the output database [same as db filename]
+            ('-a', 'is'), # Algorithm for constructing BWT index
+            (fasta, None),
+            #(index_file, None),
+        ])
+        outpath = self.process('bwa', index_file, options)
+        
+        self.ev[outpath] = ev
+        self.score_matrix[outpath] = score_matrix
+        self.references[outpath] = scontigs
+        
+        return outpath
+        
+    def align(self, query, subject, output_prefix, output_folder, threads, *args, **kwargs):
+        '''
+        Align the query file to the subject file.
+        :param query: The path of the FASTQ to align
+        :param subject: The path of the BWA index prefix
+        :param output_filename: The path of the SAM file to generate
+        :param output_folder: The directory to store the generated SAM file
+        :param threads: Number of processors to use
+        :return: The path of the SAM file generated
+        '''
+        
+        #output_basename = os.path.splitext(os.path.basename(output_filename))[0]
+        output_basepath = os.path.join(output_folder, output_prefix)
+        output_sai_path = output_basepath + '.sai'
+        output_sam_path = output_basepath + '.sam'
+        
+        #output_filename_path = os.path.join(output_folder, output_filename)
+        options = OrderedDict([
+            ('aln', None),           # Command
+            ('-n', 5),               # docs: [-n maxDiff] Maximum edit distance if the value is INT, or the fraction
+                                     #       of missing alignments given 2% uniform base error rate if FLOAT.
+                                     #       In the latter case, the maximum edit distance is automatically
+                                     #       chosen for different read lengths. [0.04]
+                                     # bin: max #diff (int) or missing prob under 0.02 err rate (float) [-1.00]
+            ('-o', 1),               # Maximum number or fraction of gap opens [1]
+            ('-e', -1),              # Maximum number of gap extensions, -1 for k-difference mode
+                                     # (disallowing long gaps) [-1]
+            ('-i', 0),               # Disallow an indel within INT bp towards the ends [5]
+            ('-d', 10),              # docs: Disallow a long deletion within INT bp towards the 3’-end [16]
+                                     # bin: maximum occurrences for extending a long deletion [10]
+            ('-l', 0),               # docs: Take the first INT subsequence as seed. If INT is larger than the query
+                                     #       sequence, seeding will be disabled. For long reads, this option is
+                                     #       typically ranged from 25 to 35 for '-k 2'. [inf]
+                                     # bin: seed length [0]
+            ('-k', 5),               # docs: Maximum edit distance in the seed [2]
+                                     # bin: maximum differences in the seed [5]
+            ('-t', threads),         # Number of threads (multi-threading mode) [1]
+            ('-M', 3),               # [-M misMsc] Mismatch penalty. BWA will not search for suboptimal hits
+                                     # with a score lower than (bestScore-misMsc). [3]
+            ('-O', 11),              # Gap open penalty [11]
+            ('-E', 4),               # Gap extension penalty [4]
+            ('-N', None),            # docs: Disable iterative search. All hits with no more than maxDiff
+                                     #       differences will be found. This mode is much slower than the default.
+                                     # bin: non-iterative mode: search for all n-difference hits (slooow)
+            ('-f', output_sai_path), # SAI output file to write output to instead of STDOUT
+            (subject, None),         # Prefix path of BWA index
+            (query, None),           # FASTQ with unaligned reads
+        ])
+        
+        outpath1 = self.process('bwa', output_sai_path, options)
+        
+        options = OrderedDict([
+            ('samse', None),            # Command
+            ('-n', 1000000),            # Maximum number of alignments to output in the XA tag for reads paired
+                                        # properly. If a read has more than INT hits, the XA tag will not be
+                                        # written. [3]
+            ('-f', output_sam_path),    # Write SAM to this file instead of STDOUT
+            (subject, None),            # Prefix path of BWA index
+            (output_sai_path, None),    # SAI file
+            (query, None),              # FASTQ with unaligned reads
+        ])
+        
+        outpath2 = self.process('bwa', output_sam_path, options, append=True)
+        
+        # Add the output file as an additional key pointing to this database
+        self.ev[outpath2] = self.ev[subject]
+        self.score_matrix[outpath2] = self.score_matrix[subject]
+        self.references[outpath2] = self.references[subject]
+        
+        return outpath2
     
-    # BWA: allow up to X mismatches
-    maxMMs=4
+    def load(self, filename, *args, **kwargs):
+        '''
+        Yields records from the input SAM file, one at a time.
+        BWA SAM files can have multiple Records per line. Thus, each line is parsed to retrieve the list of Records.
+        :param filename: Path of the file to create Records from
+        :param args:
+        :param kwargs: 
+        :return: Yields either the next Record, or a StopIteration Exception if no more alignments
+        '''
+        with open(filename) as flo:
+            for line in flo:
+                # Ignore header lines in SAM file
+                if not line.startswith('@'):
+                    # Remove newline character from end of line
+                    # Split SAM record str into a list
+                    sline = line.rstrip().split("\t")
+                    
+                    # Require the line to have a record (not a blank line)
+                    # Require the record to align to a contig
+                    if ((len(sline) > 5) and (sline[2] != '*')):
+                        
+                        # parse the line
+                        plines = self.parse_line(line)
+                        for pline in plines:
+                            yield self.create_record(pline, filename)
     
-    # maximum number of occurences in the genome to get flagged as repeats. 
-    # This is used in bwa samse, when converting the same file
-    # and for warnings in the table output.
-    MAXOCC = 60000
+    def create_record(self, sline, filename):
+        '''
+        Converts a split line from a SAM file into a Record object
+        :param sline: line.rstrip().split('\t')
+        :return: a Record object
+        '''
+        # Find evalue of the alignment
+        ev = self.ev[filename]
+        score_matrix = self.score_matrix[filename]
+        
+        # TODO: We store an entire copy of the genome in memory, just in order to get better
+        #       CIGAR strings so we can get accurate 'evalue's. This a waste of computing resources!
+        qseq = sline[9]
+        sstart, send = (int(sline[3])-1, int(sline[3])-1+cigar2subject_aligned_length(sline[5]))
+        sseq = self.references[filename][sline[2]][sstart:send]
+        cigar = collapse_cigar(specificate_cigar(sline[5], qseq, sseq))
+        ##### End #####
+        
+        cigar_score = cigar2score(cigar, score_matrix)
+        evalue = ev.calculate_evalue(cigar_score, sline[9])
+        
+        # Build Record
+        record = Record(
+            sline[0], sline[2], # query_name, subject_name,
+            sline[9], None, # query_sequence, subject_sequence,
+            cigar2query_position(sline[5]), (int(sline[3])-1, int(sline[3])-1+cigar2subject_aligned_length(sline[5])), # query_position, subject_position,
+            cigar2query_aligned_length(sline[5]), cigar2subject_aligned_length(sline[5]), # query_length, subject_length,
+            int(sline[1]), cigar, float(sline[4]), evalue, None # flags, cigar, score, evalue, length
+        )
+        
+        # Return the processed Record
+        return record
     
-    # the BWA queue size is 2M by default. We derive the queue size from MAXOCC
-    MFAC = 2000000/MAXOCC
-    
-    # minimum off-target score for alternative PAM off-targets
-    # There is not a lot of data to support this cutoff, but it seems
-    # reasonable to have at least some cutoff, as otherwise we would show
-    # NAG and NGA like NGG and the data shows clearly that the alternative
-    # PAMs are not recognized as well as the main NGG PAM.
-    # so for now, I just filter out very degenerative ones. the best solution
-    # would be to have a special penalty on the CFD score, but CFS does not 
-    # support non-NGG PAMs (is this actually true?)
-    ALTPAMMINSCORE = 1.0
-    
-    matchesBedFname = batchBase+".matches.bed"
-    saFname = batchBase+".sa"
-    pamLen = len(pam)
-    genomeDir = genomesDir # make var local, see below
-
-    open(matchesBedFname, "w") # truncate to 0 size
-
-    # increase MAXOCC if there is only a single query, but only in CGI mode
-    #if len(parseFasta(open(faFname)))==1 and not commandLineMode:
-        #global MAXOCC
-        #global maxMMs
-        #MAXOCC=max(HIGH_MAXOCC, MAXOCC)
-        #maxMMs=HIGH_maxMMs
-
-    maxDiff = maxMMs
-    queue.startStep(batchId, "bwa", "Alignment of potential guides, mismatches <= %d" % maxDiff)
-    convertMsg = "Converting alignments"
-    seqLen = GUIDELEN
-
-    bwaM = MFAC*MAXOCC # -m is queue size in bwa
-    cmd = "$BIN/bwa aln -o 0 -m %(bwaM)s -n %(maxDiff)d -k %(maxDiff)d -N -l %(seqLen)d %(genomeDir)s/%(genome)s/%(genome)s.fa %(faFname)s > %(saFname)s" % locals()
-    runCmd(cmd)
-
-    queue.startStep(batchId, "saiToBed", convertMsg)
-    maxOcc = MAXOCC # create local var from global
-    # EXTRACTION OF POSITIONS + CONVERSION + SORT/CLIP
-    # the sorting should improve the twoBitToFa runtime
-    cmd = "$BIN/bwa samse -n %(maxOcc)d %(genomeDir)s/%(genome)s/%(genome)s.fa %(saFname)s %(faFname)s | $SCRIPT/xa2multi.pl | $SCRIPT/samToBed %(pam)s | sort -k1,1 -k2,2n | $BIN/bedClip stdin %(genomeDir)s/%(genome)s/%(genome)s.sizes stdout >> %(matchesBedFname)s " % locals()
-    runCmd(cmd)
-
-    # arguments: guideSeq, mainPat, altPats, altScore, passX1Score
-    filtMatchesBedFname = batchBase+".filtMatches.bed"
-    queue.startStep(batchId, "filter", "Removing matches without a PAM motif")
-    altPats = ",".join(offtargetPams.get(pam, ["na"]))
-    bedFnameTmp = bedFname+".tmp"
-    altPamMinScore = str(ALTPAMMINSCORE)
-    # EXTRACTION OF SEQUENCES + ANNOTATION
-    # twoBitToFa was 15x slower than python's twobitreader, after markd's fix it should be OK
-    cmd = "$BIN/twoBitToFa %(genomeDir)s/%(genome)s/%(genome)s.2bit stdout -bed=%(matchesBedFname)s | $SCRIPT/filterFaToBed %(faFname)s %(pam)s %(altPats)s %(altPamMinScore)s %(maxOcc)d > %(filtMatchesBedFname)s" % locals()
-    #cmd = "$SCRIPT/twoBitToFaPython %(genomeDir)s/%(genome)s/%(genome)s.2bit %(matchesBedFname)s | $SCRIPT/filterFaToBed %(faFname)s %(pam)s %(altPats)s %(altPamMinScore)s %(maxOcc)d > %(filtMatchesBedFname)s" % locals()
-    runCmd(cmd)
-
-    segFname = "%(genomeDir)s/%(genome)s/%(genome)s.segments.bed" % locals()
-
-    # if we have gene model segments, annotate them, otherwise just use the chrom position
-    if isfile(segFname):
-        queue.startStep(batchId, "genes", "Annotating matches with genes")
-        cmd = "cat %(filtMatchesBedFname)s | $BIN/overlapSelect %(segFname)s stdin stdout -mergeOutput -selectFmt=bed -inFmt=bed | cut -f1,2,3,4,8 2> %(batchBase)s.log > %(bedFnameTmp)s " % locals()
-        runCmd(cmd)
-    else:
-        queue.startStep(batchId, "chromPos", "Annotating matches with chromosome position")
-        annotateBedWithPos(filtMatchesBedFname, bedFnameTmp)
-
-    # make sure the final bed file is never in a half-written state, 
-    # as it is our signal that the job is complete
-    shutil.move(bedFnameTmp, bedFname)
-    queue.startStep(batchId, "done", "Job completed")
-
-    # remove the temporary files
-    tempFnames = [saFname, matchesBedFname, filtMatchesBedFname]
-    for tfn in tempFnames:
-        os.remove(tfn)
-    return bedFname
-
-def cleanup():
-    pass
-
-def test():
-    """Code to test the classes and functions in 'source/bwa.py'"""
-    
-    print("=== index_reference ===")
-    
-    print("=== align ===")
-    
-
-if (__name__ == '__main__'):
-    test()
+    def parse_line(self, line, outfmt=list):
+        '''
+        Decode the 'XA' tag of BWA SAM files
+        Returns same output as 'xa2multi.pl' from BWA
+        :param line: line of text to parse
+        :return: list of lines
+        '''
+        
+        # List to store output lines
+        output = []
+        
+        sline = line.rstrip().split('\t')
+        
+        if issubclass(outfmt, list):
+            output.append(sline)
+        else:
+            output.append(line)
+        
+        #xa = None
+        #xai = None
+        #for i, field in enumerate(sline[11:]):
+        #    xa = regex.search(r'XA:Z:(\S+)', field)
+        #    if xa:
+        #        xai = 11+i
+        #        break
+        
+        xa = regex.search(r'XA:Z:(\S+)', line)
+        
+        if xa:
+            #output.append(sline[:xai] + sline[xai+1:])
+            
+            for m in regex.finditer(r'([^,;]+),([-+]\d+),([^,]+),(\d+);', xa.group(1)):
+                contig, pos, cigar, errors = m.groups()
+                pos = int(pos)
+                
+                # TODO: Add Insert size calculation (sline[8] = TLEN/ISIZE)
+                #if (sline[6] == contig):
+                #    my_chr = '='
+                #else:
+                #    my_chr = sline[6]
+                insert = 0
+                
+                seq = sline[9]
+                qual = sline[10]
+                
+                # If alternative alignment has other orientation than primary,
+                # then print the reverse (complement) of sequence and phred string
+                
+                flag = 0x100 # Mark as non-primary/supplementary alignment
+                if ((pos < 0) ^ ((int(sline[1]) & 0x10)>0)): # If either (pos < 0) OR (read maps in '-' orientation), but not both, and not neither
+                    seq = rc(seq)
+                    qual = qual[::-1]
+                flag |= (int(sline[1]) & 0b111011101001) # Inherit all flags from primary alignment except 0x10 and 0x100
+                if (pos < 0):
+                    flag |= 0x10 # Mark as '-' strand
+                
+                if issubclass(outfmt, list):
+                    output.append([sline[0], flag, contig, abs(pos), 0, cigar, sline[6], sline[7], insert, seq, qual, 'NM:i:'+errors])
+                else:
+                    output.append('\t'.join(map(str, [sline[0], flag, contig, abs(pos), 0, cigar, sline[6], sline[7], insert, seq, qual, 'NM:i:'+errors])))
+        
+        # Return the list of lines/slines
+        return output

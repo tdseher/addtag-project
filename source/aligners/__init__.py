@@ -23,7 +23,7 @@ exclusions = [
     'blat.py',
     'bowtie.py',
 #    'bowtie2.py',
-    'bwa.py',
+#    'bwa.py',
     'casoffinder.py',
     'casot.py',
     'hyperscan.py',

@@ -342,7 +342,7 @@ class GeneratePrimersParser(subroutine.Subroutine):
             dDNA_fasta_file_list.append(utils.write_merged_fasta(dDNA_contigs_list[r], os.path.join(args.folder, 'dDNA-r'+str(r)+'.fasta')))
             
             # We align dDNA against the genome+dDNA(prev)
-            dDNA_alignment_file_list.append(args.selected_aligner.align(dDNA_fasta_file_list[r], genome_index_file, 'dDNA-r'+str(r)+'-alignment.'+args.selected_aligner.output, args.folder, args.processors))
+            dDNA_alignment_file_list.append(args.selected_aligner.align(dDNA_fasta_file_list[r], genome_index_file, 'dDNA-r'+str(r)+'-alignment', args.folder, args.processors))
             
             # Parse the alignment to make an intermediary record data structure
             records = self.filter_alignment_records_for_cPCR(args, dDNA_alignment_file_list[r], dDNA_contigs_list[r])
@@ -562,7 +562,7 @@ class GeneratePrimersParser(subroutine.Subroutine):
             
             # Align each dDNA to the genome it produced
             genome_index_file = args.selected_aligner.index(genome_fasta_file_list[r], os.path.basename(genome_fasta_file_list[r]), args.folder, args.processors)
-            temp_alignment = args.selected_aligner.align(dDNA_fasta_file_list[r], genome_index_file, 'dDNA-temp-r'+str(r)+'-alignment.'+args.selected_aligner.output, args.folder, args.processors)
+            temp_alignment = args.selected_aligner.align(dDNA_fasta_file_list[r], genome_index_file, 'dDNA-temp-r'+str(r)+'-alignment', args.folder, args.processors)
             
             # Parse the alignment to make an intermediary record data structure
             records = self.filter_alignment_records2(args, temp_alignment, dDNA_contigs_list[r])
@@ -3141,40 +3141,34 @@ class GeneratePrimersParser(subroutine.Subroutine):
         records = {}
         
         # Read the alignment file
-        with open(alignment_filename, 'r') as flo:
-            record = None
-            while True:
-                record = args.selected_aligner.load_record(flo)
-                if (record == None):
-                    break
-                else:
-                    # Process the record
-                    # Require certain e-value and length for a "significant" alignment
-                    if ((record.evalue <= args.max_evalue) and (record.length >= args.min_length)):
-                        # Require alignment to occur at the termini of the query (either at the extreme beginning, or extreme end)
-                        #if ((record.query_position[0] < permitted_edge) or (record.query_position[1] > len(dDNA_contigs[record.query_name])-permitted_edge)):
-                        #    records.setdefault((record.query_name, record.subject_name), []).append(record)
-                        qs_pair = (record.query_name, record.subject_name)
-                        
-                        # If the alignment is on the edges of the query
-                        if ((record.query_position[0] < permitted_edge) or (record.query_position[1] > len(dDNA_contigs[record.query_name])-permitted_edge)):
-                            if (qs_pair not in records):
-                                records[qs_pair] = [None, None]
-                        
-                        # Arrange the records according to their flanking: records[(qname, sname)] = [left_record, right_record]
-                        if (record.query_position[0] < permitted_edge): # left
-                            if (records[qs_pair][0] == None):
-                                records[qs_pair][0] = record
-                            else:
-                                self.logger.info(str(qs_pair) + ' has too many valid alignments')
-                                invalid_records.add(qs_pair)
-                        
-                        elif (record.query_position[1] > len(dDNA_contigs[record.query_name])-permitted_edge): # right
-                            if (records[qs_pair][1] == None):
-                                records[qs_pair][1] = record
-                            else:
-                                self.logger.info(str(qs_pair) + ' has too many valid alignments')
-                                invalid_records.add(qs_pair)
+        for record in args.selected_aligner.load(alignment_filename):
+            # Process the record
+            # Require certain e-value and length for a "significant" alignment
+            if ((record.evalue <= args.max_evalue) and (record.length >= args.min_length)):
+                # Require alignment to occur at the termini of the query (either at the extreme beginning, or extreme end)
+                #if ((record.query_position[0] < permitted_edge) or (record.query_position[1] > len(dDNA_contigs[record.query_name])-permitted_edge)):
+                #    records.setdefault((record.query_name, record.subject_name), []).append(record)
+                qs_pair = (record.query_name, record.subject_name)
+                
+                # If the alignment is on the edges of the query
+                if ((record.query_position[0] < permitted_edge) or (record.query_position[1] > len(dDNA_contigs[record.query_name])-permitted_edge)):
+                    if (qs_pair not in records):
+                        records[qs_pair] = [None, None]
+                
+                # Arrange the records according to their flanking: records[(qname, sname)] = [left_record, right_record]
+                if (record.query_position[0] < permitted_edge): # left
+                    if (records[qs_pair][0] == None):
+                        records[qs_pair][0] = record
+                    else:
+                        self.logger.info(str(qs_pair) + ' has too many valid alignments')
+                        invalid_records.add(qs_pair)
+                
+                elif (record.query_position[1] > len(dDNA_contigs[record.query_name])-permitted_edge): # right
+                    if (records[qs_pair][1] == None):
+                        records[qs_pair][1] = record
+                    else:
+                        self.logger.info(str(qs_pair) + ' has too many valid alignments')
+                        invalid_records.add(qs_pair)
         
         self.logger.info("before filtering:")
         for kkk, vvv in records.items():
@@ -3206,28 +3200,23 @@ class GeneratePrimersParser(subroutine.Subroutine):
         invalid_records = set()
         
         # Read the alignment file
-        with open(alignment_filename, 'r') as flo:
-            record = None
-            while True:
-                record = args.selected_aligner.load_record(flo)
-                if (record == None):
-                    break
-                else:
-                    # Process the record
-                    # Require certain e-value and length for a "significant" alignment
-                    if ((record.evalue <= args.max_evalue) and (record.length >= args.min_length)):
-                        # Require alignment to occur at the termini of the query (either at the extreme beginning, or extreme end)
-                        #if ((record.query_position[0] < permitted_edge) or (record.query_position[1] > len(dDNA_contigs[record.query_name])-permitted_edge)):
-                        #    records.setdefault((record.query_name, record.subject_name), []).append(record)
-                        qs_pair = (record.query_name, record.subject_name)
-                        
-                        # The entire query should align to the subject
-                        if (record.query_position[0] < permitted_edge < len(dDNA_contigs[record.query_name])-permitted_edge < record.query_position[1]):
-                            if (qs_pair not in records):
-                                records[qs_pair] = record
-                            else:
-                                self.logger.info(str(qs_pair) + ' has too many valid alignments')
-                                invalid_records.add(qs_pair)
+        for record in args.selected_aligner.load(alignment_filename):
+            # Process the record
+            # Require certain e-value and length for a "significant" alignment
+            if ((record.evalue <= args.max_evalue) and (record.length >= args.min_length)):
+                # Require alignment to occur at the termini of the query (either at the extreme beginning, or extreme end)
+                #if ((record.query_position[0] < permitted_edge) or (record.query_position[1] > len(dDNA_contigs[record.query_name])-permitted_edge)):
+                #    records.setdefault((record.query_name, record.subject_name), []).append(record)
+                qs_pair = (record.query_name, record.subject_name)
+                
+                # The entire query should align to the subject
+                if (record.query_position[0] < permitted_edge < len(dDNA_contigs[record.query_name])-permitted_edge < record.query_position[1]):
+                    if (qs_pair not in records):
+                        records[qs_pair] = record
+                    else:
+                        self.logger.info(str(qs_pair) + ' has too many valid alignments')
+                        invalid_records.add(qs_pair)
+        
         for bad_qs_pair in invalid_records:
             records.pop(bad_qs_pair)
             self.logger.info('Removing invalid record: ' + str(bad_qs_pair))

@@ -5,40 +5,16 @@
 # source/aligners/bowtie2.py
 
 # List general Python imports
-import sys
 import os
-import subprocess
 from collections import OrderedDict
 import logging
 logger = logging.getLogger(__name__)
 
-# import non-standard package
-import regex
-
 # import AddTag-specific packages
-#from .. import utils
-
-if (__name__ == "__main__"):
-    from aligner import Aligner, Record
-else:
-    from .aligner import Aligner, Record
-
-# Treat modules in PACKAGE_PARENT as in working directory
-if (__name__ == "__main__"):
-    # Relative path for package to import
-    PACKAGE_PARENT = '..'
-    # Obtain path of currently-running file
-    SCRIPT_DIR = os.path.dirname(os.path.realpath(os.path.join(os.getcwd(), os.path.expanduser(__file__))))
-    # Convert to absolute path, and add to the PYTHONPATH
-    sys.path.append(os.path.normpath(os.path.join(SCRIPT_DIR, PACKAGE_PARENT)))
-    
-    from cigarstrings import sam_orientation, cigar2query_position, cigar2query_aligned_length, cigar2subject_aligned_length, cigar2score
-    from utils import old_load_fasta_file
-    from evalues import EstimateVariables, load_scores
-else:
-    from ..cigarstrings import sam_orientation, cigar2query_position, cigar2query_aligned_length, cigar2subject_aligned_length, cigar2score
-    from ..utils import old_load_fasta_file
-    from ..evalues import EstimateVariables, load_scores
+from .aligner import Aligner, Record
+from ..cigarstrings import sam_orientation, cigar2query_position, cigar2query_aligned_length, cigar2subject_aligned_length, cigar2score
+from ..utils import old_load_fasta_file, which
+from ..evalues import EstimateVariables, load_scores
 
 class Bowtie2(Aligner):
     logger = logger.getChild(__qualname__)
@@ -60,9 +36,14 @@ class Bowtie2(Aligner):
         )
         self.score_matrix = {}
         self.ev = {}
-        self.current_file = None
-    
-    def index(self, fasta, output_filename, output_folder, threads, *args, **kwargs):
+
+    def is_available(self):
+        if all([which(x) for x in ['bowtie2-build', 'bowtie2']]):
+            return True
+        else:
+            return False
+
+    def index(self, fasta, output_prefix, output_folder, threads, *args, **kwargs):
         """
         Call bowtie2-build on non-compressed FASTA file.
         
@@ -81,7 +62,8 @@ class Bowtie2(Aligner):
         # threads=(os.cpu_count() or 1)
         
         # Find the FASTA basename
-        name = os.path.splitext(os.path.basename(output_filename))[0]
+        #name = os.path.splitext(os.path.basename(output_filename))[0]
+        name = output_prefix
         
         # Make the directory if it does not yet exist
         #try:
@@ -104,8 +86,8 @@ class Bowtie2(Aligner):
         self.score_matrix[outpath] = score_matrix
         
         return outpath
-    
-    def align(self, query, subject, output_filename, output_folder, threads, *args, **kwargs):
+
+    def align(self, query, subject, output_prefix, output_folder, threads, *args, **kwargs):
         """
         Align the query file to the subject file.
         
@@ -114,13 +96,13 @@ class Bowtie2(Aligner):
         
         Returns the path of the SAM file generated
         """
-        output_filename_path = os.path.join(output_folder, output_filename)
+        output_filename_path = os.path.join(output_folder, output_prefix + '.' + self.output)
         options = OrderedDict([
             ('-p', threads), # Number of processors to use
             ('-S', output_filename_path), # sam file,
             ('-x', subject), # Path to the index prefix (excludes file extensions)
             ('-U', query),
-            ('-k', 25), # specifies the maximum number of alignments per sequence to return
+            ('-k', 100), # specifies the maximum number of alignments per sequence to return
             ('-N', 1), # Sets the number of mismatches to allowed in a seed alignment
                        # during multiseed alignment. Can be set to 0 or 1. Setting
                        # this higher makes alignment slower (often much slower) but
@@ -169,23 +151,14 @@ class Bowtie2(Aligner):
         
         return outpath
     
-    #def load_file(self, filename, *args, **kwargs):
-    #    """
-    #    Function to prepare an iterator for the SAM file
-    #    """
-    #    # Each line is a separate record
-    #    self.open_file = open(filename, 'r')
-    
-    def load_record(self, flo, *args, **kwargs):
+    def load(self, filename, *args, **kwargs):
         """
-        Loads the next record of the SAM file.
-        
-        Since SAM files have one record per line, and one line per record,
-        Just iterate until a valid line is found, then parse it.
-        
-        Returns:
-         None if the file is complete
-         Or a Record object
+        Yields records from the input SAM file, one at a time.
+        BOWTIE2 SAM files have one record per line, and one line per record.
+        :param filename: Path of the file to create Records from
+        :param args:
+        :param kwargs: 
+        :return: Yields either the next Record, or a StopIteration Exception if no more alignments
         """
         
         # Sequence Alignment/Map (SAM) format is TAB-delimited. Apart from the
@@ -207,62 +180,39 @@ class Bowtie2(Aligner):
         
         # Code to decompress a *.bam file should go here
         
-        # Define a non-existing record that will be replaced
-        record = None
-        
-        # Loop through lines in SAM file until a valid, complete record is found
-        record_found = False
-        while (record_found == False):
-            try:
-                line = next(flo)
+        with open(filename) as flo:
+            for line in flo:
+                # Ignore header lines in SAM file
                 if not line.startswith('@'):
+                    # Remove newline character from end of line
+                    # Split SAM record str into a list
                     sline = line.rstrip().split("\t")
+                    
+                    # Require the line to have a record (not a blank line)
+                    # Require the record to align to a contig
                     if ((len(sline) > 5) and (sline[2] != '*')):
-                        record = sline
-                        record_found = True
-            except StopIteration:
-                break
+                        yield self.create_record(sline, filename)
+    
+    def create_record(self, sline, filename):
+        '''
+        Converts a split line from a SAM file into a Record object
+        :param sline: line.rstrip().split('\t')
+        :return: a Record object
+        '''
+        # Find evalue of the alignment
+        ev = self.ev[filename]
+        score_matrix = self.score_matrix[filename]
+        cigar_score = cigar2score(sline[5], score_matrix)
+        evalue = ev.calculate_evalue(cigar_score, sline[9])
         
-        # Process the record if found
-        if record:
-            ev = self.ev[self.current_file]
-            score_matrix = self.score_matrix[self.current_file]
-            cigar_score = cigar2score(record[5], score_matrix)
-            evalue = ev.calculate_evalue(cigar_score, record[9])
-            record = Record(
-                record[0], record[2], # query_name, subject_name,
-                record[9], None, # query_sequence, subject_sequence,
-                cigar2query_position(record[5]), (int(record[3])-1, int(record[3])-1+cigar2subject_aligned_length(record[5])), # query_position, subject_position,
-                cigar2query_aligned_length(record[5]), cigar2subject_aligned_length(record[5]), # query_length, subject_length,
-                int(record[1]), record[5], float(record[4]), evalue, None # flags, cigar, score, evalue, length
-            )
-        
-        # Return the processed record, otherwise None if the file is complete
+        # Build Record
+        record = Record(
+            sline[0], sline[2], # query_name, subject_name,
+            sline[9], None, # query_sequence, subject_sequence,
+            cigar2query_position(sline[5]), (int(sline[3])-1, int(sline[3])-1+cigar2subject_aligned_length(sline[5])), # query_position, subject_position,
+            cigar2query_aligned_length(sline[5]), cigar2subject_aligned_length(sline[5]), # query_length, subject_length,
+            int(sline[1]), sline[5], float(sline[4]), evalue, None # flags, cigar, score, evalue, length
+        )
+
+        # Return the processed Record
         return record
-
-def test():
-    """Code to test the Bowtie2 Aligner subclass"""
-    if (len(sys.argv[1:]) != 3):
-        print("USAGE python3 bowtie2.py query.fasta subject.fasta folder", file=sys.stderr)
-        sys.exit(1)
-    query = sys.argv[1]
-    subject = sys.argv[2]
-    folder = sys.argv[3]
-    
-    os.makedirs(folder, exist_ok=True)
-    logging.basicConfig(filename=os.path.join(folder, 'log.txt'), level=logging.INFO, format='%(message)s') # format='%(levelname)s %(asctime)s: %(message)s'
-    print("=== Bowtie 2 ===")
-    A = Bowtie2()
-    index_path = A.index(subject, 'myindex', folder, 4)
-    alignment_path = A.align(query, index_path, 'myoutput.sam', folder, 16)
-    print(index_path)
-    print(alignment_path)
-    
-    with open(alignment_path, 'r') as flo:
-        record = True
-        while (record != None):
-            record = A.load_record(flo)
-            print(record)
-
-if (__name__ == '__main__'):
-    test()

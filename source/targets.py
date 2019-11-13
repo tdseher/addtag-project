@@ -202,58 +202,49 @@ class Target(object):
         sep is the separator for the header. Positions are converted to 0-index
         Creates a list of Sequence objects
         """
-        
-        # Code to decompress a *.bam file should go here
-        with open(filename, 'r') as flo:
-            args.selected_aligner.current_file = filename
-            record = None
-            while True:
-                record = args.selected_aligner.load_record(flo)
-                #cls.logger.info(record)
-                if (record == None):
-                    break
-                else:
-                    # Record(
-                    #     query_name, subject_name,
-                    #     query_sequence, subject_sequence,
-                    #     query_position, subject_position,
-                    #     query_length, subject_length,
-                    #     flags, cigar, score, evalue, length
-                    # )
-                    
-                    target = cls.indices[record.query_name] # key=exTarget-519
-                    
-                    # Get orientation
-                    alignment_orientation = utils.sam_orientation(record.flags)
-                    
-                    # Get alignment position
-                    alignment_contig = record.subject_name
-                    alignment_start, alignment_end = record.subject_position
-                    
-                    # Reverse-complement if needed
-                    alignment_contig_sequence = contigs[alignment_contig]
-                    alignment_sequence = alignment_contig_sequence[alignment_start:alignment_end]
-                    alignment_upstream = alignment_contig_sequence[alignment_start-10:alignment_start]
-                    alignment_downstream = alignment_contig_sequence[alignment_end:alignment_end+10]
-                    #actual_sequence = record.query_sequence # Should be column: 9, SEQ, query SEQuence on the same strand as the reference
-                    if (alignment_orientation == '-'):
-                        alignment_sequence = nucleotides.rc(alignment_sequence)
-                        alignment_upstream, alignment_downstream = nucleotides.rc(alignment_downstream), nucleotides.rc(alignment_upstream)
-                        #actual_sequence = nucleotides.rc(actual_sequence)
-                    
-                    # No actual check made here to see if length of query matches length of subject, and they still conform to motif.
-                    # This is done inside the 'target.add_alignment()' method
-                    
-                    target.add_alignment(
-                        args,
-                        alignment_sequence, # aligned_sequence (as when matched with reference, thus may be revcomp of initial query)
-                        alignment_contig, # aligned_contig
-                        alignment_start, # aligned_start
-                        alignment_end, # aligned_end
-                        alignment_orientation, # aligned_orientation (+/-)
-                        alignment_upstream,
-                        alignment_downstream,
-                    )
+        # Iterate through all alignment records
+        for record in aligner.load(filename):
+            # Record(
+            #     query_name, subject_name,
+            #     query_sequence, subject_sequence,
+            #     query_position, subject_position,
+            #     query_length, subject_length,
+            #     flags, cigar, score, evalue, length
+            # )
+            
+            target = cls.indices[record.query_name] # key=exTarget-519
+            
+            # Get orientation
+            alignment_orientation = utils.sam_orientation(record.flags)
+            
+            # Get alignment position
+            alignment_contig = record.subject_name
+            alignment_start, alignment_end = record.subject_position
+            
+            # Reverse-complement if needed
+            alignment_contig_sequence = contigs[alignment_contig]
+            alignment_sequence = alignment_contig_sequence[alignment_start:alignment_end]
+            alignment_upstream = alignment_contig_sequence[alignment_start-10:alignment_start]
+            alignment_downstream = alignment_contig_sequence[alignment_end:alignment_end+10]
+            #actual_sequence = record.query_sequence # Should be column: 9, SEQ, query SEQuence on the same strand as the reference
+            if (alignment_orientation == '-'):
+                alignment_sequence = nucleotides.rc(alignment_sequence)
+                alignment_upstream, alignment_downstream = nucleotides.rc(alignment_downstream), nucleotides.rc(alignment_upstream)
+                #actual_sequence = nucleotides.rc(actual_sequence)
+            
+            # No actual check made here to see if length of query matches length of subject, and they still conform to motif.
+            # This is done inside the 'target.add_alignment()' method
+            
+            target.add_alignment(
+                args,
+                alignment_sequence, # aligned_sequence (as when matched with reference, thus may be revcomp of initial query)
+                alignment_contig, # aligned_contig
+                alignment_start, # aligned_start
+                alignment_end, # aligned_end
+                alignment_orientation, # aligned_orientation (+/-)
+                alignment_upstream,
+                alignment_downstream,
+            )
         
         cls.logger.info(cls.__name__ + ' alignment file parsed: {!r}'.format(filename))
     

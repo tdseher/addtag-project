@@ -57,8 +57,19 @@ class Aligner(object): # Name of the subclass
         self.output = output                 # Designate the output format the alignment will be in, so AddTag can select the correct parser
         self.truncated = truncated           # Normally, the entire short read is locally aligned to the genome contigs. This tells the parser that what is reported in the SAM file in the 10th column is incomplete.
         self.classification = classification # Type ('high-throughput', 'pairwise', 'multiple-sequence', 'ht', 'pw', 'ms')
-        
-    def index(self, fasta, output_filename, output_folder, threads, *args, **kwargs):
+        self.available = self.is_available()
+
+    def is_available(self):
+        """
+        Determines if the prerequisites for the Aligner have been met.
+        For instance, it will query the PATH to determine if the alignment software is available.
+
+        Overload this method
+        :return: True or False
+        """
+        return False
+
+    def index(self, fasta, output_prefix, output_folder, threads, *args, **kwargs):
         """
         Run the program process to index the subject.
         Returns the path of the index generated.
@@ -66,8 +77,8 @@ class Aligner(object): # Name of the subclass
         Overload this method.
         """
         return ''
-    
-    def align(self, query, subject, output_filename, output_folder, threads, *args, **kwargs):
+
+    def align(self, query, subject, output_prefix, output_folder, threads, *args, **kwargs):
         """
         Align the query file to the subject file.
         Returns the path of the alignment generated (usually, the SAM file).
@@ -84,7 +95,7 @@ class Aligner(object): # Name of the subclass
         #return self.process('align', 'test.sam', options)
         return ''
     
-    def process(self, program, output_filename, fixed_options, capture_stdout=False, *args, **kwargs):
+    def process(self, program, output_filename, fixed_options, *args, capture_stdout=False, append=False, **kwargs):
         """
         Align the query file to the subject file.
         
@@ -137,71 +148,47 @@ class Aligner(object): # Name of the subclass
         #command_list = [program] + flat_fixed_options + flat_user_options
         command_list = [program] + list(map(str, flat_fixed_options))
         command_str = ' '.join(command_list)
-        
+
+        if append:
+            # Open for reading and writing.  The file is created if it does not
+            # exist.  The stream is positioned at the end of the file.  Subse-
+            # quent writes to the file will always end up at the then current
+            # end of file, irrespective of any intervening fseek(3) or similar.
+            mode = 'a+'
+        else:
+            mode = 'w+'
+
         # Perform alignment
         self.logger.info('command: {!r}'.format(command_str))
         if capture_stdout:
-            with open(error_filename, 'w+') as err_flo, open(output_filename, 'w+') as out_flo:
+            with open(error_filename, mode) as err_flo, open(output_filename, 'w+') as out_flo:
                 cp = subprocess.run(command_list, shell=False, check=True, stdout=out_flo, stderr=err_flo)
         else:
-            with open(error_filename, 'w+') as flo:
+            with open(error_filename, mode) as flo:
                 cp = subprocess.run(command_list, shell=False, check=True, stdout=flo, stderr=subprocess.STDOUT)
         
         self.logger.info('errors: {!r}'.format(error_filename))
         self.logger.info('output: {!r}'.format(output_filename))
         return output_filename
     
-    def load_record(self, flo, *args, **kwargs):
+    def load(self, filename, *args, **kwargs):
         """
-        Takes an open file like object as input.
-        Outputs a Record object representing the alignment.
+        Takes a file path as input.
+        Yields either an alignment Record or a StopIteration Exception
+        This should be a Generator function.
         
         Overload this method.
         """
-        return None
-    
-    def load(self, filename, filetype, *args, **kwargs):
+        yield None
+
+    # TODO: create 'Aligner.cleanup()' methods for each 'Aligner'
+    def cleanup(self):
         """
-        Parses alignment output and returns list of lists readable by AddTag
-        [[contig, start, end, orientation, sequence], ...]
+        Delete intermediary files
+
+        Overload this method
         """
-        if (filetype == 'sam'):
-            # SAM is TAB-delimited. Apart from the header lines, which are
-            # started with the '@' symbol, each alignment line consists of:
-            #
-            # Col  Field  Description
-            #   0  QNAME  Query (pair) NAME
-            #   1  FLAG   bitwise FLAG
-            #   2  RNAME  Reference sequence NAME
-            #   3  POS    1-based leftmost POSition/coordinate of clipped sequence
-            #   4  MAPQ   MAPping Quality (Phred-scaled)
-            #   5  CIAGR  extended CIGAR string
-            #   6  MRNM   Mate Reference sequence NaMe ('=' if same as RNAME)
-            #   7  MPOS   1-based Mate POSistion
-            #   8  ISIZE  Inferred insert SIZE
-            #   9  SEQ    query SEQuence on the same strand as the reference
-            #  10  QUAL   query QUALity (ASCII-33 gives the Phred base quality)
-            #  11  OPT    variable OPTional fields in the format TAG:VTYPE:VALUE
-            pass
-        elif (filetype == 'blastn'):
-            # Col  Field     Description
-            #   0  qaccver   Query accesion.version
-            #   1  saccver   Subject accession.version
-            #   2  pident    Percentage of identical matches
-            #   3  length    Alignment length
-            #   4  mismatch  Number of mismatches
-            #   5  gapopen   Number of gap openings
-            #   6  qstart    Start of alignment in query
-            #   7  qend      End of alignment in query
-            #   8  sstart    Start of alignment in subject
-            #   9  send      End of alignment in subject
-            #  10  evalue    Expect value
-            #  11  bitscore  Bit score
-            pass
-        elif (filetype == 'casoffinder'):
-            pass
-        
-        return []
+        pass
     
     def __repr__(self):
         """
@@ -238,7 +225,11 @@ class Record(object):
     def __repr__(self):
         """Return string representation of the Record"""
         return self.__class__.__name__ + '(' + ', '.join([
-            'query='+self.query_name+':'+'..'.join(map(str, self.query_position)),
-            'subject='+self.subject_name+':'+'..'.join(map(str, self.subject_position))
-            #'evalue='+str(self.evalue)
+            'query={}:{}..{}'.format(self.query_name, self.query_position[0], self.query_position[1]),
+            'subject={}:{}..{}'.format(self.subject_name, self.subject_position[0], self.subject_position[1]),
+            #'query='+self.query_name+':'+'..'.join(map(str, self.query_position)),
+            #'subject='+self.subject_name+':'+'..'.join(map(str, self.subject_position)), 
+            'cigar={}'.format(self.cigar),
+            'score={}'.format(self.score),
+            'evalue={}'.format(self.evalue)
             ]) + ')'
