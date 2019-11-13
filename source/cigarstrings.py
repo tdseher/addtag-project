@@ -463,7 +463,7 @@ def decode_sam_flags(field, kind='str'):
     # 0x0400  0x400    100_0000_0000    1024  d         the read is either a PCR or an optical duplicate  PCR or optical duplicate
     # 0x0800  0x800   1000_0000_0000    2048  a                                                           supplementary alignment
     
-    flags = {1:'p', 2:'P', 4:'u', 8:'U', 16:'r', 32 :'R', 64:'1', 128:'2',256:'s', 512:'f', 1024:'d', 2048:'a'}
+    flags = {1:'p', 2:'P', 4:'u', 8:'U', 16:'r', 32:'R', 64:'1', 128:'2',256:'s', 512:'f', 1024:'d', 2048:'a'}
     # Typecast if necessary
     if isinstance(field, str):
         field = int(field)
