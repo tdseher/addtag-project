@@ -273,6 +273,25 @@ class Target(object):
                 
         cls.logger.info(cls.__name__ + ' query FASTA generated: {!r}'.format(filename))
         return filename
+
+    @classmethod
+    def generate_query_fastq(cls, filename, sep=':', qualscore_char='I'):
+        """
+        Creates a FASTQ file (That becomes header for a SAM record)
+          @exTarget-id feature:contig:orientation:start..end ...
+          ...
+          +
+          ...
+        """
+        with open(filename, 'w') as flo:
+            for sequence, obj in sorted(cls.sequences.items(), key=lambda x: int(x[1].name.split('-')[1])):
+                print(' '.join(['@'+obj.name] + sorted([obj.format_location(x, sep) for x in obj.locations])), file=flo)
+                print(sequence, file=flo)
+                print('+', file=flo)
+                print(''.join(qualscore_char for x in sequence))
+
+        cls.logger.info(cls.__name__ + ' query FASTQ generated: {!r}'.format(filename))
+        return filename
     
     @classmethod
     def generate_spacers_fasta(cls, filename, sep=':'):

@@ -524,7 +524,10 @@ class GenerateAllParser(subroutine.Subroutine):
             ExcisionTarget.search_all_features(args, contig_sequences)
             
             # Write the query list to FASTA
-            ex_query_file = ExcisionTarget.generate_query_fasta(os.path.join(args.folder, 'excision-query.fasta'))
+            if (args.selected_aligner.input == 'fasta'):
+                ex_query_file = ExcisionTarget.generate_query_fasta(os.path.join(args.folder, 'excision-query.fasta'))
+            elif (args.selected_aligner.input == 'fastq'):
+                ex_query_file = ExcisionTarget.generate_query_fastq(os.path.join(args.folder, 'excision-query.fastq'))
         
         # Generate excision dDNAs and their associated reversion gRNA spacers
         ExcisionDonor.generate_donors(args, contig_sequences, feature2gene)
@@ -534,7 +537,10 @@ class GenerateAllParser(subroutine.Subroutine):
         ex_dDNA_file = ExcisionDonor.generate_fasta(os.path.join(args.folder, 'excision-dDNAs.fasta')) # Program will fail with error if this file is empty...
         
         if (args.ki_gRNA):
-            re_query_file = ReversionTarget.generate_query_fasta(os.path.join(args.folder, 'reversion-query.fasta'))
+            if (args.selected_aligner.input == 'fasta'):
+                re_query_file = ReversionTarget.generate_query_fasta(os.path.join(args.folder, 'reversion-query.fasta'))
+            elif (args.selected_aligner.input == 'fastq'):
+                re_query_file = ReversionTarget.generate_query_fastq(os.path.join(args.folder, 'reversion-query.fastq'))
         
         if (args.ki_dDNA != None): # args.ki_dDNA can take one of 3 possible values: (None/True/'*.fasta')
             # Generate reversion dDNAs and write them to FASTA
@@ -554,8 +560,8 @@ class GenerateAllParser(subroutine.Subroutine):
         if (args.ko_gRNA):
             # Use selected alignment program to find all matches in the genome and dDNAs
             #ex_genome_align_file = align(ex_query_file, genome_index_file, args)
-            exq2gDNA_align_file = args.selected_aligner.align(ex_query_file, genome_index_file, 'excision-query-2-gDNA.'+args.selected_aligner.output, args.folder, args.processors)
-            exq2exdDNA_align_file = args.selected_aligner.align(ex_query_file, ex_dDNA_index_file, 'excision-query-2-excision-dDNA.'+args.selected_aligner.output, args.folder, args.processors)
+            exq2gDNA_align_file = args.selected_aligner.align(ex_query_file, genome_index_file, 'excision-query-2-gDNA', args.folder, args.processors)
+            exq2exdDNA_align_file = args.selected_aligner.align(ex_query_file, ex_dDNA_index_file, 'excision-query-2-excision-dDNA', args.folder, args.processors)
             
             #print("ExcisionTarget before SAM parsing")
             #for et_seq, et_obj in ExcisionTarget.sequences.items():
@@ -588,10 +594,10 @@ class GenerateAllParser(subroutine.Subroutine):
         # Use selected alignment program to find all matches in the genome and dDNAs
         #re_align_file = align(re_query_file, genome_index_file, args)
         if (args.ki_gRNA):
-            req2gDNA_align_file = args.selected_aligner.align(re_query_file, genome_index_file, 'reversion-query-2-gDNA.'+args.selected_aligner.output, args.folder, args.processors)
-            req2exdDNA_align_file = args.selected_aligner.align(re_query_file, ex_dDNA_index_file, 'reversion-query-2-excision-dDNA.'+args.selected_aligner.output, args.folder, args.processors)
+            req2gDNA_align_file = args.selected_aligner.align(re_query_file, genome_index_file, 'reversion-query-2-gDNA', args.folder, args.processors)
+            req2exdDNA_align_file = args.selected_aligner.align(re_query_file, ex_dDNA_index_file, 'reversion-query-2-excision-dDNA', args.folder, args.processors)
         if (args.ki_dDNA == True):
-            req2redDNA_align_file = args.selected_aligner.align(re_query_file, re_dDNA_index_file, 'reversion-query-2-reversion-dDNA.'+args.selected_aligner.output, args.folder, args.processors)
+            req2redDNA_align_file = args.selected_aligner.align(re_query_file, re_dDNA_index_file, 'reversion-query-2-reversion-dDNA', args.folder, args.processors)
         
         # Load the SAM files and add Alignments to ReversionTarget sequences
         if (args.ki_gRNA):
