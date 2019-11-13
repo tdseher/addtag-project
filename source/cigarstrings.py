@@ -30,6 +30,128 @@ import regex
 #    For other types of alignments, the interpretation of N is not defined.
 #  * Sum of lengths of the M/I/S/=/X operations shall equal the length of SEQ.
 
+def specificate_cigar(cigar, query, subject):
+    '''
+    'specific' is whether to use '=' and 'X' for match and mismatch, or just 'M'
+    
+    :param cigar: CIGAR string containing 'M'
+    :param query: Aligned query sequence
+    :param subject: Aligned subject sequence
+    :return: CIGAR string containing '=' or 'X' instead of 'M'
+    '''
+    out = []
+    matches = regex.findall(r'(\d*)([MIDNSHP=X])', cigar)
+    qi = 0
+    si = 0
+    for match_n, match_c in matches:
+        if (match_n == ''):
+            n = 1
+        else:
+            n = int(match_n)
+        if (match_c == 'M'):
+            for i in range(n):
+                if (query[qi] == subject[si]):
+                    out.append('=')
+                else:
+                    out.append('X')
+                qi += 1
+                si += 1
+        elif (match_c == 'I'):
+            for i in range(n):
+                out.append('I')
+                qi += 1
+        elif (match_c == 'D'):
+            for i in range(n):
+                out.append('D')
+                si += 1
+        elif (match_c == 'N'):
+            # TODO: Confirm that skipped regions are treated equivalently to deletions
+            for i in range(n):
+                out.append('N')
+                si += 1
+        elif (match_c == 'S'):
+            # TODO: Confirm that soft-masking affects both query and subject coordinates
+            for i in range(n):
+                out.append('S')
+                qi += 1
+                si += 1
+        elif (match_c == 'H'):
+            # TODO: Confirm that hard-masking affects only subject coordinates
+            for i in range(n):
+                out.append('H')
+                si += 1
+        elif (match_c == 'P'):
+            # TODO: Confirm that 'silent deletions' are treated equivalently to deletions
+            for i in range(n):
+                out.append('P')
+                si += 1
+        elif (match_c in ['=', 'X']):
+            for i in range(n):
+                out.append(match_c)
+                qi += 1
+                si += 1
+    return ''.join(out)
+
+def collapse_cigar(cigar, abbreviate=False):
+    '''
+    Preface repeated characters with digit quantifiers
+    :param cigar: 
+    :param abbreviate Remove preceeding 1 for non-repeated codes
+    :return: 
+    '''
+    # Consolodate consecutive repeating characters
+    out = []
+    
+    prev_n = None
+    prev_c = None
+    
+    matches = regex.findall(r'(\d*)([MIDNSHP=X])', cigar)
+    
+    for match_n, match_c in matches:
+        if (match_n == ''):
+            n = 1
+        else:
+            n = int(match_n)
+        if (match_c == prev_c):
+            prev_n += n
+        elif (prev_c == None):
+            prev_n = n
+            prev_c = match_c
+        else:
+            if (abbreviate and (prev_n == 1)):
+                pass
+            else:
+                out.append(str(prev_n))
+            out.append(prev_c)
+            prev_n = n
+            prev_c = match_c
+    
+    if (prev_c != None):
+        if (abbreviate and (prev_n == 1)):
+            pass
+        else:
+            out.append(str(prev_n))
+        out.append(prev_c)
+    
+    return ''.join(out)
+
+def expand_cigar(cigar):
+    '''
+    Remove all digit quantifiers by fully expanding CIGAR string
+    :param cigar: 
+    :return: 
+    '''
+    out = []
+    matches = regex.findall(r'(\d*)([MIDNSHP=X])', cigar)
+    for match_n, match_c in matches:
+        if (match_n == ''):
+            n = 1
+        else:
+            n = int(match_n)
+        for i in range(n):
+            out.append(match_c)
+    return ''.join(out)
+
 def cigar_errors(cigar):
     """
     Returns the number of matches, mismatches, insertions, deletions, and errors
@@ -167,10 +289,11 @@ def reverse_cigar(cigar):
     """
     Reverses the CIGAR string
     """
-    new_cigar = ''
     matches = [m.group(0) for m in regex.finditer(r'(\d*\D)', cigar)]
     return ''.join(matches[::-1])
 
+# TODO: Fix this function (it only seems to work some of the time),
+#       because 'regex' does its calculations in a cryptic way.
 def match2cigar(m, specific=False, abbreviated=False):
     '''
     Input is a 'regex.Match' object that uses fuzzy matching.
@@ -325,22 +448,22 @@ def decode_sam_flags(field, kind='str'):
     Decodes the bit flag column in SAM output into a string or list
     of characters.
     """
-    # Flag    Hexadecimal   Binary Decimal  FlagChar  Description                                       New Description
-    # 0x0000  0x0                0       0            read maps?
-    # 0x0001  0x1                1       1  p         the read is paired in sequencing                  template having multiple segments in sequencing
-    # 0x0002  0x2               10       2  P         the read is mapped in a proper pair               each segment properly aligned according to the aligner
-    # 0x0004  0x4              100       4  u         the query sequence itself is unmapped             segment unmapped
-    # 0x0008  0x8             1000       8  U         the mate is unmapped                              next segment in the template unmapped
-    # 0x0010  0x10           10000      16  r         strand of the query (1 for reverse)               SEQ being reverse complemented
-    # 0x0020  0x20          100000      32  R         strand of the mate                                SEQ of the next segment in the template being reversed
-    # 0x0040  0x40         1000000      64  1         the read is the first read in a pair              the first segment in the template
-    # 0x0080  0x80        10000000     128  2         the read is the second read in a pair             the last segment in the template
-    # 0x0100  0x100      100000000     256  s         the alignment is not primary                      secondary alignment
-    # 0x0200  0x200     1000000000     512  f         the read fails platform/vendor quality checks     not passing quality controls
-    # 0x0400  0x400    10000000000    1024  d         the read is either a PCR or an optical duplicate  PCR or optical duplicate
-    # 0x0800  0x800   100000000000    2048  a                                                           supplementary alignment
+    # Flag    Hexadecimal     Binary Decimal  FlagChar  Description                                       New Description
+    # 0x0000  0x0                  0       0            read maps?
+    # 0x0001  0x1                  1       1  p         the read is paired in sequencing                  template having multiple segments in sequencing
+    # 0x0002  0x2                 10       2  P         the read is mapped in a proper pair               each segment properly aligned according to the aligner
+    # 0x0004  0x4                100       4  u         the query sequence itself is unmapped             segment unmapped
+    # 0x0008  0x8               1000       8  U         the mate is unmapped                              next segment in the template unmapped
+    # 0x0010  0x10            1_0000      16  r         strand of this read (query): '+'=0, '-'=1         SEQ being reverse complemented
+    # 0x0020  0x20           10_0000      32  R         strand of the mate                                SEQ of the next segment in the template being reversed
+    # 0x0040  0x40          100_0000      64  1         the read is the first read in a pair              the first segment in the template
+    # 0x0080  0x80         1000_0000     128  2         the read is the second read in a pair             the last segment in the template
+    # 0x0100  0x100      1_0000_0000     256  s         the alignment is not primary                      secondary alignment
+    # 0x0200  0x200     10_0000_0000     512  f         the read fails platform/vendor quality checks     not passing quality controls
+    # 0x0400  0x400    100_0000_0000    1024  d         the read is either a PCR or an optical duplicate  PCR or optical duplicate
+    # 0x0800  0x800   1000_0000_0000    2048  a                                                           supplementary alignment
     
-    flags = {1:'p', 2:'P', 4:'u', 8:'U', 16:'r', 32:'R', 64:'1', 128:'2',256:'s', 512:'f', 1024:'d', 2048:'a'}
+    flags = {1:'p', 2:'P', 4:'u', 8:'U', 16:'r', 32 :'R', 64:'1', 128:'2',256:'s', 512:'f', 1024:'d', 2048:'a'}
     # Typecast if necessary
     if isinstance(field, str):
         field = int(field)
@@ -356,26 +479,3 @@ def decode_sam_flags(field, kind='str'):
         return str_flags
     elif (kind == 'list'):
         return list_flags
-
-def test():
-    """
-    Test the functions in this script.
-    """
-    q = "AAA--AAATCCC"
-    s = "AGACGAAA-CCC"
-    print(alignment2cigar(q, s)) # '3M2D3M1I3M'
-    print(alignment2cigar(q, s, abbreviated=True)) # '3M2D3MI3M'
-    print(alignment2cigar(q, s, specific=True)) # '1=1X1=2D3=1I3='
-    print(alignment2cigar(q, s, specific=True, abbreviated=True)) # '=X=2D3=I3='
-    print(cigar_errors('=X=2D3=I3='))
-    
-    import evalues
-    score_matrix = evalues.load_scores('algorithms/distance_scores.txt')
-    print(cigar2score('=X=2D3=I3=', score_matrix))
-    
-    score_matrix = evalues.load_scores('aligners/bowtie2_scores.txt')
-    print(cigar2score('1X1=1X1=1X7=1X3=1X5=1X', score_matrix))
-    print(cigar2score('23=', score_matrix))
-
-if (__name__ == '__main__'):
-    test()
