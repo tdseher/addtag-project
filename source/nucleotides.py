@@ -287,14 +287,6 @@ def rc(seq, kind="dna"):
         raise ValueError("'" + str(kind) + "' is an invalid argument for rc()")
     return seq.translate(complements)[::-1]
 
-# TODO: Remove this function?
-def ngg():
-    '''
-    Generator that returns NGG
-    '''
-    for m in ['A', 'C', 'G', 'T']:
-        yield m + 'GG'
-
 def kmers(k, y=''):
     '''
     Generator for recursive definition of k-mers in string form.
