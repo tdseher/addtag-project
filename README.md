@@ -48,9 +48,13 @@ Base operation of AddTag requires the following:
      pip3 install regex
      ```
 
+One pairwise sequence aligner is required:
+
  * BLAST+ ≥ 2.6.0 ([source](ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST), [binaries](ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST), [documentation](https://www.ncbi.nlm.nih.gov/books/NBK279690/))
 
  * Bowtie 2 ≥ 2.3.4.1 ([source](https://github.com/BenLangmead/bowtie2), [binaries](https://sourceforge.net/projects/bowtie-bio/files/bowtie2/), [documentation](http://bowtie-bio.sourceforge.net/bowtie2/manual.shtml))
+ 
+ * BWA ([source](https://github.com/lh3/bwa), [binaries](http://ugene.net/download-all.html#en_data_analysis_tools), [documentation](http://bio-bwa.sourceforge.net/bwa.shtml))
 
 Certain optional AddTag functionality depends on the following:
 
@@ -122,8 +126,6 @@ For speed, we recommend at least one third-party pairwise nucleotide sequence al
  * BLAT ([source](https://genome.ucsc.edu/goldenPath/help/blatSpec.html), [binaries](http://hgdownload.cse.ucsc.edu/admin/exe/), [documentation](https://genome.ucsc.edu/goldenPath/help/blatSpec.html))
 
  * Bowtie ([source](https://github.com/BenLangmead/bowtie), [binaries](https://sourceforge.net/projects/bowtie-bio/files/bowtie/), [documentation](http://bowtie-bio.sourceforge.net/manual.shtml))
-
- * BWA ([source](https://github.com/lh3/bwa), [documentation](http://bio-bwa.sourceforge.net/bwa.shtml))
 
  * Cas-OFFinder ([source](https://github.com/snugel/cas-offinder), [binaries](https://sourceforge.net/projects/cas-offinder/files/Binaries/), [documentation](http://www.rgenome.net/cas-offinder/portable))
 -->
@@ -205,6 +207,7 @@ The following scoring algorithms are subclasses of `PairedSequenceAlgorithm`.
 
  * Bowtie2
  * BLAST+
+ * BWA
 
 ## 🌡 Implemented thermodynamics calculators ##
 
