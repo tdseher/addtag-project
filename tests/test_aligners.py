@@ -9,6 +9,9 @@ import os
 
 from source import aligners
 
+# TODO: Write a test where the folder path contains spaces. 'makeblastdb' has had trouble on Windows because of this,
+#       so a function should be written that specifically tests for this.
+
 def test_aligner():
     # TODO: Create input data programmatically instead of loading pre-made files
     data_folder = os.path.dirname(os.path.abspath(__file__))
@@ -22,7 +25,7 @@ def test_aligner():
     # Index and align
     for aligner in aligners.aligners:
         if aligner.available:
-            print("===", aligner.name, "===")
+            print("=== ", aligner.name, " ===")
             
             out_folder = 'test_{}_aligner'.format(aligner.name)
             os.makedirs(out_folder, exist_ok=True)
@@ -41,5 +44,8 @@ def test_aligner():
             for record in aligner.load(alignment_path):
                 print('  {}'.format(record))
             print(']')
+        else:
+            print("=== ", aligner.name, " ===")
+            print('    UNAVAILABLE')
 
 # End

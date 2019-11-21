@@ -14,7 +14,7 @@ def around(x, center, spread):
 def test_oligo():
     for oligo in thermodynamics.oligos:
         if oligo.available:
-            print("===", oligo.name, "===")
+            print("=== ", oligo.name, " ===")
 
             a = 'GAAATCGCTTAGCGCGAACTCAGACCAT'
             b = 'CCTAGCTATTTAATAAATC'
@@ -65,4 +65,6 @@ def test_oligo():
                 assert around(revcomps[0].melting_temperature, 63.51, 1)
             else:
                 assert False, 'No thermodyanmics calculator detected'
-
+        else:
+            print("=== ", oligo.name, " ===")
+            print("    UNAVAILABLE")

@@ -17,10 +17,24 @@ def test_no_args():
     output = cp.stdout.decode().rstrip()
     assert output == 'usage: addtag [-h] [-v] action ...'
 
-def test_helps():
+def test_subroutine_help():
     from source import subroutines
     for sub in [x.name for x in subroutines.subroutines]:
         cp = subprocess.run([sys.executable, 'addtag', sub, '-h'], shell=False, check=True, stdout=subprocess.PIPE)
         #output = cp.stdout.decode().rstrip()
         assert cp.returncode == 0
 
+def test_mintag():
+    pass
+
+def test_mintag_polymorphic_homology():
+    pass
+
+def test_addtag():
+    pass
+
+def test_unitag():
+    pass
+
+def test_bartag():
+    pass
