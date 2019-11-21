@@ -2,9 +2,9 @@
 
 Program for identifying exclusive endogenous gRNA sites and creating unique synthetic gRNA sites.
 
-[![Linux](https://img.shields.io/badge/Linux-✓-lightgrey.svg?logo=linux)](#)
-[![Windows](https://img.shields.io/badge/Windows-✓-lightgrey.svg?logo=windows)](#)
-[![macOS](https://img.shields.io/badge/macOS-✓-lightgrey.svg?logo=apple)](#)
+[![Linux](https://img.shields.io/badge/Linux-✓-darkgreen.svg?logo=linux)](#)
+[![Windows](https://img.shields.io/badge/Windows-✓-darkgreen.svg?logo=windows)](#)
+[![macOS](https://img.shields.io/badge/macOS-✓-darkgreen.svg?logo=apple)](#)
 [![Build Status](https://dev.azure.com/tdseher/addtag-project/_apis/build/status/tdseher.addtag-project?branchName=master)](https://dev.azure.com/tdseher/addtag-project/_build/latest?definitionId=1&branchName=master)
 [![Code coverage](https://img.shields.io/azure-devops/coverage/tdseher/addtag-project/1)](#)
 
@@ -54,7 +54,9 @@ One pairwise sequence aligner is required:
 
  * Bowtie 2 ≥ 2.3.4.1 ([source](https://github.com/BenLangmead/bowtie2), [binaries](https://sourceforge.net/projects/bowtie-bio/files/bowtie2/), [documentation](http://bowtie-bio.sourceforge.net/bowtie2/manual.shtml))
  
- * BWA ([source](https://github.com/lh3/bwa), [binaries](http://ugene.net/download-all.html#en_data_analysis_tools), [documentation](http://bio-bwa.sourceforge.net/bwa.shtml))
+ * BWA ([source](https://github.com/lh3/bwa), [ugene binaries](http://ugene.net/download-all.html#en_data_analysis_tools), [bioconda binaries](https://anaconda.org/bioconda/bwa/files), [documentation](http://bio-bwa.sourceforge.net/bwa.shtml))
+ 
+ * Cas-OFFinder ([source](https://github.com/snugel/cas-offinder), [binaries](https://sourceforge.net/projects/cas-offinder/files/Binaries/), [documentation](http://www.rgenome.net/cas-offinder/portable))
 
 Certain optional AddTag functionality depends on the following:
 
@@ -72,7 +74,7 @@ For oligo design, AddTag requires one of the following third-party thermodynamic
      pip3 install primer3-py
      ```
 
- * ViennaRNA Python module ([source](https://github.com/ViennaRNA/ViennaRNA), [official binaries](https://www.tbi.univie.ac.at/RNA/), [bioconda binaries](https://anaconda.org/bioconda/viennarna/files), [documentation](https://www.tbi.univie.ac.at/RNA/documentation.html))
+ * ViennaRNA Python module ([source](https://github.com/ViennaRNA/ViennaRNA), [official binaries](https://www.tbi.univie.ac.at/RNA/index.html#download), [bioconda binaries](https://anaconda.org/bioconda/viennarna/files), [documentation](https://www.tbi.univie.ac.at/RNA/documentation.html))
 
 Certain Target scoring algorithms have additional requirements:
 
@@ -127,7 +129,6 @@ For speed, we recommend at least one third-party pairwise nucleotide sequence al
 
  * Bowtie ([source](https://github.com/BenLangmead/bowtie), [binaries](https://sourceforge.net/projects/bowtie-bio/files/bowtie/), [documentation](http://bowtie-bio.sourceforge.net/manual.shtml))
 
- * Cas-OFFinder ([source](https://github.com/snugel/cas-offinder), [binaries](https://sourceforge.net/projects/cas-offinder/files/Binaries/), [documentation](http://www.rgenome.net/cas-offinder/portable))
 -->
 
 ## ⤵ Installing AddTag ##
