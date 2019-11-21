@@ -337,19 +337,19 @@ class Target(object):
         
         # Check the case of the potential gRNA sequence
         if (args.case == "upper-only"):
-            if regex.search('[a-z]', seq):
+            if regex.search(r'[a-z]', seq):
                 return [] # Reject this sequence because it has lower-case characters
         elif (args.case == "lower-only"):
-            if regex.search('[A-Z]', seq):
+            if regex.search(r'[A-Z]', seq):
                 return [] # Reject this sequence because it has upper-case characters
         elif (args.case == "mixed-lower"):
-            if not regex.search('[a-z]', seq):
+            if not regex.search(r'[a-z]', seq):
                 return []
         elif (args.case == "mixed-upper"):
-            if not regex.search('[A-Z]', seq):
+            if not regex.search(r'[A-Z]', seq):
                 return []
         elif (args.case == "mixed-only"):
-            if not (regex.search('[a-z]', seq) and regex.search('[A-Z]', seq)):
+            if not (regex.search(r'[a-z]', seq) and regex.search(r'[A-Z]', seq)):
                 return [] # Reject this sequence because it does not have both lower-case and upper-case characters
         #elif (args.case == "ignore") # then do nothing
         #    pass
@@ -373,7 +373,7 @@ class Target(object):
         
         if (args.ambiguities == 'discard'):
             # If target sequence has any ambiguities, then discard it
-            if regex.search('[^ATCGatcg]', seq):
+            if regex.search(r'[^ATCGatcg]', seq):
                 return []
             # Otherwise, proceed
             seqs1 = [seq]
@@ -382,7 +382,7 @@ class Target(object):
             seqs1 = nucleotides.disambiguate_iupac(seq)
         elif (args.ambiguities == 'exclusive'):
             # If no ambiguous characters are found, hten discard it
-            if not regex.search('[^ATCGatcg]', seq):
+            if not regex.search(r'[^ATCGatcg]', seq):
                 return [] # Reject this sequence
             # Otherwise, disambiguate
             seqs1 = nucleotides.disambiguate_iupac(seq)

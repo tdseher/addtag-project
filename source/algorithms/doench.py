@@ -221,9 +221,9 @@ class Doench2016(PairedSequenceAlgorithm):
         #    return 0.0
         
         # Only calculate Doench score with cannonical nucleotides
-        m1 = regex.search('[^ATCGatcg]', seq1)
-        m2 = regex.search('[^ATCGatcg]', seq2)
-        mp = regex.search('[^ATCGatcg]', pam[-2:])
+        m1 = regex.search(r'[^ATCGatcg]', seq1)
+        m2 = regex.search(r'[^ATCGatcg]', seq2)
+        mp = regex.search(r'[^ATCGatcg]', pam[-2:])
         if ((m1 != None) or (m2 != None) or (mp != None)):
             # Otherwise return a score of 0
             return 0.0

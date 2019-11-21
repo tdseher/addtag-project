@@ -57,7 +57,7 @@ class Housden(SingleSequenceAlgorithm):
         Return scores range are 0 if invalid, or from 1.14-12.81 if valid.
         """
         seq = seq[-20:].upper()
-        m = regex.search('[^ATCGatcg]', seq)
+        m = regex.search(r'[^ATCGatcg]', seq)
         if (m != None):
             return 0.0
         else:

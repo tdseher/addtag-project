@@ -758,7 +758,7 @@ def disambiguate_iupac(iupac_sequence, kind="dna"):
 def count_errors(seq1, seq2):
     """Counts number of substitutions, insertions, and deletions"""
     # Looks like the bugs with this have been fixed!
-    m = regex.match('(?:'+seq1+'){e}', seq2, flags=regex.BESTMATCH|regex.IGNORECASE)
+    m = regex.match(r'(?:'+seq1+r'){e}', seq2, flags=regex.BESTMATCH|regex.IGNORECASE)
     
     # Subs, ins, and dels are all given the same penalty
     
@@ -776,8 +776,8 @@ def split_target_sequence2(seq, pams):
     Returns gRNA, PAM
     """
     # Build a regex to only match strings with PAM sites specified in args.pams
-    re_pattern = '^(.*)(?:' + '|'.join(map(lambda x: build_regex_pattern(x), pams)) + ')$'
-    #m = regex.match('^(.*)([ACGT]GG)$', nt)
+    re_pattern = r'^(.*)(?:' + '|'.join(map(lambda x: build_regex_pattern(x), pams)) + r')$'
+    #m = regex.match(r'^(.*)([ACGT]GG)$', nt)
     logger.info(re_pattern)
     m = regex.match(re_pattern, seq)
     if m:

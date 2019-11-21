@@ -49,8 +49,8 @@ class Feature(object):
         if isinstance(attributes, dict):
             self.attributes = attributes
         elif isinstance(attributes, str): # "ID=12;Parent=nope"
-            alist = regex.split(sep+'\s*', attributes) # ['ID=12', 'Parent=nope']
-            self.attributes = dict([regex.split('\s*=\s*', x) for x in alist]) # {'ID': '12', 'Parent': 'nope'}
+            alist = regex.split(sep+r'\s*', attributes) # ['ID=12', 'Parent=nope']
+            self.attributes = dict([regex.split(r'\s*=\s*', x) for x in alist]) # {'ID': '12', 'Parent': 'nope'}
         self.name = name
         self.origin = origin
         self.parent = parent
