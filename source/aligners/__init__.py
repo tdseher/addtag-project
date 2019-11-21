@@ -24,7 +24,7 @@ exclusions = [
     'bowtie.py',
 #    'bowtie2.py',
 #    'bwa.py',
-    'casoffinder.py',
+#    'casoffinder.py',
     'casot.py',
     'hyperscan.py',
     'mafft.py',
