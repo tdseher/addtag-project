@@ -50,7 +50,7 @@ Base operation of AddTag requires the following:
 
 One pairwise sequence aligner is required:
 
- * BLAST+ ≥ 2.6.0 (<a href="ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST">source</a>, [binaries](ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST), [documentation](https://www.ncbi.nlm.nih.gov/books/NBK279690/))
+ * BLAST+ ≥ 2.6.0 ([source](https://bit.ly/2Ouoqkx), [binaries](https://bit.ly/2Ouoqkx), [documentation](https://www.ncbi.nlm.nih.gov/books/NBK279690/))
 
  * Bowtie 2 ≥ 2.3.4.1 ([source](https://github.com/BenLangmead/bowtie2), [binaries](https://sourceforge.net/projects/bowtie-bio/files/bowtie2/), [documentation](http://bowtie-bio.sourceforge.net/bowtie2/manual.shtml))
  
@@ -282,3 +282,5 @@ Here is some miscellaneous information:
 [RGN]:docs/rgn.svg
 [Feature]:docs/feature.svg
 [Primer]:docs/primer.svg
+[BLAST+ source]:ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST
+[BLAST+ binaries]:ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST
