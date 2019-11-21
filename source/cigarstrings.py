@@ -390,12 +390,12 @@ def alignment2cigar(query, subject, specific=False, abbreviated=False):
     previous = ''
     quantifier = ''
     
-    q_iter = iter(query)
-    s_iter = iter(subject)
+    #q_iter = iter(query)
+    #s_iter = iter(subject)
+    #for qs in q_iter:
+    #    ss = next(s_iter)
     
-    for qs in q_iter:
-        ss = next(s_iter)
-        
+    for qs, ss in zip(query, subject):
         if ((qs == '-') and (ss == '-')): # These should not happen, but if they dy
             continue # Skip this character
         elif (qs == '-'):
@@ -404,7 +404,7 @@ def alignment2cigar(query, subject, specific=False, abbreviated=False):
             current = 'I' # Insertion in query
         else: # Aligned
             if (specific):
-                if (qs == ss):
+                if (qs == ss): # TODO: Make ambiguity aware, selectable as an argument
                     current = '=' # Match
                 else:
                     current = 'X' # Mismatch
