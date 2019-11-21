@@ -51,7 +51,8 @@ class Motif(object):
         
         Example inputs: 'G{,2}N{19,20}>NGG', 'N{20,21}>NNGRRT', 'TTTN<N{20,23}'
         """
-        
+        # TODO: Consider implementing a way of parsing nickase RGNs (only cut on one strand)
+        # TODO: Consider implementing a way of parsing paired nickase RGNs
         # Still need to implement:
         #  Identify gRNA pairs on opposite strands appropriate for "nickase" Cas9
         #  allow for PAM-out and PAM-in orientations
