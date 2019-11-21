@@ -5,6 +5,7 @@
 # source/aligners/blastplus.py
 
 # List general Python imports
+import sys
 import os
 from collections import OrderedDict
 import logging
@@ -60,11 +61,21 @@ class BlastPlus(Aligner):
         # Build the database output filename
         index_file = os.path.join(output_folder, name, name)
         
+        # If spaces exist in the path names, then certain precautions must be taken
+        # See https://www.ncbi.nlm.nih.gov/books/NBK279669/
+        e_fasta = fasta
+        e_index_file = index_file
+        if sys.platform.startswith('win'):
+            if (' ' in fasta):
+                e_fasta = '"' + fasta + '"'
+            if (' ' in index_file):
+                e_index_file = '"' + index_file + '"'
+        
         options = OrderedDict([
             ('-dbtype', 'nucl'),
-            ('-in', fasta),
+            ('-in', e_fasta),
             ('-hash_index', None),
-            ('-out', index_file),
+            ('-out', e_index_file),
         ])
         
         return self.process('makeblastdb', index_file, options)
