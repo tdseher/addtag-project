@@ -76,6 +76,7 @@ steps:
     $(python2.pythonLocation)/python -m pip install git+https://github.com/MicrosoftResearch/Azimuth.git
   displayName: Install 'Azimuth' dependencies
 
+#### Begin BLAST+ ####
 # Linux
 - bash: |
     wget -nv ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/2.9.0/ncbi-blast-2.9.0+-x64-linux.tar.gz
@@ -110,6 +111,36 @@ steps:
 - script: |
     blastn -version
   displayName: Show version of 'blastn' binary
+#### End BLAST+ ####
+
+#### Begin CAS-OFFINDER ####
+- bash: |
+    mkdir cas-offinder-2.4
+    cd cas-offinder-2.4/
+    wget -nv https://versaweb.dl.sourceforge.net/project/cas-offinder/Binaries/2.4/Linux64/cas-offinder
+    echo "##vso[task.prependpath]$(Build.SourcesDirectory)/cas-offinder-2.4"
+  condition: eq( variables['Agent.OS'], 'Linux' )
+  displayName: Install 'CAS-OFFINDER' dependencies on Linux
+
+- bash: |
+    mkdir cas-offinder-2.4
+    cd cas-offinder-2.4/
+    curl -O https://phoenixnap.dl.sourceforge.net/project/cas-offinder/Binaries/2.4/Mac/cas-offinder
+    echo "##vso[task.prependpath]$(Build.SourcesDirectory)/cas-offinder-2.4"
+  condition: eq( variables['Agent.OS'], 'Darwin' )
+  displayName: Install 'CAS-OFFINDER' dependencies on macOS
+
+- powershell: |
+    New-Item -Name cas-offinder-2.4 -ItemType directory
+    Invoke-WebRequest -Uri https://versaweb.dl.sourceforge.net/project/cas-offinder/Binaries/2.4/Win64/cas-offinder.exe -OutFile cas-offinder-2.4\cas-offinder.exe
+    echo "##vso[task.prependpath]$(Build.SourcesDirectory)\cas-offinder-2.4"
+  condition: eq( variables['Agent.OS'], 'Windows_NT' )
+  displayName: Install 'CAS-OFFINDER' dependencies on Windows
+
+- script: |
+    cas-offinder
+  displayName: Show version of 'cas-offinder'
+#### End CAS-OFFINDER ####
 
 - script: |
     $(python3.pythonLocation)/python -m pip install pytest pytest-azurepipelines pytest-cov
