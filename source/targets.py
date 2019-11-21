@@ -259,7 +259,7 @@ class Target(object):
                 #for location in obj.locations:
                 #    print(' '.join(['>'+obj.format_location(location), obj.name]), file=flo)
                 #    print(sequence, file=flo)
-                print(' '.join(['>'+obj.name] + sorted([obj.format_location(x, sep) for x in obj.locations])), file=flo)
+                print(' '.join(['>'+obj.name] + sorted([obj.format_location(x, sep) for x in obj.locations]) + ['motif='+obj.motif]), file=flo)
                 print(sequence, file=flo)
                 
         cls.logger.info(cls.__name__ + ' query FASTA generated: {!r}'.format(filename))
