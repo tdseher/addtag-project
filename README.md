@@ -146,7 +146,7 @@ If you want to make the module available to a specific Python installation, use 
 /path/to/python -m pip install regex
 ```
 
-Often, the package is not available on PYPI, or you need a development version. In these cases, you can direct `pip` to download and setup a package from a code repository. The easiest way to install it and take care of all dependencies is to use `pip`, assuming `git` is available in the `PATH` environmental variable. Here is how to install the `Azimuth` package from [GitHub](https://github.com/). The easiest way to install it and take care of all dependencies is to use `pip`, assuming `git` is available in the `PATH` environmental variable.
+Often, the package is not available on PYPI, or you need a development version. In these cases, you can direct `pip` to download and setup a package from a code repository. The easiest way to install it and take care of all dependencies is to use `pip`, assuming `git` is available in the `PATH` environmental variable. Here is how to install the `Azimuth` package from [GitHub](https://github.com/).
 ```sh
 pip2.7 install git+https://github.com/MicrosoftResearch/Azimuth.git
 ```
