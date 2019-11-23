@@ -62,6 +62,34 @@ steps:
     $(python3.pythonLocation)/python -c "import sys; print(sys.executable)"
   displayName: Show version and location of 'python3' binary
 
+#### Begin CONDA ####
+# Linux
+- bash: |
+    echo "##vso[task.prependpath]$CONDA/bin"
+  condition: eq( variables['Agent.OS'], 'Linux' )
+  displayName: Install 'conda' dependencies on Linux
+
+# macOS
+# On Hosted macOS, the agent user doesn't have ownership of Miniconda's installation directory/
+# We need to take ownership if we want to update conda or install packages globally
+# Take ownership of conda installation
+#- bash: sudo chown -R $USER $CONDA
+- bash: |
+    echo "##vso[task.prependpath]$CONDA/bin"
+  condition: eq( variables['Agent.OS'], 'Darwin' )
+  displayName: Install 'conda' dependencies on macOS
+
+# Windows
+- powershell: |
+    Write-Host "##vso[task.prependpath]$env:CONDA\Scripts"
+  condition: eq( variables['Agent.OS'], 'Windows_NT' )
+  displayName: Install 'conda' dependencies on Windows
+
+- script: |
+    conda info
+  displayName: Show version of 'conda' binary
+#### End CONDA ####
+
 - script: |
     $(python3.pythonLocation)/python -m pip install setuptools
     $(python3.pythonLocation)/python -m pip install --upgrade pip
@@ -119,7 +147,7 @@ steps:
     cd cas-offinder-2.4/
     wget -nv https://versaweb.dl.sourceforge.net/project/cas-offinder/Binaries/2.4/Linux64/cas-offinder
     echo "##vso[task.prependpath]$(Build.SourcesDirectory)/cas-offinder-2.4"
-  condition: eq( variables['Agent.OS'], 'Linux' )
+  condition: False # eq( variables['Agent.OS'], 'Linux' )
   displayName: Install 'CAS-OFFINDER' dependencies on Linux
 
 - bash: |
@@ -127,18 +155,19 @@ steps:
     cd cas-offinder-2.4/
     curl -O https://phoenixnap.dl.sourceforge.net/project/cas-offinder/Binaries/2.4/Mac/cas-offinder
     echo "##vso[task.prependpath]$(Build.SourcesDirectory)/cas-offinder-2.4"
-  condition: eq( variables['Agent.OS'], 'Darwin' )
+  condition: False # eq( variables['Agent.OS'], 'Darwin' )
   displayName: Install 'CAS-OFFINDER' dependencies on macOS
 
 - powershell: |
     New-Item -Name cas-offinder-2.4 -ItemType directory
     Invoke-WebRequest -Uri https://versaweb.dl.sourceforge.net/project/cas-offinder/Binaries/2.4/Win64/cas-offinder.exe -OutFile cas-offinder-2.4\cas-offinder.exe
     echo "##vso[task.prependpath]$(Build.SourcesDirectory)\cas-offinder-2.4"
-  condition: eq( variables['Agent.OS'], 'Windows_NT' )
+  condition: False # eq( variables['Agent.OS'], 'Windows_NT' )
   displayName: Install 'CAS-OFFINDER' dependencies on Windows
 
 - script: |
     cas-offinder
+  condition: False
   displayName: Show version of 'cas-offinder'
 #### End CAS-OFFINDER ####
 
