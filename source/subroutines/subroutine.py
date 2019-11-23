@@ -25,7 +25,9 @@ __citation__ = "{__author__}. AddTag. Unpublished ({__date__})".format(**locals(
 __license__ = '\n'.join([x if (i == 0) else '  '+x for i, x in enumerate(utils.parse_and_wrap_local_file(os.path.join('..', 'LICENSE.md'))[1:])])
 
 class Subroutine():
-    """ Template code to move Subroutines into."""
+    '''
+    Class that serves as a template for a Subroutine that will be added to the program usage.
+    '''
     def __init__(self, subparsers):
         self.subparsers = subparsers
         
@@ -55,18 +57,25 @@ class Subroutine():
             version='{__program__} {__version__} (revision {__revision__})'.format(**globals()))
     
     def define_arguments(self):
+        '''
+        Overload this method
+        '''
         pass
     
     def compute(self, args):
+        '''
+        Overload this method
+        '''
         pass
 
 class CustomHelpFormatter(argparse.HelpFormatter):
-    """Help message formatter which retains any formatting in descriptions
+    '''
+    Help message formatter which retains any formatting in descriptions
     and adds default values to argument help.
     
     Only the name of this class is considered a public API. All the methods
     provided by the class are considered an implementation detail.
-    """
+    '''
     # This class combines:
     #   argparse.ArgumentDefaultsHelpFormatter
     #   argparse.RawDescriptionHelpFormatter
