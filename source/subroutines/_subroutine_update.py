@@ -57,96 +57,149 @@ class UpdateParser(subroutine.Subroutine):
         try:
             # Check to see it 'git' is available on PATH.
             command_list = ['git', 'rev-list', 'HEAD']
-            cp = subprocess.run(command_list, cwd=working_dir, shell=False, check=True, stdout=subprocess.PIPE)
-            #print(cp.stdout.decode().splitlines())
+            cp = subprocess.run(command_list, cwd=working_dir, shell=False, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         except FileNotFoundError:
             # If 'git' is not on PATH, then exit with a non-zero status
             print("ERROR: 'git' program not found on PATH. No update performed.", file=sys.stderr)
             sys.exit(1)
-        except subprocess.CalledProcessError:
+        except subprocess.CalledProcessError as error:
+            #print('ERROR" {}'.format(error.stderr.decode()))
             # This error occurrs if '.git' folder does not exist.
             # If it doesn't, then the source should be checked out
             print("WARNING: '.git' folder does not exist.')")
-            print("Running: '{}'".format('git clone {}'.format(__repository__)))
+            
             command_list = ['git', 'clone', __repository__, 'update']
+            print("Running: '{}'".format(' '.join(command_list)))
             cp = subprocess.run(command_list, cwd=working_dir, shell=False, check=True, stdout=subprocess.PIPE)
+            
             print("Moving '.git' folder")
             shutil.move('update/.git', '.git')
             print("Removing 'update' folder")
             shutil.rmtree('update')
         
-        # First, ask the user for confirmation (as their local files will may be re-written)
-        user = input('Some local files may be removed or re-written. Proceed with update (y/n)? ')
+        # Obtain current version information
+        command_list = ['git', 'log', '-n', '1', 'HEAD', '--format=%H,%cd']
+        print("Running: '{}'".format(' '.join(command_list)))
+        current_hash, current_date = None, None
+        try:
+            cp = subprocess.run(command_list, cwd=working_dir, shell=False, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            current_hash, current_date = cp.stdout.decode().splitlines()[0].split(',', 1)
+        except subprocess.CalledProcessError as error:
+            if error.stderr:
+                print('ERROR: {}'.format(error.stderr.decode()))
         
-        if (user in ['y', 'Y', 'yes', 'YES', 'Yes']):
-            if args.discard_local_changes:
-                # If you want the newest version, but you made local changes, then you can first discard your changes,
-                # and then update. Use the following two commands from inside the `addtag-project/` folder.
-                command_list = ['git', 'reset', '--hard']
-                print("Running: '{}'".format(' '.join(command_list)))
-                cp = subprocess.run(command_list, cwd=working_dir, shell=False, check=True, stdout=subprocess.PIPE)
-
-                command_list = ['git', 'pull']
-                print("Running: '{}'".format(' '.join(command_list)))
-                cp = subprocess.run(command_list, cwd=working_dir, shell=False, check=True, stdout=subprocess.PIPE)
+        # Run 'git fetch' to "safely" download the repo from the remote repository
+        command_list = ['git', 'fetch']
+        print("Running: '{}'".format(' '.join(command_list)))
+        try:
+            cp = subprocess.run(command_list, cwd=working_dir, shell=False, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        except subprocess.CalledProcessError as error:
+            if error.stderr:
+                print('ERROR: {}'.format(error.stderr.decode()))
+        
+        # Obtain updated version information
+        updated_hash, updated_date = None, None
+        command_list = ['git', 'log', '-n', '1', 'FETCH_HEAD', '--format=%H,%cd']
+        print("Running: '{}'".format(' '.join(command_list)))
+        try:
+            cp = subprocess.run(command_list, cwd=working_dir, shell=False, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            updated_hash, updated_date = cp.stdout.decode().splitlines()[0].split(',', 1)
+        except subprocess.CalledProcessError as error:
+            if error.stderr:
+                print('ERROR: {}'.format(error.stderr.decode()))
+        
+        if (current_hash and updated_hash and (current_hash != updated_hash)):
+            print('Current version: {} ({})'.format(current_hash[:7], current_date))
+            print('New version: {} ({})'.format(updated_hash[:7], updated_date))
+            print('')
             
-            elif args.keep_local_changes:
-                # Alternatively, if you want to keep the local modifications, you can use stash to hide them away
-                # before pulling, then reapply them afterwards.
-                command_list = ['git', 'stash']
-                print("Running: '{}'".format(' '.join(command_list)))
-                cp = subprocess.run(command_list, cwd=working_dir, shell=False, check=True, stdout=subprocess.PIPE)
-
-                command_list = ['git', 'pull']
-                print("Running: '{}'".format(' '.join(command_list)))
-                cp = subprocess.run(command_list, cwd=working_dir, shell=False, check=True, stdout=subprocess.PIPE)
-
-                command_list = ['git', 'stash', 'pop']
-                print("Running: '{}'".format(' '.join(command_list)))
-                cp = subprocess.run(command_list, cwd=working_dir, shell=False, check=True, stdout=subprocess.PIPE)
+            # Compare current version with remote/fetched version
+            command_list = ['git', 'log', '--oneline', '--decorate=no', 'HEAD..FETCH_HEAD']
+            print("Running: '{}'".format(' '.join(command_list)))
+            cp = subprocess.run(command_list, cwd=working_dir, shell=False, check=True, stdout=subprocess.PIPE)
+            changes = cp.stdout.decode().splitlines()
+            print('Change log:')
+            for change in changes:
+                print(' * {}'.format(change.replace('[skip ci]', '')))
+            print('')
             
-            else:
-                # If you would like to update your local copy to the newest version available, use the following
-                # command from within the `addtag-project/` directory.
-                try:
+            # First, ask the user for confirmation (as their local files will may be re-written)
+            user = input('Some local files may be removed or re-written. Proceed with update (y/n)? ')
+            
+            if (user in ['y', 'Y', 'yes', 'YES', 'Yes']):
+                if args.discard_local_changes:
+                    # If you want the newest version, but you made local changes, then you can first discard your changes,
+                    # and then update. Use the following two commands from inside the `addtag-project/` folder.
+                    #command_list = ['git', 'reset', '--hard', 'HEAD']
+                    #print("Running: '{}'".format(' '.join(command_list)))
+                    #cp = subprocess.run(command_list, cwd=working_dir, shell=False, check=True, stdout=subprocess.PIPE)
+                    
+                    # Hide away the modifications
+                    command_list = ['git', 'stash', '--include-untracked']
+                    print("Running: '{}'".format(' '.join(command_list)))
+                    cp = subprocess.run(command_list, cwd=working_dir, shell=False, check=True, stdout=subprocess.PIPE)
+                    
+                    # Remove the hidden modifications
+                    command_list = ['git', 'stash', 'drop']
+                    print("Running: '{}'".format(' '.join(command_list)))
+                    cp = subprocess.run(command_list, cwd=working_dir, shell=False, check=True, stdout=subprocess.PIPE)
+                    
+                    # Download the new version
                     command_list = ['git', 'pull']
                     print("Running: '{}'".format(' '.join(command_list)))
                     cp = subprocess.run(command_list, cwd=working_dir, shell=False, check=True, stdout=subprocess.PIPE)
-                except subprocess.CalledProcessError:
-                    print("ERROR: 'git pull' returned non-zero exit status.", file=sys.stderr)
-                    print("You may have local changes that must either be discarded or kept.", file=sys.stderr)
-                    print("Please see 'addtag update --help' for more information.", file=sys.stderr)
-                    sys.exit(1)
                 
-                # ./addtag update
-                # Some local files may be removed or re-written. Proceed with update (y/n)? y
-                # Password for 'https://tdseher@bitbucket.org': 
-                # remote: Counting objects: 20, done.
-                # remote: Compressing objects: 100% (20/20), done.
-                # remote: Total 20 (delta 16), reused 0 (delta 0)
-                # Unpacking objects: 100% (20/20), done.
-                # From https://bitbucket.org/tdseher/addtag-project
-                #    47ad5ff..920f9b0  master     -> origin/master
-                # error: Your local changes to the following files would be overwritten by merge:
-                #     source/donors.py
-                #     source/nucleotides.py
-                #     source/subroutines/_subroutine_confirm.py
-                #     source/subroutines/_subroutine_generate.py
-                # Please commit your changes or stash them before you merge.
-                # Aborting
-                # Traceback (most recent call last):
-                #   File "./addtag", line 19, in <module>
-                #     source.Main()
-                #   File "/media/sf_VirtualBox_share/addtag-project/source/__init__.py", line 219, in __init__
-                #     args.func(args)
-                #   File "/media/sf_VirtualBox_share/addtag-project/source/subroutines/_subroutine_update.py", line 88, in compute
-                #     cp = subprocess.run(command_list, cwd=working_dir, shell=False, check=True, stdout=subprocess.PIPE)
-                #   File "/usr/lib/python3.5/subprocess.py", line 398, in run
-                #     output=stdout, stderr=stderr)
-                # subprocess.CalledProcessError: Command '['git', 'pull']' returned non-zero exit status 1
+                elif args.keep_local_changes:
+                    # Alternatively, if you want to keep the local modifications, you can use stash to hide them away
+                    # before pulling, then reapply them afterwards.
+                    command_list = ['git', 'stash', '--include-untracked']
+                    print("Running: '{}'".format(' '.join(command_list)))
+                    cp = subprocess.run(command_list, cwd=working_dir, shell=False, check=True, stdout=subprocess.PIPE)
+                    
+                    # Download the new version
+                    command_list = ['git', 'pull']
+                    print("Running: '{}'".format(' '.join(command_list)))
+                    cp = subprocess.run(command_list, cwd=working_dir, shell=False, check=True, stdout=subprocess.PIPE)
+                    
+                    # Restore hidden modifications
+                    command_list = ['git', 'stash', 'pop']
+                    print("Running: '{}'".format(' '.join(command_list)))
+                    try:
+                        cp = subprocess.run(command_list, cwd=working_dir, shell=False, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    except subprocess.CalledProcessError as error:
+                        if error.stderr:
+                            print('ERROR: {}'.format(error.stderr.decode()))
+                            print('Conflicts exist between the new version and the local modifications.')
+                            print("Please inspect the 'stash' to manually resolve these conflicts.")
+                            print("Notwithstanding, you have newest version of AddTag.")
+                    
+                    # Consider adding the following approach in case there are conflicts:
+                    #   git stash show -p | git apply
+                    #   git stash drop
+                    # or
+                    #   git stash show -p | git apply --3way
+                    #   git stash drop
                 
-            print('Update finished.')
+                else:
+                    # If you would like to update your local copy to the newest version available, use the following
+                    # command from within the `addtag-project/` directory.
+                    try:
+                        command_list = ['git', 'pull']
+                        print("Running: '{}'".format(' '.join(command_list)))
+                        cp = subprocess.run(command_list, cwd=working_dir, shell=False, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    except subprocess.CalledProcessError as error:
+                        if error.stderr:
+                            print('ERROR: {}'.format(error.stderr.decode()))
+                        print("ERROR: 'git pull' returned non-zero exit status.", file=sys.stderr)
+                        print("You may have local changes that must either be discarded or kept.", file=sys.stderr)
+                        print("Please see 'addtag update --help' for more information.", file=sys.stderr)
+                        sys.exit(1)
+                    
+                print('Update finished.')
+            else:
+                print('No update performed.')
+        
         else:
-            print('No update performed.')
+            print('No updated version available.')
         
         # End 'compute()'
