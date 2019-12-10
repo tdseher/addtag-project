@@ -9,20 +9,39 @@
 import sys
 import os
 import argparse
+#import textwrap
 
 # Import included AddTag-specific modules
 from .. import utils
 
 # Define meta variables
 __author__ = "Thaddeus D. Seher (@tdseher) & Aaron Hernday"
+__summary__ = "CRISPR/Cas-directed HDR genome editing suite: finds+scores gRNA targets, generates donor DNAs, & produces optimal cPCR primer designs."
+# '{__wrap_summary__}'.format(__wrap_summary__='\n  '.join(textwrap.wrap(__summary__)))
 __date__ = utils.load_git_date()
 __fullversion__ = utils.load_git_version()
 __version__ = __fullversion__[:7]
 __revision__ = utils.load_git_revision()
 __program__ = os.path.basename(sys.argv[0])
 __repository__ = 'https://github.com/tdseher/addtag-project.git'
-__citation__ = "{__author__}. AddTag. Unpublished ({__date__})".format(**locals())
-__license__ = '\n'.join([x if (i == 0) else '  '+x for i, x in enumerate(utils.parse_and_wrap_local_file(os.path.join('..', 'LICENSE.md'))[1:])])
+__citation__ = "{__author__}. AddTag. In preparation ({__date__})".format(**locals())
+__copyright__ = "Copyright (c) 2016 {__author__}".format(**locals())
+__license__ = '''This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU Affero General Public License as
+  published by the Free Software Foundation, either version 3 of the
+  License, or (at your option) any later version.
+  
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+  GNU Affero General Public License for more details.
+  
+  You should have received a copy of the GNU Affero General Public License
+  along with this program. If not, see <https://www.gnu.org/licenses/>.
+  
+  Some features rely on code written by other people, provided under 
+  different licenses. Please review them individually for more information.
+'''.format(**locals())
 
 class Subroutine():
     '''

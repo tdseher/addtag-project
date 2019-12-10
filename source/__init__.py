@@ -94,8 +94,7 @@ citation:
   {__citation__}
 
 copyright:
-  AddTag Copyright (c) 2017 {__author__}.
-  All rights reserved.
+  AddTag {__copyright__}.
 
 license:
   {__license__}
