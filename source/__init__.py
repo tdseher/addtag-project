@@ -91,7 +91,11 @@ version:
   date     {__date__}
 
 citation:
-  {__citation__}
+  If you use AddTag for your research, please cite us. Because the manuscript
+  is currently in preparation, you will need to cite the code repository
+  instead.
+  
+    {__wrap_citation__}
 
 copyright:
   AddTag {__copyright__}.

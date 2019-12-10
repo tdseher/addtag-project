@@ -9,7 +9,7 @@
 import sys
 import os
 import argparse
-#import textwrap
+import textwrap
 
 # Import included AddTag-specific modules
 from .. import utils
@@ -24,7 +24,9 @@ __version__ = __fullversion__[:7]
 __revision__ = utils.load_git_revision()
 __program__ = os.path.basename(sys.argv[0])
 __repository__ = 'https://github.com/tdseher/addtag-project.git'
-__citation__ = "{__author__}. AddTag. In preparation ({__date__})".format(**locals())
+#__citation__ = "{__author__}. AddTag. In preparation ({__date__})".format(**locals())
+__citation__ = "Thaddeus D. Seher and Aaron D. Hernday. Addtag: Program for identifying exclusive endogenous gRNA sites and creating unique synthetic gRNA sites. University of California, Merced. Retrieved from <https://github.com/tdseher/addtag-project> (2019)."
+__wrap_citation__ = '\n    '.join(textwrap.wrap(__citation__))
 __copyright__ = "Copyright (c) 2016 {__author__}".format(**locals())
 __license__ = '''This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU Affero General Public License as
