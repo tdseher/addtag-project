@@ -36,10 +36,12 @@ Advanced Features:
  
 ## 📋 Requirements ##
 
-Below is a list AddTag features. Each entry is marked with a ☑ or ☐, indicating whether or not an additional download/setup is required:
+Below are lists AddTag requirements. Each entry is marked with a ☑ or ☐, indicating whether or not an additional download/setup is required:
 
  * [x] All requirements included in AddTag
  * [ ] Additional download/setup required
+
+### Basic requirements ###
 
 Base operation of AddTag requires the following:
 
@@ -90,15 +92,15 @@ The following scoring algorithms are subclasses of `SingleSequenceAlgorithm`.
 
  * [ ] Azimuth ([Doench, Fusi, et al (2016)](http://dx.doi.org/10.1038/nbt.3437))
 
-   note: Either Azimuth2 or Azimuth 3 is only required if you want to calculate Azimuth scores.
+   note: Either Azimuth 2 or Azimuth 3 can be used to calculate Azimuth scores. There is no need to have both installed.
    
     * Azimuth 3 Python module ([source](https://github.com/milescsmith/Azimuth), [documentation](https://www.microsoft.com/en-us/research/project/crispr/))
       
       note: requires specific versions of numpy, scikit-learn, and pandas.
       Other dependencies include click, biopython, scipy, GPy, hyperopt, paramz, theanets, glmnet_py, dill, matplotlib, pytz, python-dateutil, six, tqdm, future, networkx, pymongo, decorator, downhill, theano, nose-parameterized, joblib, kiwisolver, cycler, pyparsing, setuptools, glmnet-py.
 
-    * 2.7.10 ≤ Python < 3.0.0 ([source](https://www.python.org/downloads/), [binaries](https://www.python.org/downloads/), [documentation](https://docs.python.org/2/))
-      with Azimuth 2 Python module ([source](https://github.com/MicrosoftResearch/Azimuth), [documentation](https://www.microsoft.com/en-us/research/project/crispr/))
+    * Azimuth 2 Python module ([source](https://github.com/MicrosoftResearch/Azimuth), [documentation](https://www.microsoft.com/en-us/research/project/crispr/))
+      on 2.7.10 ≤ Python < 3.0.0 ([source](https://www.python.org/downloads/), [binaries](https://www.python.org/downloads/), [documentation](https://docs.python.org/2/)) 
       
       note: requires python-tk to be installed. Also requires specific versions of scipy, numpy, matplotlib, nose, scikit-learn, pandas, biopython, pyparsing, cycler, six, pytz, python-dateutil, functools32, subprocess32.
 
