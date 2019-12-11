@@ -203,7 +203,7 @@ class Main(object):
         
         # Check to make sure that STDOUT redirects in Windows will work.
         # We restart the command if necessary
-        self.win_restart()
+        self.encoding_restart()
         
         # Obtain command line arguments and parse them
         args = self.parse_arguments()
@@ -237,7 +237,7 @@ class Main(object):
             self.logger.info('Runtime: {}s'.format(elapsed))
             self.logger.info('Runtime: {}'.format(str(datetime.timedelta(seconds=elapsed))))
     
-    def win_restart(self):
+    def encoding_restart(self):
         '''
         Check to make sure that STDOUT redirects in Windows will work.
         The environmental variable PYTHONIOENCODING needs to be set to 'utf-8'.
@@ -261,8 +261,11 @@ class Main(object):
         #    print('Env var: None')
         #print('')
         
-        if sys.platform.startswith('win'):
-            if (('PYTHONIOENCODING' not in os.environ) or (os.environ['PYTHONIOENCODING'] != 'utf-8')):
+        #if sys.platform.startswith('win'):
+        if (sys.stdout.encoding != 'utf-8'):
+            if ((sys.version_info >= (3, 7)) and hasattr(sys.stdout, 'reconfigure')):
+                sys.stdout.reconfigure(encoding='utf-8')
+            elif (('PYTHONIOENCODING' not in os.environ) or (os.environ['PYTHONIOENCODING'] != 'utf-8')):
                 #print('Restarting')
                 os.environ['PYTHONIOENCODING'] = 'utf-8'
                 os.execvp(sys.executable, [sys.executable] + sys.argv)
