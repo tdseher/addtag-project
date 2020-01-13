@@ -15,10 +15,7 @@ import regex
 from . import utils
 from . import nucleotides
 from . import algorithms
-from . import scores
-#from . import feature
 from .motifs import OnTargetMotif, OffTargetMotif
-#from .donors import ExcisionDonor, ReversionDonor
 
 logger = logging.getLogger(__name__)
 
@@ -460,7 +457,7 @@ class Target(object):
         # temp_targets3 = []
         # temp_pams3 = []
         # for i in range(len(temp_seqs2)):
-        #     if (args.target_gc[0] <= scores.gc_score(temp_targets2[i]) <= args.target_gc[1]):
+        #     if (args.target_gc[0] <= nucleotides.gc_score(temp_targets2[i]) <= args.target_gc[1]):
         #         temp_seqs3.append(temp_seqs2[i])
         #         temp_targets3.append(temp_targets2[i])
         #         temp_pams3.append(temp_pams2[i])
@@ -670,6 +667,39 @@ class Target(object):
                     t_obj = cls.indices[t_index]
                     t_obj.score[C.name] = batch_scores[i]
     
+    # Off-target score
+    #  Hsu specificity score
+    #   The higher the specificity score, the lower are off-target effects in the genome.
+    #   The specificity score ranges from 0-100 and measures the uniqueness
+    #   of a guide in the genome. See Hsu et al. Nat Biotech 2013.
+    #   (http://dx.doi.org/10.1038/nbt.2647) We recommend values >50, where possible.
+    def off_target_score(self, off_target_scores, on_target_scores=(100,)):
+        """Calculate the off-target score using the Zhong lab MIT Guide Score algorithm
+        
+        'off_target_scores' should be a list/tuple, with each element ranging from 0-100.
+        'on_target_scores' should be a list/tuple, with each element ranging from 0-100.
+        Returns off target score ranging from 0-100.
+        
+        Returns the naive proportion of gRNAs that will bind to a single target
+        out of all possible targets.
+        
+        Higher values indicate greater specificity to intended target. Higher
+        scores are better. Lower values mean that the candidate gRNA may bind
+        nonspecifically. Guides with scores over 50 are good enough to be candidates
+        (about 50% of the gRNA binding events will be to the intended target).
+        The off-target score tells you the inverse probability of Cas9 off-target
+        binding. A higher score means the sequence has less chance to bind to
+        off-target sequences in the rest of the genome.
+        
+        The off-target score is from Hsu et al. (2013) doi:10.1038/nbt.2647
+        and measures how specific the guide is to the target location. Scores should
+        be used to rank guides relative to each other.
+        
+        This "MIT Guide Score" is defined on http://crispr.mit.edu/about
+        Also called "Efficiency score", I think (or Eff Score) (see CRISPOR).
+        """
+        return  100.0*sum(on_target_scores)/(sum(on_target_scores)+sum(off_target_scores))
+    
     def score_off_targets(self, args, homologs):
         """
         Calculate Guide Score (off-target score) for all single/paired
@@ -820,7 +850,7 @@ class Target(object):
             try:
                 on_list = on_targets[C.name]['gDNA'] + args.dDNA_gDNA_ratio * on_targets[C.name]['dDNA']
                 off_list = off_targets[C.name]['gDNA'] + args.dDNA_gDNA_ratio * off_targets[C.name]['dDNA']
-                self.off_targets[C.name] = scores.off_target_score(off_list, on_list)
+                self.off_targets[C.name] = self.off_target_score(off_list, on_list)
             except ZeroDivisionError:
                 self.off_targets[C.name] = 0.0 # This should never happen
     

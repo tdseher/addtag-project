@@ -481,6 +481,51 @@ def get_nt_freq(nts, seq):
 
     return nt_count/len(seq)
 
+def gc_score(seq):
+    """Caclulates the %GC content for seq. IUPAC ambiguities okay."""
+    iupac = {
+        'a': ['a'],
+        'c': ['c'],
+        'g': ['g'],
+        't': ['t'],
+        'r': ['a', 'g'],
+        'y': ['c', 't'],
+        'm': ['a', 'c'],
+        'k': ['g', 't'],
+        'w': ['a', 't'],
+        's': ['c', 'g'],
+        'b': ['c', 'g', 't'],
+        'd': ['a', 'g', 't'],
+        'h': ['a', 'c', 't'],
+        'v': ['a', 'c', 'g'],
+        'n': ['a', 'c', 'g', 't'],
+        
+        'A': ['A'],
+        'C': ['C'],
+        'G': ['G'],
+        'T': ['T'],
+        'R': ['A', 'G'],
+        'Y': ['C', 'T'],
+        'M': ['A', 'C'],
+        'K': ['G', 'T'],
+        'W': ['A', 'T'],
+        'S': ['C', 'G'],
+        'B': ['C', 'G', 'T'],
+        'D': ['A', 'G', 'T'],
+        'H': ['A', 'C', 'T'],
+        'V': ['A', 'C', 'G'],
+        'N': ['A', 'C', 'G', 'T'],
+    }
+    
+    gc = 0.0
+    for i in seq:
+        k = iupac[i]
+        for j in ['G', 'g', 'C', 'c']:
+            if j in k:
+                gc += 1.0/len(k)
+    
+    return 100*gc/len(seq)
+
 def get_gc_freq(seq):
     """
     Ambiguity-aware %GC calculation
@@ -525,6 +570,37 @@ def get_gc_freq(seq):
         gc_count += iupac[s]
     
     return gc_count/len(seq)
+
+def r_score(seq1, seq2, length):
+    """
+    Input should not include PAM sequence.
+    
+    nnnnnnnnnnnnnnnnnnnnPAM query
+                    iiii--- no mismatch within 4 nt of PAM
+                iiiiiiii--- no mismatch within 8 nt of PAM
+            iiiiiiiiiiii--- no mismatch within 12 nt of PAM
+        iiiiiiiiiiiiiiii--- no mismatch within 16 nt of PAM
+    """
+    if (ridentities(seq1, seq2) >= length):
+        return 1.0
+    else:
+        return 0.0
+
+#def score_histogram(sequence, algorithms):
+#    """Code that scores a gRNA sequence
+#    Returns scores"""
+#    # two types of off-target scores
+#    #  CFD off-target score
+#    #  MIT off-target score
+#    
+#    # Histogram of off-targets:
+#    #  For each number of mismatches, the number of off-targets is indicated.
+#    #  Example:
+#    #   1-3-20-50-60    This means 1 off-target with 0 mismatches, 3 off-targets with 1 mismatch, 20 off-targets with 2 mismatches, etc.
+#    #   0-2-5-10-20     These are the off-targets that have no mismatches in the 12 bp adjacent to the PAM. These are the most likely off-targets.
+#    #   
+#    #   Off-targets are considered if they are flanked by one of the motifs NGG, NAG or NGA.
+
 
 # So far for DNA only
 def build_regex_pattern(iupac_sequence, max_substitutions=0, max_insertions=0, max_deletions=0, max_errors=0, capture=True):
