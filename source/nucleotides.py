@@ -382,6 +382,7 @@ def ridentities(seq1, seq2):
     output:
       11
     """
+    # TODO: Change this to a 'zip(seq1, seq2)' Iterator to improve speed
     identities = 0
     min_len = min(len(seq1), len(seq2))
     for i in range(-1,-min_len-1, -1):
@@ -402,6 +403,7 @@ def lidentities(seq1, seq2):
     output:
       8
     """
+    # TODO: Change this to a 'zip(seq1, seq2)' Iterator to improve speed
     identities = 0
     min_len = min(len(seq1), len(seq2))
     for i in range(min_len):
@@ -427,6 +429,68 @@ def filter_polyt(sequences, max_allowed=4):
     #            yield s
     
     return list(filter(lambda x: 'T'*(max_allowed+1) not in x, sequences))
+
+def get_nt_count(seq, case_sensitive=False):
+    '''
+    Ambiguity-aware canonical nt residue ('A', 'C', 'G', 'T') counter
+    :param seq: string or list containing DNA sequence to count nts
+    :return: dict
+    '''
+    iupac = {
+        'a': ['a'],
+        'c': ['c'],
+        'g': ['g'],
+        't': ['t'],
+        'r': ['a', 'g'],
+        'y': ['c', 't'],
+        'm': ['a', 'c'],
+        'k': ['g', 't'],
+        'w': ['a', 't'],
+        's': ['c', 'g'],
+        'b': ['c', 'g', 't'],
+        'd': ['a', 'g', 't'],
+        'h': ['a', 'c', 't'],
+        'v': ['a', 'c', 'g'],
+        'n': ['a', 'c', 'g', 't'],
+
+        'A': ['A'],
+        'C': ['C'],
+        'G': ['G'],
+        'T': ['T'],
+        'R': ['A', 'G'],
+        'Y': ['C', 'T'],
+        'M': ['A', 'C'],
+        'K': ['G', 'T'],
+        'W': ['A', 'T'],
+        'S': ['C', 'G'],
+        'B': ['C', 'G', 'T'],
+        'D': ['A', 'G', 'T'],
+        'H': ['A', 'C', 'T'],
+        'V': ['A', 'C', 'G'],
+        'N': ['A', 'C', 'G', 'T'],
+    }
+    
+    output = {
+        'A': 0.0,
+        'C': 0.0,
+        'G': 0.0,
+        'T': 0.0,
+    }
+    if case_sensitive: 
+        output['a'] = 0.0
+        output['c'] = 0.0
+        output['g'] = 0.0
+        output['t'] = 0.0
+    
+    for c in seq:
+        nts = iupac[c]
+        for nt in nts:
+            if case_sensitive:
+                output[nt] += 1/len(nts)
+            else:
+                output[nt.upper()] += 1/len(nts)
+    
+    return output
 
 def get_nt_freq(nts, seq):
     '''
