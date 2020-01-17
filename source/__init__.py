@@ -222,6 +222,7 @@ class Main(object):
             global logger
             logger = logging.getLogger(__name__)
             Main.logger = logger.getChild('Main')
+            self.logger.info('{__program__} {__version__} (revision {__revision__})'.format(**subroutine.__dict__))
             self.logger.info(args)
         
         # call the function for which action was used
@@ -231,7 +232,7 @@ class Main(object):
             # Print time taken for program to complete
             end_time = time.time()
             elapsed = end_time-start_time
-            self.logger.info('{} finished'.format(__program__))
+            self.logger.info('{__program__} finished'.format(**subroutine.__dict__))
             self.logger.info('Start time: {}s'.format(start_time))
             self.logger.info('End time: {}s'.format(end_time))
             self.logger.info('Runtime: {}s'.format(elapsed))

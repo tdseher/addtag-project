@@ -9,9 +9,10 @@ from __future__ import print_function
 import sys
 import os
 import platform
+import re
 
 # Import non-standard packages
-import regex
+#import regex
 
 if (platform.system() == 'Darwin'): # 'Darwin', 'Linux', 'Windows', 'SunOs'
     # Code to fix Mac OS X errors/warnings, especially when freezing/packing
@@ -76,11 +77,11 @@ def parse_arguments():
     seqs = []
     
     # Add sequences from STDIN
-    #seqs += regex.split(r'\s+', sys.stdin.read().strip())
+    #seqs += re.split(r'\s+', sys.stdin.read().strip())
     
     if not sys.stdin.isatty():
     #if not os.isatty(sys.stdin.fileno()):
-        seqs += regex.split(r'\s+', sys.stdin.read().strip())
+        seqs += re.split(r'\s+', sys.stdin.read().strip())
     elif (len(sys.argv[1:]) == 0):
         print(USAGE)
         sys.exit(1)
@@ -111,7 +112,7 @@ def parse_arguments():
     for f in infiles:
         with open(f, 'r') as flo:
             for line in flo:
-                seqs += regex.split(r'\s+', line.strip())
+                seqs += re.split(r'\s+', line.strip())
     
     #print('OUTPUT', file=outfile)
     #print(seqs, file=outfile)

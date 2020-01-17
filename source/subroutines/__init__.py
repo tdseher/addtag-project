@@ -21,7 +21,9 @@ def suffix_strip(text, suffix):
 # Import all Algorithm subclasses defined in python files within this same folder
 exclusions = [
     '__init__.py',
-    'subroutine.py'
+    '_subroutine_setup.py',
+    'subroutine.py',
+    #'_subroutine_generate_recombinants.py',
 ]
 path = os.path.dirname(os.path.abspath(__file__))
 #files = [f.rstrip(".py") for f in os.listdir(path) if (f.endswith('.py') and (f not in exclusions))]

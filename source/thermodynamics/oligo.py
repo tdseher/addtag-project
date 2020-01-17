@@ -571,7 +571,7 @@ class Oligo(object): # Name of the subclass
         """
         Return the string representation of the Oligo
         """
-        return self.__class__.__name__ + '(' + ', '.join(['name='+repr(self.name), 'author='+repr(self.author), 'year='+repr(self.year)]) + ')'
+        return self.__class__.__name__ + '(' + ', '.join(['name='+repr(self.name), 'authors='+repr(self.authors), 'year='+repr(self.year)]) + ')'
 
 
 class Primer(object):

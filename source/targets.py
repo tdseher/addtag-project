@@ -59,8 +59,8 @@ class Alignment(object):
         self.score = {}
         self.action = 'None'
         
-        # Haven't yet added:
-        #  lidentities, ridentities, r_score, bae, chari, oof, proxgc, want, xu
+        # TODO: Add the following Algorithms:
+        #        lidentities, ridentities, r_score, bae, chari, oof, proxgc, wang, xu
         #self.ridentities = nucleotides.ridentities(self.contig_target, aligned_target)
         #self.r_scores = {}
         #for i in [4, 8, 12, 16]:
@@ -200,7 +200,7 @@ class Target(object):
         Creates a list of Sequence objects
         """
         # Iterate through all alignment records
-        for record in aligner.load(filename):
+        for record in args.selected_aligner.load(filename):
             # Record(
             #     query_name, subject_name,
             #     query_sequence, subject_sequence,
@@ -256,7 +256,14 @@ class Target(object):
                 #for location in obj.locations:
                 #    print(' '.join(['>'+obj.format_location(location), obj.name]), file=flo)
                 #    print(sequence, file=flo)
-                print(' '.join(['>'+obj.name] + sorted([obj.format_location(x, sep) for x in obj.locations]) + ['motif='+obj.motif]), file=flo)
+                
+                # A bug in Bowtie2 makes it so that if a FASTA hader has this:
+                #   >contig motif=N{20}>NGG
+                # Then the query name will be 'NGG'.
+                # Because it erroneously thinks the header is to the right of the second '>' symbol
+                
+                #print(' '.join(['>'+obj.name] + sorted([obj.format_location(x, sep) for x in obj.locations]) + ['motif='+obj.motif]), file=flo)
+                print(' '.join(['>'+obj.name] + sorted([obj.format_location(x, sep) for x in obj.locations])), file=flo)
                 print(sequence, file=flo)
                 
         cls.logger.info(cls.__name__ + ' query FASTA generated: {!r}'.format(filename))

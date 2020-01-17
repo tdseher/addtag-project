@@ -190,6 +190,14 @@ class Feature(object):
         """
         Give all features the 'self.homologs' attribute
         """
+        # 'self.homologs' holds a list of sets (why?), and an example would look like this:
+        #    [
+        #      {
+        #        Feature(name=C3_04520C_A, gene=ADE2, location=Ca22chr3A_C_albicans_SC5314:-:943415..945122),
+        #        Feature(name=C3_04520C_B, gene=ADE2, location=Ca22chr3B_C_albicans_SC5314:-:943393..945100)
+        #      },
+        #      ...
+        #    ]
         for feature_name, f in cls.features.items():
             if homologs:
                 hname_set = homologs[f.get_parent().name]
@@ -232,6 +240,8 @@ class Feature(object):
     
     @classmethod
     def expand_all_features(cls, args, contigs):
+        # TODO: Modify this so that features aren't expanded in isolation. Instead, all features of a homologous
+        #       group are expanded together.
         checked_keys = []
         # Some make-shift code to get this working when the 'Feature.features' dict changes size during the loop process
         while(len(checked_keys) < len(Feature.features)):
@@ -299,6 +309,8 @@ class Feature(object):
         
         Returns an int.
         """
+        # TODO: Modify this function so it accepts a list of features instead of only 2
+        #       (See the function that calls this one 'match_features_by_homology()' for implementation.)
         
         # Eventually, this should be calculated from '--excise_upstream_homology MIN MAX' and '--excise_downstream_homology MIN MAX'
         # The homology length is a function of '--excise_donor_lengths 100 100' and the insert size
@@ -333,7 +345,10 @@ class Feature(object):
     def match_features_by_homology(cls, args, contigs):
         """
         Group all features (including derived ones) into homologs,
-        taking feature length and us/ds homology into account
+        taking feature length and us/ds homology into account.
+        
+        Use this function after creating derived features. 
+        This populates the 'feature.homologs' attribute and returns a final list of 'features_to_keep'
         """
         features_to_keep = set()
         if (args.donor_specificity == 'all'): # Multi-allelic
@@ -349,7 +364,7 @@ class Feature(object):
             for k, v in parents_per_gene.items():
                 cls.logger.info(' {} {}'.format(k, v)) # BRG1 {'C1_05140W_B', 'C1_05140W_C', 'C1_05140W_A'}
             
-            # Will need to do this for each gene
+            # We will need to do this for each gene
             for G, parents in parents_per_gene.items():
                 # Create a dict where key=parent, value=feature
                 vals = {}
@@ -409,6 +424,7 @@ class Feature(object):
                             
         
         elif (args.donor_specificity == 'exclusive'): # Uni-alleleic
+            # TODO: Finish writing Feature match function for exclusive/uni-allelic case
             # Either the length of the insert should be diagnostically different
             # Or the homology regions should have polymorphisms (maximize polymorphisms)
             # or both
@@ -419,6 +435,7 @@ class Feature(object):
                 features_to_keep.add(f)
             
         elif (args.donor_specificity == 'any'): # Allele-agnostic
+            # TODO: Finish writing Feature match function for any/allele-agnostic case
             # Placeholder code
             for fname, f in cls.features.items():
                 features_to_keep.add(f)

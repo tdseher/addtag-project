@@ -17,11 +17,13 @@ def suffix_strip(text, suffix):
 # Import all Algorithm subclasses defined in python files within this same folder
 exclusions = [
     '__init__.py',
-    #'_primer3.py',
-    #'_unafold.py',
     'addtagprimer.py',
     'bioprimer3.py',
     'oligo.py',
+    '_mfold.py',
+    #'_primer3.py',
+    '_rnastructure.py',
+    #'_unafold.py',
     #'_viennarna.py',
 ]
 

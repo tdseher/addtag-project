@@ -198,6 +198,9 @@ def decode_sam_flags(field, kind='str'):
 def write_merged_fasta(contig_sequences, filename, columns=80):
     """
     Creates a FASTA file
+    :param contig_sequences: Dict containing key=name value=sequence
+    :param filename: Path of FASTA file to be written
+    :param columns: Number of nt characters per line
     """
     wrapper = textwrap.TextWrapper(width=columns, replace_whitespace=False, drop_whitespace=False, expand_tabs=False, break_on_hyphens=False)
     with open(filename, 'w') as flo:
@@ -561,6 +564,8 @@ def load_git_version():
     except FileNotFoundError:
         try:
             command_list = ['git', 'log', '-n', '1', '--format=%H']
+            # Alternative command:
+            # command_list = ['git', 'rev-parse', 'HEAD']
             cp = subprocess.run(command_list, cwd=working_dir, shell=False, check=True, stdout=subprocess.PIPE)
             version = cp.stdout.decode().splitlines()[0]
         except (FileNotFoundError, subprocess.CalledProcessError):

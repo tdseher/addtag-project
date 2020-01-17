@@ -24,8 +24,9 @@ def test_aligner():
 
     # Index and align
     for aligner in aligners.aligners:
+        print("=== ", aligner.name, " ===")
         if aligner.available:
-            print("=== ", aligner.name, " ===")
+            print('AVAILABLE')
             
             out_folder = 'test_{}_aligner'.format(aligner.name)
             os.makedirs(out_folder, exist_ok=True)
@@ -45,7 +46,6 @@ def test_aligner():
                 print('  {}'.format(record))
             print(']')
         else:
-            print("=== ", aligner.name, " ===")
-            print('    UNAVAILABLE')
+            print('UNAVAILABLE')
 
 # End

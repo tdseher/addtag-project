@@ -197,6 +197,25 @@ class Aligner(object): # Name of the subclass
         return self.__class__.__name__ + '(' + ', '.join(['name='+repr(self.name), 'authors='+repr(self.authors), 'year='+repr(self.year)]) + ')'
 
 class Record(object):
+    __slots__ = [
+        'query_name',
+        'subject_name',
+        
+        'query_sequence',
+        'subject_sequence',
+        
+        'query_position',
+        'subject_position',
+        
+        'query_length',
+        'subject_length',
+        
+        'flags',
+        'cigar',
+        'score',
+        'evalue',
+        'length',
+    ]
     def __init__(self,
             query_name, subject_name,
             query_sequence, subject_sequence,

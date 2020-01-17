@@ -24,6 +24,9 @@ from .thermodynamics.oligo import Primer, PrimerPair
 
 logger = logging.getLogger(__name__)
 
+# TODO: Check code for homology search for US/DS regions of excision-dDNA
+# TODO: Check code for homology search for US/DS regions of reversion-dDNA
+
 class Donor(object):
     prefix = 'Donor'
     sequences = {}
@@ -741,6 +744,7 @@ class ReversionDonor(Donor):
                 
                 orientation = '+'
                 
+                # TODO: Make this work for circular DNA (non-linear) (e.g. plasmids)
                 # Won't work if a region spans the start/end of a circular plasmid:
                 #   RRRFFFFFF------------RRR
                 # Also won't work if the Feature is too close to the beginning of the contig
