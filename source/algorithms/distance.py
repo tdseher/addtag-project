@@ -301,13 +301,12 @@ class Substitutions(PairedSequenceAlgorithm):
     def __init__(self):
         super().__init__(
             name="Substitutions",
-            authors=["Seher, Thaddeus D."],
-            title='',
-            journal='',
-            issuing='',
-            year=2017,
-            doi='',
-            #citation="AddTag",
+            authors=["Needleman, Saul B.", "Wunsch, Christian D."],
+            title='A general method applicable to the search for similarities in the amino acid sequence of two proteins',
+            journal='Journal of Molecular Biology',
+            issuing='48(3):443-453',
+            year=1970,
+            doi='https://doi.org/10.1016/0022-2836(70)90057-4',
             off_target=False,
             prefilter=False,
             postfilter=True,
@@ -330,13 +329,12 @@ class Insertions(PairedSequenceAlgorithm):
     def __init__(self):
         super().__init__(
             name="Insertions",
-            authors=["Seher, Thaddeus D."],
-            title='',
-            journal='',
-            issuing='',
-            year=2017,
-            doi='',
-            #citation="AddTag",
+            authors=["Needleman, Saul B.", "Wunsch, Christian D."],
+            title='A general method applicable to the search for similarities in the amino acid sequence of two proteins',
+            journal='Journal of Molecular Biology',
+            issuing='48(3):443-453',
+            year=1970,
+            doi='https://doi.org/10.1016/0022-2836(70)90057-4',
             off_target=False,
             prefilter=False,
             postfilter=True,
@@ -359,13 +357,12 @@ class Deletions(PairedSequenceAlgorithm):
     def __init__(self):
         super().__init__(
             name="Deletions",
-            authors=["Seher, Thaddeus D."],
-            title='',
-            journal='',
-            issuing='',
-            year=2017,
-            doi='',
-            #citation="AddTag",
+            authors=["Needleman, Saul B.", "Wunsch, Christian D."],
+            title='A general method applicable to the search for similarities in the amino acid sequence of two proteins',
+            journal='Journal of Molecular Biology',
+            issuing='48(3):443-453',
+            year=1970,
+            doi='https://doi.org/10.1016/0022-2836(70)90057-4',
             off_target=False,
             prefilter=False,
             postfilter=True,
@@ -388,13 +385,12 @@ class Errors(PairedSequenceAlgorithm):
     def __init__(self):
         super().__init__(
             name="Errors",
-            authors=["Seher, Thaddeus D."],
-            title='',
-            journal='',
-            issuing='',
-            year=2017,
-            doi='',
-            #citation="AddTag",
+            authors=["Needleman, Saul B.", "Wunsch, Christian D."],
+            title='A general method applicable to the search for similarities in the amino acid sequence of two proteins',
+            journal='Journal of Molecular Biology',
+            issuing='48(3):443-453',
+            year=1970,
+            doi='https://doi.org/10.1016/0022-2836(70)90057-4',
             off_target=False,
             prefilter=False,
             postfilter=True,
@@ -424,12 +420,11 @@ class PamIdentity(SingleSequenceAlgorithm):
         super().__init__(
             name="PAM-Identity",
             authors=["Seher, Thaddeus D."],
-            title='',
+            title='[AddTag paper]',
             journal='',
             issuing='',
             year=2017,
             doi='',
-            #citation="AddTag",
             off_target=False,
             prefilter=False, # Filter spacers before aligning
             postfilter=True, # Filter alignments before calculating scores
@@ -647,10 +642,13 @@ def test():
     print(a.score_extremes(scores))
     print(a.score_extremes(scores, gaps=True), 'gaps')
     # AAATTTG~----C score=-98 <-- This is what it returns
+    #      :|     |
     # ~----CGCCTTAC
     
     # ~-----AAATTTGC score=-70 <-- This is the optimal alignment
+    #       |      |
     # CGCCTTA~-----C
+    # TODO: Discover why this global alignment returns a non-optimal alignment, and fix it
     
     print('=======================================')
     # ACGGTTAACCA  matches    -> +9  final score -> +3
