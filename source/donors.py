@@ -881,7 +881,7 @@ class ReversionDonor(Donor):
                             if (len(p2_features) == g_count):
                                 ampR_list.append(p)
                         
-                        elif (args.donor_specificity == 'exclusive'):
+                        elif (args.donor_specificity == 'exclusive'): # TODO: Test this (might be missing the case where F present in both alleles, but R is only in one)
                             p1_features = set()
                             p2_features = set()
                             for loc in p.locations:
@@ -1008,6 +1008,7 @@ class ReversionDonor(Donor):
                         region_R = my_contig[region_R_start:region_R_stop]
                         ### Copied from earlier in function ###
                         
+                        cls.logger.info('Using AmpF/AmpR to create new ReversionDonor objects for: {}'.format(feature_name))
                         
                         #for pp_count, pp in enumerate(uf_dr_paired_primers[:pp_subset_size]):
                         for pp in uf_dr_paired_primers:
@@ -1040,7 +1041,7 @@ class ReversionDonor(Donor):
                             
                             rd = cls.sequences[dDNA]
                             
-                            # Also need to list their compatible exDonors, and by extension, their exTargets
+                            # TODO: Also need to list their compatible exDonors, and by extension, their exTargets
                             cls.logger.info('\t'.join([rd.name, feature_name, str(pp.get_joint_weight()), str(pp)])) # <<<<< In pp, the 'amplicon_size' attribute is calculated INCORRECTLY for some derived features. Also, the x-shift seems off in the alignment.
                             #cls.logger.info('  (new_obj == rd): {}'.format(new_obj == rd))
                             #cls.logger.info('  contig: {}, start1: {}, end2: {}'.format(f.contig, start1, end2))
@@ -1074,11 +1075,12 @@ class ReversionDonor(Donor):
                     
                 
                         ###### alignment ######
+                        # TODO: Something is wrong with these AmpF/AmpR alignments. Try to fix it. 
                         label_list = ['us_region', 'us_skipped', 'us_extend_feature', 'feature', 'ds_extend_feature', 'ds_skipped', 'ds_region']
                         sequence_list = [region_F, my_contig[region_F_stop:f.start], us_extend_seq, mid_feature_seq, ds_extend_seq, my_contig[f.end:region_R_start], region_R]
                         aln_out = nucleotides.make_labeled_primer_alignments(label_list, sequence_list, '{:>18}'.format('weight')+' '+f.contig, pp_labels_list, uf_dr_paired_primers[:pp_subset_size], left_pos=region_F_start)
                         
-                        cls.logger.info(feature_name)
+                        cls.logger.info('Writing AmpF/AmpR alignment for: {}'.format(feature_name))
                         for oline in aln_out:
                             cls.logger.info(oline)
                         ###### alignment ######

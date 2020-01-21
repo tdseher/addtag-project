@@ -198,15 +198,20 @@ def decode_sam_flags(field, kind='str'):
 def write_merged_fasta(contig_sequences, filename, columns=80):
     """
     Creates a FASTA file
-    :param contig_sequences: Dict containing key=name value=sequence
+    :param contig_sequences: Either 'dict' containing key=name value=sequence, or a 'list' of iterables [names, sequences] of equal length
     :param filename: Path of FASTA file to be written
     :param columns: Number of nt characters per line
     """
     wrapper = textwrap.TextWrapper(width=columns, replace_whitespace=False, drop_whitespace=False, expand_tabs=False, break_on_hyphens=False)
     with open(filename, 'w') as flo:
-        for name, sequence in contig_sequences.items():
-            print('>'+name, file=flo)
-            print(wrapper.fill(sequence), file=flo)
+        if isinstance(contig_sequences, dict):
+            for name, sequence in contig_sequences.items():
+                print('>'+name, file=flo)
+                print(wrapper.fill(sequence), file=flo)
+        else:
+            for name, sequence in zip(*contig_sequences):
+                print('>'+name, file=flo)
+                print(wrapper.fill(sequence), file=flo)
     logger.info('Merged FASTA written: {!r}'.format(filename))
     return filename
 
@@ -630,6 +635,30 @@ def load_homologs(filename, sep="\t"):
     Returns
      - dictionary of homolog groups
     """
+    # 'homologs' is a dict, with keys=Feature IDs, and values = all Feature IDs with the same gene
+    # For example:
+    #   homologs = {
+    #     'C1_11680C_A': {'C1_11680C_A', 'C1_11680C_B'}, 
+    #     'C4_06960W_A': {'C4_06960W_B', 'C4_06960W_A'}, 
+    #     'C1_03200C_B': {'C1_03200C_B', 'C1_03200C_A'}, 
+    #     ...
+    #   }
+    # 'feature2gene' is a dict
+    # For example:
+    #   feature2gene = {
+    #     'C1_11680C_A': 'orf19.1150.1', 
+    #     'C4_06960W_A': 'orf19.3113', 
+    #     'C1_03200C_B': 'ARO80', 
+    #     'C5_03600W_B': 'MDJ1', 
+    #     'C3_01230C_A': 'orf19.1728', 
+    #     'C1_09270W_B': 'FGR43', 
+    #     'C7_01820C_B': 'VMA11', 
+    #     'C4_00110C_B': 'FRP1', 
+    #     'C2_04320W_A': 'orf19.1590', 
+    #     'C1_04940C_B': 'orf19.750', 
+    #     ...
+    #   }
+    
     # homologs = {}
     # with open(filename, 'r') as flo:
     #     for line in flo:

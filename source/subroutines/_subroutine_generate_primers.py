@@ -901,6 +901,8 @@ class GeneratePrimersParser(subroutine.Subroutine):
         print('#')
         
         # Print the various output tables
+        # TODO: Put Locus/DatumGroup calculation into its own function:
+        #       output0 = calc_loci(args, ...)
         print('# ' + '\t'.join(['Locus', 'DatumGroup']))
         for line in output0:
             print('\t'.join(map(str, line)))
@@ -909,6 +911,7 @@ class GeneratePrimersParser(subroutine.Subroutine):
         for line in output1:
             print('\t'.join(map(str, line)))
         
+        # TODO: Put in-silico PCR (output2) into its own function
         print('# ' + '\t'.join(['Set', 'Index', 'Locus', 'Amplicon', 'Template', 'Genome', 'F', 'R', 'Sizes', 'Tm']))
         for line in output2:
             print('\t'.join(map(str, line)))
@@ -1647,6 +1650,7 @@ class GeneratePrimersParser(subroutine.Subroutine):
                     for sl, tl in zip(s_list, tm_list):
                         for x in Primer.sequences[sl].o_reverse_complement:
                             x.melting_temperature = tl
+                            # TODO: The setting of 'x.melting_temperature' should be done within the 'Primer'/'Structure' object, and not here
                 
                 ###### End multiprocessing ######
                 

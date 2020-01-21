@@ -94,15 +94,16 @@ class GenerateAllParser(subroutine.Subroutine):
         self.parser.add_argument("--off_target_motifs", metavar="MOTIF", nargs="+", type=str,
             default=[],
             help="Defaults to the same as the on-target motif. Definition syntax is identical.")
+        # TODO: Add '--constructs FILE' option for automatically stitching together SPACER & SCAFFOLD
         # Need to decide if construct inputs should be TSV, or FASTA
         # And whether or not there should be an upstream parameter separate from
         # a downstream one. or if they are the same, then what?
-        self.parser.add_argument("--constructs", metavar="*.fasta", nargs="+", type=str,
-            default=[], help="The first sequence will be prepended, and the second \
-            sequence will be appended to the generated spacer sequences to form \
-            the construct sequences. It is useful to put the gRNA promotor as the \
-            first sequence, and the scaffold sequence and terminator as the \
-            second. Specify one FASTA file for each motif.")
+        #self.parser.add_argument("--constructs", metavar="*.fasta", nargs="+", type=str,
+        #    default=[], help="The first sequence will be prepended, and the second \
+        #    sequence will be appended to the generated spacer sequences to form \
+        #    the construct sequences. It is useful to put the gRNA promotor as the \
+        #    first sequence, and the scaffold sequence and terminator as the \
+        #    second. Specify one FASTA file for each motif.")
         self.parser.add_argument("--tag", metavar='TAG', type=str, default='ID',
             help="GFF tag with feature names. Examples: 'ID', 'Name', 'Gene', 'Parent', or 'locus_tag'")
         self.parser.add_argument("--selection", metavar='FEATURE', nargs="+", type=str, default=None, #default=argparse.SUPPRESS, # '==SUPPRESS=='
@@ -160,29 +161,32 @@ class GenerateAllParser(subroutine.Subroutine):
             both the feature and the target are in the center.")
         self.parser.add_argument("--feature_expansion_lengths", nargs=2, metavar=("MIN", "MAX"), type=int, default=[100, 4000],
             help="If a feature needs to be expanded to contain a gRNA target (SPACER>PAM site), \
-            the expanded feature must be within this range, inclusive.")
+            the length of the expanded feature must be within this range, inclusive.")
         self.parser.add_argument("--feature_expansion_pad", metavar="N", type=int, default=0,
             help="If a feature needs to be expanded to contain a gRNA target, \
             and the expanded feature is within the permitted lengths, then \
             the expanded feature will have N number of nucleotides padded.")
         
+        # TODO: Consider removing '--excise_upstream_homology' and '--excise_downstream_homology' and replacing them
+        #       entirely with '--excise_donor_lengths'
         self.parser.add_argument("--excise_upstream_homology", nargs=2, metavar=("MIN", "MAX"), type=int, default=[50,50],
             help="Range of homology lengths acceptable for knock-out dDNAs, inclusive.")
         self.parser.add_argument("--excise_downstream_homology", nargs=2, metavar=("MIN", "MAX"), type=int, default=[47,50],
             help="Range of homology lengths acceptable for knock-out dDNAs, inclusive.")
-        self.parser.add_argument("--max_homology_errors", metavar="N", type=int, default=0,
-            help="Maximum number of total errors (substitutions, insertions, and deletions) \
-            allowed in each homology region of dDNAs.")
-        #self.parser.add_argument("--max_homology_errors", nargs=4, metavar = ("S", "I", "D", "E"), type=int, default=[0,0,0,0],
-        #    help="Maximum number of substitutions (S), insertions (I), \
-        #    deletions (D), or total errors (E) to allow in homology regions of homologs. \
-        #    If a greater number exist between homologs, then the feature will be \
-        #    expanded until a homology region with appropriate length is found.")
-        #
-        #
+        self.parser.add_argument("--homology_distance", nargs=3, metavar=("M", "G", "E"), type=int, default=[0, 0, 0], # formerly '--max_homology_errors'
+            help="Maximum number of mismatches (M), gaps (G), and total errors (E) to allow in \
+            each dDNA homology arm across all homologous Features. \
+            If a number of M/G/E greater than the maximum exists, then the feature will be \
+            expanded until a homology region with appropriate M/G/E is found.")
+        self.parser.add_argument("--target_distance", nargs=3, metavar=("M", "G", "E"), type=int, default=[0, 0, 0],
+            help="Maximum number of mismatches (M), gaps (G), and total errors (E) to consider \
+            Targets in homologous Features to be equivalent.")
+        
+        # TODO: Change '--excise_donor_lengths MIN MAX' so it accepts only a single length, and becomes
+        #       '--excise_donor_length N'
         self.parser.add_argument("--excise_donor_lengths", nargs=2, metavar=('MIN', 'MAX'), type=int, default=[100, 100],
             help="Range of lengths acceptable for knock-out dDNAs, inclusive.")
-        self.parser.add_argument("--excise_insert_lengths", nargs=2, metavar=("MIN", "MAX"), type=int, default=[0,3],
+        self.parser.add_argument("--excise_insert_lengths", nargs=2, metavar=("MIN", "MAX"), type=int, default=[0, 3],
             help="Range for inserted DNA lengths, inclusive (mintag). \
             If MIN < 0, then regions of dDNA homology (outside the feature) will be removed.")
         self.parser.add_argument("--excise_feature_edge_distance", metavar="N", type=int, default=0,
@@ -310,6 +314,9 @@ class GenerateAllParser(subroutine.Subroutine):
         # The flanktag length will be 18-25 nt, preferring 20
         
         # Splitting up "generate" into specific sub-tasks
+        
+        # TODO: Running 'addtag generate_all --ko-dDNA mintag' without '--ko-gRNA' prints nothing to STDOUT.
+        #       This needs to be fixed.
         self.parser.add_argument("--ko-gRNA", action='store_true', default=False,
             help="Design gRNAs to target features in genome")
         
@@ -320,6 +327,8 @@ class GenerateAllParser(subroutine.Subroutine):
         #    'unitag' is a single, invariant target for ALL features. \
         #    'bartag' are unique barcodes for each feature (does not guarantee targets).")
         
+        # TODO: If '--do-dDNA X' is not specified on the commandline, then 'args.ko_dDNA' takes the value 'None'
+        #       If it is 'None', then errors will happen. Need to fix this
         self.parser.add_argument("--ko-dDNA", type=str, action=subroutine.ValidateKodDNA,
             metavar='{*.fasta,mintag,addtag,unitag,bartag}', default=None,
             help="'*.fasta' is a FASTA file containing user-specified sequences. \
@@ -445,6 +454,7 @@ class GenerateAllParser(subroutine.Subroutine):
         self.logger.info('Feature.features')
         for f_name, f in sorted(Feature.features.items()):
             self.logger.info("  {}:{}:{}:{}..{}".format(f.name, f.contig, f.strand, f.start, f.end))
+            self.logger.info("    homologs={}".format(f.homologs))
         self.logger.info('Feature.excluded_features')
         for exf_name, f in sorted(Feature.excluded_features.items()):
             self.logger.info("  {}:{}:{}:{}..{}".format(f.name, f.contig, f.strand, f.start, f.end))
@@ -505,7 +515,7 @@ class GenerateAllParser(subroutine.Subroutine):
         # Get list of features that have compatible homology regions
         sim_features = Feature.match_features_by_homology(args, contig_sequences)
         
-        # Remove any features whose homology regions violate command-line argument '--max_homology_errors'
+        # Remove any features whose homology regions violate command-line argument '--homology_distance'
         Feature.filter_features([x.name for x in sim_features])
         
         # Print to log what the filtered Features looks like
@@ -552,10 +562,10 @@ class GenerateAllParser(subroutine.Subroutine):
         
         # Index args.fasta for alignment
         #index_file = index_reference(args)
-        genome_index_file = args.selected_aligner.index(genome_fasta_file, os.path.basename(genome_fasta_file), args.folder, args.processors)
-        ex_dDNA_index_file = args.selected_aligner.index(ex_dDNA_file, os.path.basename(ex_dDNA_file), args.folder, args.processors)
+        genome_index_file = args.selected_aligner.index(genome_fasta_file, self.pathstrip(genome_fasta_file), args.folder, args.processors)
+        ex_dDNA_index_file = args.selected_aligner.index(ex_dDNA_file, self.pathstrip(ex_dDNA_file), args.folder, args.processors)
         if (args.ki_dDNA == True):
-            re_dDNA_index_file = args.selected_aligner.index(re_dDNA_file, os.path.basename(re_dDNA_file), args.folder, args.processors)
+            re_dDNA_index_file = args.selected_aligner.index(re_dDNA_file, self.pathstrip(re_dDNA_file), args.folder, args.processors)
         
         if (args.ko_gRNA):
             # Use selected alignment program to find all matches in the genome and dDNAs
@@ -628,7 +638,7 @@ class GenerateAllParser(subroutine.Subroutine):
             
             # Batch calculate with new ReversionTarget class
             # TODO: Ideally, all scoring Algorithms will be run in batch
-            ReversionTarget.score_batch()
+            ReversionTarget.score_batch(args)
             
             self.logger.info("ReversionTarget after Azimuth calculation")
             for rt_seq, rt_obj in ReversionTarget.sequences.items():
@@ -642,10 +652,21 @@ class GenerateAllParser(subroutine.Subroutine):
         
         # Pick out the best ones and print them out
         self.log_results(args, homologs, n=5)
-        self.print_reTarget_results(args, homologs, feature2gene)
-        self.print_exTarget_results(args, homologs, feature2gene)
+        
+        # If '--ki-gRNA' was on command line, then print to STDOUT
+        if args.ki_gRNA:
+            self.print_reTarget_results(args, homologs, feature2gene)
+        
+        # If '--ko-gRNA' was on command line, then print to STDOUT
+        if args.ko_gRNA:
+            self.print_exTarget_results(args, homologs, feature2gene)
+        
         self.print_reDonor_results(args)
         self.print_exDonor_results(args)
+        
+        # If reversion AmpF/AmpR primers were desired, then print them to STDOUT
+        if args.revert_amplification_primers:
+            self.print_AmpFR_results(args)
         
         #print('======')
         #self.get_best_table(args, homologs, feature2gene)
@@ -768,6 +789,7 @@ class GenerateAllParser(subroutine.Subroutine):
         Lists the best 'reTarget' and their corresponding 'exDonor' objects.
         """
         
+        print('# reTarget results')
         header = ['# gene', 'features', 'weight', 'reTarget name', 'reTarget sequence', 'OT:Hsu-Zhang', 'OT:CFD', 'Azimuth', 'exDonors', 'us-trim:mAT:ds-trim', 'feature:contig:strand:start..end', 'warnings']
         print('\t'.join(header))
         
@@ -814,6 +836,8 @@ class GenerateAllParser(subroutine.Subroutine):
         Print to STDOUT the final output for the '_generate()' function.
         Lists the best 'exTarget' and their corresponding 'reDonor' objects.
         """
+        
+        print('# exTarget results')
         
         # If '--ki-dDNA' is specified, then cPCR searches will be performed
         # for each feature (parent and derived).
@@ -889,16 +913,33 @@ class GenerateAllParser(subroutine.Subroutine):
             print('\t'.join(map(str, r)))
     
     def print_reDonor_results(self, args):
-        """
+        '''
         Print to STDOUT the top-weighted reDonor objects
-        """
-        pass
+        :param args: Argparse Namespace object containing commandline parameters
+        :return: None
+        '''
+        # TODO: Finish this function that prints reDonors to STDOUT
+        print('# reDonor results')
     
     def print_exDonor_results(self, args):
-        """
+        '''
         Print to STDOUT the top-weighted exDonor objects
-        """
-        pass
+        :param args: Argparse Namespace object containing commandline parameters
+        :return: None
+        '''
+        # TODO: Finish this function that prints exDonors to STDOUT
+        print('# exDonor results')
+    
+    def print_AmpFR_results(self, args):
+        '''
+        Print to STDOUT the top-weighted AmpF/AmpR PrimerPairs
+        :param args: Argparse Namespace object containing commandline parameters
+        :return: None
+        '''
+        header = ['gene', 'features', 'weight', 'reDonor name', 'AmpF', 'AmpR', 'amplicon sizes', 'Tms', 'GCs', 'min(delta-G)']
+        print('\t'.join(header))
+        # TODO: Finish this function that prints AmpF/AmpR results to STDOUT
+        #       For previous implementation, see lines around 1050~1100 in 'donors.py'
     
     @classmethod
     def log_results(cls, args, homologs, n=None):
@@ -1225,7 +1266,10 @@ class GenerateAllParser(subroutine.Subroutine):
             # If there are no allele-specific records, then nothing is printed
             if (len(outputs) == 0):
                 self.logger.info('No allele-specific spacers for targeting wild-type ' + feature_name)
-        
+    
+    def pathstrip(self, path):
+        return os.path.splitext(os.path.basename(path))[0]
+    
     def old_get_best(self, args, features, contigs):
         #exd_dict = {}
         red_dict = {}

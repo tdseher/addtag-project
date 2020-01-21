@@ -377,7 +377,7 @@ class Feature(object):
                 cls.logger.info('order = {}'.format(order)) # order = ['C1_05140W_A', 'C1_05140W_B', 'C1_05140W_C']
                 
                 # Separate features into lists based on their parent
-                # All derived features of from the same parent will be in a list together
+                # All derived features from the same parent will be in a list together
                 odat = [vals[x] for x in order]
                 cls.logger.info('odat = {}'.format(odat)) # odat = [[Feature(C1_05140W_A_derived-0), Feature(C1_05140W_A_derived-1), Feature(C1_05140W_A_derived-2)], [Feature(C1_05140W_B_derived-0), Feature(C1_05140W_B_derived-1)], [Feature(C1_05140W_C_derived-0)]]
                 
@@ -409,7 +409,7 @@ class Feature(object):
                 cls.logger.info('c_similarities:')
                 for k, v in c_similarities.items():
                     #cls.logger.info(' ', k, v, all(x > 0.95 for x in v)) # (Feature(C1_05140W_A_derived-0), Feature(C1_05140W_B_derived-0), Feature(C1_05140W_C_derived-0)) [0.99, 0.98, 0.97] True
-                    verdict = all(((x[0] <= args.max_homology_errors) and (x[1] <= args.max_homology_errors)) for x in v)
+                    verdict = all(((x[0] <= args.homology_distance[2]) and (x[1] <= args.homology_distance[2])) for x in v)
                     cls.logger.info(' {} {} {}'.format(k, v, verdict))
                     if verdict:
                         for f in k:
@@ -502,7 +502,7 @@ class Feature(object):
                         break
                 
                 # Align sequences using MSA
-                aln_filename = aligner.align(us_query_filename, None, side+'.aln', folder, args.threads)
+                aln_filename = aligner.align(us_query_filename, None, side+'.aln', folder, args.processors)
                 
                 # Read the MSA
                 # Extract the longest region with perfect homology
