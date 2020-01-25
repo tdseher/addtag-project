@@ -193,7 +193,7 @@ class CustomFormatter(logging.Formatter):
         record.asctime = self.formatTime(record, self.datefmt)
         #s = self.formatMessage(record)
         
-        return '[{asctime}] [{levelname:<8}] [{extname:<110}] [{lineno:>4}] {message}'.format(**record.__dict__)
+        return '[{asctime}] [{levelname:<8}] [{lineno:>4}] [{extname:<110}] {message}'.format(**record.__dict__)
         #else:
         #    return '[{levelname:<8}] [{extname:<110}] [{lineno:>4}] {message}'.format(**record.__dict__)
 
