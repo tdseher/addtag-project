@@ -32,6 +32,7 @@
           N{20}>NNNNACA     CjCas9                       Campylobacter jejuni (Cj)       ?                                  Fonfara, et al (2013)
           N{20}>NNNNRYAC    CjCas9                       Campylobacter jejuni            ?                                  ?
           N{20}>NNNVRYAC    CjCas9                       Campylobacter jejuni            ?                                  ?
+          N{20}>NNNVRYMN    CjCas9                       Campylobacter jejuni            E. coli (ex vivo)                  Yamada, M. et al (2017)
          N{20?}>NAAAAC      TdCas9                       Treponema denticola (Td)        ?                                  Zhang (year?) (unpublished)
        N{18,21}>NGGNCNDD    BlCas9                       Brevibacillus laterosporus (Bl) ?                                  Karvelis, et al (2015)
           N{20}>NNNNCND     BlCas9                       Brevibacillus laterosporus      ?                                  Karvelis, et al (2015)
@@ -40,6 +41,7 @@
           N{20}>NG          FnCas9 ?       Putative      Francisella novicida (Fn)       ?                                  Fonfara, et al (2013)
           N{??}>YG          FnCas9 EER                   Francisella novicida EER        ?                                  ?
            TTTN<N{19}/.{4}\ As/Lb Cpf1                   Acidaminococcus/Lachnospiraceae ?                                  ?
+           TTTN<N{19}/.{4,6}\ As/Lb Cpf1                   Acidaminococcus/Lachnospiraceae ?                                  ?
            TTTN<N{20,23}    As/Lb Cpf1                   Acidaminococcus/Lachnospiraceae ?                                  ?
            TTTV<N{19}/N{4}\ As/Lb Cpf1                   Acidaminococcus/Lachnospiraceae H. sapiens; E. coli                Zetsche, et al (2015); Gao, et al (2017); Kim, et al (2016)
            TYCV<N{19}/N{4}\ As/Lb Cpf1 RR  Vetted        Acidaminococcus/Lachnospiraceae H. sapiens; M. musculus            Gao, et al (2017)
