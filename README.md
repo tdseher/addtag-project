@@ -17,23 +17,28 @@ Program for identifying exclusive endogenous gRNA sites and creating unique synt
 
 ## ☑ Features ##
 Basic Features:
- * [x] Find ![Target][Target]s with 5'-adjacent PAM (such as Cas12a) or 3'-adjacent PAM (Such as Cas9) sequences
- * [x] Find ![Target][Target]s with arbitrary length ![Spacer][Spacer]s.
- * [x] Find the optimal ![Target][Target] within a ![Feature][Feature] (locus) of interest (multi-allelic, allele-specific, and allele-agnostic).
- * [x] Calculate **on-target** and **off-target** scores (see [Algorithms](#supported-scoring-algorithms)).
- * [x] Generate unique ![Target][Target]s that don't resemble any genomic DNA (gDNA), thus maximizing **on-target** and **off-target** scores.
- * [x] Find RNA-guided nuclease (![RGN][RGN]) cut sites with arbitrary ![Spacer][Spacer]s using your favorite pairwise alignment program (see [Aligners](#supported-sequence-aligners)).
- * [x] Perform *in silico* recombination between gDNA and exogenous, donor DNA (![dDNA][dDNA]).
- * [x] Find thermodynamic properties of arbitrary sets of ![Primer][Primer] pairs.
- * [x] See all known ![RGN][RGN] SPACER≷PAM motifs.
- * [x] Analyze gDNA with ambiguous characters or polymorphisms (`RYMKWSBDHVN`).
- * [x] Find ![Spacer][Spacer]s and ![Primer][Primer]s while respecting case-masked gDNA.
- 
-Advanced Features:
- * [x] Design homology-aware ![dDNA][dDNA]s (multi-allelic, allele-specific, and allele-agnostic).
- * [x] Create ![dDNA][dDNA]s with exceptional ![Target][Target]s while introducing minimal amounts of extrinsic DNA.
- * [x] Engineer a single set of conservative PCR (cPCR) ![Primer][Primer]s that work for all genotypes (wild type, knock-out, and add-back) to validate if a ![Feature][Feature] was engineered correctly.
- 
+ * [x] Analyzes any arbitrary genomic DNA (gDNA).
+   * [x] Fully supports ambiguous characters or polymorphisms (`RYMKWSBDHVN`).
+   * [x] Respects case-masked gDNA for ![Target][Target] and ![Primer][Primer] identification.
+ * [x] Finds RNA-guided nuclease (![RGN][RGN]) cut sites (![Target][Target]s) within a ![Feature][Feature] (locus of interest) for optimal gRNA ![Spacer][Spacer]s.
+   * [x] Fully supports ambiguous bases (`RYMKWSBDHVN`) in ![Spacer][Spacer] or ![PAM][PAM].
+   * [x] Accepts 3'-adjacent ![PAM][PAM] sequences, such as Cas9 (`>NGG`).
+   * [x] Accepts 5'-adjacent ![PAM][PAM] sequences, such as Cas12a (`TTTN<`).
+   * [x] Supports arbitrary ![Spacer][Spacer] length and composition constraints (`G{,2}N{19,20}`).
+   * [x] Supports arbitrary ![PAM][PAM] sequences (MAD7: `YTTN<`, Cas12d: `TA<`, BlCas9: `>NGGNCNDD`, etc).
+   * [x] Supports stranded forward (`/`), reverse (`\`) and unstranded (`|`) cut sites.
+   * [x] Calculates any number of **on-target** and **off-target** scores (see [Algorithms](#supported-scoring-algorithms)).
+   * [x] Finds homology-aware ![Target][Target]s (**multi-allelic**, **allele-specific**, and **allele-agnostic**).
+   * [x] Searches for ![Target][Target]s using selectable pairwise alignment program (see [Aligners](#supported-sequence-aligners)).
+ * [x] Generates exogenous, donor DNAs (![dDNA][dDNA]s) to modify the same locus successively.
+   * [x] Produces unique ![Target][Target] sites (on ![dDNA][dDNA]s), thus maximizing **on-target** and **off-target** scores (because they don't resemble any input gDNA).
+   * [x] Adds unique ![Target][Target]s to ![dDNA][dDNA]s without inserting sequences (or while introducing minimal amounts of extrinsic DNA).
+   * [x] Engineer a single set of conservative PCR (cPCR) ![Primer][Primer]s that work for all genotypes (wild type, knock-out, and add-back) to validate if a ![Feature][Feature] was engineered correctly.
+   * [x] Produces homology-aware ![dDNA][dDNA]s (**multi-allelic**, **allele-specific**, and **allele-agnostic**).
+ * [x] Perform *in silico* recombination between gDNA and ![dDNA][dDNA].
+ * [x] Finds thermodynamic properties of sets of ![Primer][Primer] pairs.
+ * [x] Displays all known ![RGN][RGN] ![Spacer][Spacer] and ![PAM][PAM] combinations.
+
 ## 📋 Requirements ##
 
 Below are lists AddTag requirements. Each entry is marked with a ☑ or ☐, indicating whether or not an additional download/setup is required:
@@ -74,7 +79,12 @@ For speed, we recommend at least one third-party pairwise nucleotide sequence al
 
  * [ ] Bowtie ([source](https://github.com/BenLangmead/bowtie), [binaries](https://sourceforge.net/projects/bowtie-bio/files/bowtie/), [documentation](http://bowtie-bio.sourceforge.net/manual.shtml))
 
+ * [ ] Usearch
 -->
+
+For polymorphism-aware ![Feature][Feature] expansion, one multiple sequence aligner is required:
+
+ * [ ] MAFFT ([source](https://mafft.cbrc.jp/alignment/software/source.html), [binaries](https://mafft.cbrc.jp/alignment/software/), [documentation](https://mafft.cbrc.jp/alignment/software/manual/manual.html))
 
 ### 🌡 Supported thermodynamics calculators ###
 
@@ -271,8 +281,13 @@ Here is some miscellaneous information:
  * Sequences in FASTA files should have unique names. In other words, the primary sequence header--everything following the '`>`' character and preceding the first whitespace/tab '` `' character--should exist only once across all input `*.fasta` files.
  * By default, AddTag will avoid designing homology regions and Targets against polymorphisms whenever possible.
 
+## Limitations ##
+ * Right now AddTag can only handle linear chromosomes. If you want to analyze a circular chromosome, then you will need to artificially concatenate the ends of the chromosome together and adjust any annotations before running AddTag.
+ * AddTag assumes one Feature copy per contig.
+
 [tdseher]:https://twitter.com/tdseher
 [Spacer]:docs/spacer.svg
+[PAM]:docs/pam.svg
 [Target]:docs/target.svg
 [dDNA]:docs/ddna.svg
 [RGN]:docs/rgn.svg

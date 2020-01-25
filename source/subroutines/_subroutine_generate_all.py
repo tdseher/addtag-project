@@ -154,6 +154,7 @@ class GenerateAllParser(subroutine.Subroutine):
         #                  -----------------------HHHH[FEATURE.........TARGET...]HHHH--------------------- pad=3
         #  justify_target: -----------------------HHHH[FEATURE.........TARGET]HHHH------------------------
         #                  --------------------HHHH[...FEATURE.........TARGET]HHHH------------------------ pad=3
+        # TODO: change '--feature_expansion_method' to '--feature_expansion_format'
         self.parser.add_argument("--feature_expansion_method", type=str, default=None,
             choices=['center_feature', 'center_target', 'center_both', 'justify_feature', 'justify_target'],
             help="If a feature needs to be expanded to contain a gRNA target, \
@@ -459,6 +460,22 @@ class GenerateAllParser(subroutine.Subroutine):
         for exf_name, f in sorted(Feature.excluded_features.items()):
             self.logger.info("  {}:{}:{}:{}..{}".format(f.name, f.contig, f.strand, f.start, f.end))
         
+        # TODO: Run Features through a check. If homologous features are on the same contig, then stop
+        #       And print an error/warning that they won't be handled. And the user should split them
+        #       into separate contigs.
+        h_groups = Feature.group_features_by_gene(feature2gene)
+        #for k, v in h_groups.items():
+        #    print(k, v, file=sys.stderr)
+        # EFG1 [Feature(name=CR_07890W_A, gene=EFG1, location=Ca22chrRA_C_albicans_SC5314:+:1723488..1725146), Feature(name=CR_07890W_B, gene=EFG1, location=Ca22chrRB_C_albicans_SC5314:+:1722891..1724556)]
+        h_exit = False
+        for h_gene, h_features in h_groups.items():
+            if (len(set([f.contig for f in h_features])) != len(h_features)):
+                print('Homologous Features for gene {} lie on the same contig: {}'.format(h_gene, h_features), file=sys.stderr)
+                h_exit = True
+        if h_exit:
+            raise Exception('Some homologs are on the same contig, and thus cannot be processed. \
+            All homologous Features must be on separate contigs.')
+        
         # Merge features?
         #features = merge_features(features)
         
@@ -494,6 +511,11 @@ class GenerateAllParser(subroutine.Subroutine):
         
         
         
+        # Testing out new feature expansion code
+        #Feature.new_expand_all_features(args, contig_sequences, h_groups)
+        # TODO: Only call this if '--feature_expansion_method' != None
+        Feature.new_new_expand_all_features(args, contig_sequences, h_groups)
+        
         
         # Code here (maybe as part of ExcisionTarget.search_all_features()), should expand features
         # if necessary. How?
@@ -501,9 +523,16 @@ class GenerateAllParser(subroutine.Subroutine):
         #     If they are identical, then this would be a homozygous dDNA
         #     If they are different, then this would be an allele-specific (heterozygous) dDNA
         
+        # This is test code
+        #Feature.get_homologous_region_with_acceptable_polymorphism(args, contig_sequences, mismatches=4, gaps=3, errors=7)
+        
+        
         if (args.ko_dDNA or args.ko_gRNA):
             # Expand features if necessary
+            #  1) Expand Feature to find acceptable Target
+            #  2) Expand expanded feature to find acceptable flanking homology arms
             if (args.feature_expansion_method != None):
+                # TODO: This 'Feature.expand_all_features()' should be replaced/removed
                 Feature.expand_all_features(args, contig_sequences)
                 
                 # Print the set of new features

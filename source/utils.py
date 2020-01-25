@@ -625,6 +625,28 @@ def dummy_homologs():
     
     return homologs, feature2gene
 
+def slugify(text, lower=False, decimal='!', space='_', other='+'):
+    '''
+    Converts text to OS-independent acceptable path characters
+    :param text: 
+    :return: 
+    '''
+    out = []
+    valid_chars = '''0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!()+[]_{}~'''
+    for t in text:
+        if t in valid_chars:
+            out.append(t)
+        elif (t == '.'):
+            out.append(decimal)
+        elif (t == ' '):
+            out.append(space)
+        else:
+            out.append(other)
+    if lower:
+        return ''.join([x.lower() for x in out])
+    else:
+        return ''.join(out)
+
 def load_homologs(filename, sep="\t"):
     """
     Parse homolog file.

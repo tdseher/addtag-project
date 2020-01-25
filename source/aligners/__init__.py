@@ -17,7 +17,6 @@ def suffix_strip(text, suffix):
 # Import all Algorithm subclasses defined in python files within this same folder
 exclusions = [
     '__init__.py',
-    'addtag.py',
     'aligner.py'
 #    'blastplus.py',
     'blat.py',
@@ -26,9 +25,13 @@ exclusions = [
 #    'bwa.py',
 #    'casoffinder.py',
     'casot.py',
+    'dsnickfury.py',
     'hyperscan.py',
-    'mafft.py',
-    'usearch.py'
+    'inbuilt.py',
+#    'mafft.py',
+    'seqmap.py',
+    'usearch.py',
+    'varscot.py',
 ]
 
 path = os.path.dirname(os.path.abspath(__file__))

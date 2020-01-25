@@ -668,25 +668,47 @@ def r_score(seq1, seq2, length):
 
 # So far for DNA only
 def build_regex_pattern(iupac_sequence, max_substitutions=0, max_insertions=0, max_deletions=0, max_errors=0, capture=True):
-    """
+    '''
     Build a regular expression pattern for the nucleotide search, taking IUPAC
     ambiguities into account.
-    """
+    :param iupac_sequence: Sequence to translate into a (fuzzy) regex pattern
+    :param max_substitutions: Max number of permitted substitutions. 'None'/'inf' if any amount permitted.
+    :param max_insertions: Max number of permitted insertions. 'None'/'inf' if any amount permitted.
+    :param max_deletions: Max number of permitted deletions. 'None'/'inf' if any amount permitted.
+    :param max_errors: Max number of permitted errors. 'None'/'inf' if any amount permitted.
+    :param capture: Whether or not to use a capturing group or non-capturing group
+    :return: String with fuzzy regex pattern
+    '''
+    
     # Format the fuzzy matching restrictions
     fuzzy = []
-    if (max_substitutions > 0):
+    if (max_substitutions == None):
+        fuzzy.append('s')
+    elif (max_substitutions > 0):
         fuzzy.append('s<={}'.format(max_substitutions))
-    if (max_insertions > 0):
+    
+    if (max_insertions == None):
+        fuzzy.append('i')
+    elif (max_insertions > 0):
         fuzzy.append('i<={}'.format(max_insertions))
-    if (max_deletions > 0):
+    
+    if (max_deletions == None):
+        fuzzy.append('d')
+    elif (max_deletions > 0):
         fuzzy.append('d<={}'.format(max_deletions))
-    if (max_errors > 0):
+    
+    if (max_errors == None):
+        fuzzy.append('e')
+    elif (max_errors > 0):
         fuzzy.append('e<={}'.format(max_errors))
+    
     if (len(fuzzy) > 0):
         fuzzy = '{' + ','.join(fuzzy) + '}'
     else:
         fuzzy = ''
     
+    # TODO: Allow ambiguities to match to themselves. For instance:
+    #       iupac = {'k': '[kgt]', ...}
     # Convert the IUPAC sequence to an equivalent regex
     iupac = {
         'a': 'a',
