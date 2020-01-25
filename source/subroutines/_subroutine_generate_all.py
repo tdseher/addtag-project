@@ -572,7 +572,7 @@ class GenerateAllParser(subroutine.Subroutine):
         ExcisionDonor.generate_donors(args, contig_sequences, feature2gene)
         
         if (args.ki_gRNA):
-            ReversionTarget.get_targets()
+            ReversionTarget.create_target_objects()
         ex_dDNA_file = ExcisionDonor.generate_fasta(os.path.join(args.folder, 'excision-dDNAs.fasta')) # Program will fail with error if this file is empty...
         
         if (args.ki_gRNA):

@@ -1066,7 +1066,7 @@ class ReversionTarget(Target):
     logger = logger.getChild('ReversionTarget')
     
     @classmethod
-    def get_targets(cls):
+    def create_target_objects(cls):
         """
         Extracts the spacer element from each ExcisionDonor object, and uses it
         to create the associated ReversionTarget objects.
