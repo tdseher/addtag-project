@@ -20,23 +20,23 @@ Basic Features:
  * [x] Analyzes any arbitrary genomic DNA (gDNA).
    * [x] Fully supports ambiguous characters or polymorphisms (`RYMKWSBDHVN`).
    * [x] Respects case-masked gDNA for ![Target][Target] and ![Primer][Primer] identification.
- * [x] Finds RNA-guided nuclease (![RGN][RGN]) cut sites (![Target][Target]s) within a ![Feature][Feature] (locus of interest) for optimal gRNA ![Spacer][Spacer]s.
+ * [x] Locates RNA-guided nuclease (![RGN][RGN]) cut sites (![Target][Target]s) within a ![Feature][Feature] (locus of interest) for optimal gRNA ![Spacer][Spacer]s.
    * [x] Fully supports ambiguous bases (`RYMKWSBDHVN`) in ![Spacer][Spacer] or ![PAM][PAM].
    * [x] Accepts 3'-adjacent ![PAM][PAM] sequences, such as Cas9 (`>NGG`).
    * [x] Accepts 5'-adjacent ![PAM][PAM] sequences, such as Cas12a (`TTTN<`).
    * [x] Supports arbitrary ![Spacer][Spacer] length and composition constraints (`G{,2}N{19,20}`).
    * [x] Supports arbitrary ![PAM][PAM] sequences (MAD7: `YTTN<`, Cas12d: `TA<`, BlCas9: `>NGGNCNDD`, etc).
-   * [x] Supports stranded forward (`/`), reverse (`\`) and unstranded (`|`) cut sites.
+   * [x] Uses stranded forward (`/`), reverse (`\`) and unstranded (`|`) cut sites.
    * [x] Calculates any number of **on-target** and **off-target** scores (see [Algorithms](#supported-scoring-algorithms)).
    * [x] Finds homology-aware ![Target][Target]s (**multi-allelic**, **allele-specific**, and **allele-agnostic**).
    * [x] Searches for ![Target][Target]s using selectable pairwise alignment program (see [Aligners](#supported-sequence-aligners)).
  * [x] Generates exogenous, donor DNAs (![dDNA][dDNA]s) to modify the same locus successively.
-   * [x] Produces unique ![Target][Target] sites (on ![dDNA][dDNA]s), thus maximizing **on-target** and **off-target** scores (because they don't resemble any input gDNA).
+   * [x] Assembles unique ![Target][Target] sites (on ![dDNA][dDNA]s), thus maximizing **on-target** and **off-target** scores (because they don't resemble any input gDNA).
    * [x] Adds unique ![Target][Target]s to ![dDNA][dDNA]s without inserting sequences (or while introducing minimal amounts of extrinsic DNA).
-   * [x] Engineer a single set of conservative PCR (cPCR) ![Primer][Primer]s that work for all genotypes (wild type, knock-out, and add-back) to validate if a ![Feature][Feature] was engineered correctly.
+   * [x] Engineers a single set of conservative PCR (cPCR) ![Primer][Primer]s that work for all genotypes (wild type, knock-out, and add-back) to validate if a ![Feature][Feature] was engineered correctly.
    * [x] Produces homology-aware ![dDNA][dDNA]s (**multi-allelic**, **allele-specific**, and **allele-agnostic**).
- * [x] Perform *in silico* recombination between gDNA and ![dDNA][dDNA].
- * [x] Finds thermodynamic properties of sets of ![Primer][Primer] pairs.
+ * [x] Performs *in silico* recombination between gDNA and ![dDNA][dDNA]s.
+ * [x] Determines thermodynamic properties of sets of ![Primer][Primer] pairs (Tm, minimum ΔG, amplicon size, etc).
  * [x] Displays all known ![RGN][RGN] ![Spacer][Spacer] and ![PAM][PAM] combinations.
 
 ## 📋 Requirements ##
