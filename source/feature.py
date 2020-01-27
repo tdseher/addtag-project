@@ -892,7 +892,7 @@ class Feature(object):
         
         # Get the MSA aligner object
         aligner = None
-        for a in aligners.aligners:
+        for a in aligners.ms_aligners:
             if (a.name == 'mafft'):
                 aligner = a
                 break
@@ -1008,7 +1008,7 @@ class Feature(object):
                         msa_input_path = utils.write_merged_fasta((msa_names, msa_sequences), os.path.join(msa_folder, 'msa-{}-EQ{}-{}-input.fasta'.format(utils.slugify(gene), eqi, side)))
                         
                         # Perform MSA
-                        msa_output_path = aligner.align(msa_input_path, None, 'msa-{}-EQ{}-{}-output.fasta'.format(utils.slugify(gene), eqi, side), msa_folder, args.processors)
+                        msa_output_path = aligner.align(msa_input_path, 'msa-{}-EQ{}-{}-output.fasta'.format(utils.slugify(gene), eqi, side), msa_folder, args.processors)
                         
                         # Parse MSA output to get records
                         # We assume the ordering of sequences in 'records' mirrors the input sequence ordering
