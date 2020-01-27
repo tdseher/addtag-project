@@ -111,8 +111,10 @@ class Alignment(object):
 class Target(object):
     """Data structure defining a gRNA Target"""
     prefix = 'Target'
-    sequences = {} # key = nucleotide sequence, value = ExcisionTarget/ReversionTarget object
-    indices = {} # key = exTarget-102, value = ExcisionTarget/ReversionTarget object
+    sequences = {} # key=nucleotide sequence, value=ExcisionTarget/ReversionTarget object
+    indices = {} # key=exTarget-102, value=ExcisionTarget/ReversionTarget object
+    #equivalents = {} # key=Target.name, value=set(Target, Target, ...)
+    equivalents = {} # key=sequence, value=set(sequence, sequence, ...)
     
     logger = logger.getChild('Target')
 
@@ -876,8 +878,10 @@ class Target(object):
 class ExcisionTarget(Target):
     prefix = 'exTarget'
     # Non-redundant dicts
-    sequences = {} # key = nucleotide sequence, value = ExcisionTarget object
-    indices = {} # key = exTarget-102, value = ExcisionTarget object
+    sequences = {} # key=nucleotide sequence, value=ExcisionTarget object
+    indices = {} # key=exTarget-102, value=ExcisionTarget object
+    #equivalents = {} # key=Target.name, value=set(Target, Target, ...)
+    equivalents = {} # key=sequence, value=set(sequence, sequence, ...)
     
     logger = logger.getChild('ExcisionTarget')
     
@@ -1060,8 +1064,10 @@ class ExcisionTarget(Target):
 class ReversionTarget(Target):
     prefix = 'reTarget'
     # Non-redundant dicts
-    sequences = {} # key = nucleotide sequence, value = ReversionTarget object
-    indices = {} # key = reTarget-234, value = ReversionTarget object
+    sequences = {} # key=nucleotide sequence, value=ReversionTarget object
+    indices = {} # key=reTarget-234, value=ReversionTarget object
+    #equivalents = {} # key=Target.name, value=set(Target, Target, ...)
+    equivalents = {} # key=sequence, value=set(sequence, sequence, ...)
     
     logger = logger.getChild('ReversionTarget')
     

@@ -260,6 +260,13 @@ class Feature(object):
     
     @classmethod
     def new_new_expand_all_features(cls, args, contigs, h_groups):
+        '''
+        New method makes Features expand by homology group (instead of in isolation).
+        :param args: Argparse namespace object
+        :param contigs: Dict with key=header, value=DNA sequence
+        :param h_groups: Output of 'Feature.group_features_by_gene(feature2gene)' (dict with key=gene, value=[Feature, Feature, ...]
+        :return: None
+        '''
         # This function does not determine if the Features should be expanded--it ASSUMES that they should be expanded.
         cls.logger.info('Starting newer Feauture expansion method')
         
@@ -821,10 +828,71 @@ class Feature(object):
         
         cls.logger.info("Running function 'create_derived_features()'...")
         
+        # Non-redundant list of features to add (same as a 'bounds' tuple)
+        #bounds_set = set() # (fi, start, end)
+        bounds_dict = {} # key=(fi, start, end), value=[i, i, ...] list of equivalents group indices
+        targets_dict = {}
+        new_features_dict = {}
+        
+        for i, (el, bl) in enumerate(zip(equivalents_list, bounds_list)):
+            # We make non-redundant list of features to add
+            #for bounds in bl:
+            #    #bounds_set.add(bounds)
+            #    bounds_dict.setdefault(bounds, []).append(i) # For every bounds, we make their homologs list
+            
+            #for (e_fi, e_t), (d_fi, d_start, d_end) in zip(el, bl):
+            for (fi, t), bounds in zip(el, bl):
+                # For every bounds, we make their homologs list
+                bounds_dict.setdefault(bounds, []).append(i)
+                
+                # For every bounds, we make their Targets/spacers list
+                targets_dict.setdefault(bounds, []).append(t)
+        
+        # For every bounds, we create the 'Feature' object, starting from smallest to largest
+        #for i, (d_fi, d_start, d_end) in enumerate(sorted(bounds_set, key=lambda x: x[2]-x[1])):
+        
+        for i, (bounds, eqi_list) in enumerate(bounds_dict.items()):
+            # TODO: Ideally, every 'Feature.name' in an equivalence group would have the same '_derived-N' suffix
+            #       However, the program is currently designed so only one Feature object per sequence can exist.
+            #       If there are multiple Feature objects with the same sequence, then there will likely be a problem
+            #       So as a work-around, the names will look like this: '_derived-1,3,5,7'
+            #       with a comma-separated list of homology groups
+            d_fi, d_start, d_end = bounds
+            f = feature_list[d_fi]
+            new_name = '{}_derived-{}'.format(f.name, ','.join(map(str, eqi_list)))
+            new_attributes = f.attributes.copy()
+            new_attributes[args.tag] = new_name
+            new_feature = Feature(f.contig, d_start, d_end, f.strand, name=new_name, source=f.source, feature_type=f.feature_type, score=f.score, frame=f.frame, attributes=new_attributes, origin=Feature.DERIVED, parent=f, gene=f.gene)
+            Feature.features[new_name] = new_feature
+            new_features_dict[bounds] = new_feature
+            
+            cls.logger.info("NEW DERIVED FEATURE created ({}): {}".format(i, new_feature))
+        cls.logger.info('') # Blank line
+        
+        # Now that the derived Features were created, we add their homolog groups to the 'Feature.homologs' attributes
+        # Feature.homologs = [set(Feature, Feature, ...), set(Feature, Feature, ...)]
+        for bl in bounds_list:
+            s = set(new_features_dict[bounds] for bounds in bl)
+            
+            for f in s:
+                if s not in f.homologs:
+                    f.homologs.append(s)
+        
+        # Log how homologs appear after adding them
+        cls.logger.info('Added homologs to derived features: (d_fi, d_start, d_end), Feature.name, Feature.homologs')
+        for bounds, f in new_features_dict.items():
+            cls.logger.info(' {}, {}, {}'.format(bounds, f.name, f.homologs))
+        
         # Get index order from smallest average Feature to largest
-        for i, (el, bl) in enumerate(sorted(zip(equivalents_list, bounds_list), key=lambda x: sum(y[2]-y[1] for y in x[1])/len(x[1]))):
-            # Several bound entries (d_fi, d_start, d_end) will be identical.
-            # These all should only make a single Feature?
+        #for i, (el, bl) in enumerate(sorted(zip(equivalents_list, bounds_list), key=lambda x: sum(y[2]-y[1] for y in x[1])/len(x[1]))):
+        #    cls.logger.info('{}: avg_len={}'.format(i, sum(y[2]-y[1] for y in bl)/len(bl)))
+        #    for e in el:
+        #        cls.logger.info('  {}'.format(e))
+        #    for b in bl:
+        #        cls.logger.info('  {}'.format(b))
+            
+            # Several bound entries (d_fi, d_start, d_end) will be identical even though they all have different Target (equivalents)
+            # These all should only make a single Feature, with several Targets linked /homologs added?
             # Later on, Target objects are created in the '_subroutine_generate_all.py' file by the following commands:
             #   ExcisionTarget.search_all_features(args, contig_sequences)
             #     and
@@ -848,11 +916,6 @@ class Feature(object):
             # TODO: Will need to determine if I can link the Features as Homologs, because it appears right now I can't link the Target equivalents
             #       Just gotta figure out how to do it!
             
-            cls.logger.info('{}: avg_len={}'.format(i, sum(y[2]-y[1] for y in bl)/len(bl)))
-            for e in el:
-                cls.logger.info('  {}'.format(e))
-            for b in bl:
-                cls.logger.info('  {}'.format(b))
         
         # for derived_start, derived_end in sorted(derived_sets, key=lambda x: x[1]-x[0]): # in order from smallest to largest
         #     # If derived feature length is within the desired size range, then create the derived feature
@@ -1512,6 +1575,18 @@ class Feature(object):
                                 
                                 ne = new_equivalents.setdefault((fi2, ti2), dict())
                                 ne.setdefault(fi1, []).append(t1)
+                                
+                                # We populate 'Target.equivalents'
+                                #   key=seq, value=set(seq, seq, ...)
+                                #   # Example: { 'ACA': {'ACA', 'CCA'}, 'CCA': {'ACA', 'CCA'}}
+                                # This will only store equivalents if they are on different features (not the same feature)
+                                s = targets.Target.equivalents.setdefault(t1[5], set())
+                                s.add(t1[5])
+                                s.add(t2[5])
+                                
+                                s = targets.Target.equivalents.setdefault(t2[5], set())
+                                s.add(t1[5])
+                                s.add(t2[5])
         
         # Make non-redundant list of equivalent Targets.
         # If a Feature would have several equivalent Targets, then each would give a new entry. For example:
