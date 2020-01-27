@@ -109,6 +109,57 @@ class Alignment(object):
             [x + '=' + str(round(self.score[x], 2)) for x in self.score]
             ) + ')'
 
+class Location(object):
+    '''
+    Class representing the place a Target aligns on a contig
+    '''
+    __slots__ = [
+        'feature',
+        'contig',
+        'orientation',
+        'start',
+        'end',
+        'upstream',
+        'sequence',
+        'downstream',
+    ]
+    # TODO: Consider removing 'feature' from this class
+    def __init__(self, feature, contig, orientation, start, end, upstream, sequence, downstream):
+        """
+        Create an object that stores a location on a contig
+        """
+        self.feature = feature
+        self.contig = contig
+        self.orientation = orientation
+        self.start = start
+        self.end = end
+        self.upstream = upstream
+        self.sequence = sequence
+        self.downstream = downstream
+    
+    def __eq__(self, other):
+        return (
+            (self.feature == other.feature) and
+            (self.contig == other.contig) and
+            (self.orientation == other.orientation) and
+            (self.start == other.start) and
+            (self.end == other.end) # and
+            #(self.upstream == other.upstream) and
+            #(self.sequence == other.sequence) and
+            #(self.downstream == other.downstream)
+        )
+        
+    # __lt__(), __gt__(), __le__(), __ne__(), __ge__(), __eq__()
+    
+    def __repr__(self):
+        """
+        Return a string containing a printable representation of the Location object.
+        """
+        return self.__class__.__name__ + '(' + ', '.join([
+            'feature={}'.format(self.feature),
+            'position={}:{}:{}..{}'.format(self.contig, self.orientation, self.start, self.end),
+            ]) + ')'
+
 class Target(object):
     """Data structure defining a gRNA Target"""
     prefix = 'Target'
@@ -118,7 +169,10 @@ class Target(object):
     equivalents = {} # key=sequence, value=set(sequence, sequence, ...)
     
     logger = logger.getChild('Target')
-
+    
+    # TODO: Strongly consider making 'Target' objects use 'Location' objects instead of just tuples
+    # TODO: Strongly consider letting 'Target' objects store/calculate scores for several different sequences
+    #       (that are all within some range of homology)
     def __init__(self, feature, contig, orientation, start, end, upstream, downstream, sequence, side, spacer, pam, motif, parsed_motif, add=True):
         """Create a structure for holding individual sequence information"""
         location = (feature, contig, orientation, start, end, upstream, downstream)
