@@ -9,8 +9,8 @@ import sys
 import math
 
 # Import included AddTag-specific modules
-import nucleotides
-import utils
+from . import nucleotides
+from . import utils
 #from algorithms.distance_matrix import load_scores
 
 # Calculating the E-value requires three things:
