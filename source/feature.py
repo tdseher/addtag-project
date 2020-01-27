@@ -270,7 +270,7 @@ class Feature(object):
             cls.logger.info('Finding equivalent Targets...')
             equivalents = cls.expand_for_targets(args, contigs, feature_list)
             
-            # For each equivalent, we create expanded Features respecting 'args.feature_expansion_method'
+            # For each equivalent, we create expanded Features respecting 'args.feature_expansion_format'
             cls.logger.info('Formatting Feature+Target equivalents...')
             bounds = cls.expand_for_format(args, contigs, feature_list, equivalents)
             
@@ -343,7 +343,7 @@ class Feature(object):
                     if (len(tf_list) == len(feature_list)):
                         shared_targets_list.append(t_seq)
                 
-                # If not, then expand all Features the same amount so they have the same Target (using args.feature_expansion_method)
+                # If not, then expand all Features the same amount so they have the same Target (using args.feature_expansion_format)
                 if (len(shared_targets_list) == 0):
                     pass
             
@@ -354,7 +354,7 @@ class Feature(object):
                     if (len(tf_list) == 1):
                         unshared_targets_dict.setdefault(tf_list[0], []).append(t_seq)
                 
-                # If not, then expand all Features the same amount until each has a unique Target (using args.feature_expansion_method)
+                # If not, then expand all Features the same amount until each has a unique Target (using args.feature_expansion_format)
                 if (len(unshared_targets_dict) != len(feature_list)):
                     pass
             
@@ -365,7 +365,7 @@ class Feature(object):
                     for tf_list_feature in tf_list:
                         feature_target_counts[tf_list_feature] += 1
                 
-                # If not, then expand all Features the same amount until all Features have a Target (using args.feature_expansion_method)
+                # If not, then expand all Features the same amount until all Features have a Target (using args.feature_expansion_format)
                 if (len([k for k, v in feature_target_counts.items() if v > 0]) != len(feature_list)):
                     pass
             
@@ -1323,7 +1323,7 @@ class Feature(object):
                 #     1          XXXXXXXXXX
                 #     2 YYYYYY
                 
-                if (args.feature_expansion_method == 'center_feature'):
+                if (args.feature_expansion_format == 'center_feature'):
                     # ----[........FFF....TTTT]----  Terminal 3'
                     # ----[TTTT....FFF........]----  Terminal 5'
                     # ----------[..fffTT]----------  Overlapping 3'
@@ -1334,20 +1334,20 @@ class Feature(object):
                     derived_start = feature_end - full_dist - args.feature_expansion_pad
                     derived_end = feature_start + full_dist + args.feature_expansion_pad
                 
-                elif (args.feature_expansion_method == 'center_target'):
+                elif (args.feature_expansion_format == 'center_target'):
                     # ----[....TTTT.FFF]----
                     # ----[FFF.TTTT....]----
                     full_dist = max(target_end-feature_start, feature_end-target_start)
                     derived_start = target_end - full_dist - args.feature_expansion_pad
                     derived_end = target_start + full_dist + args.feature_expansion_pad
                 
-                #elif (args.feature_expansion_method == 'center_both'):
+                #elif (args.feature_expansion_format == 'center_both'):
                 #    # ----[TTTT...FFF]----
                 #    # ----[FFF...TTTT]----
                 #    derived_start = min(feature_start, target_start) - args.feature_expansion_pad
                 #    derived_end = max(target_end, feature_end) + args.feature_expansion_pad
                 
-                elif (args.feature_expansion_method == 'justify_feature'):
+                elif (args.feature_expansion_format == 'justify_feature'):
                     # ----[FFF....TTTTxxx]----
                     # ----[xxxTTTT....FFF]----
                     derived_start = min(feature_start, target_start)
@@ -1357,7 +1357,7 @@ class Feature(object):
                     else:
                         derived_start -= args.feature_expansion_pad
                     
-                elif (args.feature_expansion_method == 'justify_target'):
+                elif (args.feature_expansion_format == 'justify_target'):
                     # ----[TTTT....FFFxxx]----
                     # ----[xxxFFF....TTTT]----
                     derived_start = min(feature_start, target_start)
@@ -1367,9 +1367,9 @@ class Feature(object):
                     else:
                         derived_start -= args.feature_expansion_pad
                 
-                # By default, 'args.feature_expansion_method' equals 'None', in which case, there should be no
+                # By default, 'args.feature_expansion_format' equals 'None', in which case, there should be no
                 # extraneous formatting...
-                else: # if (args.feature_expansion_method == 'center_both'):
+                else: # if (args.feature_expansion_format == 'center_both'):
                     # ----[TTTT...FFF]----
                     # ----[FFF...TTTT]----
                     derived_start = min(feature_start, target_start) - args.feature_expansion_pad
@@ -1379,20 +1379,20 @@ class Feature(object):
                 # so it reaches the minimum length
                 if (derived_end - derived_start < args.feature_expansion_lengths[0]):
                     size_difference = args.feature_expansion_lengths[0] - (derived_end - derived_start)
-                    if (args.feature_expansion_method in ['center_feature', 'center_target', 'center_both']):
+                    if (args.feature_expansion_format in ['center_feature', 'center_target', 'center_both']):
                         new_pad = (size_difference+1)//2
                         derived_start -= new_pad
                         derived_end += new_pad
                         cls.logger.info("Added {} nt of padding bases to either side of DERIVED FEATURE".format(new_pad))
                     
-                    elif (args.feature_expansion_method == 'justify_feature'):
+                    elif (args.feature_expansion_format == 'justify_feature'):
                         if (derived_start == feature_start):
                             derived_end += size_difference
                         else:
                             derived_start -= size_difference
                         cls.logger.info("Added {} nt of padding bases to one side of DERIVED FEATURE".format(size_difference))
                     
-                    elif (args.feature_expansion_method == 'justify_target'):
+                    elif (args.feature_expansion_format == 'justify_target'):
                         if (derived_start == target_start):
                             derived_end += size_difference
                         else:
@@ -1411,7 +1411,7 @@ class Feature(object):
     @classmethod
     def expand_for_targets(cls, args, contigs, feature_list):
         '''
-        Expand all input features in parallel, the same amounts, taking 'args.feature_expansion_method' into account
+        Expand all input features in parallel, the same amounts, taking 'args.feature_expansion_format' into account
         Will expand to all appropriate sizes within 'args.feature_expansion_lengths'.
         :param args: argparse Namespace object
         :param contigs: dict with key=header value=sequence
@@ -1421,9 +1421,9 @@ class Feature(object):
         
         from . import targets
         
-        # 'all'       Expand all Features the same amount so they have the same Target (using args.feature_expansion_method)
-        # 'exclusive' Expand all Features the same amount until each has a unique Target (using args.feature_expansion_method)
-        # 'any'       Expand all Features the same amount until all Features have a Target (using args.feature_expansion_method)
+        # 'all'       Expand all Features the same amount so they have the same Target (using args.feature_expansion_format)
+        # 'exclusive' Expand all Features the same amount until each has a unique Target (using args.feature_expansion_format)
+        # 'any'       Expand all Features the same amount until all Features have a Target (using args.feature_expansion_format)
         
         # Create a matrix that stores which Targets are observed within which Features
         #       F1  F2  F3 ... FN
@@ -1675,7 +1675,7 @@ class Feature(object):
             #     1          XXXXXXXXXX
             #     2 YYYYYY
             
-            if (args.feature_expansion_method == 'center_feature'):
+            if (args.feature_expansion_format == 'center_feature'):
                 # ----[........FFF....TTTT]----  Terminal 3'
                 # ----[TTTT....FFF........]----  Terminal 5'
                 # ----------[..fffTT]----------  Overlapping 3'
@@ -1686,20 +1686,20 @@ class Feature(object):
                 derived_start = feature_end - full_dist - args.feature_expansion_pad
                 derived_end = feature_start + full_dist + args.feature_expansion_pad
             
-            elif (args.feature_expansion_method == 'center_target'):
+            elif (args.feature_expansion_format == 'center_target'):
                 # ----[....TTTT.FFF]----
                 # ----[FFF.TTTT....]----
                 full_dist = max(target_end-feature_start, feature_end-target_start)
                 derived_start = target_end - full_dist - args.feature_expansion_pad
                 derived_end = target_start + full_dist + args.feature_expansion_pad
             
-            elif (args.feature_expansion_method == 'center_both'):
+            elif (args.feature_expansion_format == 'center_both'):
                 # ----[TTTT...FFF]----
                 # ----[FFF...TTTT]----
                 derived_start = min(feature_start, target_start) - args.feature_expansion_pad
                 derived_end = max(target_end, feature_end) + args.feature_expansion_pad
             
-            elif (args.feature_expansion_method == 'justify_feature'):
+            elif (args.feature_expansion_format == 'justify_feature'):
                 # ----[FFF....TTTTxxx]----
                 # ----[xxxTTTT....FFF]----
                 derived_start = min(feature_start, target_start)
@@ -1709,7 +1709,7 @@ class Feature(object):
                 else:
                     derived_start -= args.feature_expansion_pad
                 
-            elif (args.feature_expansion_method == 'justify_target'):
+            elif (args.feature_expansion_format == 'justify_target'):
                 # ----[TTTT....FFFxxx]----
                 # ----[xxxFFF....TTTT]----
                 derived_start = min(feature_start, target_start)
@@ -1723,20 +1723,20 @@ class Feature(object):
             # so it reaches the minimum length
             if (derived_end - derived_start < args.feature_expansion_lengths[0]):
                 size_difference = args.feature_expansion_lengths[0] - (derived_end - derived_start)
-                if (args.feature_expansion_method in ['center_feature', 'center_target', 'center_both']):
+                if (args.feature_expansion_format in ['center_feature', 'center_target', 'center_both']):
                     new_pad = (size_difference+1)//2
                     derived_start -= new_pad
                     derived_end += new_pad
                     self.logger.info("Added {} nt of padding bases to either side of DERIVED FEATURE".format(new_pad))
                 
-                elif (args.feature_expansion_method == 'justify_feature'):
+                elif (args.feature_expansion_format == 'justify_feature'):
                     if (derived_start == feature_start):
                         derived_end += size_difference
                     else:
                         derived_start -= size_difference
                     self.logger.info("Added {} nt of padding bases to one side of DERIVED FEATURE".format(size_difference))
                 
-                elif (args.feature_expansion_method == 'justify_target'):
+                elif (args.feature_expansion_format == 'justify_target'):
                     if (derived_start == target_start):
                         derived_end += size_difference
                     else:

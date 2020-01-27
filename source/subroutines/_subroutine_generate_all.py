@@ -154,8 +154,7 @@ class GenerateAllParser(subroutine.Subroutine):
         #                  -----------------------HHHH[FEATURE.........TARGET...]HHHH--------------------- pad=3
         #  justify_target: -----------------------HHHH[FEATURE.........TARGET]HHHH------------------------
         #                  --------------------HHHH[...FEATURE.........TARGET]HHHH------------------------ pad=3
-        # TODO: change '--feature_expansion_method' to '--feature_expansion_format'
-        self.parser.add_argument("--feature_expansion_method", type=str, default=None,
+        self.parser.add_argument("--feature_expansion_format", type=str, default=None,
             choices=['center_feature', 'center_target', 'center_both', 'justify_feature', 'justify_target'],
             help="If a feature needs to be expanded to contain a gRNA target, \
             expand the feature such that either the feature, the target, or \
@@ -528,12 +527,10 @@ class GenerateAllParser(subroutine.Subroutine):
         
         
         if (args.ko_dDNA or args.ko_gRNA):
-            # Expand features if necessary
-            #  1) Expand Feature to find acceptable Target
-            #  2) Expand expanded feature to find acceptable flanking homology arms
-            if (args.feature_expansion_method != None):
-                # TODO: This 'Feature.expand_all_features()' should be replaced/removed
-                Feature.expand_all_features(args, contig_sequences)
+            # Only expand features if '--feature_expansion_format' is not 'None'
+            if (args.feature_expansion_format != None):
+                #Feature.expand_all_features(args, contig_sequences) # OLD code
+                Feature.new_new_expand_all_features(args, contig_sequences, h_groups)
                 
                 # Print the set of new features
                 self.logger.info('Feature.features')
