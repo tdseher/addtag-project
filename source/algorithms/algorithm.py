@@ -58,6 +58,18 @@ class Algorithm(object): # Name of the subclass
         self.maximum = maximum       # Maximum score to be included in pre- and post- alignment filters (float)
         self.default = default       # If defined, then this will be the on-target default score (None/float)
         self.rgns = rgns
+        
+        self.available = self.is_available()
+    
+    def is_available(self):
+        """
+        Determines if the prerequisites for the Algorithm have been met.
+        For instance, it will query the PATH to determine if the algorithm software is available.
+
+        Overload this method
+        :return: True or False
+        """
+        return False
     
     def calculate(self, *args, **kwargs):
         """
