@@ -273,7 +273,7 @@ class GenerateAllParser(subroutine.Subroutine):
             help="Specific algorithms for determining gRNA goodness.")
         
         postfilter_choices = [C.name for C in algorithms.single_algorithms + algorithms.paired_algorithms + algorithms.batched_single_algorithms if C.postfilter]
-        self.parser.add_argument("--postfilters", nargs='+', type=str,
+        self.parser.add_argument("--postfilters", nargs='*', type=str,
             choices=postfilter_choices, default=['Errors'],
             help="Specific algorithms for determining gRNA goodness.")
         
