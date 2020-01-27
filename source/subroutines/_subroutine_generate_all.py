@@ -46,7 +46,9 @@ class GenerateAllParser(subroutine.Subroutine):
         self.help = "Design full sets of oligonucleotide sequences for CRISPR/Cas genome engineering experiment."
         self.epilog = (
             "example:" "\n"
-            "  No example (yet)." "\n"
+            "  $ python3 {__program__} {__subroutine__} --fasta chromosomes.fasta --gff GENE.gff --folder GENEg" "\n"
+            "    --homologs homologs.txt --ko-dDNA mintag --ko-gRNA --ki-gRNA --ki-dDNA --postfilters " "\n"
+            "    --offtargetfilters CFD > GENEg.out 2> GENEg.err" "\n"
         ).format(**dict(list(subroutine.__dict__.items()) + list({"__subroutine__": self.name}.items()))) # key:value pairs in the latter dict will replace any instances in the prior dict
         
         self.define_parser()
