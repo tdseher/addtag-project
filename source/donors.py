@@ -24,9 +24,6 @@ from .thermodynamics.oligo import Primer, PrimerPair
 
 logger = logging.getLogger(__name__)
 
-# TODO: Check code for homology search for US/DS regions of excision-dDNA
-# TODO: Check code for homology search for US/DS regions of reversion-dDNA
-
 class Donor(object):
     prefix = 'Donor'
     sequences = {}
@@ -132,6 +129,9 @@ class Donor(object):
         """Return (sorted) list of all feature names this Donor maps to"""
         return sorted(set(x[0] for x in self.locations))
     
+    # TODO: Remove 'spacer=None' argument from 'Donor.__init__()'.
+    #       And rename the 'Donor.spacers' attribute to 'Donor.targets'
+    #       and have it be empty by default?
     def __init__(self, feature, contig, orientation, sequence, *segments, spacer=None):
     #def __init__(self, feature, contig, orientation, segment1, insert, segment2, sequence, spacer=None):
         # List of all genomic locations and features this dDNA corresponds to
@@ -146,6 +146,9 @@ class Donor(object):
         self.sequence = sequence
         
         # List to hold all spacer objects that map to this dDNA
+        # 'Donor.spacers' is only really used for assigning 'ReversionTarget's to 'ExcisionDonor's when
+        # called by 'ReversionTarget.get_targets()'. For every pseudo-target tuple inside 'Donor.spacers',
+        # a 'ReversionTarget' object is created.
         self.spacers = set()
         
         # Get the index number
@@ -679,6 +682,7 @@ class ReversionDonor(Donor):
         [amp-F primer]                                                               [amp-R primer]
         [upstream homology][us expanded feature][feature][ds expanded feature][downstream homology]
         """
+        # TODO: Make this function WAAAY smaller!
         
         cls.logger.info("Generating 'ReversionDonor' objects")
         
@@ -881,7 +885,8 @@ class ReversionDonor(Donor):
                             if (len(p2_features) == g_count):
                                 ampR_list.append(p)
                         
-                        elif (args.donor_specificity == 'exclusive'): # TODO: Test this (might be missing the case where F present in both alleles, but R is only in one)
+                        elif (args.donor_specificity == 'exclusive'):
+                            # TODO: Test this (might be missing the case where F present in both alleles, but R is only in one)
                             p1_features = set()
                             p2_features = set()
                             for loc in p.locations:

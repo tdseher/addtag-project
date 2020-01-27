@@ -221,7 +221,7 @@ class Feature(object):
         for feature_name, f in cls.features.items():
             if homologs:
                 hname_set = homologs[f.get_parent().name]
-                h_set = set()
+                h_set = set() # This probably doesn't need to be a set!
                 for fname, f2 in cls.features.items():
                     if fname in hname_set:
                         h_set.add(f2)
@@ -281,14 +281,6 @@ class Feature(object):
             cls.logger.info('Formatting Feature+Target equivalents...')
             bounds = cls.expand_for_format(args, contigs, feature_list, equivalents)
             
-            # TODO: Since 'cls.expand_for_homology()' performs MSA, it can be time-consuming.
-            #       To circumvent excess computationally expense, features within equivalents (bounds)
-            #       should only be evaluated by MSA once. If a MSA with input bounds identical to a previous
-            #       MSA has already been calculated, then use the already-computed output bounds instead
-            #       of performing the MSA again.
-            #       This can be accomplished using a dict, with key=(feature, start, end) tuple
-            #       and value=(d_start, d_end)
-            
             # For each formatted equivalent, we expand to find flanking homology regions with 
             # desired polymorphism level, respecting 'args.homology_distance'
             cls.logger.info('Finding flanking homology arms...')
@@ -300,7 +292,6 @@ class Feature(object):
             # Finally, we create 'derived' Feature objects for each
             cls.logger.info("Creating derived 'Feature' objects...")
             cls.create_derived_features(args, contigs, feature_list, equivalents, bounds)
-        
     
     @classmethod
     def new_expand_all_features(cls, args, contigs, h_groups):
@@ -397,8 +388,6 @@ class Feature(object):
     
     @classmethod
     def expand_all_features(cls, args, contigs):
-        # TODO: Modify this so that features aren't expanded in isolation. Instead, all features of a homologous
-        #       group are expanded together.
         checked_keys = []
         # Some make-shift code to get this working when the 'Feature.features' dict changes size during the loop process
         while(len(checked_keys) < len(Feature.features)):
@@ -908,13 +897,15 @@ class Feature(object):
             
             # One problem is that Target objects are sequence-specific, and do not respect equivalence (yet)
             # Should each Target's equivalence be stored in the 'Target' class?
-            #   class Target():
-            #     equivalents = {
-            #       'ACAGCT': ['CCAGCT', 'GCAGCT'] # These are the 'key's to Target.sequences
-            #     }
+            #   option 1:
+            #     Target.equivalents = {'ACAGCT': ['CCAGCT', 'GCAGCT', ...]} # These are the 'key's to Target.sequences
+            #   option 2:
+            #     Target.equivalents = {'exTarget-12': {Target, Target, ...}} # key=Target.name, value=set(Target, Target, ...)
+            # Option 2 won't work, because at this stage, Target objects don't exist, so they don't have 'Target.name'
+            # So it NEEDS to be option 1.
             
-            # TODO: Will need to determine if I can link the Features as Homologs, because it appears right now I can't link the Target equivalents
-            #       Just gotta figure out how to do it!
+            
+            
             
         
         # for derived_start, derived_end in sorted(derived_sets, key=lambda x: x[1]-x[0]): # in order from smallest to largest

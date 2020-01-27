@@ -70,6 +70,7 @@ class Alignment(object):
         # parent = (sequence, target, pam, upstream, downstream)
         this = (self.sequence, self.target, self.pam, self.upstream, self.downstream)
         postfilter = []
+        # TODO: Make this ONLY calculate score if it was selected by user in command line arguments
         for C in algorithms.single_algorithms:
             c_score = C.calculate(this, parsed_motif=self.motif.parsed_list)
             self.score[C.name] = c_score
@@ -151,7 +152,7 @@ class Target(object):
         self.off_targets = {}
         if (len(self.locations) > 0):
             self.calculate_default_scores()
-
+    
     @classmethod
     def load_spacers(cls, args, filenames):
         '''
