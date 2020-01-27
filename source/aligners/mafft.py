@@ -16,12 +16,9 @@ logger = logging.getLogger(__name__)
 import regex
 
 # import AddTag-specific packages
-if (__name__ == "__main__"):
-    from aligner import Aligner, Record
-else:
-    from .aligner import Aligner, Record
+from .aligner import MultipleSequenceAligner, Record
 
-class Mafft(Aligner):
+class Mafft(MultipleSequenceAligner):
     def __init__(self):
         super().__init__(
             name="mafft",
@@ -35,14 +32,14 @@ class Mafft(Aligner):
             input='fasta',
             output='fasta',
             truncated=False,
-            classification='multiple-sequence'
+            #classification='multiple-sequence'
         )
         self.score_matrix = {}
         self.ev = {}
         self.current_file = None
         self.records = {}
     
-    def align(self, query, subject, output_filename, output_folder, threads, *args, **kwargs):
+    def align(self, query, output_filename, output_folder, threads, *args, **kwargs):
         """
         Perform multiple sequence alignment of all the sequences within the 'query' file.
         
@@ -255,28 +252,28 @@ class MSARecord(object):
             'sequence={}'.format(self.sequence),
             ]) + ')'
 
-def test():
-    """Code to test the Bowtie2 Aligner subclass"""
-    if (len(sys.argv[1:]) != 2):
-        print("USAGE python3 mafft.py query.fasta folder", file=sys.stderr)
-        sys.exit(1)
-    query = sys.argv[1]
-    subject = None
-    folder = sys.argv[2]
-    
-    os.makedirs(folder, exist_ok=True)
-    logging.basicConfig(filename=os.path.join(folder, 'log.txt'), level=logging.INFO, format='%(message)s') # format='%(levelname)s %(asctime)s: %(message)s'
-    print("=== MAFFT ===")
-    aligner = Mafft()
-    #index_path = aligner.index(subject, 'myindex', folder, 4)
-    alignment_path = aligner.align(query, None, 'myoutput.fasta', folder, (os.cpu_count() or 1))
-    #print(index_path)
-    print(alignment_path)
-    
-    print('records = [')
-    for record in aligner.load(alignment_path):
-        print('  {}'.format(record))
-    print(']')
-
-if (__name__ == '__main__'):
-    test()
+# def test():
+#     """Code to test the Bowtie2 Aligner subclass"""
+#     if (len(sys.argv[1:]) != 2):
+#         print("USAGE python3 mafft.py query.fasta folder", file=sys.stderr)
+#         sys.exit(1)
+#     query = sys.argv[1]
+#     subject = None
+#     folder = sys.argv[2]
+#     
+#     os.makedirs(folder, exist_ok=True)
+#     logging.basicConfig(filename=os.path.join(folder, 'log.txt'), level=logging.INFO, format='%(message)s') # format='%(levelname)s %(asctime)s: %(message)s'
+#     print("=== MAFFT ===")
+#     aligner = Mafft()
+#     #index_path = aligner.index(subject, 'myindex', folder, 4)
+#     alignment_path = aligner.align(query, None, 'myoutput.fasta', folder, (os.cpu_count() or 1))
+#     #print(index_path)
+#     print(alignment_path)
+#     
+#     print('records = [')
+#     for record in aligner.load(alignment_path):
+#         print('  {}'.format(record))
+#     print(']')
+# 
+# if (__name__ == '__main__'):
+#     test()

@@ -14,13 +14,13 @@ logger = logging.getLogger(__name__)
 import regex
 
 # Import AddTag-specific packages
-from .aligner import Aligner, Record
+from .aligner import PairwiseAligner, Record
 from ..utils import which
 from ..motifs import OnTargetMotif, OffTargetMotif
 from ..nucleotides import motif_conformation2
 from ..cigarstrings import alignment2cigar, cigar2query_position, cigar2query_aligned_length, cigar2subject_aligned_length
 
-class CasOFFinder(Aligner):
+class CasOFFinder(PairwiseAligner):
     logger = logger.getChild(__qualname__)
     
     def __init__(self):
@@ -35,7 +35,7 @@ class CasOFFinder(Aligner):
             input='cas-offinder-in',
             output='cas-offinder-out',
             truncated=False,
-            classification='pairwise'
+            #classification='pairwise'
         )
         self.score_matrix ={}
         self.ev = {}

@@ -11,12 +11,12 @@ import logging
 logger = logging.getLogger(__name__)
 
 # import AddTag-specific packages
-from .aligner import Aligner, Record
+from .aligner import PairwiseAligner, Record
 from ..cigarstrings import sam_orientation, cigar2query_position, cigar2query_aligned_length, cigar2subject_aligned_length, cigar2score
 from ..utils import old_load_fasta_file, which
 from ..evalues import EstimateVariables, load_scores
 
-class Bowtie2(Aligner):
+class Bowtie2(PairwiseAligner):
     logger = logger.getChild(__qualname__)
     
     def __init__(self):
@@ -32,7 +32,7 @@ class Bowtie2(Aligner):
             input='fasta',
             output='sam',
             truncated=False,
-            classification='pairwise'
+            #classification='pairwise'
         )
         self.score_matrix = {}
         self.ev = {}

@@ -13,12 +13,10 @@ from collections import OrderedDict
 import logging
 logger = logging.getLogger(__name__)
 
-# import non-standard package
-import regex
-
 # import AddTag-specific packages
-sys.path.append( os.path.join( os.path.dirname(__file__), os.path.pardir ) )
-from utils import flatten
+#sys.path.append( os.path.join( os.path.dirname(__file__), os.path.pardir ) )
+#from utils import flatten
+from ..utils import flatten
 
 class Aligner(object): # Name of the subclass
     """
@@ -39,7 +37,7 @@ class Aligner(object): # Name of the subclass
         input='fasta',
         output='sam',
         truncated=False,
-        classification='pairwise'
+        #classification='pairwise'
     ):
         """
         Specify general information regarding this new instance of the 
@@ -56,7 +54,7 @@ class Aligner(object): # Name of the subclass
         self.input = input                   # Format of expected input (STDIN, fasta, fastq, etc)
         self.output = output                 # Designate the output format the alignment will be in, so AddTag can select the correct parser
         self.truncated = truncated           # Normally, the entire short read is locally aligned to the genome contigs. This tells the parser that what is reported in the SAM file in the 10th column is incomplete.
-        self.classification = classification # Type ('high-throughput', 'pairwise', 'multiple-sequence', 'ht', 'pw', 'ms')
+        #self.classification = classification # Type ('high-throughput', 'pairwise', 'multiple-sequence', 'ht', 'pw', 'ms')
         self.available = self.is_available()
 
     def is_available(self):
@@ -68,32 +66,6 @@ class Aligner(object): # Name of the subclass
         :return: True or False
         """
         return False
-
-    def index(self, fasta, output_prefix, output_folder, threads, *args, **kwargs):
-        """
-        Run the program process to index the subject.
-        Returns the path of the index generated.
-        
-        Overload this method.
-        """
-        return ''
-
-    def align(self, query, subject, output_prefix, output_folder, threads, *args, **kwargs):
-        """
-        Align the query file to the subject file.
-        Returns the path of the alignment generated (usually, the SAM file).
-        
-        Overload this method.
-        """
-        # Example 
-        #options = OrderedDict([
-        #    ('-q', query),
-        #    ('-s', subject),
-        #    ('-o', os.path.join(output_folder, output_filename)),
-        #    ('-t', threads),
-        #])
-        #return self.process('align', 'test.sam', options)
-        return ''
     
     def process(self, program, output_filename, fixed_options, *args, capture_stdout=False, append=False, **kwargs):
         """
@@ -195,6 +167,57 @@ class Aligner(object): # Name of the subclass
         Return the string representation of the Aligner
         """
         return self.__class__.__name__ + '(' + ', '.join(['name='+repr(self.name), 'authors='+repr(self.authors), 'year='+repr(self.year)]) + ')'
+
+# class HighThroughputAligner(Aligner):
+#     pass
+
+class PairwiseAligner(Aligner):
+    logger = logger.getChild(__qualname__)
+    
+    def index(self, fasta, output_prefix, output_folder, threads, *args, **kwargs):
+        """
+        Run the program process to index the subject.
+        Returns the path of the index generated.
+        
+        Overload this method.
+        """
+        return ''
+
+    def align(self, query, subject, output_prefix, output_folder, threads, *args, **kwargs):
+        """
+        Align the query file to the subject file.
+        Returns the path of the alignment generated (usually, the SAM file).
+        
+        Overload this method.
+        """
+        # Example 
+        #options = OrderedDict([
+        #    ('-q', query),
+        #    ('-s', subject),
+        #    ('-o', os.path.join(output_folder, output_filename)),
+        #    ('-t', threads),
+        #])
+        #return self.process('align', 'test.sam', options)
+        return ''
+
+class MultipleSequenceAligner(Aligner):
+     logger = logger.getChild(__qualname__)
+     
+     def align(self, sequences_file, output_prefix, output_folder, threads, *args, **kwargs):
+         '''
+         Align the sequences within 'sequences_file', and write resultant MSA to 
+         output_folder/output_prefix/output_extension. 
+         :param sequences_file: 
+         :param output_prefix: 
+         :param output_folder: 
+         :param threads: 
+         :param args: 
+         :param kwargs: 
+         :return: path of MSA file generated
+         '''
+         
+         return ''
+     
 
 class Record(object):
     __slots__ = [

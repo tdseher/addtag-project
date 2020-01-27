@@ -23,7 +23,7 @@ def test_aligner():
     threads = 4
 
     # Index and align
-    for aligner in aligners.aligners:
+    for aligner in aligners.pw_aligners:
         print("=== ", aligner.name, " ===")
         if aligner.available:
             print('AVAILABLE')

@@ -35,7 +35,7 @@ class ListAlignersParser(subroutine.Subroutine):
         """Print information about the supported aligners"""
         # Aligners intended to implement = ['addtag', 'blast+', 'blat', 'bowtie', 'bowtie2', 'bwa', 'cas-offinder']
         # Other aligners to consider: 'rmap', 'maq', 'shrimp2', 'soap2', 'star', 'rhat', 'mrsfast', 'stampy'
-        for x in aligners.aligners:
+        for x in aligners.pw_aligners:
             print('==========', x.name, '==========')
             print('    Authors:', x.authors)
             print('      Title:', x.title)

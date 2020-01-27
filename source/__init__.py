@@ -406,7 +406,7 @@ class Main(object):
         
         if hasattr(args, 'aligner'):
             # Add 'args.selected_aligner' to hold the actual aligner object
-            for a in aligners.aligners:
+            for a in aligners.pw_aligners:
                 if (a.name == args.aligner):
                     args.selected_aligner = a
                     break

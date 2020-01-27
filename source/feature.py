@@ -646,13 +646,13 @@ class Feature(object):
                 
                 
                 # Get the MSA aligner object
-                for a in aligners.aligners:
+                for a in aligners.ms_aligners:
                     if (a.name == 'mafft'):
                         aligner = a
                         break
                 
                 # Align sequences using MSA
-                aln_filename = aligner.align(us_query_filename, None, side+'.aln', folder, args.processors)
+                aln_filename = aligner.align(us_query_filename, side+'.aln', folder, args.processors)
                 
                 # Read the MSA
                 # Extract the longest region with perfect homology
@@ -1899,7 +1899,7 @@ class Feature(object):
         
         # Get the MSA aligner object
         aligner = None
-        for a in aligners.aligners:
+        for a in aligners.ms_aligners:
             if (a.name == 'mafft'):
                 aligner = a
                 break
@@ -1976,7 +1976,7 @@ class Feature(object):
                 msa_input_path = utils.write_merged_fasta((us_names, us_sequences), os.path.join(args.folder, 'msa-{}-{}-input.fasta'.format(utils.slugify(gene), side)))
                 
                 # Perform MSA
-                msa_output_path = aligner.align(msa_input_path, None, 'msa-{}-{}-output.fasta'.format(utils.slugify(gene), side), args.folder, args.processors)
+                msa_output_path = aligner.align(msa_input_path, 'msa-{}-{}-output.fasta'.format(utils.slugify(gene), side), args.folder, args.processors)
                 
                 # Parse MSA output to get records
                 # We assume the ordering of sequences in 'records' mirrors the input sequence ordering

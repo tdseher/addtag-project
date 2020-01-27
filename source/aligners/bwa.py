@@ -14,13 +14,13 @@ logger = logging.getLogger(__name__)
 import regex
 
 # import AddTag-specific packages
-from .aligner import Aligner, Record
+from .aligner import PairwiseAligner, Record
 from ..cigarstrings import cigar2query_position, cigar2query_aligned_length, cigar2subject_aligned_length, cigar2score, specificate_cigar, collapse_cigar
 from ..utils import old_load_fasta_file, which
 from ..evalues import EstimateVariables, load_scores
 from ..nucleotides import rc
 
-class Bwa(Aligner):
+class Bwa(PairwiseAligner):
     logger = logger.getChild(__qualname__)
 
     def __init__(self):
@@ -35,7 +35,7 @@ class Bwa(Aligner):
             input='fasta', # 'fastq',
             output='sam',
             truncated=False,
-            classification='pairwise'
+            #classification='pairwise'
         )
         self.score_matrix = {}
         self.ev = {}
@@ -85,7 +85,7 @@ class Bwa(Aligner):
         self.references[outpath] = scontigs
         
         return outpath
-        
+    
     def align(self, query, subject, output_prefix, output_folder, threads, *args, **kwargs):
         '''
         Align the query file to the subject file.

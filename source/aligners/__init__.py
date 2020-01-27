@@ -9,7 +9,7 @@ import os
 from importlib import import_module
 
 # Import included AddTag-specific modules
-from .aligner import Aligner
+from .aligner import PairwiseAligner, MultipleSequenceAligner
 
 def suffix_strip(text, suffix):
     return text[:-len(suffix)] if text.endswith(suffix) else text
@@ -42,6 +42,10 @@ for f in files:
     module = import_module('.'.join([__name__, f]))
 
 # Create an instance of each Aligner subclass, and add to this list
-aligners = []
-for C in Aligner.__subclasses__():
-    aligners.append(C())
+pw_aligners = []
+for C in PairwiseAligner.__subclasses__():
+    pw_aligners.append(C())
+
+ms_aligners = []
+for C in MultipleSequenceAligner.__subclasses__():
+    ms_aligners.append(C())

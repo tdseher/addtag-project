@@ -138,7 +138,7 @@ class EvaluateSpacersParser(subroutine.Subroutine):
         self.parser.add_argument("--processors", metavar="N", type=int, default=(os.cpu_count() or 1),
             help="Number of processors to use when performing pairwise sequence alignments.")
 
-        aligner_choices = [x.name for x in aligners.aligners]
+        aligner_choices = [x.name for x in aligners.pw_aligners]
         self.parser.add_argument("--aligner", type=str, choices=aligner_choices, default='bowtie2',
             help="Program to calculate pairwise alignments. Please note that the 'addtag' internal aligner is very slow.")
 

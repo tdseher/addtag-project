@@ -12,14 +12,14 @@ import logging
 logger = logging.getLogger(__name__)
 
 # import AddTag-specific packages
-from .aligner import Aligner, Record
+from .aligner import PairwiseAligner, Record
 from ..utils import which
 
 # TODO: Consider looking into BLAST+ >= 2.6.0
 #       because it has SAM format output
 #       $ blastn -query query.fasta -subject subject.fasta -outfmt 17 > output.sam
 
-class BlastPlus(Aligner):
+class BlastPlus(PairwiseAligner):
     logger = logger.getChild(__qualname__)
     
     def __init__(self):
@@ -35,7 +35,7 @@ class BlastPlus(Aligner):
             input='fasta',
             output='blastn',
             truncated=False,
-            classification='pairwise'
+            #classification='pairwise'
         )
 
     def is_available(self):

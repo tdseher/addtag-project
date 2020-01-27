@@ -18,9 +18,9 @@ sys.path.append( os.path.join( os.path.dirname(__file__), os.path.pardir ) )
 import utils
 import nucleotides
 import cigarstrings
-from .aligner import Aligner, Record
+from .aligner import PairwiseAligner, Record
 
-class Inbuilt(Aligner):
+class Inbuilt(PairwiseAligner):
     logger = logger.getChild(__qualname__)
 
     def __init__(self):
@@ -35,7 +35,7 @@ class Inbuilt(Aligner):
             input='fasta',
             output='sam',
             truncated=False,
-            classification='pairwise'
+            #classification='pairwise'
         )
 
     def index(self, fasta, output_filename, output_folder, threads, *args, **kwargs):
