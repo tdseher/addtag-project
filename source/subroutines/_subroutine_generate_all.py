@@ -327,7 +327,7 @@ class GenerateAllParser(subroutine.Subroutine):
         #    'unitag' is a single, invariant target for ALL features. \
         #    'bartag' are unique barcodes for each feature (does not guarantee targets).")
         
-        # TODO: If '--do-dDNA X' is not specified on the commandline, then 'args.ko_dDNA' takes the value 'None'
+        # TODO: If '--ko-dDNA X' is not specified on the commandline, then 'args.ko_dDNA' takes the value 'None'
         #       If it is 'None', then errors will happen. Need to fix this
         self.parser.add_argument("--ko-dDNA", type=str, action=subroutine.ValidateKodDNA,
             metavar='{*.fasta,mintag,addtag,unitag,bartag}', default=None,
@@ -459,9 +459,9 @@ class GenerateAllParser(subroutine.Subroutine):
         for exf_name, f in sorted(Feature.excluded_features.items()):
             self.logger.info("  {}:{}:{}:{}..{}".format(f.name, f.contig, f.strand, f.start, f.end))
         
-        # TODO: Run Features through a check. If homologous features are on the same contig, then stop
-        #       And print an error/warning that they won't be handled. And the user should split them
-        #       into separate contigs.
+        # Run Features through a check. If homologous features are on the same contig, then stop
+        # and print an error/warning that they won't be handled. And the user should split them
+        # into separate contigs.
         h_groups = Feature.group_features_by_gene(feature2gene)
         #for k, v in h_groups.items():
         #    print(k, v, file=sys.stderr)
@@ -478,19 +478,12 @@ class GenerateAllParser(subroutine.Subroutine):
         # Merge features?
         #features = merge_features(features)
         
-        
         #### Some checks that need to be added ####
         # The feature being targeted MUST not go up to the edge of the contigs
         # Otherwise there will be no junction. i.e. the upstream and downstream
         # regions won't exist.
         # Actually, these regions must be at minimum, 50 nt
         ###########################################
-        
-        
-        if (args.ko_gRNA): # Takes the values: (True/False)
-            # Search for good targets within specified features
-            # If no good target is found, then expand the feature
-            pass
         
         # This code is performed in 'ExcisionDonor.generate_donors()'
         # if (args.ko_dDNA): # (mintag/addtag/unitag/bartag)
@@ -503,29 +496,11 @@ class GenerateAllParser(subroutine.Subroutine):
         #     elif (args.ko_dDNA == 'bartag'):
         #         pass
         
-        
-        # Design gRNAs to target the ko-dDNA.
-        if (args.ki_gRNA): # Takes the values: (True/False)
-            pass
-        
-        
-        
-        # Testing out new feature expansion code
-        #Feature.new_expand_all_features(args, contig_sequences, h_groups)
-        # TODO: Only call this if '--feature_expansion_method' != None
-        Feature.new_new_expand_all_features(args, contig_sequences, h_groups)
-        
-        
-        # Code here (maybe as part of ExcisionTarget.search_all_features()), should expand features
-        # if necessary. How?
-        #   Look to see if the us/ds homology regions flanking the feature are identical.
-        #     If they are identical, then this would be a homozygous dDNA
-        #     If they are different, then this would be an allele-specific (heterozygous) dDNA
-        
-        # This is test code
-        #Feature.get_homologous_region_with_acceptable_polymorphism(args, contig_sequences, mismatches=4, gaps=3, errors=7)
-        
-        
+        # Search for good targets within specified features
+        # If no good target is found, then expand the feature
+        # TODO: Need to de-couple the Target search and the homology search.
+        #       if '--ko-dDNA', then homology search should happen
+        #       if '--ko-gRNA', then Target search should happen
         if (args.ko_dDNA or args.ko_gRNA):
             # Only expand features if '--feature_expansion_format' is not 'None'
             if (args.feature_expansion_format != None):
@@ -537,29 +512,32 @@ class GenerateAllParser(subroutine.Subroutine):
                 for f_name, f in sorted(Feature.features.items()):
                     self.logger.info("  {}:{}:{}:{}..{} PARENT={}".format(f.name, f.contig, f.strand, f.start, f.end, f.get_parent().name))
         
-        
-        # Get list of features that have compatible homology regions
-        sim_features = Feature.match_features_by_homology(args, contig_sequences)
+        # TODO: Will need to rewrite this filtering step BECAUSE some original (non-derived)
+        #       Features will need to be filtered out
+        # Get list of features that have compatible homology regions (Takes WAAAAYYYY too long)
+        #sim_features = Feature.match_features_by_homology(args, contig_sequences) # Old code
         
         # Remove any features whose homology regions violate command-line argument '--homology_distance'
-        Feature.filter_features([x.name for x in sim_features])
+        #Feature.filter_features([x.name for x in sim_features])
+        
         
         # Print to log what the filtered Features looks like
         self.logger.info('Feature.features after filtering')
         self.logger.info("  {}:{}:{}:{}..{} {} {} {}".format('Name', 'Contig', 'Strand', 'Start', 'End', 'Gene', 'Parent', 'Homologs'))
-        for f_name, f in sorted(Feature.features.items()):
-            self.logger.info("  {}:{}:{}:{}..{} {} {} {}".format(f.name, f.contig, f.strand, f.start, f.end, f.get_gene(), f.get_parent().name, f.homologs))
+        for i, (f_name, f) in enumerate(sorted(Feature.features.items())):
+            self.logger.info("  {} {}:{}:{}:{}..{} {} {} {}".format(i, f.name, f.contig, f.strand, f.start, f.end, f.get_gene(), f.get_parent().name, f.homologs))
         
         if (len(Feature.features) == 0):
             print("No Features match homology similarity requirements", file=sys.stderr)
             sys.exit(1)
         
         if (args.ko_gRNA):
-            # Search features within contigs for targets that match the motifs
-            # Old code (without feature expansion) ExcisionTarget.get_targets(args, contig_sequences, features)
+            # Create 'Target' objects by searching for motif matches within 'Feature' sequences
             ExcisionTarget.search_all_features(args, contig_sequences)
             
             # Write the query list to FASTA
+            # TODO: Make a method 'ExcisionTarget.fenerate_query(args, filename)' that automatically chooses
+            #       if it will create a 'fasta' or 'fastq' file.
             if (args.selected_aligner.input == 'fasta'):
                 ex_query_file = ExcisionTarget.generate_query_fasta(os.path.join(args.folder, 'excision-query.fasta'))
             elif (args.selected_aligner.input == 'fastq'):
@@ -568,11 +546,13 @@ class GenerateAllParser(subroutine.Subroutine):
         # Generate excision dDNAs and their associated reversion gRNA spacers
         ExcisionDonor.generate_donors(args, contig_sequences, feature2gene)
         
+        # Design gRNAs to target the ko-dDNA.
         if (args.ki_gRNA):
             ReversionTarget.create_target_objects()
         ex_dDNA_file = ExcisionDonor.generate_fasta(os.path.join(args.folder, 'excision-dDNAs.fasta')) # Program will fail with error if this file is empty...
         
         if (args.ki_gRNA):
+            # TODO: See previous TODO
             if (args.selected_aligner.input == 'fasta'):
                 re_query_file = ReversionTarget.generate_query_fasta(os.path.join(args.folder, 'reversion-query.fasta'))
             elif (args.selected_aligner.input == 'fastq'):
@@ -580,6 +560,8 @@ class GenerateAllParser(subroutine.Subroutine):
         
         if (args.ki_dDNA != None): # args.ki_dDNA can take one of 3 possible values: (None/True/'*.fasta')
             # Generate reversion dDNAs and write them to FASTA
+            # TODO: Homology search for US/DS regions of excision-dDNA currently works.
+            #       Now, you need to add a homology check for the reversion-dDNA homology regions
             ReversionDonor.generate_donors(args, contig_sequences, feature2gene)
             re_dDNA_file = ReversionDonor.generate_fasta(os.path.join(args.folder, 'reversion-dDNAs.fasta'))
         
@@ -814,6 +796,8 @@ class GenerateAllParser(subroutine.Subroutine):
         Print to STDOUT the final output for the '_generate()' function.
         Lists the best 'reTarget' and their corresponding 'exDonor' objects.
         """
+        # TODO: To my knowledge, this doesn't respect EITHER Feature.homologs when printing OR Target equivalents
+        #       So this needs to be modified so that it DOES (somehow)...
         
         print('# reTarget results')
         header = ['# gene', 'features', 'weight', 'reTarget name', 'reTarget sequence', 'OT:Hsu-Zhang', 'OT:CFD', 'Azimuth', 'exDonors', 'us-trim:mAT:ds-trim', 'feature:contig:strand:start..end', 'warnings']
