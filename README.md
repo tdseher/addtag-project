@@ -227,7 +227,7 @@ If you use AddTag for your research, please cite us. Because the manuscript is c
 
 ## ✍ Authors ##
 Who do I talk to?
- * Aaron Hernday (🔬 PI leading the project)
+ * Aaron D. Hernday (🔬 PI leading the project)
  * Thaddeus D. Seher (💻 programmer) (💬[@tdseher][tdseher])
 
 See also the list of [contributors](https://github.com/tdseher/addtag-project/graphs/contributors) who participated in this project.
