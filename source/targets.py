@@ -902,6 +902,9 @@ class ExcisionTarget(Target):
         # Import included AddTag-specific modules
         from . import feature
         
+        num_before = len(cls.sequences)
+        cls.logger.info('{} starts with {} Target objects'.format(cls.__name__, num_before))
+        
         for feature_name, f in feature.Feature.features.items():
             cls.logger.info("Searching Feature '{}' for ExcisionTarget objects.".format(feature_name))
             
@@ -909,6 +912,7 @@ class ExcisionTarget(Target):
             contig_sequence = contigs[f.contig]
             #feature_sequence = contig_sequence[f.start:f.end]
             targets = cls.get_targets(args, contig_sequence, start=f.start, end=f.end) # Does both orientations (+/-)
+            cls.logger.info("  found {} potential Targets".format(len(targets)))
             
             # Create ExcisionTarget objects for each found target
             for t in targets:
@@ -939,6 +943,10 @@ class ExcisionTarget(Target):
                 cls(f.name, f.contig, t_orientation, t_start, t_end, t_upstream, t_downstream, t_sequence, t_side, t_spacer, t_pam, t_motif_string, t_motif_parsed_list)
                 ## t = (orientation, start, end, t_upstream, t_downstream, filt_seq, side, filt_spacer, filt_pam, args.motifs[i], args.parsed_motifs[i])
                 ##SIMILAR ReversionTarget(obj_features, obj.name, t[0], t[1], t[2], t[3], t[4], t[5], t[6], t[7], t[8], t[9], t[10])
+        
+        num_after = len(cls.sequences)
+        cls.logger.info('{} ends with {} Target objects'.format(cls.__name__, num_after))
+        cls.logger.info('A total of {} Target objects have been added'.format(num_after-num_before))
         
         # END 'search_all_features()'
     
