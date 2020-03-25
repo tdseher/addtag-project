@@ -10,6 +10,7 @@ import sys
 import random
 import difflib
 import logging
+from itertools import product
 
 # import non-standard package
 import regex
@@ -287,17 +288,31 @@ def rc(seq, kind="dna"):
         raise ValueError("'" + str(kind) + "' is an invalid argument for rc()")
     return seq.translate(complements)[::-1]
 
-def kmers(k, y=''):
-    '''
-    Generator for recursive definition of k-mers in string form.
-    k >= 0
-    y for internal use
-    '''
-    if k==0:
-        yield y
+def permutations(length, words='ACGT'):
+    return list(''.join(x) for x in product(words, repeat=length))
+
+def random_permutations(length, words='ACGT', n=None):
+    if (n >= len(words)**length):
+        n = None
+    if (n == None):
+        return list(''.join(x) for x in product(words, repeat=length))
+    #elif ((n < 0) or (n > len(words)**length)):
+    #    raise Exception('n is greater than len(words)**length')
+    elif (n < 0):
+        raise Exception('n is < 0, but it should be >=0')
     else:
-        for m in ['A', 'C', 'G', 'T']:
-            yield from kmers(k-1, m+y)
+        d = {}
+        while (len(d) < n):
+            d[random_sequence(length)] = 1
+        return list(d.keys())
+
+def kmers(k):
+    '''
+    Make all possible canonical nucleotide strings of length k
+    :param k: length of the sequence to return
+    :return: list
+    '''
+    return list(''.join(x) for x in product('ACGT', repeat=k))
 
 def permute_genotypes(genes, y=''):
     """

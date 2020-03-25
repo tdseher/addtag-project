@@ -223,12 +223,17 @@ class ExcisionDonor(Donor):
     #     return sorted(targets) # becomes a list
     
     @classmethod
-    def mintag_exhaustive_site_search(cls, args, f, contig_sequence, orientation):
+    def mintag(cls, args, f, contig_sequence, orientation):
         """
-        Method for generating all potential mAT given the us/ds trims and
-        insert size. Also called "Brute force" method
-        
-        This code is run once for each feature
+        Method for generating 'mintag' sequences given the US/DS trims, and insert size.
+        Generates all possible 'mintag' sequences for 0 <= insert <= 5 ("brute force" method)
+        Generates a random sample of 'mintag' sequences for 6 <= insert ("random sampling" method)
+        This code is run once for each feature.
+        :param args: 
+        :param f: 
+        :param contig_sequence: 
+        :param orientation: 
+        :return: 
         """
         for us_trim in range(args.excise_upstream_feature_trim[0], args.excise_upstream_feature_trim[1]+1):
             for ds_trim in range(args.excise_downstream_feature_trim[0], args.excise_downstream_feature_trim[1]+1):
@@ -244,7 +249,8 @@ class ExcisionDonor(Donor):
                                 #downstream = contigs[contig][end:end + args.excise_donor_homology[1]]
                                 
                                 # when insert_length = 0, then the kmers are [''] (single element, empty string)
-                                for mAT in nucleotides.kmers(insert_length):
+                                kmers = nucleotides.random_permutations(length=insert_length, words='ACGT', n=4**5) # 1024 = maximum number of sequences generated
+                                for mAT in kmers:
                                     # Add this candidate dDNA to the list of all candidate dDNAs
                                     dDNA = upstream + mAT + downstream
                                     
@@ -492,8 +498,7 @@ class ExcisionDonor(Donor):
                 orientation = '+' # ????? what is this for? I don't remember
                 
                 # For each potential dDNA, evaluate how good it is
-                #cls.mintag_exhaustive_site_search(args, feature, contig, start, end, strand, contig_sequence, orientation)
-                cls.mintag_exhaustive_site_search(args, f, contig_sequence, orientation)
+                cls.mintag(args, f, contig_sequence, orientation)
             
         elif (args.ko_dDNA == 'addtag'): ######################## NEED TO ADD FLANKTAG PROCESSING ########################
             # Generate one unique tag for each feature (same take for homologs)
@@ -516,6 +521,7 @@ class ExcisionDonor(Donor):
             m = motifs.OnTargetMotif.motifs[0] # <------ Do I need to add OffTargetMotif.motifs here as well?
             
             # Create a single, random unitag according to the chosen motif (for testing)
+            # TODO: add 'genome_composition = ...' calculation (because it is missing)
             unitag = m.generate_sequence(compositions=genome_composition, complement=True, samples=100)
             
             # Create the dDNAs using the chosen unitag
