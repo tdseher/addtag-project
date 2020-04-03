@@ -14,6 +14,166 @@ import regex
 # Import included AddTag-specific modules
 from . import nucleotides
 
+
+
+
+
+class Node(object):
+    def __init__(self, data=None, parent=None, quant=(1,1)):
+        self.data = data
+        self.parent = parent
+        self.quant = quant
+    
+    def __repr__(self):
+        if (self.quant[0] == self.quant[1]):
+            n = self.quant[0]
+        else:
+            n = self.quant
+        return self.__class__.__name__ + '({}, n={})'.format(self.data, n)
+
+class Seq(Node):
+    def listify(self):
+        return [self.data*n for n in range(self.quant[0], self.quant[1]+1)]
+
+class And(Node):
+    def __init__(self, data=None, parent=None, quant=(1,1)):
+        super().__init__(data=data, parent=parent, quant=quant)
+        if (data == None):
+            self.data = []
+    
+    def add(self, d):
+        self.data.append(d)
+    
+    def andlast(self):
+        a = And(parent=self, data=[self.data[-1]])
+        self.data[-1].parent = a
+        self.data[-1] = a
+    
+    def listify(self):
+        if ((self.data != None) and (len(self.data) > 0)):
+            sequences = [''] # ['a', 'b', 'c']
+            for d in self.data:
+                d_list = d.listify()
+                
+                # Copy all existing sequences
+                if (len(d_list) > 0):
+                    new_sequences = [seq for seq in sequences for i in range(len(d_list))]
+                else:
+                    new_sequences = sequences
+                
+                # Join the new string to each duplicated sequence
+                for i in range(len(sequences)):
+                    for j, d in enumerate(d_list):
+                        new_sequences[i*len(d_list)+j] += d
+                
+                sequences = new_sequences
+            
+            # Remove duplicate values
+            return list(set([seq*n for seq in sequences for n in range(self.quant[0],self.quant[1]+1)]))
+        else:
+            return []
+    
+class Or(Node):
+    def __init__(self, data=None, parent=None, quant=(1,1)):
+        super().__init__(data=data, parent=parent, quant=quant)
+        if (data == None):
+            self.data = []
+    
+    def add(self, d):
+        self.data.append(d)
+    
+    def andlast(self):
+        a = And(parent=self, data=[self.data[-1]])
+        self.data[-1].parent = a
+        self.data[-1] = a
+    
+    def listify(self):
+        #return [[d.listify() for d in self.data]*n for n in range(self.quant[0], self.quant[1]+1)]
+        #return [seq*n for seq in sequences for n in range(self.quant[0],self.quant[1]+1)]
+        sequences = []
+        for d in self.data:
+            d_list = d.listify()
+            for l in d_list:
+                for i in range(self.quant[0], self.quant[1]+1):
+                    sequences.append(l*i)
+        # Remove duplicate values
+        return list(set(sequences))
+
+def parse_submotif(submotif):
+    n = And()
+    root = n
+    or_next = False
+    
+    # If the actual class is important, then they can be stored in the capturing groups with this regex: (\d+)|(\w+)|([()])|([{}])|(,)
+    #token_list = regex.findall(r'\w+|[()]|[{}]|,', submotif)
+    token_list = regex.findall(r'[acgtrymkwsbdhvnACGTRYMKWSBDHVN./|\\]+|[()]|\{(?:\d+|\d*,\d+)\}|,', submotif)
+    #token_list = regex.findall(r'[acgtrymkwsbdhvnACGTRYMKWSBDHVN./|\\]+|\d+|[()]|[{}]|,', submotif)
+    #token_list = regex.findall(r'\w+(?!\{)|\w|[()]|[{}]|,', 'AT(NRG{1,2},(NNG){2,3},GAA,GAT,CAA)') # Makes a separate token for 'NR' and 'G'
+    for token in token_list:
+        if (token == '('):
+            if not or_next and (len(n.data) > 0):
+                if isinstance(n.data[-1], Seq):
+                    n.andlast()
+                    n = n.data[-1]
+                elif isinstance(n.data[-1], And):
+                    n = n.data[-1]
+            n.add(Or(parent=n))
+            n = n.data[-1]
+        elif (token == ')'):
+            while (not isinstance(n, Or)):
+                n = n.parent
+            n = n.parent
+        elif token.startswith('{'):
+            quant = token[1:-1].split(',')
+            if (len(quant) == 1):
+                quant = (int(quant[0]), int(quant[0]))
+            elif (len(quant) == 2):
+                if (quant[0] == ''):
+                    quant = (0, int(quant[1]))
+                elif (quant[1] == ''):
+                    raise Exception("Motif quantifier '" + token + "' contains no maximum value")
+                else:
+                    quant = tuple(int(x) for x in quant)
+                if (quant[0] > quant[1]):
+                    raise Exception("Motif quantifier '" + token + "' minimum and maximum lengths are invalid")
+            
+            if (isinstance(n.data[-1], Seq) and (len(n.data[-1].data) > 1)):
+                if isinstance(n, And):
+                    d_first, d_last = n.data[-1].data[:-1], n.data[-1].data[-1:]
+                    n.data[-1].data =d_first
+                    n.add(Seq(d_last, parent=n, quant=quant))
+                else: # elif isinstance(n, Or):
+                    a = And(parent=n)
+                    a.add(Seq(data=n.data[-1].data[:-1], parent=a))
+                    a.add(Seq(data=n.data[-1].data[-1:], parent=a, quant=quant))
+                    n.data[-1] = a
+            else:
+                n.data[-1].quant = quant
+        elif (token == ','):
+            if isinstance(n, And):
+                while (not isinstance(n, Or)):
+                    n = n.parent
+            #or_next = True
+        else:
+            if (or_next or (len(n.data) == 0)):
+                n.add(Seq(token, parent=n))
+            else:
+                if isinstance(n.data[-1], Seq):
+                    n.andlast()
+                    n = n.data[-1]
+                elif isinstance(n.data[-1], And):
+                    n = n.data[-1]
+                n.add(Seq(token, parent=n))
+        if (token == ','):
+            or_next = True
+        else:
+            or_next = False
+        #print(token, root, or_next)
+    
+    #return n.listify()
+    #return n
+    return root.listify()
+
 class Motif(object):
     motifs = []
     def __init__(self, motif_string):
@@ -51,6 +211,41 @@ class Motif(object):
         
         Example inputs: 'G{,2}N{19,20}>NGG', 'N{20,21}>NNGRRT', 'TTTN<N{20,23}'
         """
+        # TODO: Add a linked quantifier that uses brackets '[' and ']'. For example
+        #       N[12,13]|N[8,7]>NGG    would match   NNNNNNNNNNNN|NNNNNNNN>NGG
+        #                              and           NNNNNNNNNNNNN|NNNNNNN>NGG
+        #       Alternatiely, just rely on whether-or-not the left quantifier is smaller than the right quantifier?
+        #       N{12,14}|N{8,6}>NGG
+        
+        # Possible quantifier delimiters
+        #   N┤6,7├
+        #   N╣6,7╠
+        #   N╡6,7╞
+        #   N╢6,7╟
+        #   N<6,7>
+        #   N{6,7}
+        #   N(6,7)
+        #   N[6,7]
+        #   Nq6,7p
+        #   N‹6,7›
+        #   N«6,7»
+        #   N‘6,7’
+        #   N“6,7”
+        #   N←6,7→
+        #   N﴾6,7﴿
+        
+        # Possible cut characters
+        #   sense, antisense, both
+        #   /\|   '\' can be an escape
+        #   ^v|   'v' is reserved
+        #   *.|   '.' is reserved
+        #   !¡|   '¡' is hard to type
+        #   ?¿|   '¿' is hard to type
+        #   ↑↓↕   best, but hard to type
+        #   ╛╕╡   difficult
+        #   ╧╤╪   difficult
+        
+        
         # TODO: Consider implementing a way of parsing nickase RGNs (only cut on one strand)
         # TODO: Consider implementing a way of parsing paired nickase RGNs
         # Still need to implement:
@@ -94,8 +289,8 @@ class Motif(object):
             pam_motif, spacer_motif = motif.split('<')
             side = '<'
         
-        spacer_sequences, spacer_sense_cuts, spacer_antisense_cuts = self.parse_motif_helper(spacer_motif)
-        pam_sequences, pam_sense_cuts, pam_antisense_cuts = self.parse_motif_helper(pam_motif)
+        spacer_sequences, spacer_sense_cuts, spacer_antisense_cuts = self.parse_motif_cuts(spacer_motif)
+        pam_sequences, pam_sense_cuts, pam_antisense_cuts = self.parse_motif_cuts(pam_motif)
         
         return (spacer_sequences, pam_sequences, side), spacer_sense_cuts, spacer_antisense_cuts, pam_sense_cuts, pam_antisense_cuts
     
@@ -128,56 +323,17 @@ class Motif(object):
     # Why use Cpf1 over Cas9?
     #  see https://benchling.com/pub/cpf1
     
-    def parse_motif_helper(self, submotif):
+    #####################
+    ### New code here ###
+    #####################
+    
+    def parse_motif_cuts(self, submotif):
         """
         Helper function that parses either the SPACER or PAM motif.
         Decodes quantifiers and returns a list
         """
-        # Keep track of expanded sequences
-        sequences = ['']
-        
-        # Keep track if a quantifier is being parsed
-        quantifier = None
-        
-        # Iterate through the characters
-        for i, c in enumerate(submotif):
-            if (c == '{'): # Start the quantifier
-                quantifier = ''
-            elif (c == '}'): # End the quantifier
-                quantifier_list = quantifier.split(',')
-                if (len(quantifier_list) == 1):
-                    min_length = int(quantifier)
-                    max_length = min_length
-                    
-                elif (len(quantifier_list) == 2):
-                    if (quantifier_list[0] == ''):
-                        min_length = 0
-                    else:
-                        min_length = int(quantifier_list[0])
-                    if (quantifier_list[1] == ''):
-                        raise Exception("Motif quantifier '{" + quantifier + "}' contains no maximum value")
-                    else:
-                        max_length = int(quantifier_list[1])
-                    if (min_length > max_length):
-                        raise Exception("Motif quantifier '{" + quantifier + "}' minimum and maximum lengths are invalid")
-                
-                last_chars = [ x[-1] for x in sequences ]
-                
-                sequences = [ x[:-1] for x in sequences ]
-                
-                new_sequences = []
-                for j, s in enumerate(sequences):
-                    for length in range(min_length, max_length+1):
-                        new_sequences.append(s + last_chars[j]*length)
-                sequences = new_sequences
-                quantifier = None
-            elif (quantifier != None): # add current character to quantifier if it is open
-                # We strip out any cut sites
-                #if (c not in ['/', '\\', '|']):
-                quantifier += c
-            else: # add the current character to the expanded sequences
-                for j in range(len(sequences)):
-                    sequences[j] = sequences[j] + c
+        # Expand 'submotif' into a list of sequences and sort it
+        sequences = sorted(parse_submotif(submotif))
         
         # Define empty list holding all cut sites
         sense_cuts = []
