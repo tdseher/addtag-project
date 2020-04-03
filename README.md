@@ -24,9 +24,10 @@ Basic Features:
    * [x] Fully supports ambiguous bases (`RYMKWSBDHVN`) in ![Spacer][Spacer] or ![PAM][PAM].
    * [x] Accepts 3'-adjacent ![PAM][PAM] sequences, such as Cas9 (`>NGG`).
    * [x] Accepts 5'-adjacent ![PAM][PAM] sequences, such as Cas12a (`TTTN<`).
-   * [x] Supports arbitrary ![Spacer][Spacer] length and composition constraints (`G{,2}N{19,20}`).
+   * [x] Supports arbitrary ![Spacer][Spacer] length and composition constraints, such as for plant experiments (`G{,2}N{19,20}`).
    * [x] Supports arbitrary ![PAM][PAM] sequences (MAD7: `YTTN<`, Cas12d: `TA<`, BlCas9: `>NGGNCNDD`, etc).
    * [x] Uses stranded forward (`/`), reverse (`\`) and unstranded (`|`) cut sites.
+   * [x] Supports complex nested logic ![PAM][PAM] sequences, such as xCas9 (`>(N{1,2}G,GAW,CAA)`)
    * [x] Calculates any number of **on-target** and **off-target** scores (see [Algorithms](#supported-scoring-algorithms)).
    * [x] Finds homology-aware ![Target][Target]s (**multi-allelic**, **allele-specific**, and **allele-agnostic**).
    * [x] Searches for ![Target][Target]s using selectable pairwise alignment program (see [Aligners](#supported-sequence-aligners)).
@@ -65,9 +66,9 @@ One pairwise sequence aligner is required:
  * [ ] BLAST+ ≥ 2.6.0 ([source](https://bit.ly/2Ouoqkx), [binaries](https://bit.ly/2Ouoqkx), [documentation](https://www.ncbi.nlm.nih.gov/books/NBK279690/))
 
  * [ ] Bowtie 2 ≥ 2.3.4.1 ([source](https://github.com/BenLangmead/bowtie2), [binaries](https://sourceforge.net/projects/bowtie-bio/files/bowtie2/), [documentation](http://bowtie-bio.sourceforge.net/bowtie2/manual.shtml))
- 
+
  * [ ] BWA ≥ 0.7.12 ([source](https://github.com/lh3/bwa), [ugene binaries](http://ugene.net/download-all.html#en_data_analysis_tools), [bioconda binaries](https://anaconda.org/bioconda/bwa/files), [documentation](http://bio-bwa.sourceforge.net/bwa.shtml))
- 
+
  * [ ] Cas-OFFinder ≥ 2.4 ([source](https://github.com/snugel/cas-offinder), [binaries](https://sourceforge.net/projects/cas-offinder/files/Binaries/), [documentation](http://www.rgenome.net/cas-offinder/portable))
 
 <!--
@@ -120,29 +121,31 @@ The following scoring algorithms are subclasses of `SingleSequenceAlgorithm`.
    
     * Keras Python module ([source](https://github.com/keras-team/keras), [whls](https://pypi.org/project/Keras/), [documentation](https://keras.io/))
     * Theano Python module ([source](https://github.com/Theano/Theano), [whls](https://pypi.org/project/Theano/), [documentation](http://deeplearning.net/software/theano/))
- 
+
  * [x] Doench-2014 ([Doench, et al (2014)](http://dx.doi.org/10.1038/nbt.3026))
- 
+
  * [x] Housden ([Housden, et al (2015)](http://dx.doi.org/10.1126/scisignal.aab3729))
- 
+
  * [x] Moreno-Mateos ([Moreno-Mateos, et al (2015)](http://dx.doi.org/10.1038/nmeth.3543))
- 
+
  * [x] GC
- 
+
  * [x] PolyT
-  
+
  * [x] PAM Identity
+
+ * [x] Position
 
 The following scoring algorithms are subclasses of `PairedSequenceAlgorithm`.
 
  * [x] CFD ([Doench, Fusi, et al (2016)](http://dx.doi.org/10.1038/nbt.3437))
- 
+
  * [x] Substitutions, Insertions, Deletions, Errors ([Needleman, Wunsch (1970)](https://dx.doi.org/10.1016/0022-2836%2870%2990057-4))
- 
+
  * [x] Hsu-Zhang ([Hsu, et al (2013)](http://dx.doi.org/10.1038/nbt.2647))
- 
+
  * [x] CRISPRater ([Labuhn, et al. (2018)](http://dx.doi.org/10.1093/nar/gkx1268))
- 
+
  * [x] Linear
 
 ### Python package setup ###
@@ -223,7 +226,7 @@ man ./addtag.1
 ## 📝 Citing AddTag ##
 If you use AddTag for your research, please cite us. Because the manuscript is currently in preparation, you will need to cite the code repository instead.
 
- > Thaddeus D. Seher and Aaron D. Hernday. Addtag: Program for identifying exclusive endogenous gRNA sites and creating unique synthetic gRNA sites. University of California, Merced. Retrieved from \<https://github.com/tdseher/addtag-project> (2019).
+ > Thaddeus D. Seher and Aaron D. Hernday. AddTag: Program for identifying exclusive endogenous gRNA sites and creating unique synthetic gRNA sites. University of California, Merced. Retrieved from \<https://github.com/tdseher/addtag-project\> (2019).
 
 ## ✍ Authors ##
 Who do I talk to?
