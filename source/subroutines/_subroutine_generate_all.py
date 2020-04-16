@@ -313,15 +313,6 @@ class GenerateAllParser(subroutine.Subroutine):
             If 'single', then design a single oligo to serve as both the uptag and dntag. \
             If 'pair', then design uptag different to dntag.")
         
-        #--flanktags myfile.fasta
-        #--flanktags uniform single
-        #--flanktags uniform pair
-        #--flanktags feature single
-        #--flanktags feature pair
-        
-        # By default, unlabeled flanktags won't be strand specific, but if they are labeled, then they will be strand-specific
-        # The flanktag length will be 18-25 nt, preferring 20
-        
         # Splitting up "generate" into specific sub-tasks
         
         # TODO: Running 'addtag generate_all --ko-dDNA mintag' without '--ko-gRNA' prints nothing to STDOUT.
@@ -339,12 +330,13 @@ class GenerateAllParser(subroutine.Subroutine):
         # TODO: If '--ko-dDNA X' is not specified on the commandline, then 'args.ko_dDNA' takes the value 'None'
         #       If it is 'None', then errors will happen. Need to fix this
         self.parser.add_argument("--ko-dDNA", type=str, action=subroutine.ValidateKodDNA,
-            metavar='{*.fasta,mintag,addtag,unitag,bartag}', default=None,
+            metavar='{*.fasta,mintag,addtag,unitag,bartag,sigtag}', default=None,
             help="'*.fasta' is a FASTA file containing user-specified sequences. \
             'mintag' are unique us/i/ds junction targets specific to each feature. \
             'addtag' are unique targets for each feature. \
             'unitag' is a single, invariant target for ALL features. \
-            'bartag' are unique barcodes for each feature (does not guarantee targets).")
+            'bartag' are unique barcodes for each feature (does not guarantee targets). \
+            'sigtag' are sequences containing restriction sites (does not guarantee targets).")
         
         self.parser.add_argument("--ki-gRNA", action='store_true', default=False,
             help="Design gRNAs to target the ko-dDNA. \

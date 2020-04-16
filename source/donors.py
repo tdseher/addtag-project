@@ -331,6 +331,65 @@ class ExcisionDonor(Donor):
                 sorted(a, key=lambda x:(a[x], random.random())) # Evaluate in random order for ties
     
     @classmethod
+    def flanktags(cls, args):
+        '''
+        If args.flanktags[0] == 'uniform', then all features will share the same flanktags.
+        If args.flanktags[0] == 'specific', then each feature will have its own set of unique flanktags.
+        If args.flanktags[0] == '*.fasta', then flanktags will be taken from an input FASTA file
+        with either a single or paired flanktags as indicated in the sequence headers.
+        If args.flanktags[1] == 'single', then design a single oligo to serve as both the uptag and dntag.
+        If args.flanktags[1] == 'pair', then design uptag different to dntag.
+        
+        By default, unlabeled flanktags won't be strand specific, but if they are labeled (in the input FASTA),
+        then they will be strand-specific. That is, if the *.fasta has this
+          >UPTAG strand=+
+          GCTAGCGCAAATCGCGGCAT
+          >DNTAG strand=-
+          GGCTGAGATAGAGATAGAAA
+        then UPTAG will be 5' of the Feature orientation, and DNTAG will be 3' of the Feature orientation.
+        
+        The flanktag length will be the length of a typical primer (18-25 nt, preferring 20)
+        
+        Example of 'single': DNTAG = rc(UPTAG)
+          [---genome---] [-----uptag-----] [---*tag---] [-----dntag-----] [---genome---]
+          NNNNNNNNNNNNNN GACAACTAACGAGCATG NNNNNNNNNNNN CATGCTCGTTAGTTGTC NNNNNNNNNNNNNN
+        
+        :param args: 
+        :return: 
+        '''
+        
+        # Example usage
+        #   --flanktags {*.fasta,uniform,unique/specific} {single/identical/same,pair/different}
+        #   --flanktags myfile.fasta
+        #   --flanktags uniform single
+        #   --flanktags uniform pair
+        #   --flanktags specific single
+        #   --flanktags specific pair
+        pass
+    
+    @classmethod
+    def sigtag(cls, args, f, contig_sequence, orientation):
+        '''
+        Sigtags contain nuclease restriction sites.
+        Optionally, sigtags also contain minimal edit distance from other sigtags
+        
+        :param args: 
+        :param f: 
+        :param contig_sequence: 
+        :param orientation: 
+        :return: 
+        '''
+        # TODO: Fill out the rest of the 'restrictions.txt' table from:
+        #       Rebase (http://rebase.neb.com/rebase/enz/AbaSI.html)
+        #       NEB (https://enzymefinder.neb.com/#!/name/AbaSI)
+        # TODO: Will need to create a new format for entering/parsing restriction/recognition sites
+        #       Example:  GG/NTTC..\
+        #       lower-case letters indicate modified bases. For instance, 'c' would be a methylated cytosine
+        # Restriction enzymes requiring DNA modifications to template recognition/cut sites
+        #   AbaSI, AoxI, BisI, BlsI, DpnI, FspEI, GlaI, GluI, KroI, LpnPI, MalI, MspJI, MteI, PcsI, PkrI, SgeI
+        pass
+    
+    @classmethod
     def bartag(cls, args, f, contig_sequence, orientation, bartags):
         """
         Method for generating dDNA with bartags.
