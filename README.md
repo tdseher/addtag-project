@@ -13,7 +13,7 @@ Program for identifying exclusive endogenous gRNA sites and creating unique synt
 [![PRs](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
 [![](https://img.shields.io/badge/doi-...-blue.svg)](#)
 
-[Features](#-features) • [Requirements](#-requirements) • [Installing](#-installing-addtag) • [Usage](#-program-usage) • [Aligners](#-supported-sequence-aligners) • [Thermodynamics](#-supported-thermodynamics-calculators) • [Algorithms](#-supported-scoring-algorithms) • [Citing](#-citing-addtag) • [Contributing](#-contributing)
+[Features](#-features) • [Requirements](#-requirements) • [Installing](#-installing-addtag) • [Usage](#-program-instructions) • [Aligners](#-supported-sequence-aligners) • [Thermodynamics](#-supported-thermodynamics-calculators) • [Algorithms](#-supported-scoring-algorithms) • [Citing](#-citing-addtag) • [Contributing](#-contributing)
 
 ## ☑ Features ##
 Basic Features:
@@ -46,6 +46,8 @@ Below are lists AddTag requirements. Each entry is marked with a ☑ or ☐, ind
 
  * [x] All requirements included in AddTag
  * [ ] Additional download/setup required
+
+For tips on setting up AddTag requirements, please review the commands in the `.azure-pipelines.yml` file.
 
 ### Basic requirements ###
 
@@ -187,6 +189,18 @@ cd addtag-project/
 chmod +x addtag
 ```
 
+To make the AddTag executable accessible from any working directory, you can add the absolute path of the current working directory to the `PATH` variable.
+
+On Windows, run:
+```sh
+set PATH=%PATH%;%CD%
+```
+
+On Linux or macOS, run:
+```sh
+export PATH=$PATH:$PWD
+```
+
 ## 🔁 Updating AddTag ##
 The commands in this section assume the working directory is the AddTag folder.
 ```sh
@@ -210,7 +224,8 @@ Alternatively, if you want to keep the local modifications, you can use the `--k
 
 Each one of these commands assumes `git` is available on the `PATH` environment variable.
 
-## 💻 Program usage ##
+## 💻 Program Instructions ##
+### Displaying the usage ###
 Because AddTag is being updated regularly, the most current feature set and usage can be viewed by running AddTag with the `--help` command line option.
 
 The following commands assume the current working directory is the AddTag folder `addtag-project/`. This will print out command line parameter descriptions and examples.
@@ -223,10 +238,154 @@ Additionally, you may view the included man page, which is probably not up-to-da
 man ./addtag.1
 ```
 
+### Formatting input data ###
+
+#### FASTA input ####
+AddTag requires a FASTA genome of organism you wish to manipulate. FASTA files resemble the following:
+```fasta
+>primary_header1 attribute1=value1 attribute2=value2
+NNNNCGAAATCGGCGCATAGGCCTAAGAGCTCCTATAGAGATCGATATAAAC
+GCTAGAAGATAGAGAGAGGCTCGCGCTCGATCGCGATAAGAGAGCTCTCGGC
+CGATAGAGGAATCTCGggctcgcatatatyhcgcggcatatGGCCTAGAGGA
+CCAATAAAGATATATAGCCTAAAGGAATATATAGAGAGATATATATAGNNNN
+>primary_header2 attribute1=value1 attribute2=value2
+AGCTAGAGACWWWCTCCTCTCCTAGAGASSSAGAGGAGAGCTCTCCGAGAGA
+CGCTCGCTCGTATGCCTCTATATCGATATATAGGAGAATCCTCGATATATAG
+```
+FASTA files are plain text files that use newline (`\n` or `\r\n`) characters as delimiters. If a line begins with a greater than (`>`) symbol, it represents the start of a new sequence record. All characters between the `>` and `\n` are considered the 'header' of the record. Everything between the `>` and the first whitespace character (` ` or `\t`), if one exists, is considered the 'primary header' for the record. All subsequent lines until the next 'header' line contain the sequence information for that record. Therefore FASTA files can contain many sequence records. Each record in the FASTA file in an assembly is called a 'contig'. 
+
+FASTA files can contain any number of ambiguous characters (`RYMKWSBDHVN`), which can represent allelic variation expected within the sample or sequencing uncertainty. FASTA files can also contain a mix of `UPPER` and `lower` cased characters. Typical use for `lower` case characters is to exclude these residues from ![Target][Target] or ![Primer][Primer] identification. 
+
+#### GFF input ####
+AddTag requires a GFF file containing annotations for the Features you wish to manipulate. GFF files resemble the following:
+```gff
+# seqid	source	feature	start	end	score	strand	frame	attribute
+C1A	DB	gene	3489	5146	.	+	.	ID=C1A_001;Name=C1_001;Gene=GENE1
+C1A	DB	mRNA	3489	5146	.	+	.	ID=C1A_001-T;Parent=C1A_001
+C1A	DB	exon	3489	5146	.	+	.	ID=C1A_001-T-E1;Parent=C1A_001-T
+C1A	DB	CDS	3489	5146	.	+	0	ID=C1A_001-P;Parent=C1A_001-T
+
+C1B	DB	gene	3267	4924	.	+	.	ID=C1B_001
+C1B	DB	mRNA	3267	4924	.	+	.	ID=C1B_001-T;Parent=C1B_001
+C1B	DB	exon	3267	4924	.	+	.	ID=C1B_001-T-E1;Parent=C1B_001-T
+C1B	DB	CDS	3267	4924	.	+	0	ID=C1B_001-P;Parent=C1B_001-T
+```
+GFF files describe the contig locations of important genomic Features. Empty lines and lines that begin with the pound (`#`) symbol are ignored. Of note is the far-right `attribute` column, which AddTag assumes is a semicolon-delimited set of key/value pairs. AddTag assumes each Feature has a unique identifier. By default, it uses the `ID` attribute as the unique name for each Feature. If your GFF file does not have an `ID` attribute, then you can select a different one with the `--tag` command line option. 
+
+Typical AddTag analyses require at least one GFF file. AddTag can handle GFF files in two ways.
+ * For the first method, all Features matching the selected type, designated by the `--features` command line argument, will be included for analysis. By default, only lines in the GFF file containing `gene` in `feature` column will be considered. This system is useful if your GFF file contains only the Features you wish to manipulate.
+ * If your GFF file contains all annotations for the entire genome (which is typical), the second approach requires you to select only the few Features you want to edit using the `--selection` command line argument.
+ 
+Often, you will have a GFF file with annotations for the entire genome. The `attributes` column is not often structured intuitively, and can prove cumbersome to search (`grep`) or sort (`sort`) manually. To make it easy to identify the desired lines of a GFF file, AddTag includes the `find_feature` subroutine. Here is an example that tries to find all lines associated with `HSP90` by searching several attribute tags, and outputting a GFF with a commented line containing field names:
+```sh
+addtag find_feature --gff genome.fasta --query HSP90 --linked_tags Name Alias Parent Gene --header > features.gff
+```
+
+#### Target motif input  ####
+The Target motif is written from 5' to 3'. Use a greater than (`>`) symbol if your RGN has a 3'-adjacent PAM, and use a less than (`<`) symbol if your RGN has a 5'-adjacent PAM. Ambiguous nucleotide characters are accepted. `{a,b}` are quantifiers. `(a,b,…)` are permitted alternatives. `/` is a sense strand cut, `\` is an antisense strand cut, and `|` is a double-strand cut. `.` is a base used for positional information, but not enzymatic recognition. Be sure to enclose each motif in quotes so your shell does not interpret `STDIN`/`STDOUT` redirection.
+
+You can specify any number of Target motifs to be considered 'on-target' using the `--motifs` command line option. You can also designate any number of Target motifs to be considered 'off-target' using the `--off_target_motigs` command line option. 
+
+#### Homologs input ####
+Some researchers are lucky enough to get to work on organisms with phased genomes. This means that full haplotype information is known for each chromosome. AddTag can accommodate haploid, diploid, and polyploid genomes when homologous Features are linked by the addition of the `--homologs` command line option. The 'homologs' file has the following format:
+```homologs
+# group	homolog_a	homolog_b	homolog_c
+GENE1	C1A_001 	C1B_001
+GENE2	C1A_002 	C1B_002 	C1C_002
+```
+Each Feature identifier has its contig start and end position defined in the input GFF file. The 'homologs' file merely links them together. Columns in the homologs file are delimited by the `\t` character. The first column is the name of the group of Features. Every subsequent column should contain the identifier of a Feature to consider as a homolog. Homolog groups can each have any number of Features. If a Feature identifier appears on multiple lines, then all those Features are linked together as one homolog group. The identifier can be changed with the `--tag` command line option.  
+
+### Available subroutines ###
+The AddTag program contains a set of subroutines that can be run independently. There are four categories of subroutines.
+
+ * The `evaluate_*` subroutines run only a very specific analysis on input data.
+ * The `find_*` subroutines are used to search input files for specific things, so the user can easily learn the correct parameters to use for AddTag input.
+ * The `generate_*` subroutines perform the deep computational analyses.
+ * The `list_*` subroutines just print information the user might find useful.
+
+### Available RGN scoring Algorithms ###
+Over the past few years, several Algorithms have been proposed to describe RGN behavior within certain biological contexts. We implemented most of the commonly-used ones into the AddTag software. To view information about each, use the following command:
+```sh
+addtag list_algorithms
+``` 
+This will write the pertinent information for all implemented Algorithms to `STDOUT`.
+
+If an Algorithm is used for pre-alignment filtering (`Prefilter`) or post-alignment filtering (`Postfilter`), then the score of the Target must lie between the `Min` and `Max` values to be continued on through the analysis. For instance, the 'off-target' scoring `CFD` Algorithm has a `Min` of `1.0`. This means that some positions with significant sequence similarity to the query Target (because they are identified in the Alignment step) will not contribute to the final 'off-target' score if their score is less than `1.0`.
+
+### Available oligonucleotide thermodynamics calculators ###
+To view which thermodynamics calculators are available on your system, use the following command:
+```sh
+addtag list_thermodynamics
+```
+
+### Typical workflow for a single Feature ###
+The standard procedure is to first run `addtag generate_all`, and use its output as input for `addtag generate_primers`.
+
+The first thing you will want to do, is compose a Target motif for the RGN your biological system uses. To see a list of commonly-used Target motifs, run the following:
+```sh
+addtag list_motifs
+```
+For simplicity, let's pretend our biological system uses the 'AsCpf1' RGN. So we will use the associated `TTTN<N{19}/.{4,6}\ ` Target motif.
+
+The next step is to select one or more Algorithms to calculate the 'on-target' and 'off-target' scores for this RGN. To see a list of all implemented Algorithms, run the following:
+```sh
+addtag list_algorithms
+``` 
+Let's choose the `DeepCpf1` Algorithm for our 'on-target' score. Let's also choose the `Linear` Algorithm for the 'off-target' score, whose implicit behavior severely penalizes insertions and deletions at 'off-target' sites, but is explicitly less biased against mismatches. Because we would like the output Target sites to be ranked based on their specificity, and because the `Linear` algorithm does not have a default weight, we define a weight for it using the `--weights` command line option.
+
+Let's use the `mintag` method for creating an RGN Target on the dDNA we generate for creating the intermediary genome. Finally, we want merely to revert back to wild type at the native locus, so we direct AddTag to generate the optimal AmpF/AmpR primers using the `--revert_amplification_primers` option.
+
+Because our input genome is a phased diploid assembly, and we want our gRNAs to target both alleles, we use the default `--target_specificity`. Because we want a single dDNA to repair both alleles, we also use the default `--donor_specificity`. Since we want the computer to use all available compute power, we use the default number of processors (which automatically selects all available). Let's also use the default thermodynamics calculator and the default aligner. To identify the best Target locations within our Feature of interest, and to generate dDNA for knock-out, we run the following command:
+```sh
+addtag generate_all --motifs 'TTTN<N{19}/.{4,6}\ ' --ontargetfilters DeepCpf1 --offtargetfilters Linear --weights Linear:85+1.7 --ko-gRNA --ko-dDNA mintag --revert_amplification_primers --fasta genome.fasta --gff genome.gff --folder GENEg > GENEg.out 2> GENEg.err
+```
+
+This writes 4 output tables to the `GENEg.out` file. Each of these tables refers to sequences in output FASTA files. Please note that certain sequence Aligners, such as 'Bowtie 2' can have non-deterministic output. Therefore, your results may vary from what is presented here.
+
+Now would be a good time to explain the terminology you will see in the AddTag input and output. For simplicity in text processing, we use different labels than what are presented in the manuscript, though they are equivalent.
+```
+ r0-gDNA = +gDNA (wild type genome)
+ r1-gDNA = ΔgDNA (intermediary genome)
+ r2-gDNA = AgDNA (final genome)
+ rN-gDNA = Nth round of genome engineering
+exTarget = +Target (Target site in wild type Feature)
+reTarget = ΔTarget (Target site introduced on ★tag insert)
+ exDonor = r1-dDNA = ΔdDNA (ko-dDNA)
+ reDonor = r2-dDNA = AdDNA (ki-dDNA)  
+```
+
+Thus, we refer to the first round of genome engineering (r1) as the knock-out round, and the second round (r2) as the knock-in round.
+
+From the first table, we select the highest-weighed `reTarget` ('reversion Target' abbreviated), and one of its corresponding dDNA sequences. We store the sequence in its own FASTA file with the following command:
+```sh
+addtag find_header --fasta GENEg/dDNAs.fasta --query 'exDonor-33\b' > ko-dDNA.fasta
+```
+Each `reTarget` can target one or more identified `reDonor` dDNA sequences.
+
+From the second table, we select the highest-weighted `exTarget` ('excision Target' abbreviated), which is used for excising the input Feature from the input gDNA.
+
+Finally, we identify the highest-weight dDNA for reverting back to the wild type, and put it in its own FASTA file:
+```sh
+addtag find_header --fasta GENEg/dDNAs.fasta --query 'reDonor-0\b' > ko-dDNA.fasta
+```
+
+
+Next we need to identify a single cPCR verification primer design. Let's use the default pairwise sequence aligner.
+
+```sh
+addtag generate_primers --fasta genome.fasta --dDNAs ko-dDNA.fasta ki-dDNA.fasta --folder GENEc > GENEc.out 2> GENEc.err
+``` 
+
+### Typical workflow for multiplexed Features ###
+
+
+
+
+
 ## 📝 Citing AddTag ##
 If you use AddTag for your research, please cite us. Because the manuscript is currently in preparation, you will need to cite the code repository instead.
 
- > Thaddeus D. Seher and Aaron D. Hernday. AddTag: Program for identifying exclusive endogenous gRNA sites and creating unique synthetic gRNA sites. University of California, Merced. Retrieved from \<https://github.com/tdseher/addtag-project\> (2019).
+ > Thaddeus D. Seher and Aaron D. Hernday. AddTag: Program for identifying exclusive endogenous gRNA sites and creating unique synthetic gRNA sites. University of California, Merced. Retrieved from \<https://github.com/tdseher/addtag-project> (2019).
 
 ## ✍ Authors ##
 Who do I talk to?
@@ -297,6 +456,7 @@ Please see the [LICENSE.md](LICENSE.md) file.
    * Additionally, some scoring Algorithms take chromatin structure (DNA accessibility) into account. For simplicity, AddTag treats all input gDNA as equally accessible.
    * During the course of writing this software, a paper was published that outlines how hairpins can be inserted into the pre-spacer and spacer regions of the gRNA in order to increase specificity (https://dx.doi.org/10.1038/s41587-019-0095-1). AddTag does not model pre-spacer sequences.
    * AddTag assumes the RGN template type is dsDNA. AddTag was designed specifically to enable efficient gDNA editing. It does not use predictive models for ssDNA or RNA templates.
+   * A corollary of this is that AddTag assumes all input sequences are DNA sequences. So the `--fasta` file specified will be treated as a DNA template. Thus, if there are any non-DNA residues, such as `U`, AddTag will probably fail. Also, since the Primer thermodynamics calculators are all set to estimate DNA:DNA hybridization (not DNA:RNA or RNA:RNA), any resulting calculations will be incorrect. 
    * Since Bartag motifs are user-specified, simple pre-computed lists of compatible 'bartag' sequences would be incomplete. Thus we implemented a greedy 'bartag' generation algorithm. When evaluating candidate 'bartag' sequences, AddTag will keep 'bartags' that satisfy all edit distance requirements with all previously-accepted 'bartags'. To limit runtime to a reasonable amount, we limited the total number of Features and 'bartags' that can be generated.
    * Of special note are things the Primer design does not explicitly consider, such as characteristics of the cPCR template molecule. AddTag does not exploit the differential nature of template sequence composition (e.g. H. sapiens compared to E. coli). Also, AddTag does not use information on the presence of known secondary modifications to the template, such as methylated residues or oxidative damage.
 </details>
