@@ -35,6 +35,7 @@ class ListAlgorithmsParser(subroutine.Subroutine):
         """Print information on the implemented algorithms"""
         for C in algorithms.single_algorithms + algorithms.paired_algorithms + algorithms.batched_single_algorithms:
             print('========== {} =========='.format(C.name))
+            print('  Available: {}'.format(C.available))
             print('    Authors: {}'.format(C.authors))
             print('      Title: {}'.format(C.title))
             print('    Journal: {}'.format(C.journal))

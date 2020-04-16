@@ -35,6 +35,14 @@ class HsuZhang(PairedSequenceAlgorithm):
             weight_str='Hsu-Zhang:90+1.8' # Severly penalize any score less than 95
         )
     
+    def is_available(self):
+        """
+        Determines if the prerequisites for the Algorithm have been met.
+        :return: True or False
+        """
+        # TODO: should check if 'hsuzhang_scores.txt' exists
+        return True
+    
     # def weight(self, x):
     #     """Severely penalize any score less than 95"""
     #     return 1.0/(1+1.8**(90-x))

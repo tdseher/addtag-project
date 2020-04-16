@@ -30,6 +30,13 @@ class Linear(PairedSequenceAlgorithm):
             rgn_list=('Cas9', 'Cas12a', 'Cas3')
         )
     
+    def is_available(self):
+        """
+        Determines if the prerequisites for the Algorithm have been met.
+        :return: True or False
+        """
+        return True
+    
     def calculate(self, intended, potential, *args, **kwargs):
         on_sequence, on_target, on_pam, on_upstream, on_downstream = intended
         off_sequence, off_target, off_pam, off_upstream, off_downstream = potential

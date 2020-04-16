@@ -30,6 +30,7 @@ import math
 import fractions
 import random
 import logging
+import importlib.util
 
 # Import non-standard packages
 import regex
@@ -88,6 +89,21 @@ class DeepCpf1(BatchedSingleSequenceAlgorithm):
         
         self.seq_model = None
         self.ca_model = None
+    
+    def is_available(self):
+        """
+        Determines if the prerequisites for DeepCpf1 have been met.
+        :return: True or False
+        """
+        # TODO: Finish this
+        #       Add 'theano'
+        #       Have it look for the 'kimsing_ca_scores.h5'
+        #       Have it look for the 'kimsong_seq_scores.h5'
+        spec = importlib.util.find_spec('keras')
+        if spec:
+            return True
+        else:
+            return False
     
     def load(self):
         global zeros

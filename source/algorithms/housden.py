@@ -37,6 +37,13 @@ class Housden(SingleSequenceAlgorithm):
             weight_str=None
         )
     
+    def is_available(self):
+        """
+        Determines if the prerequisites for the Algorithm have been met.
+        :return: True or False
+        """
+        return True
+    
     def calculate(self, intended, *args, **kwargs):
         sequence, target, pam, upstream, downstream = intended
         

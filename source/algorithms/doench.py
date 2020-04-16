@@ -59,6 +59,14 @@ class Doench2014(SingleSequenceAlgorithm):
             weight_str=None
         )
     
+    def is_available(self):
+        """
+        Determines if the prerequisites for the Algorithm have been met.
+        :return: True or False
+        """
+        # TODO: Check if 'doench_params.txt' exists
+        return True
+    
     def calculate(self, intended, *args, **kwargs):
         sequence, target, pam, upstream, downstream = intended
         
@@ -154,6 +162,13 @@ class Doench2016(PairedSequenceAlgorithm):
             rgn_list=('Cas9'),
             weight_str='CFD:40+1.2' # Penalize any score less than 50
         )
+    
+    def is_available(self):
+        """
+        Determines if the prerequisites for the Algorithm have been met.
+        :return: True or False
+        """
+        return True
     
     # def weight(self, x):
     #     """Severely penalize any score less than 50"""
@@ -287,6 +302,19 @@ class Azimuth(BatchedSingleSequenceAlgorithm):
             rgn_list=('Cas9',),
             weight_str='Azimuth:52+1.17' # Penalize any score less than 60
         )
+    
+    def is_available(self):
+        """
+        Determines if the prerequisites for Azimuth have been met.
+        :return: True or False
+        """
+        # If Azimuth2, then need to check if 'python2' exists, and check if 'Azimuth' module installed
+        # If Aximuth3, then need to check if 'Aximuth' module installed
+        spec = importlib.util.find_spec('azimuth')
+        if spec:
+            return True
+        else:
+            return False
     
     # def weight(self, x):
     #     """Penalize any score less than 60"""
