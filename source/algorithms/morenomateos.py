@@ -42,7 +42,8 @@ class MorenoMateos(SingleSequenceAlgorithm):
             postfilter=False,
             minimum=1.0,
             maximum=100.0,
-            default=None
+            default=None,
+            weight_str=None
         )
     
     def calculate(self, intended, *args, **kwargs):

@@ -26,7 +26,8 @@ class GC(SingleSequenceAlgorithm):
             postfilter=False,
             minimum=25.0,
             maximum=75.0,
-            default=None
+            default=None,
+            weight_str=None
         )
     
     def calculate(self, intended, *args, **kwargs):

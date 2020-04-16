@@ -26,7 +26,8 @@ class PolyT(SingleSequenceAlgorithm):
             postfilter=False,
             minimum=0.0,
             maximum=4.5,
-            default=None
+            default=None,
+            weight_str=None
         )
     
     def calculate(self, intended, *args, **kwargs):

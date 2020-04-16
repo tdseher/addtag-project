@@ -457,6 +457,18 @@ class Main(object):
 #        if hasattr(args, 'cycle_stop'):
 #            if (args.cycle_stop == None):
 #                args.cycle_stop = args.cycle_start
+        
+        if hasattr(args, 'weights'):
+            for w in args.weights:
+                w_name, w_pars = w.split(':')
+                for C in algorithms.single_algorithms + algorithms.paired_algorithms + algorithms.batched_single_algorithms:
+                    if (C.name == w_name):
+                        C.weight_str = w
+                        C.weight_parameters = C.parse_weight(C.weight_str)
+                        break
+                else:
+                    raise Exception('No Algorithm named {} exists.'.format(w_name))
+                
     
     def filter_features(self, features, selection):
         """

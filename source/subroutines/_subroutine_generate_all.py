@@ -277,6 +277,13 @@ class GenerateAllParser(subroutine.Subroutine):
             choices=postfilter_choices, default=['Errors'],
             help="Specific algorithms for determining gRNA goodness.")
         
+        self.parser.add_argument("--weights", nargs='+', type=str, default=[], metavar='ALGORITHM:INFLECTION±SLOPE,*',
+            help="Specify any number of non-default Algorithm weights with the following syntax. \
+            If SLOPE>0, then weight increases with score. If SLOPE<0, then weight decreases as score increases. \
+            The ALGORITHM name followed by a colon (':'). Then a comma-separated list of INFLECTION point, \
+            sign ('+' or '-'), and SLOPE for the sigmoidal curve. For example, '--weights GC:40+1.7,60-1.7' \
+            will resemble a bell-shaped curve with peak weight at scores of 50.")
+        
         self.parser.add_argument("--primer_scan_limit", metavar="N", type=int, default=2*60,
             help="Amount of time (in seconds) to limit each primer scan.")
         

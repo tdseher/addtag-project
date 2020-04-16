@@ -76,8 +76,9 @@ def detect_overridden_methods(parent_class, child_instance):
     return diff
 
 # Make a list of algorithms that have non-default weights
-weighted_algorithms = []
-for C in single_algorithms + paired_algorithms + batched_single_algorithms:
-    diffs = detect_overridden_methods(Algorithm, C)
-    if 'weight' in diffs:
-        weighted_algorithms.append(C)
+# Commented out since it is unused
+# weighted_algorithms = []
+# for C in single_algorithms + paired_algorithms + batched_single_algorithms:
+#     diffs = detect_overridden_methods(Algorithm, C)
+#     if 'weight' in diffs:
+#         weighted_algorithms.append(C)

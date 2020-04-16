@@ -55,7 +55,8 @@ class Doench2014(SingleSequenceAlgorithm):
             minimum=1.0,
             maximum=100.0,
             default=None,
-            rgns=('Cas9')
+            rgn_list=('Cas9',),
+            weight_str=None
         )
     
     def calculate(self, intended, *args, **kwargs):
@@ -150,12 +151,13 @@ class Doench2016(PairedSequenceAlgorithm):
             minimum=1.0,
             maximum=100.0,
             default=100.0,
-            rgns=('Cas9')
+            rgn_list=('Cas9'),
+            weight_str='CFD:40+1.2' # Penalize any score less than 50
         )
     
-    def weight(self, x):
-        """Severely penalize any score less than 50"""
-        return 1.0/(1+1.2**(40-x))
+    # def weight(self, x):
+    #     """Severely penalize any score less than 50"""
+    #     return 1.0/(1+1.2**(40-x))
     
     def calculate(self, intended, potential, *args, **kwargs):
         on_sequence, on_target, on_pam, on_upstream, on_downstream = intended
@@ -282,12 +284,13 @@ class Azimuth(BatchedSingleSequenceAlgorithm):
             minimum=1.0,
             maximum=100.0,
             default=None,
-            rgns=('Cas9')
+            rgn_list=('Cas9',),
+            weight_str='Azimuth:52+1.17' # Penalize any score less than 60
         )
     
-    def weight(self, x):
-        """Penalize any score less than 60"""
-        return 1.0/(1+1.17**(52-x))
+    # def weight(self, x):
+    #     """Penalize any score less than 60"""
+    #     return 1.0/(1+1.17**(52-x))
     
     # Not currently used
     def fix_flank(self, upstream='', downstream=''):
@@ -553,7 +556,8 @@ class Elevation(): # Subclass needed
             postfilter=False,
             minimum=1.0,
             maximum=100.0,
-            default=None
+            default=None,
+            weight_str='Elevation:50+1.17' # Uninformed, placeholder weight
         )
 
 def load_mismatch_scores(file_path, sep="\t", approximation=False):

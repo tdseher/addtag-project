@@ -312,7 +312,8 @@ class Substitutions(PairedSequenceAlgorithm):
             postfilter=True,
             minimum=0.0,
             maximum=5.0,
-            default=0.0
+            default=0.0,
+            weight_str=None
         )
     
     def calculate(self, intended, potential, *args, **kwargs):
@@ -340,7 +341,8 @@ class Insertions(PairedSequenceAlgorithm):
             postfilter=True,
             minimum=0.0,
             maximum=2.0,
-            default=0.0
+            default=0.0,
+            weight_str=None
         )
     
     def calculate(self, intended, potential, *args, **kwargs):
@@ -368,7 +370,8 @@ class Deletions(PairedSequenceAlgorithm):
             postfilter=True,
             minimum=0.0,
             maximum=2.0,
-            default=0.0
+            default=0.0,
+            weight_str=None
         )
     
     def calculate(self, intended, potential, *args, **kwargs):
@@ -396,7 +399,8 @@ class Errors(PairedSequenceAlgorithm):
             postfilter=True,
             minimum=0.0,
             maximum=5.0,
-            default=0.0
+            default=0.0,
+            weight_str=None
         )
     
     def calculate(self, intended, potential, *args, **kwargs):
@@ -430,7 +434,8 @@ class PamIdentity(SingleSequenceAlgorithm):
             postfilter=True, # Filter alignments before calculating scores
             minimum=75.0,
             maximum=100.0,
-            default=None
+            default=None,
+            weight_str=None
         )
     
     def calculate(self, potential, *args, **kwargs):

@@ -31,12 +31,13 @@ class HsuZhang(PairedSequenceAlgorithm):
             postfilter=False,
             minimum=0.1,
             maximum=100.0,
-            default=100.0
+            default=100.0,
+            weight_str='Hsu-Zhang:90+1.8' # Severly penalize any score less than 95
         )
     
-    def weight(self, x):
-        """Severely penalize any score less than 95"""
-        return 1.0/(1+1.8**(90-x))
+    # def weight(self, x):
+    #     """Severely penalize any score less than 95"""
+    #     return 1.0/(1+1.8**(90-x))
     
     def calculate(self, intended, potential, *args, **kwargs):
         on_sequence, on_target, on_pam, on_upstream, on_downstream = intended

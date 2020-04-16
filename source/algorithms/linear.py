@@ -25,7 +25,9 @@ class Linear(PairedSequenceAlgorithm):
             postfilter=False,
             minimum=75.0,
             maximum=100.0,
-            default=100.0
+            default=100.0,
+            weight_str=None,
+            rgn_list=('Cas9', 'Cas12a', 'Cas3')
         )
     
     def calculate(self, intended, potential, *args, **kwargs):

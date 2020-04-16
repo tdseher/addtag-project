@@ -33,7 +33,8 @@ class Housden(SingleSequenceAlgorithm):
             postfilter=False,
             minimum=0.0,
             maximum=13.0,
-            default=None
+            default=None,
+            weight_str=None
         )
     
     def calculate(self, intended, *args, **kwargs):

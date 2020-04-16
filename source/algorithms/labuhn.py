@@ -41,7 +41,8 @@ class CRISPRater(SingleSequenceAlgorithm):
             postfilter=False,
             minimum=1.0,
             maximum=100.0,
-            default=100.0
+            default=100.0,
+            weight_str='CRISPRater:66+1.22' # Severely penalize any score less than 50
         )
 #        self.patternCG = re.compile("[CG]")
         # nt position 1 is the 5' end of the spacer, and PAM-distal
@@ -49,10 +50,9 @@ class CRISPRater(SingleSequenceAlgorithm):
         #                   [GC:4–13,    G:20,       TA:3,       GA:12       G:6,        TA:4,        GA:18.       CA:5,        G:14,        A:15]
         self.model_weight = [0.14177385, 0.06966514, 0.04216254, 0.03303432, 0.02355430, -0.04746424, -0.04878001, -0.06981921, -0.07087756, -0.08160700]
         self.model_offset = 0.6505037
-
-    def weight(self, x):
-        """Severely penalize any score less than 50"""
-        return 1.0/(1+1.22**(66-x))
+    # def weight(self, x):
+    #     """Severely penalize any score less than 50"""
+    #     return 1.0/(1+1.22**(66-x))
 
     def calculate(self, intended, *args, **kwargs):
         '''

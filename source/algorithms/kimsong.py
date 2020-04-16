@@ -80,7 +80,8 @@ class DeepCpf1(BatchedSingleSequenceAlgorithm):
             postfilter=False,
             minimum=1.0,
             maximum=150.0,
-            default=None
+            default=None,
+            weight_str='DeepCpf1:60+1.08' # TODO: Double-check this weight
         )
         
         self.loaded = False
@@ -122,9 +123,9 @@ class DeepCpf1(BatchedSingleSequenceAlgorithm):
         self.seq_model = self.build_seq_model()
         self.ca_model = self.build_ca_model()
     
-    def weight(self, x):
-        """Penalize any score less than 60""" # Is this appropriate? Should it be 40?
-        return 1.0/(1+1.08**(60-x))
+    # def weight(self, x):
+    #     """Penalize any score less than 60""" # Is this appropriate? Should it be 40?
+    #     return 1.0/(1+1.08**(60-x))
     
     def build_seq_model(self):
         self.logger.info("Building models")

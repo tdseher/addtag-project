@@ -4,6 +4,8 @@
 
 # source/algorithms/algorithm.py
 
+import regex
+
 # TODO: Some Algorithms require specific Python+module versions. Thus, wrappers should use virtual environments.
 #       For instance: Azimuth requires Python 2.7, but Elevation requires 3.6 (?).
 #       Another example: DeepCpf1/CINDEL requires Keras with 'Theano' backend,
@@ -36,7 +38,9 @@ class Algorithm(object): # Name of the subclass
         minimum=0.0,
         maximum=100.0,
         default=None,
-        rgns=None,
+        rgn_list=None,
+        weight_str=None,
+        description=None
     ):
         """
         Specify general information regarding this new instance of the 
@@ -57,9 +61,13 @@ class Algorithm(object): # Name of the subclass
         self.minimum = minimum       # Minimum score to be included in pre- and post- alignment filters (float)
         self.maximum = maximum       # Maximum score to be included in pre- and post- alignment filters (float)
         self.default = default       # If defined, then this will be the on-target default score (None/float)
-        self.rgns = rgns
+        self.rgn_list = rgn_list
+        self.weight_str = weight_str
+        self.weight_parameters = self.parse_weight(self.weight_str)
+        self.description = description
         
         self.available = self.is_available()
+        self.selected = False
     
     def is_available(self):
         """
@@ -89,16 +97,68 @@ class Algorithm(object): # Name of the subclass
         """
         return 0.0
     
-    def weight(self, *args, **kwargs):
-        """
-        Overload this method.
-        Returns a float, usually between 0.0 and 1.0
-        Argument: a score
-        Returns: amount of weight this score should have.
-        """
-        # TODO: Make weight configurable via a config file?
-        # By default, we want the score to be unweighted, we return 1.0
-        return 1.0
+    def product(self, x):
+        '''
+        Calculates product of input iterable
+        :param x:  iterable with elements to be multiplied
+        :return: cumulative product of all input elements
+        '''
+        p = 1.0
+        for e in x:
+            p *= e
+        return p
+    
+    def logistic_up(self, x, upslope=8, up=0, height=1.0):
+        return height/(1+upslope**(-x+up))
+    
+    def logistic_down(self, x, downslope=8, down=0, height=1.0):
+        return height/(1+downslope**(x-down))
+    
+    def parse_weight(self, weight_str):
+        '''
+        Splits the weight string into a list of tuples.
+        For example, 'GC:40+1.7,60-1.7' becomes [(40.0, '+', 1.7), (60.0, '-', 1.7)]
+        :param weight_str: the '--weight' positional parameter for this Algorithm
+        :return: The list of parameters
+        '''
+        if weight_str:
+            name, pars = weight_str.split(':')
+            # TODO: use m=regex.match(...)
+            #       then say 'if m: ...'
+            #                'else: raise "Wrong format"'
+            pars = [regex.match(r'(\d+(?:\.\d*)?)([+-])(\d+(?:\.\d*)?)', p).groups() for p in pars.split(',')]
+            pars = [(float(a), b, float(c)) for a, b, c in pars]
+            assert name == self.name
+            return pars
+        else:
+            return []
+    
+    # def weight(self, *args, **kwargs):
+    #     """
+    #     Overload this method.
+    #     Returns a float, usually between 0.0 and 1.0
+    #     Argument: a score
+    #     Returns: amount of weight this score should have.
+    #     """
+    #     
+    #     # By default, we want the score to be unweighted, we return 1.0
+    #     return 1.0
+    
+    def weight(self, x):
+        '''
+        Returns a float, usually between 0.0 and 1.0.
+        If no weight parameters exist, then will return 1.0
+        :param x: the score to convert to weight
+        :return: the weight the input score should have
+        '''
+        height = 1.0
+        p = height
+        for position, sign, slope in self.weight_parameters:
+            if (sign == '+'):
+                p *= 1.0/(1+slope**(position-x))
+            elif (sign == '-'):
+                p *= 1.0/(1+slope**(x-position))
+        return p
     
     def __repr__(self):
         """
