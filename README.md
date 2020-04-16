@@ -385,7 +385,7 @@ addtag generate_primers --fasta genome.fasta --dDNAs ko-dDNA.fasta ki-dDNA.fasta
 ## 📝 Citing AddTag ##
 If you use AddTag for your research, please cite us. Because the manuscript is currently in preparation, you will need to cite the code repository instead.
 
- > Thaddeus D. Seher and Aaron D. Hernday. AddTag: Program for identifying exclusive endogenous gRNA sites and creating unique synthetic gRNA sites. University of California, Merced. Retrieved from \<https://github.com/tdseher/addtag-project> (2019).
+ > Thaddeus D. Seher and Aaron D. Hernday. AddTag: Program for identifying exclusive endogenous gRNA sites and creating unique synthetic gRNA sites. University of California, Merced. Retrieved from <[https://github.com/tdseher/addtag-project](https://github.com/tdseher/addtag-project)> (2019).
 
 ## ✍ Authors ##
 Who do I talk to?
