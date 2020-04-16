@@ -48,8 +48,8 @@ class HsuZhang(PairedSequenceAlgorithm):
     #     return 1.0/(1+1.8**(90-x))
     
     def calculate(self, intended, potential, *args, **kwargs):
-        on_sequence, on_target, on_pam, on_upstream, on_downstream = intended
-        off_sequence, off_target, off_pam, off_upstream, off_downstream = potential
+        on_sequence, on_side, on_target, on_pam, on_upstream, on_downstream = intended
+        off_sequence, off_side, off_target, off_pam, off_upstream, off_downstream = potential
         
         if 'iupac' not in kwargs:
             kwargs['iupac'] = False

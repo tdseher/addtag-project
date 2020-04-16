@@ -66,13 +66,13 @@ class Alignment(object):
         #for i in [4, 8, 12, 16]:
         #    self.r_scores[i] = scores.r_score(self.contig_target, aligned_target, i)
     
-    def calculate_scores(self, parent):
+    def calculate_scores(self, parent, *args, **kwargs):
         # parent = (sequence, target, pam, upstream, downstream)
-        this = (self.sequence, self.target, self.pam, self.upstream, self.downstream)
+        this = (self.sequence, self.motif.parsed_list[2], self.target, self.pam, self.upstream, self.downstream)
         postfilter = []
         # TODO: Make this ONLY calculate score if it was selected by user in command line arguments
         for C in algorithms.single_algorithms:
-            c_score = C.calculate(this, parsed_motif=self.motif.parsed_list)
+            c_score = C.calculate(this, parsed_motif=self.motif.parsed_list, **kwargs)
             self.score[C.name] = c_score
             if C.postfilter:
                 if (C.minimum <= c_score <= C.maximum):
@@ -80,7 +80,7 @@ class Alignment(object):
                 else:
                     postfilter.append(False)
         for C in algorithms.paired_algorithms:
-            c_score = C.calculate(parent, this, parsed_motif=self.motif.parsed_list)
+            c_score = C.calculate(parent, this, parsed_motif=self.motif.parsed_list, **kwargs)
             self.score[C.name] = c_score
             if C.postfilter:
                 if (C.minimum <= c_score <= C.maximum):
@@ -614,15 +614,24 @@ class Target(object):
         return sorted(targets) # becomes a list
     
     def calculate_default_scores(self):
-        """Populate this scores for this Sequence"""
-        loc = next(iter(self.locations)) # Pull an arbitrary location record
+        """Populate the default scores for this Sequence"""
+        # loc = (feature, contig, orientation, start, end, upstream, downstream)
+        loc = next(iter(self.locations)) # Pull an arbitrary location record # TODO: Make this more defined (deterministic)
         #parent = (self.sequence, self.target, self.pam, self.upstream, self.downstream)
-        parent = (self.sequence, self.spacer, self.pam, loc[5], loc[6])
+        parent = (self.sequence, self.side, self.spacer, self.pam, loc[5], loc[6])
+        
+        # Code to add position within Feature to Algorithm input
+        from . import feature
+        f = feature.Feature.features[loc[0]]
+        # Assuming that (f.contig == aligend_contig)
+        # because this uses the Target.start and Feature.start, this metric is asymmetrical with regards to Feature.orientation
+        f_position, f_length, f_orientation = loc[3]-f.start, f.end-f.start, f.strand
+        
         for C in algorithms.single_algorithms:
             if (C.default != None):
                 self.score[C.name] = C.default
             else:
-                self.score[C.name] = C.calculate(parent, parsed_motif=self.parsed_motif)
+                self.score[C.name] = C.calculate(parent, parsed_motif=self.parsed_motif, feature_position=f_position, feature_length=f_length, feature_orientation=f_orientation)
         for C in algorithms.paired_algorithms:
             if (C.default != None):
                 self.score[C.name] = C.default
@@ -631,9 +640,18 @@ class Target(object):
     
     def add_alignment(self, args, aligned_sequence, aligned_contig, aligned_start, aligned_end, aligned_orientation, aligned_upstream, aligned_downstream):
         """Add a genomic position to the list of alignments"""
-        loc = next(iter(self.locations)) # Pull an arbitrary location record
+        # loc = (feature, contig, orientation, start, end, upstream, downstream)
+        loc = next(iter(self.locations)) # Pull an arbitrary location record # TODO: Make this more defined (deterministic)
         #parent = (self.sequence, self.target, self.pam, self.upstream, self.downstream)
-        parent = (self.sequence, self.spacer, self.pam, loc[5], loc[6])
+        parent = (self.sequence, self.side, self.spacer, self.pam, loc[5], loc[6])
+        
+        # Code to add position within Feature to Algorithm input
+        from . import feature
+        f = feature.Feature.features[loc[0]]
+        # Assuming that (f.contig == aligend_contig)
+        # because this uses the Target.start and Feature.start, this metric is asymmetrical with regards to Feature.orientation
+        f_position, f_length, f_orientation = aligned_start-f.start, f.end-f.start, f.strand
+        
         aligned_target, aligned_pam, aligned_motif = self.split_spacer_pam(aligned_sequence, args)
         #aligned_parsed_motif = args.parsed_motifs[args.motifs.index(aligned_motif)]
         #aligned_parsed_motif = aligned_motif.parsed_list
@@ -650,7 +668,7 @@ class Target(object):
                 upstream=aligned_upstream,
                 downstream=aligned_downstream
             )
-            a.calculate_scores(parent)
+            a.calculate_scores(parent, feature_position=f_position, feature_length=f_length, feature_orientation=f_orientation)
             self.alignments.append(a)
         else:
             print('Cannot add alignment:', aligned_sequence, aligned_contig, aligned_start, aligned_end, aligned_orientation, file=sys.stderr)
@@ -717,7 +735,8 @@ class Target(object):
         for i, t_index in enumerate(t_sorted):
             t_obj = cls.indices[t_index]
             loc = next(iter(t_obj.locations)) # Pull an arbitrary location record
-            parent = (t_obj.sequence, t_obj.spacer, t_obj.pam, loc[5], loc[6]) # upstream, downstream
+            parent = (t_obj.sequence, t_obj.side, t_obj.spacer, t_obj.pam, loc[5], loc[6]) # upstream, downstream
+            # TODO: Add 'feature_position', 'feature_length', and 'feature_orientaiton'
             queries.append(parent)
         
         # Loop through the Algorithms

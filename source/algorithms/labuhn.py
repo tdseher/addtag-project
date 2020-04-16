@@ -67,7 +67,7 @@ class CRISPRater(SingleSequenceAlgorithm):
         Uses fixed set of arguments.
         Returns output of self.score()
         '''
-        sequence, target, pam, upstream, downstream = intended
+        sequence, side, target, pam, upstream, downstream = intended
         
         return self.score(upstream, target)
     

@@ -68,7 +68,7 @@ class Doench2014(SingleSequenceAlgorithm):
         return True
     
     def calculate(self, intended, *args, **kwargs):
-        sequence, target, pam, upstream, downstream = intended
+        sequence, side, target, pam, upstream, downstream = intended
         
         return self.score(target, pam, upstream, downstream)
     
@@ -175,8 +175,8 @@ class Doench2016(PairedSequenceAlgorithm):
     #     return 1.0/(1+1.2**(40-x))
     
     def calculate(self, intended, potential, *args, **kwargs):
-        on_sequence, on_target, on_pam, on_upstream, on_downstream = intended
-        off_sequence, off_target, off_pam, off_upstream, off_downstream = potential
+        on_sequence, on_side, on_target, on_pam, on_upstream, on_downstream = intended
+        off_sequence, off_side, off_target, off_pam, off_upstream, off_downstream = potential
         
         return self.score(on_target, off_target, on_pam)
     
@@ -366,7 +366,7 @@ class Azimuth(BatchedSingleSequenceAlgorithm):
         
         # unpack the input sequences
         for i, query in enumerate(batch):
-            sequence, target, pam, upstream, downstream = query
+            sequence, side, target, pam, upstream, downstream = query
             built_query = self.build_query(target, pam, upstream, downstream)
             built_query = built_query.upper()
             

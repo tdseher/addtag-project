@@ -38,8 +38,8 @@ class Linear(PairedSequenceAlgorithm):
         return True
     
     def calculate(self, intended, potential, *args, **kwargs):
-        on_sequence, on_target, on_pam, on_upstream, on_downstream = intended
-        off_sequence, off_target, off_pam, off_upstream, off_downstream = potential
+        on_sequence, on_side, on_target, on_pam, on_upstream, on_downstream = intended
+        off_sequence, off_side, off_target, off_pam, off_upstream, off_downstream = potential
         
         return self.score(on_target, off_target)
     

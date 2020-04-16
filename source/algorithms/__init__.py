@@ -37,6 +37,7 @@ exclusions = [
     #'morenomateos.py',
     'oof.py',
     #'polyt.py',
+    'position.py',
     'proxgc.py',
     'stemmer.py',
     'wang.py',

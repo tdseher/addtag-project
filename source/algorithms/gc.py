@@ -38,7 +38,7 @@ class GC(SingleSequenceAlgorithm):
         return True
     
     def calculate(self, intended, *args, **kwargs):
-        sequence, target, pam, upstream, downstream = intended
+        sequence, side, target, pam, upstream, downstream = intended
         
         return self.score(target)
     
