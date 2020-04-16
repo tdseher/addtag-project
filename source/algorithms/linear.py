@@ -41,7 +41,12 @@ class Linear(PairedSequenceAlgorithm):
         on_sequence, on_side, on_target, on_pam, on_upstream, on_downstream = intended
         off_sequence, off_side, off_target, off_pam, off_upstream, off_downstream = potential
         
-        return self.score(on_target, off_target)
+        if (on_side == '>'):
+            # Cases for 5'-SPACER>PAM-3'
+            return self.score(on_target, off_target)
+        else:
+            # Cases for 5'-PAM<SPACER-3'
+            return self.score(on_target[::-1], off_target[::-1])
     
     def score(self, seq1, seq2):
         """Scores lower if substitutions near 3' end of the sequence
@@ -51,9 +56,11 @@ class Linear(PairedSequenceAlgorithm):
         Does not take ambiguities into account (yet)
         """
         shorter_seq_len, longer_seq_len = sorted([len(seq1), len(seq2)])
-        x = list(range(longer_seq_len))
+        x = list(range(1, longer_seq_len+1))
         x_sum = sum(x)
-        y = list(map(lambda i: i/x_sum, x))
+        
+        # Normalize scores so all elements of 'y' sum to 1.0
+        y = [i/x_sum for i in x] # list(map(lambda i: i/x_sum, x))
         score = 1
         for i in range(longer_seq_len):
             if (i < shorter_seq_len):
