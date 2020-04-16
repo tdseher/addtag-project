@@ -52,9 +52,17 @@ class UNAFold(Oligo):
             doi='https://doi.org/10.1007/978-1-60327-429-6_1'
             #citation="Markham, et al. UNAFold: Software for Nucleic Acid Folding and Hybridization. Bioinformatics: Structure, Function and Applications. Humana Press. p.3-31 (2008)."
         )
-
+    
+    def is_available(self):
+        """
+        Determines if the prerequisites for UNAFold have been met.
+        :return: True or False
+        """
         if all([which(x) for x in ['UNAFold.pl', 'hybrid-ss-min', 'hybrid-min', 'ct-energy']]):
-            self.available = True
+            #self.available = True
+            return True
+        else:
+            return False
 
     def find_structures(self, *args, **kwargs):
         """

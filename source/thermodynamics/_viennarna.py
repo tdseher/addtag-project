@@ -54,9 +54,18 @@ class ViennaRNA(Oligo):
             doi='https://doi.org/10.1186/1748-7188-6-26'
             #citation="Lorenz, et al. ViennaRNA Package 2.0. Algorithms for Molecular Biology 6:1, 26 (2011)."
         )
+    
+    def is_available(self):
+        """
+        Determines if the prerequisites for ViennaRNA have been met.
+        :return: True or False
+        """
         spec = importlib.util.find_spec('RNA')
         if spec:
-            self.available = True
+            #self.available = True
+            return True
+        else:
+            return False
     
     @classmethod
     def parameter_path(cls):

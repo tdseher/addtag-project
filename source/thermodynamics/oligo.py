@@ -122,7 +122,7 @@ class Oligo(object): # Name of the subclass
         #self.citation = citation     # Citation (None/str)
 
         # Indicate whether this third party software was detected on the system
-        self.available = False
+        self.available = self.is_available()
     
     # def scan_sequence(self, *args, **kwargs):
     #     """

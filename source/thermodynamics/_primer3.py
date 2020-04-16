@@ -49,9 +49,18 @@ class Primer3(Oligo):
             doi='https://doi.org/10.1093/nar/gks596'
             #citation="Untergasser, et al. Primer3--new capabilities and interfaces. Nucleic Acids Research 40(15): e115 (2012)"
         )
+    
+    def is_available(self):
+        """
+        Determines if the prerequisites for Primer3 have been met.
+        :return: True or False
+        """
         spec = importlib.util.find_spec('primer3')
         if spec:
-            self.available = True
+            #self.available = True
+            return True
+        else:
+            return False
     
     @classmethod
     def find_structures(cls, folder, seq1, seq2=None, sodium=0.05, magnesium=0.0, temperature=25, concentration=0.00000025, **kwargs):

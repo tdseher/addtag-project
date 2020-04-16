@@ -34,14 +34,14 @@ class ListThermodynamicsParser(subroutine.Subroutine):
     def compute(self, args):
         """Print information about the supported thermodynamics programs"""
         for x in thermodynamics.oligos:
-            print('==========', x.name, '==========')
-            print('    Authors:', x.authors)
-            print('      Title:', x.title)
-            print('    Journal:', x.journal)
-            print('    Issuing:', x.issuing)
-            print('       Year:', x.year)
-            print('        doi:', x.doi)
-            #print('   Citation:', x.citation)
+            print('========== {} =========='.format(x.name))
+            print('  Available: {}'.format(x.available))
+            print('    Authors: {}'.format(x.authors))
+            print('      Title: {}'.format(x.title))
+            print('    Journal: {}'.format(x.journal))
+            print('    Issuing: {}'.format(x.issuing))
+            print('       Year: {}'.format(x.year))
+            print('        doi: {}'.format(x.doi))
             print('')
         
         # End 'compute()'
