@@ -5,6 +5,30 @@
 
 # source/subroutines/_subroutine_generate_all.py
 
+# TODO: Add a new output that shows a graphical view of the candidate exTargets against the input Features
+#       and make it output by default to STDOUT! (not just to log)
+#       For example:
+#         Feature_01
+#         position            10        20        30        40        50        60        70        80        90        100
+#                      GAGTAGCAGTTATAAATACTAATCTTTTTGTTGTTAGATATATGAAGCCATCTTGTGCTTGAATCGACACTTTTCTCTCATTAGGATTAGGATTTGTGGT
+#         exTarget-1                                               3'-CCATCTTGTGCTTGAATCGA-5'
+#         exTarget-2                                                               5'-TCGACACTTTTCTCTCATTAGG-3'
+
+# TODO: Add Tm calculation as an Algorithm
+# TODO: Add full and partial (N{20}>NGG, N{12}>NGG, N{8}>NGG) alignments for finding off-targets
+#       Thus there will be 3 off-target scores: the full score, the 12nt score, and the 8nt score.
+#       This approach is derived from 'CRISPRdirect' software
+# TODO: Report NUMBER of off-target alignments in the STDOUT table, and not just the Algorithm scores
+# TODO: Make it so that an Algorithm can return more than a single score
+#       (for instance, a 'Composition' algoritm can return both %GC and %AT)
+#       Each return value would be added as columns in STDOUT table
+
+# TODO: Make it so that a star-tag can have any combination of these elements in its insert:
+#         [x] addtag (RGN Target)
+#         [x] bartag (guaranteed edit distance from others)
+#         [x] sigtag (restriction site)
+#         [x] flanktags 
+
 # Import standard packages
 import sys
 import os

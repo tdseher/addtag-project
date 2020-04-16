@@ -41,6 +41,19 @@ else:
     from ..nucleotides import rc, get_gc_freq
     from .. import utils
 
+# TODO: For Primer and PrimerPair attribute calculations, we should make it calculate
+#       the probability of hybridization and amplification.
+#       See Figure 1 of https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2715258/
+#       Species:
+#        wanted: Af and Br  at target location
+#        unwanted: A haripin
+#                  B hairpin
+#                  AB heterodimer
+#                  AA homodimer
+#                  BB homodimer
+#                  Af or Ar at non-target location
+#                  Bf or Br at non-target location
+
 def logistic_up(x, upslope=8, up=0, height=1.0):
     return height/(1+upslope**(-x+up))
 
@@ -61,6 +74,8 @@ def gamma_pdf(x, shape, scale=1):
 
 class Structure(object):
     logger = logger.getChild(__qualname__)
+    
+    # TODO: add '__slots__' to 'Structure' class
     
     def __init__(self, seq1, seq2, delta_G, delta_H, delta_S, melting_temperature, sodium, magnesium, temperature, concentration):
         self.seq1 = seq1

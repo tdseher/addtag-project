@@ -258,6 +258,8 @@ class Feature(object):
         if (len(cls.features) == 0):
             raise Exception("Input '--gff' and '--selection' combination returns no valid features.")
     
+    # TODO: Delete previous versions of 'Feature.new_new_expand_all_features()'
+    
     @classmethod
     def new_new_expand_all_features(cls, args, contigs, h_groups):
         '''
@@ -285,6 +287,10 @@ class Feature(object):
             # desired polymorphism level, respecting 'args.homology_distance'
             cls.logger.info('Finding flanking homology arms...')
             bounds = cls.expand_for_homology(args, contigs, feature_list, equivalents, bounds)
+            
+            # TODO: Need to add code that checks that the homology arm sequences don't also exist within the
+            #       Feature that will be deleted, as this might cause internal recombination, and thus,
+            #       the Feature will not be completely removed.
             
             # We filter by size (needs to be within '--feature_expansion_lengths MIN MAX')
             equivalents, bounds = cls.expand_size_filter(args, equivalents, bounds)
@@ -1472,6 +1478,11 @@ class Feature(object):
         :param feature_list: List of all features that make up a homologous group
         :return: 
         '''
+        
+        # TODO: Check to see if this function is supposed to match allele-specific Target permutations as equivalence groups
+        #       If it is supposed to, then make sure it is actually doing this (I forgot if it is).
+        #       If it is not supposed to, then make sure it doesn't actually do this.
+        #       (For conceptual details, see Jan 2020 presentation)
         
         from . import targets
         

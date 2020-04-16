@@ -173,6 +173,7 @@ class Target(object):
     # TODO: Strongly consider making 'Target' objects use 'Location' objects instead of just tuples
     # TODO: Strongly consider letting 'Target' objects store/calculate scores for several different sequences
     #       (that are all within some range of homology)
+    # TODO: Allow each 'Target' to have a separate off-target score for '8-mer', '12-mer', and 'full-mer'
     def __init__(self, feature, contig, orientation, start, end, upstream, downstream, sequence, side, spacer, pam, motif, parsed_motif, add=True):
         """Create a structure for holding individual sequence information"""
         location = (feature, contig, orientation, start, end, upstream, downstream)
