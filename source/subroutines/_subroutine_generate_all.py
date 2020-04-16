@@ -88,8 +88,9 @@ class GenerateAllParser(subroutine.Subroutine):
         self.parser.add_argument("--motifs", metavar="MOTIF", nargs="+", type=str,
             default=["N{17}|N{3}>NGG"],
             help="Find only targets with these 'SPACER>PAM' motifs, written from \
-            5' to 3'. '>' points toward PAM. IUPAC ambiguities accepted. '{a,b}' \
-            are quantifiers. '/' is a sense strand cut, '\\' is an antisense strand \
+            5' to 3'. '>' points toward PAM. Ambiguous nucleotide characters are accepted. '{a,b}' \
+            are quantifiers. '(a,b,…)' are permitted alternatives. \
+            '/' is a sense strand cut, '\\' is an antisense strand \
             cut, and '|' is a double-strand cut. '.' is a base used for positional \
             information, but not enzymatic recognition. Be sure to enclose each \
             motif in quotes so your shell does not interpret STDIN/STDOUT redirection.")
