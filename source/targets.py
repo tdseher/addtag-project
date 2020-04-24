@@ -381,7 +381,7 @@ class Target(object):
             return self.pam + '<' + self.spacer
     
     @classmethod
-    def target_filter(cls, sequence, target, pam, upstream, downstream, args):
+    def target_filter(cls, args, sequence, side, target, pam, upstream, downstream):
         '''
         Filters the candidate gRNA sequence based on the following criteria:
          1) case: ignore, upper-only, lower-only, mixed-lower, mixed-upper, mixed-only
@@ -466,6 +466,7 @@ class Target(object):
         # 
         # Also, separate the SPACER and PAM motifs
         seqs2 = []
+        sides2 = []
         targets2 = []
         pams2 = []
         for nt in seqs1:
@@ -479,6 +480,7 @@ class Target(object):
                 m = nucleotides.motif_conformation2(nt, side, motif.compiled_regex)
                 if m:
                     seqs2.append(nt)
+                    sides2.append(side) # TODO: write debug of this to test it is correct
                     targets2.append(m[0])
                     pams2.append(m[1])
                     #break # consider breaking here
@@ -492,7 +494,7 @@ class Target(object):
         for i in range(len(seqs2)):
             prefilter_passes = []
             prefilter_choices = [C for C in algorithms.single_algorithms + algorithms.paired_algorithms + algorithms.batched_single_algorithms if C.prefilter] # Really, should only be SingleSequenceAlgorithms
-            this = (seqs2[i], targets2[i], pams2[i], upstream, downstream) # For GC and PolyT, only 'target' is used
+            this = (seqs2[i], sides2[i], targets2[i], pams2[i], upstream, downstream) # For GC and PolyT, only 'target' is used
             for C in prefilter_choices:
                 c_score = C. calculate(this)
                 if (C.minimum <= c_score <= C.maximum):
@@ -608,7 +610,7 @@ class Target(object):
                         upstream = sequence[sstart-10:sstart]
                         downstream = sequence[send:send+10]
                     
-                    filtered_targets = cls.target_filter(seq, spacer, pam, upstream, downstream, args)
+                    filtered_targets = cls.target_filter(args, seq, side, spacer, pam, upstream, downstream)
                     for filt_seq, filt_spacer, filt_pam in filtered_targets:
                         targets.add((orientation, sstart, send, upstream, downstream, filt_seq, side, filt_spacer, filt_pam, mymotif.motif_string, tuple([tuple(x) if isinstance(x, list) else x for x in mymotif.parsed_list])))
                         #cls.logger.info("DEBUG: {}, {}, {}, {}, {}, {}, {}, {}, {}".format(orientation, seq, mstart, mend, spacer, pam, mymotif.compiled_regex, sstart, send))
@@ -621,9 +623,15 @@ class Target(object):
         #parent = (self.sequence, self.target, self.pam, self.upstream, self.downstream)
         parent = (self.sequence, self.side, self.spacer, self.pam, loc[5], loc[6])
         
+        # 'loc[0]' may be a regular 'Feature', or it may be a comma-separated list of features 'FeatureA,FeatureB'
+        # At this time, there is no real way to know which Feature the position stored in 'loc[3]' refers to
+        # so I will arbitrarily pick the first
+        # This is BAD because it means Feature IDs cannot natively contain commas...
+        # Apparently this only happens in ReversionTarget objects?
+        
         # Code to add position within Feature to Algorithm input
         from . import feature
-        f = feature.Feature.features[loc[0]]
+        f = feature.Feature.features[loc[0].split(',')[0]] # Arbitrarily select first element
         # Assuming that (f.contig == aligend_contig)
         # because this uses the Target.start and Feature.start, this metric is asymmetrical with regards to Feature.orientation
         f_position, f_length, f_orientation = loc[3]-f.start, f.end-f.start, f.strand
@@ -648,7 +656,7 @@ class Target(object):
         
         # Code to add position within Feature to Algorithm input
         from . import feature
-        f = feature.Feature.features[loc[0]]
+        f = feature.Feature.features[loc[0].split(',')[0]] # Arbitrarrily select first element
         # Assuming that (f.contig == aligend_contig)
         # because this uses the Target.start and Feature.start, this metric is asymmetrical with regards to Feature.orientation
         f_position, f_length, f_orientation = aligned_start-f.start, f.end-f.start, f.strand
@@ -1165,6 +1173,9 @@ class ReversionTarget(Target):
         from .donors import ExcisionDonor
         
         for dDNA, obj in ExcisionDonor.sequences.items():
+            # TODO: WHy did I do this? Joining the feature names like this makes storing a 'location' more difficult
+            #       It is causing a bug in April 2020.
+            #       Apparently, it is used in 'get_reTarget_homologs()' and other functions (extensively) in '_subroutine_generate_all.py'
             #obj_features = ','.join([x[0] for x in list(obj.locations)])
             obj_features = ','.join(sorted(set([x[0] for x in obj.locations])))
             
