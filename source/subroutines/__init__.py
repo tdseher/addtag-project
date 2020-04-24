@@ -36,9 +36,14 @@ for f in files:
 subroutines = []
 
 def make_subroutines(subparsers):
+    # TODO: Investigate if this 'subroutines' local variable makes sense.
+    #       Do I need to add 'global subroutines'?
+    #       Or do I need to pass it in as an argument?
     # Clear contents of 'subroutines' list, but keep the memory address of the object the same
     subroutines.clear() # Same as 'del subroutines[:]'
     
     # Re-populate the 'subroutines' list with all 'Subroutine' objects
-    for S in Subroutine.__subclasses__():
+    # Sort subparsers by their display name
+    for S in sorted(Subroutine.__subclasses__(), key=lambda x: x.__name__):
         subroutines.append(S(subparsers))
+
