@@ -291,6 +291,7 @@ class GeneratePrimersParser(subroutine.Subroutine):
         dDNA_fasta_file_list.append(None)
         dDNA_alignment_file_list.append(None)
         
+        # Write the input genome FASTA to 'genome-r0.fasta'
         # Merge input FASTA files into a single one
         genome_fasta_file_list.append(utils.write_merged_fasta(genome_contigs_list[0], os.path.join(args.folder, 'genome-r0.fasta')))
         
@@ -336,7 +337,8 @@ class GeneratePrimersParser(subroutine.Subroutine):
             dDNA_contigs_list.append(utils.old_load_fasta_file(dDNA_filename))
             
             # Build an index of the previous round's genome
-            genome_index_file = args.selected_aligner.index(genome_fasta_file_list[r-1], os.path.basename(genome_fasta_file_list[r-1]), args.folder, args.processors)
+            #genome_index_file = args.selected_aligner.index(genome_fasta_file_list[r-1], os.path.basename(genome_fasta_file_list[r-1]), args.folder, args.processors)
+            genome_index_file = args.selected_aligner.index(genome_fasta_file_list[r-1], self.pathstrip(genome_fasta_file_list[r-1]), args.folder, args.processors)
             
             # Write current dDNA to FASTA
             dDNA_fasta_file_list.append(utils.write_merged_fasta(dDNA_contigs_list[r], os.path.join(args.folder, 'dDNA-r'+str(r)+'.fasta')))
@@ -561,7 +563,8 @@ class GeneratePrimersParser(subroutine.Subroutine):
             self.logger.info('Working on round r{}'.format(r))
             
             # Align each dDNA to the genome it produced
-            genome_index_file = args.selected_aligner.index(genome_fasta_file_list[r], os.path.basename(genome_fasta_file_list[r]), args.folder, args.processors)
+            #genome_index_file = args.selected_aligner.index(genome_fasta_file_list[r], os.path.basename(genome_fasta_file_list[r]), args.folder, args.processors)
+            genome_index_file = args.selected_aligner.index(genome_fasta_file_list[r], self.pathstrip(genome_fasta_file_list[r]), args.folder, args.processors)
             temp_alignment = args.selected_aligner.align(dDNA_fasta_file_list[r], genome_index_file, 'dDNA-temp-r'+str(r)+'-alignment', args.folder, args.processors)
             
             # Parse the alignment to make an intermediary record data structure
@@ -1424,6 +1427,7 @@ class GeneratePrimersParser(subroutine.Subroutine):
                     temp2 = [datum.dDNA_r, datum.genome_r, datum.ins_start, datum.ins_end]
         
         ##### BEGIN OUTPUT 1 #####
+        # Prints the REGIONS where the primers will be sought
         #                       0        1       2         3         4         5         6        7
         print('# ' + '\t'.join(['Gene', 'Locus', 'Genome', 'Region', 'Contig', 'Strand', 'Start', 'End']))
         for d in data:
@@ -2177,6 +2181,8 @@ class GeneratePrimersParser(subroutine.Subroutine):
         for datum in datum_list:
             self.logger.info('  ' + str(datum))
         
+        # Ideally, linking should be done by genomic position (after the blast/alignment results)
+        
         # Populate the intermediary groups
         # New try:
         # If there is ANY OVERLAP AT ALL between
@@ -2188,10 +2194,12 @@ class GeneratePrimersParser(subroutine.Subroutine):
         groups = []
         wcount = 0
         while (not no_more_after):
+            # TODO: Is using 'wcount' actually necessary? can't we just use 'len(genome_contigs_list)'?
             # Specify an error if for some reason this doesn't work
             wcount += 1
             if (wcount > 10000):
-                raise Exception('Too many iterations taken to link loci between engineered genomes.')
+                #raise Exception('Too many iterations taken to link loci between engineered genomes.')
+                break # Leave the while loop (this is triggered when there is only the 2 genomes in 'genome_contigs_list'?
             
             for target_genome_round in range(1, len(genome_contigs_list)-1):
                 to_pop = []
@@ -3226,6 +3234,9 @@ class GeneratePrimersParser(subroutine.Subroutine):
             self.logger.info('Removing invalid record: ' + str(bad_qs_pair))
         
         return records
+    
+    def pathstrip(self, path):
+        return os.path.splitext(os.path.basename(path))[0]
 
 class PrimerWorker(multiprocessing.Process):
     def __init__(self, args, cutoffs, queue, results_queue, log_lock, data_lock):
