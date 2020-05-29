@@ -416,25 +416,34 @@ See also the list of [contributors](https://github.com/tdseher/addtag-project/gr
   Please submit a [pull request](https://github.com/tdseher/addtag-project/pulls).
 </details>
 
-### Adding scoring Algorithms ###
-Scoring Algorithms have been broken down into two general types.
+<details>
+  <summary>Adding scoring Algorithms</summary>
 
- * `SingleSequenceAlgorithm` objects calculate scores by comparing a potential RNA ![Spacer][Spacer] or DNA ![Target][Target] to a model trained on empirical data.
- * `PairedSequenceAlgorithm` instances generate scores that compare a potential RNA ![Spacer][Spacer] to a DNA ![Target][Target].
- 
-To add a new scoring algorithm, you must subclass one of the the above types, and add it to a `*.py` file in the `source/algorithms/` subdirectory. AddTag will automatically calculate the score on every generated ![Spacer][Spacer].
+  Scoring Algorithms have been broken down into two general types.
 
-We welcome any `git pull` requests to widen the repertoire of scoring algorithms available to AddTag. The easiest way to get started is to copy and modify one of the provided subclasses.
+   * `SingleSequenceAlgorithm` objects calculate scores by comparing a potential RNA ![Spacer][Spacer] or DNA ![Target][Target] to a model trained on empirical data.
+   * `PairedSequenceAlgorithm` instances generate scores that compare a potential RNA ![Spacer][Spacer] to a DNA ![Target][Target].
 
-### Adding sequence Aligners ###
-AddTag comes with wrappers for several alignment programs. Depending on your experimental design and computing system, you may decide to use an aligner with no included wrapper. To implement your own, create a subclass of `Aligner`, and put it in a `*.py` file in the `source/aligners/` subdirectory. AddTag will automatically make that aligner available for you.
+  To add a new scoring algorithm, you must subclass one of the the above types, and add it to a `*.py` file in the `source/algorithms/` subdirectory. AddTag will automatically calculate the score on every generated ![Spacer][Spacer].
 
-Share your code with us so we can make it available to all AddTag users.
+  We welcome any `git pull` requests to widen the repertoire of scoring algorithms available to AddTag. The easiest way to get started is to copy and modify one of the provided subclasses.
+</details>
 
-### Adding Thermodynamics calculators ###
-Several wrappers to popular oligonucleotide conformation, free energy, and melting temperature calculation programs are included. You can add your own by subclassing the `Oligo` class, and then adding its `*.py` file to the `source/thermodynamics/` subdirectory.
+<details>
+  <summary>Adding sequence Aligners</summary>
 
-If you create your own wrapper, please submit a `git pull` request so we can add it to the next version of the software.
+  AddTag comes with wrappers for several alignment programs. Depending on your experimental design and computing system, you may decide to use an aligner with no included wrapper. To implement your own, create a subclass of `Aligner`, and put it in a `*.py` file in the `source/aligners/` subdirectory. AddTag will automatically make that aligner available for you.
+
+  Share your code with us so we can make it available to all AddTag users.
+</details>
+
+<details>
+  <summary>Adding Thermodynamics calculators</summary>
+
+  Several wrappers to popular oligonucleotide conformation, free energy, and melting temperature calculation programs are included. You can add your own by subclassing the `Oligo` class, and then adding its `*.py` file to the `source/thermodynamics/` subdirectory.
+
+  If you create your own wrapper, please submit a `git pull` request so we can add it to the next version of the software.
+</details>
 
 ## 📖 License ##
 Please see the [LICENSE.md](LICENSE.md) file.
