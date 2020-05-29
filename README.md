@@ -130,7 +130,9 @@ The following scoring algorithms are subclasses of `SingleSequenceAlgorithm`.
 
  * [x] Moreno-Mateos ([Moreno-Mateos, et al (2015)](http://dx.doi.org/10.1038/nmeth.3543))
 
- * [x] GC
+ * [x] GC ([Wang, et al (2014)](http://dx.doi.org/10.1126/science.1246981'))
+
+ * [x] Homopolymer ([Hough, et al. (2017)](https://doi.org/10.1186/s12859-017-1581-4))
 
  * [x] PolyT
 
