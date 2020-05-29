@@ -228,6 +228,10 @@ Each one of these commands assumes `git` is available on the `PATH` environment 
 
 ## 💻 Program Instructions ##
 ### Displaying the usage ###
+<details>
+<summary>Click to expand/collapse</summary>
+<table><tbody><tr><td>
+
 Because AddTag is being updated regularly, the most current feature set and usage can be viewed by running AddTag with the `--help` command line option.
 
 The following commands assume the current working directory is the AddTag folder `addtag-project/`. This will print out command line parameter descriptions and examples.
@@ -240,7 +244,13 @@ Additionally, you may view the included man page, which is probably not up-to-da
 man ./addtag.1
 ```
 
+</td></tr></tbody></table>
+</details>
+
 ### Formatting input data ###
+<details>
+<summary>Click to expand/collapse</summary>
+<table><tbody><tr><td>
 
 #### FASTA input ####
 AddTag requires a FASTA genome of organism you wish to manipulate. FASTA files resemble the following:
@@ -297,7 +307,14 @@ GENE2	C1A_002 	C1B_002 	C1C_002
 ```
 Each Feature identifier has its contig start and end position defined in the input GFF file. The 'homologs' file merely links them together. Columns in the homologs file are delimited by the `\t` character. The first column is the name of the group of Features. Every subsequent column should contain the identifier of a Feature to consider as a homolog. Homolog groups can each have any number of Features. If a Feature identifier appears on multiple lines, then all those Features are linked together as one homolog group. The identifier can be changed with the `--tag` command line option.  
 
+</td></tr></tbody></table>
+</details>
+
 ### Available subroutines ###
+<details>
+<summary>Click to expand/collapse</summary>
+<table><tbody><tr><td>
+
 The AddTag program contains a set of subroutines that can be run independently. There are four categories of subroutines.
 
  * The `evaluate_*` subroutines run only a very specific analysis on input data.
@@ -305,7 +322,14 @@ The AddTag program contains a set of subroutines that can be run independently. 
  * The `generate_*` subroutines perform the deep computational analyses.
  * The `list_*` subroutines just print information the user might find useful.
 
+</td></tr></tbody></table>
+</details>
+
 ### Available RGN scoring Algorithms ###
+<details>
+<summary>Click to expand/collapse</summary>
+<table><tbody><tr><td>
+
 Over the past few years, several Algorithms have been proposed to describe RGN behavior within certain biological contexts. We implemented most of the commonly-used ones into the AddTag software. To view information about each, use the following command:
 ```sh
 addtag list_algorithms
@@ -314,63 +338,114 @@ This will write the pertinent information for all implemented Algorithms to `STD
 
 If an Algorithm is used for pre-alignment filtering (`Prefilter`) or post-alignment filtering (`Postfilter`), then the score of the Target must lie between the `Min` and `Max` values to be continued on through the analysis. For instance, the 'off-target' scoring `CFD` Algorithm has a `Min` of `1.0`. This means that some positions with significant sequence similarity to the query Target (because they are identified in the Alignment step) will not contribute to the final 'off-target' score if their score is less than `1.0`.
 
+</td></tr></tbody></table>
+</details>
+
 ### Available oligonucleotide thermodynamics calculators ###
+<details>
+<summary>Click to expand/collapse</summary>
+<table><tbody><tr><td>
+
 To view which thermodynamics calculators are available on your system, use the following command:
 ```sh
 addtag list_thermodynamics
 ```
 
+</td></tr></tbody></table>
+</details>
+
 ### Typical workflow for a single Feature ###
+<details>
+<summary>Click to expand/collapse</summary>
+<table><tbody><tr><td>
+
+In this example, we will go through creating a nominal `mintag` to knock-out a single input Feature, then creating primers necessary to revert back to the wild type Feature.
+
 The standard procedure is to first run `addtag generate_all`, and use its output as input for `addtag generate_primers`.
+
+For simplicity, We will assume the name of the Feature you are interested in is `GENE`.
 
 The first thing you will want to do, is compose a Target motif for the RGN your biological system uses. To see a list of commonly-used Target motifs, run the following:
 ```sh
 addtag list_motifs
 ```
-For simplicity, let's pretend our biological system uses the 'AsCpf1' RGN. So we will use the associated `TTTN<N{19}/.{4,6}\ ` Target motif.
+Let's pretend our biological system uses the 'AsCpf1' RGN. So we will use the associated `TTTN<N{19}/.{4,6}\` Target motif. Thus, we will add `--motifs 'TTTN<N{19}/.{4,6}\'` to the `addtag generate_all` command.
 
 The next step is to select one or more Algorithms to calculate the 'on-target' and 'off-target' scores for this RGN. To see a list of all implemented Algorithms, run the following:
 ```sh
 addtag list_algorithms
 ``` 
-Let's choose the `DeepCpf1` Algorithm for our 'on-target' score. Let's also choose the `Linear` Algorithm for the 'off-target' score, whose implicit behavior severely penalizes insertions and deletions at 'off-target' sites, but is explicitly less biased against mismatches. Because we would like the output Target sites to be ranked based on their specificity, and because the `Linear` algorithm does not have a default weight, we define a weight for it using the `--weights` command line option.
+Let's choose the `DeepCpf1` Algorithm for our 'on-target' score. Let's also choose the `Linear` Algorithm for the 'off-target' score, whose implicit behavior severely penalizes insertions and deletions at 'off-target' sites, but is explicitly less biased against mismatches. Therefore we add `--ontargetfilters DeepCpf1 --offtargetfilters Linear` to the command. Because we would like the output Target sites to be ranked based on their specificity, and because the `Linear` algorithm does not have a default weight, we define a weight for it using the `--weights` command line option.
 
-Let's use the `mintag` method for creating an RGN Target on the dDNA we generate for creating the intermediary genome. Finally, we want merely to revert back to wild type at the native locus, so we direct AddTag to generate the optimal AmpF/AmpR primers using the `--revert_amplification_primers` option.
+Let's use the `mintag` method for creating an RGN Target on the dDNA we generate for creating the intermediary genome. Because we don't want to add any extra bases--only remove the feature--we include `--excise_insert_lengths 0 0`. Finally, we want merely to revert back to wild type at the native locus, so we direct AddTag to generate the optimal AmpF/AmpR primers using the `--revert_amplification_primers` option.
 
-Because our input genome is a phased diploid assembly, and we want our gRNAs to target both alleles, we use the default `--target_specificity`. Because we want a single dDNA to repair both alleles, we also use the default `--donor_specificity`. Since we want the computer to use all available compute power, we use the default number of processors (which automatically selects all available). Let's also use the default thermodynamics calculator and the default aligner. To identify the best Target locations within our Feature of interest, and to generate dDNA for knock-out, we run the following command:
+Because our input genome is a phased diploid assembly, and we want our gRNAs to target both alleles, we use the default `--target_specificity`. Because we want a single dDNA to repair both alleles, we also use the default `--donor_specificity`. Since we want the computer to use all available compute power, we use the default number of processors (which automatically selects all available). Let's also use the default thermodynamics calculator and the default aligner.
+
+Let's store all the output in paths that start with `GENEg`, where '`g`' is for '`generate_all`'.
+ 
+To identify the best Target locations within our Feature of interest, and to generate dDNA for knock-out, we run the full command:
 ```sh
-addtag generate_all --motifs 'TTTN<N{19}/.{4,6}\ ' --ontargetfilters DeepCpf1 --offtargetfilters Linear --weights Linear:85+1.7 --ko-gRNA --ko-dDNA mintag --revert_amplification_primers --fasta genome.fasta --gff genome.gff --folder GENEg > GENEg.out 2> GENEg.err
+addtag generate_all \
+  --motifs 'TTTN<N{19}/.{4,6}\' \
+  --ontargetfilters DeepCpf1 \
+  --offtargetfilters Linear \
+  --weights Linear:85+1.7 \
+  --excise_insert_lengths 0 0 \
+  --ko-gRNA \
+  --ko-dDNA mintag \
+  --revert_amplification_primers \
+  --fasta genome.fasta \
+  --gff genome.gff \
+  --folder GENEg > GENEg.out 2> GENEg.err
 ```
 
-This writes 4 output tables to the `GENEg.out` file. Each of these tables refers to sequences in output FASTA files. Please note that certain sequence Aligners, such as 'Bowtie 2' can have non-deterministic output. Therefore, your results may vary from what is presented here.
+This writes 4 output tables to the `GENEg.out` file. Each of these tables refers to sequences in output FASTA files. Please note that certain sequence Aligners, such as 'Bowtie2' can have non-deterministic output. Therefore, your results may vary from what is presented here.
 
 Now would be a good time to explain the terminology you will see in the AddTag input and output. For simplicity in text processing, we use different labels than what are presented in the manuscript, though they are equivalent.
 ```
- r0-gDNA = +gDNA (wild type genome)
- r1-gDNA = ΔgDNA (intermediary genome)
- r2-gDNA = AgDNA (final genome)
- rN-gDNA = Nth round of genome engineering
-exTarget = +Target (Target site in wild type Feature)
-reTarget = ΔTarget (Target site introduced on ★tag insert)
- exDonor = r1-dDNA = ΔdDNA (ko-dDNA)
- reDonor = r2-dDNA = AdDNA (ki-dDNA)  
+OUTPUT           PAPER    DESCRIPTION
+r0-gDNA          +gDNA    Wild type genome
+r1-gDNA          ΔgDNA    Intermediary genome
+r2-gDNA          AgDNA    Final genome
+exTarget         +Target  Target site in wild type +Feature that is used to 'excise' the feature
+reTarget         ΔTarget  Target site introduced with ★tag insert that is used to 'revert' the genotype
+exDonor/r1-dDNA  ΔdDNA    Excision, or knock out dDNA (ko-dDNA)
+reDonor/r2-dDNA  AdDNA    Reversion, add-back, or knock-in dDNA (ki-dDNA)  
 ```
 
 Thus, we refer to the first round of genome engineering (r1) as the knock-out round, and the second round (r2) as the knock-in round.
 
-From the first table, we select the highest-weighed `reTarget` ('reversion Target' abbreviated), and one of its corresponding dDNA sequences. We store the sequence in its own FASTA file with the following command:
+From the first table, we select the highest-weighed `reTarget` ('reversion Target', abbreviated), and one of its corresponding dDNA sequences. Then we store these two sequences in their own FASTA files.
+
 ```sh
-addtag find_header --fasta GENEg/dDNAs.fasta --query 'exDonor-33\b' > ko-dDNA.fasta
+addtag find_header \
+  --fasta GENEg/reversion-spacers.fasta 
+  --query "reTarget-3" > ki-target.fasta
 ```
+
 Each `reTarget` can target one or more identified `reDonor` dDNA sequences.
 
-From the second table, we select the highest-weighted `exTarget` ('excision Target' abbreviated), which is used for excising the input Feature from the input gDNA.
+In this example, we expect only a single excision dDNA with the header `exDonor-0`, so we extract that sequence, and store it in a conveniently-accessible place.
+
+```sh
+addtag find_header \
+  --fasta GENEg/excision-dDNAs.fasta \
+  --query 'exDonor-0\b' > ko-dDNA.fasta
+```
+
+From the second table, we select the highest-weighted `exTarget` ('excision Target' abbreviated), which is used for excising the input Feature from the input gDNA:
+
+```sh
+TARGET=$(grep '# exTarget results' -A 2 GENEg.out | tail -n +3 | cut -f 4)
+addtag find_header \
+  --fasta GENEg/excision-spacers.fasta 
+  --query "${TARGET}\b" > ko-target.fasta
+```
 
 Finally, we identify the highest-weight dDNA for reverting back to the wild type, and put it in its own FASTA file:
 ```sh
-addtag find_header --fasta GENEg/dDNAs.fasta --query 'reDonor-0\b' > ko-dDNA.fasta
+addtag find_header --fasta GENEg/reversion-dDNAs.fasta --query 'reDonor-0\b' > ki-dDNA.fasta
 ```
-
 
 Next we need to identify a single cPCR verification primer design. Let's use the default pairwise sequence aligner.
 
@@ -378,11 +453,18 @@ Next we need to identify a single cPCR verification primer design. Let's use the
 addtag generate_primers --fasta genome.fasta --dDNAs ko-dDNA.fasta ki-dDNA.fasta --folder GENEc > GENEc.out 2> GENEc.err
 ``` 
 
+</td></tr></tbody></table>
+</details>
+
 ### Typical workflow for multiplexed Features ###
+<details>
+<summary>Click to expand/collapse</summary>
+<table><tbody><tr><td>
 
+All Features in input GFF file will be evaluated simultaneously.
 
-
-
+</td></tr></tbody></table>
+</details>
 
 ## 📝 Citing AddTag ##
 If you use AddTag for your research, please cite us. Because the manuscript is currently in preparation, you will need to cite the code repository instead.
