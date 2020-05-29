@@ -397,80 +397,108 @@ Who do I talk to?
 See also the list of [contributors](https://github.com/tdseher/addtag-project/graphs/contributors) who participated in this project.
 
 ## 👥 Contributing ##
-<details><summary><h3>🐞 How do I submit a bug report?</h3></summary>
 
-  First, check to see if the problem you are having has already been added to the [issue tracker](https://github.com/tdseher/addtag-project/issues).
-  If not, then please submit a new issue.
+### 🐞 How do I submit a bug report? ###
+<details>
+<summary>Click to expand/collapse</summary>
+<table><tbody><tr><td>
 
-  ▲
+First, check to see if the problem you are having has already been added to the [issue tracker](https://github.com/tdseher/addtag-project/issues).
+If not, then please submit a new issue.
+
+</td></tr></tbody></table>
 </details>
 
+### ⚠ How do I make a feature request? ###
 <details>
-  <summary>⚠ How do I make a feature request?</summary>
+<summary>Click to expand/collapse</summary>
+<table><tbody><tr><td>
 
-  Send a message to [@tdseher][tdseher].
+Send a message to [@tdseher][tdseher].
+
+</td></tr></tbody></table>
 </details>
 
+### ⤴ How do I add my code to the AddTag software? ###
 <details>
-  <summary>⤴ How do I add my code to the AddTag software?</summary>
+<summary>Click to expand/collapse</summary>
+<table><tbody><tr><td>
 
-  Please submit a [pull request](https://github.com/tdseher/addtag-project/pulls).
+Please submit a [pull request](https://github.com/tdseher/addtag-project/pulls).
+
+</td></tr></tbody></table>
 </details>
 
+### 📈 Adding scoring Algorithms ###
 <details>
-  <summary>Adding scoring Algorithms</summary>
+<summary>Click to expand/collapse</summary>
+<table><tbody><tr><td>
 
-  Scoring Algorithms have been broken down into two general types.
+Scoring Algorithms have been broken down into two general types.
 
-   * `SingleSequenceAlgorithm` objects calculate scores by comparing a potential RNA ![Spacer][Spacer] or DNA ![Target][Target] to a model trained on empirical data.
-   * `PairedSequenceAlgorithm` instances generate scores that compare a potential RNA ![Spacer][Spacer] to a DNA ![Target][Target].
+ * `SingleSequenceAlgorithm` objects calculate scores by comparing a potential RNA ![Spacer][Spacer] or DNA ![Target][Target] to a model trained on empirical data.
+ * `PairedSequenceAlgorithm` instances generate scores that compare a potential RNA ![Spacer][Spacer] to a DNA ![Target][Target].
 
-  To add a new scoring algorithm, you must subclass one of the the above types, and add it to a `*.py` file in the `source/algorithms/` subdirectory. AddTag will automatically calculate the score on every generated ![Spacer][Spacer].
+To add a new scoring algorithm, you must subclass one of the the above types, and add it to a `*.py` file in the `source/algorithms/` subdirectory. AddTag will automatically calculate the score on every generated ![Spacer][Spacer].
 
-  We welcome any `git pull` requests to widen the repertoire of scoring algorithms available to AddTag. The easiest way to get started is to copy and modify one of the provided subclasses.
+We welcome any `git pull` requests to widen the repertoire of scoring algorithms available to AddTag. The easiest way to get started is to copy and modify one of the provided subclasses.
+
+</td></tr></tbody></table>
 </details>
 
+### 📐 Adding sequence Aligners ###
 <details>
-  <summary>Adding sequence Aligners</summary>
+<summary>Click to expand/collapse</summary>
+<table><tbody><tr><td>
 
-  AddTag comes with wrappers for several alignment programs. Depending on your experimental design and computing system, you may decide to use an aligner with no included wrapper. To implement your own, create a subclass of `Aligner`, and put it in a `*.py` file in the `source/aligners/` subdirectory. AddTag will automatically make that aligner available for you.
+AddTag comes with wrappers for several alignment programs. Depending on your experimental design and computing system, you may decide to use an aligner with no included wrapper. To implement your own, create a subclass of `Aligner`, and put it in a `*.py` file in the `source/aligners/` subdirectory. AddTag will automatically make that aligner available for you.
 
-  Share your code with us so we can make it available to all AddTag users.
+Share your code with us so we can make it available to all AddTag users.
+
+</td></tr></tbody></table>
 </details>
 
+### 🌡 Adding Thermodynamics calculators ###
 <details>
-  <summary>Adding Thermodynamics calculators</summary>
+<summary>Click to expand/collapse</summary>
+<table><tbody><tr><td>
 
-  Several wrappers to popular oligonucleotide conformation, free energy, and melting temperature calculation programs are included. You can add your own by subclassing the `Oligo` class, and then adding its `*.py` file to the `source/thermodynamics/` subdirectory.
+Several wrappers to popular oligonucleotide conformation, free energy, and melting temperature calculation programs are included. You can add your own by subclassing the `Oligo` class, and then adding its `*.py` file to the `source/thermodynamics/` subdirectory.
 
-  If you create your own wrapper, please submit a `git pull` request so we can add it to the next version of the software.
+If you create your own wrapper, please submit a `git pull` request so we can add it to the next version of the software.
+
+</td></tr></tbody></table>
 </details>
 
 ## 📖 License ##
 Please see the [LICENSE.md](LICENSE.md) file.
 
 ## Notes ##
+Below are tips and descriptions of AddTag limitations that will help you make successful designs.
 <details>
-  <summary>Below are tips and descriptions of AddTag limitations that will help you make successful designs.</summary>
-  
-   * The ![RGN][RGN] protein you use should be engineered specifically for your organism. It should be codon-optomized, and if using eukarya, contain an appropriate nuclear localization sequence.
-   * By default, AddTag will avoid designing homology regions and Targets against polymorphisms whenever possible.
-   * Sequences in FASTA files should have unique names. In other words, the primary sequence header--everything following the '`>`' character and preceding the first whitespace/tab '` `' character--should exist only once across all input `*.fasta` files.
-   * AddTag makes no effort to restrict which Target motifs the user can use according to the selected Algorithms. Therefore, the user needs to independently verify which Target motifs are compatible with the selected Algorithms.
-   * Right now AddTag can only handle linear chromosomes. If you want to analyze a circular chromosome, then you will need to artificially concatenate the ends of the chromosome together and adjust any annotations before running AddTag. An additional complication the software does not address is circular chromosomes. Features and their flanking regions cannot span the junction created when the contig end is concatenated to the start (typically the starting position on a contig is labeled the ORIGIN). To address this, the user should manually shift the coordinates of the experimental Features, and wrap the contigs as appropriate.
-   * AddTag assumes one Feature copy per contig. The current implementation of AddTag assumes homology regions around Features are not repeated across any one contig. This means that is will fail to generate cPCR oligos for a large proportion of genes in transposon-rich genomes such as wheat (https://dx.doi.org/10.1186/s13059-018-1479-0).
-   * A single feature cannot span two or more contigs. AddTag assumes that the entire feature sequence, and any flanking regions, are not in terminal regions of the reference contig. 
-   * AddTag does not address overlapping genes, such as when an intron contains an exon for another gene, or when the same DNA encodes for genes on opposite strands. Everything between the Feature bounds is removed in the first engineering step. Currently, if the selected Feature overlaps with any other feature, only the selected Feature is considered. The other Feature will be disrupted. AddTag will report a warning that these other Features may be disrupted, but it does not attempt to reconcile this in any way. However, AddTag does have the ability to limit Feature expansion to keep the deletion outside of neighboring Features.
-   * AddTag was not designed to perform paired Cas design, such as FokI-dCas9 nickase Users would need to run the program and select two gRNAs designed for opposite strands within a certain distance from each other. One way to mitigate errors is to use PAM-out nickases. This requires Cas9 cutting by two targets to get double-stranded break. This significantly decreases off-target genome editing. However, this initial AddTag version does not explicitly facilitate this.
-   * AddTag can identify cut sites for Cas enzymes which have the PAM site. No functionality is provided for finding sites without an adjacent PAM sequence. AddTag requires motifs to define a PAM sequence. Therefore Cas14a is not supported. This can be probably be circumvented by using an `N` character as the PAM sequence, but this hasn't been tested. The number of CRISPR/Cas genome editing technologies are rapidly growing. With the recent discovery of Cas14a, which targets single-stranded DNA (ssDNA) molecules without requiring a PAM site (https://dx.doi.org/10.1126/science.aav4294), the expanded prevalence of CRISPR/Cas methods in biological sciences is assured. However, often researchers wish to edit sites on double-stranded DNA (dsDNA) using an RGN (such as Cas9 or Cas12a) that requires binding to a PAM motif. 
-   * Please note, that at this time, no special restriction sites will be taken into account when designing primers.
-   * For simplicity, all calculated scores ignore terms dealing with proximity to exon/CDS/ORF sequences. In cases such as the Stemmer and Azimuth calculations, the authors attempted to include the risk of disrupting genes neighboring potential targets in their models. We don’t attempt to do this.
-   * Additionally, some scoring Algorithms take chromatin structure (DNA accessibility) into account. For simplicity, AddTag treats all input gDNA as equally accessible.
-   * During the course of writing this software, a paper was published that outlines how hairpins can be inserted into the pre-spacer and spacer regions of the gRNA in order to increase specificity (https://dx.doi.org/10.1038/s41587-019-0095-1). AddTag does not model pre-spacer sequences.
-   * AddTag assumes the RGN template type is dsDNA. AddTag was designed specifically to enable efficient gDNA editing. It does not use predictive models for ssDNA or RNA templates.
-   * A corollary of this is that AddTag assumes all input sequences are DNA sequences. So the `--fasta` file specified will be treated as a DNA template. Thus, if there are any non-DNA residues, such as `U`, AddTag will probably fail. Also, since the Primer thermodynamics calculators are all set to estimate DNA:DNA hybridization (not DNA:RNA or RNA:RNA), any resulting calculations will be incorrect. 
-   * Since Bartag motifs are user-specified, simple pre-computed lists of compatible 'bartag' sequences would be incomplete. Thus we implemented a greedy 'bartag' generation algorithm. When evaluating candidate 'bartag' sequences, AddTag will keep 'bartags' that satisfy all edit distance requirements with all previously-accepted 'bartags'. To limit runtime to a reasonable amount, we limited the total number of Features and 'bartags' that can be generated.
-   * Of special note are things the Primer design does not explicitly consider, such as characteristics of the cPCR template molecule. AddTag does not exploit the differential nature of template sequence composition (e.g. H. sapiens compared to E. coli). Also, AddTag does not use information on the presence of known secondary modifications to the template, such as methylated residues or oxidative damage.
+<summary>Click to expand/collapse</summary>
+<table><tbody><tr><td>
+
+ * The ![RGN][RGN] protein you use should be engineered specifically for your organism. It should be codon-optomized, and if using eukarya, contain an appropriate nuclear localization sequence.
+ * By default, AddTag will avoid designing homology regions and Targets against polymorphisms whenever possible.
+ * Sequences in FASTA files should have unique names. In other words, the primary sequence header--everything following the '`>`' character and preceding the first whitespace/tab '` `' character--should exist only once across all input `*.fasta` files.
+ * AddTag makes no effort to restrict which Target motifs the user can use according to the selected Algorithms. Therefore, the user needs to independently verify which Target motifs are compatible with the selected Algorithms.
+ * Right now AddTag can only handle linear chromosomes. If you want to analyze a circular chromosome, then you will need to artificially concatenate the ends of the chromosome together and adjust any annotations before running AddTag. An additional complication the software does not address is circular chromosomes. Features and their flanking regions cannot span the junction created when the contig end is concatenated to the start (typically the starting position on a contig is labeled the ORIGIN). To address this, the user should manually shift the coordinates of the experimental Features, and wrap the contigs as appropriate.
+ * AddTag assumes one Feature copy per contig. The current implementation of AddTag assumes homology regions around Features are not repeated across any one contig. This means that is will fail to generate cPCR oligos for a large proportion of genes in transposon-rich genomes such as wheat (https://dx.doi.org/10.1186/s13059-018-1479-0).
+ * A single feature cannot span two or more contigs. AddTag assumes that the entire feature sequence, and any flanking regions, are not in terminal regions of the reference contig. 
+ * AddTag does not address overlapping genes, such as when an intron contains an exon for another gene, or when the same DNA encodes for genes on opposite strands. Everything between the Feature bounds is removed in the first engineering step. Currently, if the selected Feature overlaps with any other feature, only the selected Feature is considered. The other Feature will be disrupted. AddTag will report a warning that these other Features may be disrupted, but it does not attempt to reconcile this in any way. However, AddTag does have the ability to limit Feature expansion to keep the deletion outside of neighboring Features.
+ * AddTag was not designed to perform paired Cas design, such as FokI-dCas9 nickase Users would need to run the program and select two gRNAs designed for opposite strands within a certain distance from each other. One way to mitigate errors is to use PAM-out nickases. This requires Cas9 cutting by two targets to get double-stranded break. This significantly decreases off-target genome editing. However, this initial AddTag version does not explicitly facilitate this.
+ * AddTag can identify cut sites for Cas enzymes which have the PAM site. No functionality is provided for finding sites without an adjacent PAM sequence. AddTag requires motifs to define a PAM sequence. Therefore Cas14a is not supported. This can be probably be circumvented by using an `N` character as the PAM sequence, but this hasn't been tested. The number of CRISPR/Cas genome editing technologies are rapidly growing. With the recent discovery of Cas14a, which targets single-stranded DNA (ssDNA) molecules without requiring a PAM site (https://dx.doi.org/10.1126/science.aav4294), the expanded prevalence of CRISPR/Cas methods in biological sciences is assured. However, often researchers wish to edit sites on double-stranded DNA (dsDNA) using an RGN (such as Cas9 or Cas12a) that requires binding to a PAM motif. 
+ * Please note, that at this time, no special restriction sites will be taken into account when designing primers.
+ * For simplicity, all calculated scores ignore terms dealing with proximity to exon/CDS/ORF sequences. In cases such as the Stemmer and Azimuth calculations, the authors attempted to include the risk of disrupting genes neighboring potential targets in their models. We don’t attempt to do this.
+ * Additionally, some scoring Algorithms take chromatin structure (DNA accessibility) into account. For simplicity, AddTag treats all input gDNA as equally accessible.
+ * During the course of writing this software, a paper was published that outlines how hairpins can be inserted into the pre-spacer and spacer regions of the gRNA in order to increase specificity (https://dx.doi.org/10.1038/s41587-019-0095-1). AddTag does not model pre-spacer sequences.
+ * AddTag assumes the RGN template type is dsDNA. AddTag was designed specifically to enable efficient gDNA editing. It does not use predictive models for ssDNA or RNA templates.
+ * A corollary of this is that AddTag assumes all input sequences are DNA sequences. So the `--fasta` file specified will be treated as a DNA template. Thus, if there are any non-DNA residues, such as `U`, AddTag will probably fail. Also, since the Primer thermodynamics calculators are all set to estimate DNA:DNA hybridization (not DNA:RNA or RNA:RNA), any resulting calculations will be incorrect. 
+ * Since Bartag motifs are user-specified, simple pre-computed lists of compatible 'bartag' sequences would be incomplete. Thus we implemented a greedy 'bartag' generation algorithm. When evaluating candidate 'bartag' sequences, AddTag will keep 'bartags' that satisfy all edit distance requirements with all previously-accepted 'bartags'. To limit runtime to a reasonable amount, we limited the total number of Features and 'bartags' that can be generated.
+ * Of special note are things the Primer design does not explicitly consider, such as characteristics of the cPCR template molecule. AddTag does not exploit the differential nature of template sequence composition (e.g. H. sapiens compared to E. coli). Also, AddTag does not use information on the presence of known secondary modifications to the template, such as methylated residues or oxidative damage.
+
+</td></tr></tbody></table>
 </details>
 
 [tdseher]:https://twitter.com/tdseher
