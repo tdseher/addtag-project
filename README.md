@@ -27,7 +27,7 @@ Basic Features:
    * [x] Supports arbitrary ![Spacer][Spacer] length and composition constraints, such as for plant experiments (`G{,2}N{19,20}`).
    * [x] Supports arbitrary ![PAM][PAM] sequences (MAD7: `YTTN<`, Cas12d: `TA<`, BlCas9: `>NGGNCNDD`, etc).
    * [x] Uses stranded forward (`/`), reverse (`\`) and unstranded (`|`) cut sites.
-   * [x] Supports complex nested logic ![PAM][PAM] sequences, such as xCas9 (`>(N{1,2}G,GAW,CAA)`)
+   * [x] Supports ![PAM][PAM] sequences defined by complex nested logic, such as xCas9 (`>(N{1,2}G,GAW,CAA)`)
    * [x] Calculates any number of **on-target** and **off-target** scores (see [Algorithms](#supported-scoring-algorithms)).
    * [x] Finds homology-aware ![Target][Target]s (**multi-allelic**, **allele-specific**, and **allele-agnostic**).
    * [x] Searches for ![Target][Target]s using selectable pairwise alignment program (see [Aligners](#supported-sequence-aligners)).
@@ -253,7 +253,7 @@ man ./addtag.1
 <table><tbody><tr><td>
 
 #### FASTA input ####
-AddTag requires a FASTA genome of organism you wish to manipulate. FASTA files resemble the following:
+AddTag requires a FASTA genome of the organism you wish to manipulate. FASTA files resemble the following:
 ```fasta
 >primary_header1 attribute1=value1 attribute2=value2
 NNNNCGAAATCGGCGCATAGGCCTAAGAGCTCCTATAGAGATCGATATAAAC
@@ -264,12 +264,12 @@ CCAATAAAGATATATAGCCTAAAGGAATATATAGAGAGATATATATAGNNNN
 AGCTAGAGACWWWCTCCTCTCCTAGAGASSSAGAGGAGAGCTCTCCGAGAGA
 CGCTCGCTCGTATGCCTCTATATCGATATATAGGAGAATCCTCGATATATAG
 ```
-FASTA files are plain text files that use newline (`\n` or `\r\n`) characters as delimiters. If a line begins with a greater than (`>`) symbol, it represents the start of a new sequence record. All characters between the `>` and `\n` are considered the 'header' of the record. Everything between the `>` and the first whitespace character (` ` or `\t`), if one exists, is considered the 'primary header' for the record. All subsequent lines until the next 'header' line contain the sequence information for that record. Therefore FASTA files can contain many sequence records. Each record in the FASTA file in an assembly is called a 'contig'. 
+FASTA files are plain text files that use newline (`\n` or `\r\n`) characters as delimiters. If a line begins with a greater than (`>`) symbol, it represents the start of a new sequence record. All characters between the `>` and `\n` are considered the 'header' of the record. Everything between the `>` and the first whitespace character (` ` or `\t`), if one exists, is considered the 'primary identifier' for the record. All subsequent lines until the next 'header' line contain the sequence information for that record. Therefore FASTA files can contain many sequence records. Each record in a genome assembly's FASTA file is called a 'contig'. 
 
-FASTA files can contain any number of ambiguous characters (`RYMKWSBDHVN`), which can represent allelic variation expected within the sample or sequencing uncertainty. FASTA files can also contain a mix of `UPPER` and `lower` cased characters. Typical use for `lower` case characters is to exclude these residues from ![Target][Target] or ![Primer][Primer] identification. 
+Typically, the DNA sequence information in FASTA files are list a bunch of canonical nucletide abbreviations (`ACGT`). However, FASTA files can contain any number of ambiguous characters (`RYMKWSBDHVN`), which can represent allelic variation expected within the sample or sequencing uncertainty. FASTA files can also contain a mix of `UPPER` and `lower` cased characters. Typical use for `lower` case characters is to exclude these residues from ![Target][Target] or ![Primer][Primer] identification. 
 
 #### GFF input ####
-AddTag requires a GFF file containing annotations for the Features you wish to manipulate. GFF files resemble the following:
+AddTag requires a GFF file containing annotations for the Features you wish to manipulate ([technical specifications of GFF format](https://github.com/The-Sequence-Ontology/Specifications/blob/master/gff3.md)). GFF files resemble the following:
 ```gff
 # seqid	source	feature	start	end	score	strand	frame	attribute
 C1A	DB	gene	3489	5146	.	+	.	ID=C1A_001;Name=C1_001;Gene=GENE1
@@ -298,12 +298,17 @@ The Target motif is written from 5' to 3'. Use a greater than (`>`) symbol if yo
 
 You can specify any number of Target motifs to be considered 'on-target' using the `--motifs` command line option. You can also designate any number of Target motifs to be considered 'off-target' using the `--off_target_motigs` command line option. 
 
+To see an exhaustive list of all identified RGN motifs, run the following command:
+```sh
+addtag list_motifs
+```
+
 #### Homologs input ####
 Some researchers are lucky enough to get to work on organisms with phased genomes. This means that full haplotype information is known for each chromosome. AddTag can accommodate haploid, diploid, and polyploid genomes when homologous Features are linked by the addition of the `--homologs` command line option. The 'homologs' file has the following format:
 ```homologs
-# group	homolog_a	homolog_b	homolog_c
-GENE1	C1A_001 	C1B_001
-GENE2	C1A_002 	C1B_002 	C1C_002
+# group	hom_a	hom_b	hom_c
+GENE1	C1A_001	C1B_001
+GENE2	C1A_002	C1B_002	C1C_002
 ```
 Each Feature identifier has its contig start and end position defined in the input GFF file. The 'homologs' file merely links them together. Columns in the homologs file are delimited by the `\t` character. The first column is the name of the group of Features. Every subsequent column should contain the identifier of a Feature to consider as a homolog. Homolog groups can each have any number of Features. If a Feature identifier appears on multiple lines, then all those Features are linked together as one homolog group. The identifier can be changed with the `--tag` command line option.  
 
@@ -450,7 +455,10 @@ addtag find_header --fasta GENEg/reversion-dDNAs.fasta --query 'reDonor-0\b' > k
 Next we need to identify a single cPCR verification primer design. Let's use the default pairwise sequence aligner.
 
 ```sh
-addtag generate_primers --fasta genome.fasta --dDNAs ko-dDNA.fasta ki-dDNA.fasta --folder GENEc > GENEc.out 2> GENEc.err
+addtag generate_primers \
+  --fasta genome.fasta \
+  --dDNAs ko-dDNA.fasta ki-dDNA.fasta \
+  --folder GENEc > GENEc.out 2> GENEc.err
 ``` 
 
 </td></tr></tbody></table>
@@ -563,18 +571,18 @@ Below are tips and descriptions of AddTag limitations that will help you make su
 
  * The ![RGN][RGN] protein you use should be engineered specifically for your organism. It should be codon-optomized, and if using eukarya, contain an appropriate nuclear localization sequence.
  * By default, AddTag will avoid designing homology regions and Targets against polymorphisms whenever possible.
- * Sequences in FASTA files should have unique names. In other words, the primary sequence header--everything following the '`>`' character and preceding the first whitespace/tab '` `' character--should exist only once across all input `*.fasta` files.
+ * Sequences in FASTA files should have unique names. In other words, the primary sequence identifier--everything following the '`>`' character and preceding the first whitespace/tab '` `' character--should exist only once across all input `*.fasta` files.
  * AddTag makes no effort to restrict which Target motifs the user can use according to the selected Algorithms. Therefore, the user needs to independently verify which Target motifs are compatible with the selected Algorithms.
  * Right now AddTag can only handle linear chromosomes. If you want to analyze a circular chromosome, then you will need to artificially concatenate the ends of the chromosome together and adjust any annotations before running AddTag. An additional complication the software does not address is circular chromosomes. Features and their flanking regions cannot span the junction created when the contig end is concatenated to the start (typically the starting position on a contig is labeled the ORIGIN). To address this, the user should manually shift the coordinates of the experimental Features, and wrap the contigs as appropriate.
- * AddTag assumes one Feature copy per contig. The current implementation of AddTag assumes homology regions around Features are not repeated across any one contig. This means that is will fail to generate cPCR oligos for a large proportion of genes in transposon-rich genomes such as wheat (https://dx.doi.org/10.1186/s13059-018-1479-0).
- * A single feature cannot span two or more contigs. AddTag assumes that the entire feature sequence, and any flanking regions, are not in terminal regions of the reference contig. 
+ * AddTag assumes one Feature copy per contig. The current implementation of AddTag assumes homology regions around Features are not repeated across any one contig. This means that is will fail to generate cPCR oligos for a large proportion of genes in transposon-rich genomes such as [wheat](https://dx.doi.org/10.1186/s13059-018-1479-0).
+ * A single Feature cannot span two or more contigs (partially a limitation of the GFF format). AddTag assumes that the entire feature sequence, and any flanking regions, are not in terminal regions of the reference contig. 
  * AddTag does not address overlapping genes, such as when an intron contains an exon for another gene, or when the same DNA encodes for genes on opposite strands. Everything between the Feature bounds is removed in the first engineering step. Currently, if the selected Feature overlaps with any other feature, only the selected Feature is considered. The other Feature will be disrupted. AddTag will report a warning that these other Features may be disrupted, but it does not attempt to reconcile this in any way. However, AddTag does have the ability to limit Feature expansion to keep the deletion outside of neighboring Features.
- * AddTag was not designed to perform paired Cas design, such as FokI-dCas9 nickase Users would need to run the program and select two gRNAs designed for opposite strands within a certain distance from each other. One way to mitigate errors is to use PAM-out nickases. This requires Cas9 cutting by two targets to get double-stranded break. This significantly decreases off-target genome editing. However, this initial AddTag version does not explicitly facilitate this.
- * AddTag can identify cut sites for Cas enzymes which have the PAM site. No functionality is provided for finding sites without an adjacent PAM sequence. AddTag requires motifs to define a PAM sequence. Therefore Cas14a is not supported. This can be probably be circumvented by using an `N` character as the PAM sequence, but this hasn't been tested. The number of CRISPR/Cas genome editing technologies are rapidly growing. With the recent discovery of Cas14a, which targets single-stranded DNA (ssDNA) molecules without requiring a PAM site (https://dx.doi.org/10.1126/science.aav4294), the expanded prevalence of CRISPR/Cas methods in biological sciences is assured. However, often researchers wish to edit sites on double-stranded DNA (dsDNA) using an RGN (such as Cas9 or Cas12a) that requires binding to a PAM motif. 
+ * AddTag was not designed to perform paired Cas design, such as FokI-dCas9 nickase. You would need to run the program and select two gRNAs designed for opposite strands within a certain distance from each other. Alternatively, you could probably make some really-long Target motif. One way to mitigate errors is to use PAM-out nickases. This requires Cas9 cutting by two targets to get double-stranded break. This significantly decreases off-target genome editing. However, this initial AddTag version does not explicitly facilitate this.
+ * AddTag can identify cut sites for Cas enzymes which have the PAM site. No functionality is provided for finding sites without an adjacent PAM sequence. AddTag requires motifs to define a PAM sequence. Therefore Cas14a is not supported. This can be probably be circumvented by using an `N` character as the PAM sequence, but this hasn't been tested. The number of CRISPR/Cas genome editing technologies are rapidly growing. With the recent discovery of [Cas14a](https://dx.doi.org/10.1126/science.aav4294), which targets single-stranded DNA (ssDNA) molecules without requiring a PAM site, the expanded prevalence of CRISPR/Cas methods in biological sciences is assured. However, often researchers wish to edit sites on double-stranded DNA (dsDNA) using an RGN (such as Cas9 or Cas12a) that requires binding to a PAM motif. 
  * Please note, that at this time, no special restriction sites will be taken into account when designing primers.
  * For simplicity, all calculated scores ignore terms dealing with proximity to exon/CDS/ORF sequences. In cases such as the Stemmer and Azimuth calculations, the authors attempted to include the risk of disrupting genes neighboring potential targets in their models. We don’t attempt to do this.
  * Additionally, some scoring Algorithms take chromatin structure (DNA accessibility) into account. For simplicity, AddTag treats all input gDNA as equally accessible.
- * During the course of writing this software, a paper was published that outlines how hairpins can be inserted into the pre-spacer and spacer regions of the gRNA in order to increase specificity (https://dx.doi.org/10.1038/s41587-019-0095-1). AddTag does not model pre-spacer sequences.
+ * During the course of writing this software, a [paper](https://dx.doi.org/10.1038/s41587-019-0095-1) was published that outlines how hairpins can be inserted into the pre-spacer and spacer regions of the gRNA in order to increase specificity. AddTag does not model pre-spacer sequences.
  * AddTag assumes the RGN template type is dsDNA. AddTag was designed specifically to enable efficient gDNA editing. It does not use predictive models for ssDNA or RNA templates.
  * A corollary of this is that AddTag assumes all input sequences are DNA sequences. So the `--fasta` file specified will be treated as a DNA template. Thus, if there are any non-DNA residues, such as `U`, AddTag will probably fail. Also, since the Primer thermodynamics calculators are all set to estimate DNA:DNA hybridization (not DNA:RNA or RNA:RNA), any resulting calculations will be incorrect. 
  * Since Bartag motifs are user-specified, simple pre-computed lists of compatible 'bartag' sequences would be incomplete. Thus we implemented a greedy 'bartag' generation algorithm. When evaluating candidate 'bartag' sequences, AddTag will keep 'bartags' that satisfy all edit distance requirements with all previously-accepted 'bartags'. To limit runtime to a reasonable amount, we limited the total number of Features and 'bartags' that can be generated.
