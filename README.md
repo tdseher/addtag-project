@@ -397,8 +397,7 @@ Who do I talk to?
 See also the list of [contributors](https://github.com/tdseher/addtag-project/graphs/contributors) who participated in this project.
 
 ## 👥 Contributing ##
-<details>
-  <summary><h3>🐞 How do I submit a bug report?</h3></summary>
+<details><summary><h3>🐞 How do I submit a bug report?</h3></summary>
 
   First, check to see if the problem you are having has already been added to the [issue tracker](https://github.com/tdseher/addtag-project/issues).
   If not, then please submit a new issue.
