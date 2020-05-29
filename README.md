@@ -398,7 +398,10 @@ See also the list of [contributors](https://github.com/tdseher/addtag-project/gr
 
 ## 👥 Contributing ##
 <details>
-  <summary>🐞 How do I submit a bug report?</summary>
+  <summary>
+  
+  ### 🐞 How do I submit a bug report? ###
+  </summary>
 
   First, check to see if the problem you are having has already been added to the [issue tracker](https://github.com/tdseher/addtag-project/issues).
   If not, then please submit a new issue.
