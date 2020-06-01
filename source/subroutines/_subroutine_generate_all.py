@@ -826,7 +826,7 @@ class GenerateAllParser(subroutine.Subroutine):
         #       So this needs to be modified so that it DOES (somehow)...
         
         print('# reTarget results')
-        header = ['# gene', 'features', 'weight', 'reTarget name', 'reTarget sequence', 'OT:Hsu-Zhang', 'OT:CFD', 'Azimuth', 'exDonors', 'us-trim:mAT:ds-trim', 'feature:contig:strand:start..end', 'warnings']
+        header = ['# gene', 'features', 'weight', 'reTarget name', 'reTarget sequence'] + ['OT:{}'.format(x) for x in args.offtargetfilters] + [x for x in args.ontargetfilters] + ['exDonors', 'us-trim:mAT:ds-trim', 'feature:contig:strand:start..end', 'warnings']
         print('\t'.join(header))
         
         results = []
@@ -856,13 +856,16 @@ class GenerateAllParser(subroutine.Subroutine):
             ex_donors = ','.join([ x[1].name for x in sorted(ex_donors, key=lambda y: int(y[1].name.split('-')[1])) ])
             join_code = ','.join('{}:{}:{}'.format(x[1], x[0], x[2]) for x in join_code)
             
-            othz = round(rt.off_targets['Hsu-Zhang'], 2)
-            otcfd = round(rt.off_targets['CFD'], 2)
-            azimuth = round(rt.score['Azimuth'], 2)
+            #othz = round(rt.off_targets['Hsu-Zhang'], 2)
+            #otcfd = round(rt.off_targets['CFD'], 2)
+            #azimuth = round(rt.score['Azimuth'], 2)
+            
+            off_scores = [round(rt.off_targets[x], 2) for x in args.offtargetfilters]
+            on_scores = [round(rt.score[x], 2) for x in args.ontargetfilters]
             
             warnings = 'None'
             
-            results.append([genes, features, weight, rt.name, rt.format_sequence(), othz, otcfd, azimuth, ex_donors, join_code, positions, warnings])
+            results.append([genes, features, weight, rt.name, rt.format_sequence()] + off_scores + on_scores + [ex_donors, join_code, positions, warnings])
         
         for r in results:
             print('\t'.join(map(str, r)))
@@ -880,7 +883,7 @@ class GenerateAllParser(subroutine.Subroutine):
         # Based on the primer pair weights, AND the 'exTarget' weights, the
         # possible 'reDonor's can be given weights, which can be used to
         # rank them
-        header = ['# gene', 'features', 'weight', 'exTarget name', 'exTarget sequence', 'OT:Hsu-Zhang', 'OT:CFD', 'Azimuth', 'reDonors', 'None', 'feature:contig:strand:start..end', 'warnings']
+        header = ['# gene', 'features', 'weight', 'exTarget name', 'exTarget sequence'] + ['OT:{}'.format(x) for x in args.offtargetfilters] + [x for x in args.ontargetfilters] + ['reDonors', 'None', 'feature:contig:strand:start..end', 'warnings']
         print('\t'.join(header))
         
         results = []
@@ -937,13 +940,16 @@ class GenerateAllParser(subroutine.Subroutine):
             
             join_code = 'None'
             
-            othz = round(et.off_targets['Hsu-Zhang'], 2)
-            otcfd = round(et.off_targets['CFD'], 2)
-            azimuth = round(et.score['Azimuth'], 2)
+            #othz = round(et.off_targets['Hsu-Zhang'], 2)
+            #otcfd = round(et.off_targets['CFD'], 2)
+            #azimuth = round(et.score['Azimuth'], 2)
+            
+            off_scores = [round(et.off_targets[x], 2) for x in args.offtargetfilters]
+            on_scores = [round(et.score[x], 2) for x in args.ontargetfilters]
             
             warnings = 'None'
             
-            results.append([genes, features, weight, et.name, et.format_sequence(), othz, otcfd, azimuth, re_donors, join_code, positions, warnings])
+            results.append([genes, features, weight, et.name, et.format_sequence()] + off_scores + on_scores + [re_donors, join_code, positions, warnings])
         
         for r in results:
             print('\t'.join(map(str, r)))

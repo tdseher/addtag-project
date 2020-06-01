@@ -834,6 +834,47 @@ def build_regex(iupac_sequence, case_sensitive=False, max_substitutions=0, max_i
     compiled_regex = regex.compile(pattern, flags=myflags)
     return compiled_regex
 
+def random_disambiguated_sequence(sequence):
+    iupac = {
+        'a': ['a'],
+        'c': ['c'],
+        'g': ['g'],
+        't': ['t'],
+        'r': ['a', 'g'],
+        'y': ['c', 't'],
+        'm': ['a', 'c'],
+        'k': ['g', 't'],
+        'w': ['a', 't'],
+        's': ['c', 'g'],
+        'b': ['c', 'g', 't'],
+        'd': ['a', 'g', 't'],
+        'h': ['a', 'c', 't'],
+        'v': ['a', 'c', 'g'],
+        'n': ['a', 'c', 'g', 't'],
+        
+        'A': ['A'],
+        'C': ['C'],
+        'G': ['G'],
+        'T': ['T'],
+        'R': ['A', 'G'],
+        'Y': ['C', 'T'],
+        'M': ['A', 'C'],
+        'K': ['G', 'T'],
+        'W': ['A', 'T'],
+        'S': ['C', 'G'],
+        'B': ['C', 'G', 'T'],
+        'D': ['A', 'G', 'T'],
+        'H': ['A', 'C', 'T'],
+        'V': ['A', 'C', 'G'],
+        'N': ['A', 'C', 'G', 'T'],
+        
+        '.': ['.'],
+    }
+    out = []
+    for s in sequence:
+        out.append(random.choice(iupac[s]))
+    return ''.join(out)
+
 def disambiguate_iupac(iupac_sequence, kind="dna"):
     """converts a string containing IUPAC nucleotide sequence to a list
     of non-iupac sequences.

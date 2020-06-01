@@ -11,13 +11,6 @@ import logging
 # Import non-standard packages
 import regex
 
-# Import included AddTag-specific modules
-from . import nucleotides
-
-
-
-
-
 class Node(object):
     def __init__(self, data=None, parent=None, quant=(1,1)):
         self.data = data
@@ -184,10 +177,17 @@ class Motif(object):
         self.parsed_list, self.spacer_sense_cuts, self.spacer_antisense_cuts, self.pam_sense_cuts, self.pam_antisense_cuts = self.parse_motif(self.motif_string)
         
         # Build the regex string: '((?:[ACGT][ACGT][ACGT])|(?:[ACGT][ACGT][ACGT][ACGT])|(?:[ACGT][ACGT][ACGT][ACGT][ACGT]))((?:[ACGT][AG]G))'
-        self.regex_string = self.build_motif_regex(self.parsed_list[0], self.parsed_list[1], self.parsed_list[2])
+        self.regex_string = self.build_motif_regex(self.parsed_list[0], self.parsed_list[1], self.parsed_list[2], errors=False)
+        #self.regex_string_with_errors = self.build_motif_regex(self.parsed_list[0], self.parsed_list[1], self.parsed_list[2], errors=True)
+        
         
         # Compile the regex
         self.compiled_regex = self.compile_regex(self.regex_string, ignore_case=True)
+        #self.compiled_regex_with_errors = self.compile_regex(self.regex_string_with_errors, ignore_case=True, best_match=True)
+        
+        self.regex_string_with_errors = None
+        self.compiled_regex_with_errors = None
+        self.find_best_fit() # Returns values that we don't capture
         
         # Save object to publicly-accessible, class list
         self.motifs.append(self)
@@ -216,8 +216,17 @@ class Motif(object):
         #                              and           NNNNNNNNNNNNN|NNNNNNN>NGG
         #       Alternatiely, just rely on whether-or-not the left quantifier is smaller than the right quantifier?
         #       N{12,14}|N{8,6}>NGG
+        #       
+        #       Another idea: if you want to have multiple sets of matching delimiter pairs,
+        #       Then you just duplicate the 'brace' symbol. This eliminates the need for hard-to-type delimiters
+        #       Also, the range within each set needs to be equal
+        #       Here is an example:
+        #         N{3,5}A{{2,3}}|T{{6,5}}N{2,0}>NG{1,3}
+        #       The {} braces all have a range of 3
+        #       The {{}} braces all have a range of 2
         
         # Possible quantifier delimiters
+        # Two-sided/paired
         #   N┤6,7├
         #   N╣6,7╠
         #   N╡6,7╞
@@ -234,11 +243,21 @@ class Motif(object):
         #   N←6,7→
         #   N﴾6,7﴿
         
+        # Non-sided/unpaired
+        #   N_6,7_
+        #   N-6,7-
+        #   Nx6,7x
+        #   N^6,7^
+        
         # Possible cut characters
         #   sense, antisense, both
         #   /\|   '\' can be an escape
         #   ^v|   'v' is reserved
         #   *.|   '.' is reserved
+        #   ⁰₀0   Hard to type
+        #   ⁺₊+   Hard to type
+        #   ⁻₋-   Hard to type
+        #   ⁼₌=   Hard to type
         #   !¡|   '¡' is hard to type
         #   ?¿|   '¿' is hard to type
         #   ↑↓↕   best, but hard to type
@@ -381,23 +400,136 @@ class Motif(object):
         c = regex.compile(re_pattern, flags=myflags) # regex.ENHANCEMATCH|regex.IGNORECASE
         return c
     
-    def build_motif_regex(self, spacers, pams, side, anchored=False):
+    def find_best_fit(self, sequence=None):
+        '''
+        this permits errors
+        tries to match PAM as fully as possible
+        outputs:
+         (SPACER, PAM, FUZZY_COUNTS)
+        '''
+        # PAM must always before SPACER when including fuzzy errors
+        # Due to an undocumented quirk of the regex module, we need to always list the PAM sequence
+        # before the SPACER sequence, regardless of the side='>' or '<
+        # But this only matters if we are using FUZZY regex
+        
+        spacers, pams, side = self.parsed_list
+        
+        if not sequence:
+            from .nucleotides import random_disambiguated_sequence
+            
+            if (side == '>'): # SPACER>PAM
+                sequence = random_disambiguated_sequence(spacers[0] + pams[0])
+            elif (side == '<'): # PAM<SPACER
+                sequence = random_disambiguated_sequence(pams[0] + spacers[0])
+        
+        if not self.regex_string_with_errors:
+            if (side == '>'): # SPACER>PAM
+                # We reverse the order of each string, then we later reverse it again to undo
+                spacer_pattern = '(' + '|'.join([self.ambiguous_seq_to_regex(x[::-1]) for x in spacers]) + '){e}'
+                pam_pattern = '(' + '|'.join([self.ambiguous_seq_to_regex(x[::-1]) for x in pams]) + '){e}'
+            
+            elif (side == '<'): # PAM<SPACER
+                spacer_pattern = '(' + '|'.join([self.ambiguous_seq_to_regex(x) for x in spacers]) + '){e}'
+                pam_pattern = '(' + '|'.join([self.ambiguous_seq_to_regex(x) for x in pams]) + '){e}'
+            
+            self.regex_string_with_errors = pam_pattern + spacer_pattern
+            self.compiled_regex_with_errors = self.compile_regex(self.regex_string_with_errors, ignore_case=True, best_match=True)
+        
+        if (side == '>'): # SPACER>PAM
+            m = self.compiled_regex_with_errors.fullmatch(sequence[::-1])
+            return m.group(2)[::-1], m.group(1)[::-1], m.fuzzy_counts
+        elif (side == '<'): # PAM<SPACER
+            m = self.compiled_regex_with_errors.fullmatch(sequence)
+            return m.group(2), m.group(1), m.fuzzy_counts
+    
+    def build_motif_regex(self, spacers, pams, side, anchored=False, errors=False):
         """
         Returns regex pattern string for motif
         """
-        spacer_pattern = '(' + '|'.join([self.build_regex_pattern(x, capture=False) for x in spacers]) + ')'
-        pam_pattern = '(' + '|'.join([self.build_regex_pattern(x, capture=False) for x in pams]) + ')'
+        if errors:
+            spacer_tail = '{e}'
+            pam_tail = '{e}' # Bug when changed to {s}
+        else:
+            spacer_tail = ''
+            pam_tail = ''
+        
+        #spacer_pattern = '(' + '|'.join([self.build_regex_pattern(x, capture=False) for x in spacers]) + spacer_tail + ')'
+        #pam_pattern = '(' + '|'.join([self.build_regex_pattern(x, capture=False) for x in pams]) + pam_tail + ')'
+        spacer_pattern = '(' + '|'.join([self.ambiguous_seq_to_regex(x) for x in spacers]) + ')' + spacer_tail
+        pam_pattern = '(' + '|'.join([self.ambiguous_seq_to_regex(x) for x in pams]) + ')' + pam_tail
+        
+        
         if (side == '>'): # SPACER>PAM
             if anchored:
-                re_pattern = '^'+ spacer_pattern + pam_pattern + '$'
+                re_pattern = '^' + spacer_pattern + pam_pattern + '$'
             else:
                 re_pattern = spacer_pattern + pam_pattern
         elif (side == '<'): # PAM<SPACER
             if anchored:
-                re_pattern = '^'+ pam_pattern + spacer_pattern + '$'
+                re_pattern = '^' + pam_pattern + spacer_pattern + '$'
             else:
                 re_pattern = pam_pattern + spacer_pattern
         return re_pattern
+    
+    def ambiguous_seq_to_regex(self, ambiguous_sequence):
+        # Convert the IUPAC sequence to an equivalent regex
+        iupac = {
+            'a': 'a',
+            'c': 'c',
+            'g': 'g',
+            't': 't',
+            'r': '[ag]',
+            'y': '[ct]',
+            'm': '[ac]',
+            'k': '[gt]',
+            'w': '[at]',
+            's': '[cg]',
+            'b': '[cgt]',
+            'd': '[agt]',
+            'h': '[act]',
+            'v': '[acg]',
+            'n': '[acgt]',
+            
+            'A': 'A',
+            'C': 'C',
+            'G': 'G',
+            'T': 'T',
+            'R': '[AG]',
+            'Y': '[CT]',
+            'M': '[AC]',
+            'K': '[GT]',
+            'W': '[AT]',
+            'S': '[CG]',
+            'B': '[CGT]',
+            'D': '[AGT]',
+            'H': '[ACT]',
+            'V': '[ACG]',
+            'N': '[ACGT]',
+            
+            '.': '.', # Any character
+        
+        # These stranded cuts shouldn't be present in input. If they are, then an error should be raised
+        #    '|': r'\|', # Double-stranded cut
+        #    '/': r'\/', # Sense cut
+        #    '\\': r'\\', # anti-sense cut
+        }
+        #pattern = ''.join(map(lambda x: iupac[x], ambiguous_sequence))
+        
+        char_list = []
+        quant_list = []
+        for nt in ambiguous_sequence:
+            if (len(char_list) > 0):
+                if (nt == char_list[-1]):
+                    quant_list[-1] += 1
+                else:
+                    char_list.append(nt)
+                    quant_list.append(1)
+            else:
+                char_list.append(nt)
+                quant_list.append(1)
+        pattern = ''.join(iupac[x]+'{'+str(y)+'}' if (y > 1) else iupac[x] for x,y in zip(char_list, quant_list))
+        
+        return pattern
     
     def build_regex_pattern(self, iupac_sequence, max_substitutions=0, max_insertions=0, max_deletions=0, max_errors=0, capture=True):
         """
@@ -475,6 +607,8 @@ class Motif(object):
         Generate a random sequence according to input sequence composition
         or with uniform composition of None.
         """
+        from . import nucleotides
+        from . import bartag
         
         if compositions:
             seqs = []

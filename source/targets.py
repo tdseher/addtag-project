@@ -360,7 +360,7 @@ class Target(object):
                     'locations=' + str(len(obj.locations)),
                     'alignments=' + str(len([a for a in obj.alignments if a.postfilter])) + '/' + str(len(obj.alignments)),
                     'on-target=' + str(round(obj.score['Azimuth'], 2)),
-                    'off-target=' + str(round(obj.off_targets['Hsu-Zhang'], 2)),
+                    'off-target=' + str(round(obj.off_targets['Hsu-Zhang'], 2)), # TODO: Change this to be only the Algorithms specified by the user on the command line
                     'pam=' + obj.pam
                 ]), file=flo)
                 print(obj.spacer, file=flo)
@@ -661,7 +661,9 @@ class Target(object):
         # because this uses the Target.start and Feature.start, this metric is asymmetrical with regards to Feature.orientation
         f_position, f_length, f_orientation = aligned_start-f.start, f.end-f.start, f.strand
         
-        aligned_target, aligned_pam, aligned_motif = self.split_spacer_pam(aligned_sequence, args)
+        #aligned_target, aligned_pam, aligned_motif = self.split_spacer_pam(aligned_sequence, args)
+        aligned_target, aligned_pam, aligned_motif = self.match_best_motif(aligned_sequence, args) # New code
+        
         #aligned_parsed_motif = args.parsed_motifs[args.motifs.index(aligned_motif)]
         #aligned_parsed_motif = aligned_motif.parsed_list
         if ((aligned_target != None) and (aligned_pam != None)):
@@ -683,21 +685,21 @@ class Target(object):
             print('Cannot add alignment:', aligned_sequence, aligned_contig, aligned_start, aligned_end, aligned_orientation, file=sys.stderr)
     
     def split_spacer_pam(self, sequence, args):
-        #for i in range(len(args.parsed_motifs)):
+        # TODO: See below FIXME
+        # FIXME: the 'PAM-Identity' messes up when both '--motifs' and '--off_target_motifs' are specified
+        #        For instance, an alignment that is GGG is sometimes evaluated against 'NAG' instead of 'NGG'
+        #        This leads to a PAM-identity of '54.55' instead of '100.00'
+        #        WHY is it evaluating against the off-target-motif and not the on-target motif?
         for motif in OnTargetMotif.motifs:
-            #spacers, pams, side = args.parsed_motifs[i]
             spacers, pams, side = motif.parsed_list
-            #compiled_regex = args.compiled_motifs[i]
             m = nucleotides.motif_conformation2(sequence, side, motif.compiled_regex)
-            
-            # If the motif matches, then return it immediately
-            if m:
+            if m: # If the motif matches, then return it immediately
                 return m[0], m[1], motif # spacer, pam, motif
         
         for motif in OffTargetMotif.motifs:
             spacers, pams, side = motif.parsed_list
             m = nucleotides.motif_conformation2(sequence, side, motif.compiled_regex)
-            if m:
+            if m: # If the motif matches, then return it immediately
                 return m[0], m[1], motif
     
         # If the motif does not match, then fudge it for an off-target/on-target motif
@@ -710,7 +712,29 @@ class Target(object):
                 return sequence[:-l], sequence[-l:], motif # spacer, pam, motif
             else: #elif (side == '<'):
                 l = max(map(len, pams))
-                return seq[:l], seq[l:], motif # spacer, pam, motif
+                return sequence[:l], sequence[l:], motif # spacer, pam, motif
+    
+    def match_best_motif(self, sequence, args):
+        '''
+        Will try finding the motif that matches BEST with the input sequence. 
+        '''
+        motif_list = OnTargetMotif.motifs + OffTargetMotif.motifs
+        spacer_list = []
+        pam_list = []
+        fuzzy_counts_list = []
+        for motif in motif_list:
+            #spacers, pams, side = motif.parsed_list
+            spacer, pam, fuzzy_counts = motif.find_best_fit(sequence)
+            spacer_list.append(spacer)
+            pam_list.append(pam)
+            fuzzy_counts_list.append(fuzzy_counts)
+        
+        # Sort by (first) sum, then deletions, insertions, and substitutions (last)
+        order = sorted(zip(range(len(fuzzy_counts_list)), fuzzy_counts_list), key=lambda x: (sum(x[1]),)+x[1][::-1])
+        
+        # Select the best motif that has the LEAST differences (smallest fuzzy_counts)
+        best_i = order[0][0]
+        return spacer_list[best_i], pam_list[best_i], motif_list[best_i]
     
     def get_features(self):
         """Return (sorted) list of all feature names this Target maps to"""
@@ -830,7 +854,7 @@ class Target(object):
             for f in list(on_target_features):
                 on_target_features.update(homologs.get(f, set()))
         
-        self.logger.info('on_target_features' + str(on_target_features))
+        self.logger.info('on_target_features' + str(on_target_features)) # FIXME: This info output is messed up in log file. Find out why.
         # Check each alignment
         for a in self.alignments:
             a_features = None
