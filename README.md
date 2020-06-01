@@ -53,7 +53,7 @@ Memory:
  * ≥ 1 Gb (for ![Target][Target] evaluation)
  * ≥ 32 Gb (for ![Primer][Primer] evaluation)
 
-See [Notes](#-notes) for tips on memory optimization.
+See [Notes](#notes) for tips on memory optimization.
 
 ### Software requirements ###
 
