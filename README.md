@@ -28,9 +28,9 @@ Basic Features:
    * [x] Supports arbitrary ![PAM][PAM] sequences (MAD7: `YTTN<`, Cas12d: `TA<`, BlCas9: `>NGGNCNDD`, etc).
    * [x] Uses stranded forward (`/`), reverse (`\`) and unstranded (`|`) cut sites.
    * [x] Supports ![PAM][PAM] sequences defined by complex nested logic, such as xCas9 (`>(N{1,2}G,GAW,CAA)`)
-   * [x] Calculates any number of **on-target** and **off-target** scores (see [Algorithms](#supported-scoring-algorithms)).
+   * [x] Calculates any number of **on-target** and **off-target** scores (see [Algorithms](#-supported-scoring-algorithms)).
    * [x] Finds homology-aware ![Target][Target]s (**multi-allelic**, **allele-specific**, and **allele-agnostic**).
-   * [x] Searches for ![Target][Target]s using selectable pairwise alignment program (see [Aligners](#supported-sequence-aligners)).
+   * [x] Searches for ![Target][Target]s using selectable pairwise alignment program (see [Aligners](#-supported-sequence-aligners)).
  * [x] Generates exogenous, donor DNAs (![dDNA][dDNA]s) to modify the same locus successively.
    * [x] Assembles unique ![Target][Target] sites (on ![dDNA][dDNA]s), thus maximizing **on-target** and **off-target** scores (because they don't resemble any input gDNA).
    * [x] Adds unique ![Target][Target]s to ![dDNA][dDNA]s without inserting sequences (or while introducing minimal amounts of extrinsic DNA).
@@ -51,7 +51,7 @@ Computations scale fairly linearly, so the more computational cores you can assi
 
 Memory:
  * ≥ 1 Gb (for ![Target][Target] evaluation)
- * ≥ 32 Gb (for ![Primer][Primer] evaluation)
+ * 4-128 Gb (for ![Primer][Primer] evaluation)
 
 See [Notes](#notes) for tips on memory optimization.
 
@@ -248,7 +248,7 @@ As a consequence, the version information will not be accessible.
 > addtag missing (revision missing)
 > ```
 To fix this, simply ensure `git` is installed and available in the `PATH` environment variable
-(See [Software prerequisites](#-basic-prerequisites)), and run the following:
+(See [Software prerequisites](#basic-prerequisites)), and run the following:
 ```sh
 ./addtag update
 ```
