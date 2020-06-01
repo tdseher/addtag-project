@@ -248,14 +248,18 @@ class Doench2016(PairedSequenceAlgorithm):
         # Start with a perfect score
         score = 1
         
-        # Ensure inputs are RNA sequences
-        seq2 = seq2.replace('T','U')
+        # Make upper-case
+        seq1 = seq1.upper()
+        seq2 = seq2.upper()
+        
+        # Ensure seq1 is RNA, and seq2 is DNA
         seq1 = seq1.replace('T','U')
+        seq2 = seq2.replace('U','T')
         
         # Make algorithm function for spacers greater than 20 nt
         # by trimming off the left-most bases
-        seq2 = seq2[-max_length:]
         seq1 = seq1[-max_length:]
+        seq2 = seq2[-max_length:]
         
         # Modify algorithm to allow for less than 20 nt gRNAs
         # loop should start at far-right (of longer sequence) and move left
@@ -263,8 +267,9 @@ class Doench2016(PairedSequenceAlgorithm):
         #for i in range(-1, -len(shorter)-1, -1):
         for i in range(-len(shorter), 0):
             if (seq1[i] != seq2[i]):
-                key = 'r'+seq1[i]+':d'+rc(seq2[i], kind="rna")+','+str(20+i+1)
-                score *= MISMATCH_SCORES[key]
+                if ((seq1[i] == 'U') and (seq2[i] != 'T')):
+                    key = 'r'+seq1[i]+':d'+rc(seq2[i], kind="dna")+','+str(20+i+1)
+                    score *= MISMATCH_SCORES[key]
         
         # Reduce the score multiplicatively if there is a mismatch
         #for i in range(len(seq2)):
