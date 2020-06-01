@@ -99,16 +99,16 @@ class PolyT(SingleSequenceAlgorithm):
 def test():
     """Code to test the functions and classes"""
     
-    a = ('', 'CGATGGCTAGGATCGATTGA', 'TGG', '', '') # 2.0
-    b = ('', 'RYMKWSACGTbDHVNACGTA', 'TGG', '', '') # 1.9999999999999998
-    c = ('',   'ATGSCTCGGATCGATTGA', 'AGG', '', '') # 2.0
-    d = ('',             'ACATGTTG', 'AGG', '', '') # 2.0
-    e = ('',           'ACATGTTNTG', 'AGG', '', '') # 3.25
-    f = ('',                    'W', 'AGG', '', '') # 0.5
-    g = ('',                    'h', 'AGG', '', '') # 0.3333333333333333
-    h = ('',                    'N', 'AGG', '', '') # 0.25
-    i = ('', 'AACTTTTTYCCATTNTTTTT', 'GGG', '', '') # 7.25
-    
+    a = ('', '>', 'CGATGGCTAGGATCGATTGA', 'TGG', '', '') # 2.0
+    b = ('', '>', 'RYMKWSACGTbDHVNACGTA', 'TGG', '', '') # 1.9999999999999998
+    c = ('', '>',   'ATGSCTCGGATCGATTGA', 'AGG', '', '') # 2.0
+    d = ('', '>',             'ACATGTTG', 'AGG', '', '') # 2.0
+    e = ('', '>',           'ACATGTTNTG', 'AGG', '', '') # 3.25
+    f = ('', '>',                    'W', 'AGG', '', '') # 0.5
+    g = ('', '>',                    'h', 'AGG', '', '') # 0.3333333333333333
+    h = ('', '>',                    'N', 'AGG', '', '') # 0.25
+    i = ('', '>', 'AACTTTTTYCCATTNTTTTT', 'GGG', '', '') # 7.25
+    '>', 
     print("=== PolyT ===")
     C = PolyT()
     print(C.calculate(a))
