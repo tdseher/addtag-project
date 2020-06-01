@@ -42,6 +42,21 @@ Basic Features:
 
 ## 📋 Requirements ##
 
+### Hardware recommendations ###
+
+Processor:
+ * ≥ 4 cores, ≥ 3 GHz
+
+Computations scale fairly linearly, so the more computational cores you can assign to the task, the faster it will go.
+
+Memory:
+ * ≥ 1 Gb (for ![Target][Target] evaluation)
+ * ≥ 32 Gb (for ![Primer][Primer] evaluation)
+
+See [Notes](#-notes) for tips on memory optimization.
+
+### Software requirements ###
+
 Below are lists AddTag requirements. Each entry is marked with a ☑ or ☐, indicating whether or not an additional download/setup is required:
 
  * [x] All requirements included in AddTag
@@ -49,7 +64,7 @@ Below are lists AddTag requirements. Each entry is marked with a ☑ or ☐, ind
 
 For tips on setting up AddTag requirements, please review the commands in the `.azure-pipelines.yml` file.
 
-### Basic requirements ###
+#### Basic prerequisites ####
 
 Base operation of AddTag requires the following:
 
@@ -61,7 +76,7 @@ Certain optional AddTag functionality (version information, and software updates
 
  * [ ] Git ≥ 1.7.1 ([source](https://github.com/git/git), [binaries](https://git-scm.com/downloads), [documentation](https://git-scm.com/doc))
 
-### 📐 Supported sequence Aligners ###
+#### 📐 Supported sequence Aligners ####
 
 One pairwise sequence aligner is required:
 
@@ -85,11 +100,11 @@ For speed, we recommend at least one third-party pairwise nucleotide sequence al
  * [ ] Usearch
 -->
 
-For polymorphism-aware ![Feature][Feature] expansion, one multiple sequence aligner is required:
+For polymorphism-aware ![Feature][Feature] expansion (using the `--homologs` option), one multiple sequence aligner is required:
 
  * [ ] MAFFT ([source](https://mafft.cbrc.jp/alignment/software/source.html), [binaries](https://mafft.cbrc.jp/alignment/software/), [documentation](https://mafft.cbrc.jp/alignment/software/manual/manual.html))
 
-### 🌡 Supported thermodynamics calculators ###
+#### 🌡 Supported thermodynamics calculators ####
 
 For oligo design, AddTag requires one of the following third-party thermodynamics solutions to be installed:
 
@@ -99,7 +114,7 @@ For oligo design, AddTag requires one of the following third-party thermodynamic
 
  * [ ] ViennaRNA Python module ([source](https://github.com/ViennaRNA/ViennaRNA), [official binaries](https://www.tbi.univie.ac.at/RNA/index.html#download), [bioconda binaries](https://anaconda.org/bioconda/viennarna/files), [documentation](https://www.tbi.univie.ac.at/RNA/documentation.html))
 
-### 📈 Supported scoring Algorithms ###
+#### 📈 Supported scoring Algorithms ####
 
 The following scoring algorithms are subclasses of `SingleSequenceAlgorithm`.
 
@@ -152,7 +167,7 @@ The following scoring algorithms are subclasses of `PairedSequenceAlgorithm`.
 
  * [x] Linear
 
-### Python package setup ###
+#### Python package setup ####
 There are several standard ways to make modules available to your Python installation. The easy way to install a package this is through `pip`.
 
 For example, the following code will download and setup the `regex` package from [PYPI](https://pypi.org/) into your default Python installation.
@@ -202,6 +217,49 @@ On Linux or macOS, run:
 ```sh
 export PATH=$PATH:$PWD
 ```
+
+If you run AddTag with no parameters, you should get the following output:
+```
+usage: addtag [-h] [-v] action ...
+```
+
+#### Special note ####
+One way to obtain AddTag is by downloading and extracting the code directly from GitHub:
+```sh
+wget https://github.com/tdseher/addtag-project/archive/master.zip
+unzip master.zip
+cd addtag-project-master/
+```
+
+If you try running `addtag`, you will get a message similar to the following:
+```sh
+./addtag
+```
+> ```
+> fatal: Not a git repository (or any parent up to mount point /media/sf_VirtualBox_share)
+> Stopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).
+> ```
+This message means that the AddTag directory isn't a valid `git` repository (it is missing the `.git` subfolder).
+As a consequence, the version information will not be accessible.
+```sh
+./addtag --version
+```
+> ```
+> addtag missing (revision missing)
+> ```
+To fix this, simply ensure `git` is installed and available in the `PATH` environment variable
+(See [Software prerequisites](#-basic-prerequisites)), and run the following:
+```sh
+./addtag update
+```
+
+Now, when you run `addtag`, you should not receive the warnings, and the version field will be populated.
+```sh
+./addtag --version
+```
+> ```
+> addtag 9e8748b (revision 460)
+> ```
 
 ## 🔁 Updating AddTag ##
 The commands in this section assume the working directory is the AddTag folder.
@@ -254,34 +312,34 @@ man ./addtag.1
 
 #### FASTA input ####
 AddTag requires a FASTA genome of the organism you wish to manipulate. FASTA files resemble the following:
-```fasta
->primary_header1 attribute1=value1 attribute2=value2
-NNNNCGAAATCGGCGCATAGGCCTAAGAGCTCCTATAGAGATCGATATAAAC
-GCTAGAAGATAGAGAGAGGCTCGCGCTCGATCGCGATAAGAGAGCTCTCGGC
-CGATAGAGGAATCTCGggctcgcatatatyhcgcggcatatGGCCTAGAGGA
-CCAATAAAGATATATAGCCTAAAGGAATATATAGAGAGATATATATAGNNNN
->primary_header2 attribute1=value1 attribute2=value2
-AGCTAGAGACWWWCTCCTCTCCTAGAGASSSAGAGGAGAGCTCTCCGAGAGA
-CGCTCGCTCGTATGCCTCTATATCGATATATAGGAGAATCCTCGATATATAG
-```
+> ```fasta
+> >primary_header1 attribute1=value1 attribute2=value2
+> NNNNCGAAATCGGCGCATAGGCCTAAGAGCTCCTATAGAGATCGATATAAAC
+> GCTAGAAGATAGAGAGAGGCTCGCGCTCGATCGCGATAAGAGAGCTCTCGGC
+> CGATAGAGGAATCTCGggctcgcatatatyhcgcggcatatGGCCTAGAGGA
+> CCAATAAAGATATATAGCCTAAAGGAATATATAGAGAGATATATATAGNNNN
+> >primary_header2 attribute1=value1 attribute2=value2
+> AGCTAGAGACWWWCTCCTCTCCTAGAGASSSAGAGGAGAGCTCTCCGAGAGA
+> CGCTCGCTCGTATGCCTCTATATCGATATATAGGAGAATCCTCGATATATAG
+> ```
 FASTA files are plain text files that use newline (`\n` or `\r\n`) characters as delimiters. If a line begins with a greater than (`>`) symbol, it represents the start of a new sequence record. All characters between the `>` and `\n` are considered the 'header' of the record. Everything between the `>` and the first whitespace character (` ` or `\t`), if one exists, is considered the 'primary identifier' for the record. All subsequent lines until the next 'header' line contain the sequence information for that record. Therefore FASTA files can contain many sequence records. Each record in a genome assembly's FASTA file is called a 'contig'. 
 
 Typically, the DNA sequence information in FASTA files are list a bunch of canonical nucletide abbreviations (`ACGT`). However, FASTA files can contain any number of ambiguous characters (`RYMKWSBDHVN`), which can represent allelic variation expected within the sample or sequencing uncertainty. FASTA files can also contain a mix of `UPPER` and `lower` cased characters. Typical use for `lower` case characters is to exclude these residues from ![Target][Target] or ![Primer][Primer] identification. 
 
 #### GFF input ####
 AddTag requires a GFF file containing annotations for the Features you wish to manipulate ([technical specifications of GFF format](https://github.com/The-Sequence-Ontology/Specifications/blob/master/gff3.md)). GFF files resemble the following:
-```gff
-# seqid	source	feature	start	end	score	strand	frame	attribute
-C1A	DB	gene	3489	5146	.	+	.	ID=C1A_001;Name=C1_001;Gene=GENE1
-C1A	DB	mRNA	3489	5146	.	+	.	ID=C1A_001-T;Parent=C1A_001
-C1A	DB	exon	3489	5146	.	+	.	ID=C1A_001-T-E1;Parent=C1A_001-T
-C1A	DB	CDS	3489	5146	.	+	0	ID=C1A_001-P;Parent=C1A_001-T
-
-C1B	DB	gene	3267	4924	.	+	.	ID=C1B_001
-C1B	DB	mRNA	3267	4924	.	+	.	ID=C1B_001-T;Parent=C1B_001
-C1B	DB	exon	3267	4924	.	+	.	ID=C1B_001-T-E1;Parent=C1B_001-T
-C1B	DB	CDS	3267	4924	.	+	0	ID=C1B_001-P;Parent=C1B_001-T
-```
+> ```gff
+> # seqid	source	feature	start	end	score	strand	frame	attribute
+> C1A	DB	gene	3489	5146	.	+	.	ID=C1A_001;Name=C1_001;Gene=GENE1
+> C1A	DB	mRNA	3489	5146	.	+	.	ID=C1A_001-T;Parent=C1A_001
+> C1A	DB	exon	3489	5146	.	+	.	ID=C1A_001-T-E1;Parent=C1A_001-T
+> C1A	DB	CDS	3489	5146	.	+	0	ID=C1A_001-P;Parent=C1A_001-T
+> 
+> C1B	DB	gene	3267	4924	.	+	.	ID=C1B_001
+> C1B	DB	mRNA	3267	4924	.	+	.	ID=C1B_001-T;Parent=C1B_001
+> C1B	DB	exon	3267	4924	.	+	.	ID=C1B_001-T-E1;Parent=C1B_001-T
+> C1B	DB	CDS	3267	4924	.	+	0	ID=C1B_001-P;Parent=C1B_001-T
+> ```
 GFF files describe the contig locations of important genomic Features. Empty lines and lines that begin with the pound (`#`) symbol are ignored. Of note is the far-right `attribute` column, which AddTag assumes is a semicolon-delimited set of key/value pairs. AddTag assumes each Feature has a unique identifier. By default, it uses the `ID` attribute as the unique name for each Feature. If your GFF file does not have an `ID` attribute, then you can select a different one with the `--tag` command line option. 
 
 Typical AddTag analyses require at least one GFF file. AddTag can handle GFF files in two ways.
@@ -294,22 +352,22 @@ addtag find_feature --gff genome.fasta --query HSP90 --linked_tags Name Alias Pa
 ```
 
 #### Target motif input  ####
-The Target motif is written from 5' to 3'. Use a greater than (`>`) symbol if your RGN has a 3'-adjacent PAM, and use a less than (`<`) symbol if your RGN has a 5'-adjacent PAM. Ambiguous nucleotide characters are accepted. `{a,b}` are quantifiers. `(a,b,…)` are permitted alternatives. `/` is a sense strand cut, `\` is an antisense strand cut, and `|` is a double-strand cut. `.` is a base used for positional information, but not enzymatic recognition. Be sure to enclose each motif in quotes so your shell does not interpret `STDIN`/`STDOUT` redirection.
+The Target motif is written from 5' to 3'. Use a greater than (`>`) symbol if your ![RGN][RGN] has a 3'-adjacent PAM, and use a less than (`<`) symbol if your ![RGN][RGN] has a 5'-adjacent PAM. Ambiguous nucleotide characters are accepted. `{a,b}` are quantifiers. `(a,b,…)` are permitted alternatives. `/` is a sense strand cut, `\` is an antisense strand cut, and `|` is a double-strand cut. `.` is a base used for positional information, but not enzymatic recognition. Be sure to enclose each motif in quotes so your shell does not interpret `STDIN`/`STDOUT` redirection.
 
 You can specify any number of Target motifs to be considered 'on-target' using the `--motifs` command line option. You can also designate any number of Target motifs to be considered 'off-target' using the `--off_target_motigs` command line option. 
 
-To see an exhaustive list of all identified RGN motifs, run the following command:
+To see an exhaustive list of all identified Target motifs for each known ![RGN][RGN], run the following command:
 ```sh
 addtag list_motifs
 ```
 
 #### Homologs input ####
 Some researchers are lucky enough to get to work on organisms with phased genomes. This means that full haplotype information is known for each chromosome. AddTag can accommodate haploid, diploid, and polyploid genomes when homologous Features are linked by the addition of the `--homologs` command line option. The 'homologs' file has the following format:
-```homologs
-# group	hom_a	hom_b	hom_c
-GENE1	C1A_001	C1B_001
-GENE2	C1A_002	C1B_002	C1C_002
-```
+> ```homologs
+> # group	hom_a	hom_b	hom_c
+> GENE1	C1A_001	C1B_001
+> GENE2	C1A_002	C1B_002	C1C_002
+> ```
 Each Feature identifier has its contig start and end position defined in the input GFF file. The 'homologs' file merely links them together. Columns in the homologs file are delimited by the `\t` character. The first column is the name of the group of Features. Every subsequent column should contain the identifier of a Feature to consider as a homolog. Homolog groups can each have any number of Features. If a Feature identifier appears on multiple lines, then all those Features are linked together as one homolog group. The identifier can be changed with the `--tag` command line option.  
 
 </td></tr></tbody></table>
@@ -335,7 +393,7 @@ The AddTag program contains a set of subroutines that can be run independently. 
 <summary>Click to expand/collapse</summary>
 <table><tbody><tr><td>
 
-Over the past few years, several Algorithms have been proposed to describe RGN behavior within certain biological contexts. We implemented most of the commonly-used ones into the AddTag software. To view information about each, use the following command:
+Over the past few years, several Algorithms have been proposed to describe ![RGN][RGN] behavior within certain biological contexts. We implemented most of the commonly-used ones into the AddTag software. To view information about each, use the following command:
 ```sh
 addtag list_algorithms
 ``` 
@@ -359,7 +417,153 @@ addtag list_thermodynamics
 </td></tr></tbody></table>
 </details>
 
-### Typical workflow for a single Feature ###
+### Typical workflows ###
+
+#### 1-step deletion of a single Feature ####
+<details>
+<summary>Click to expand/collapse</summary>
+<table><tbody><tr><td>
+
+In this simplest of examples, we will choose a Feature to delete from a genome, identify the optimal Target to design the gRNA against, create the necessary dDNA, and generate the set of Primers to validate the deletion.
+
+This process uses a 'nominal' `mintag`, which means the generated dDNA consists of homology arms concatenated together with no insert.
+
+The first step is to obtain input data. Let's download the sequences (FASTA) and annotations (GFF) for a haploid *C. albicans* assembly into the current working directory:
+```sh
+wget ftp://ftp.ncbi.nlm.nih.gov/genomes/refseq/fungi/Candida_albicans/all_assembly_versions/GCF_000182965.3_ASM18296v3/GCF_000182965.3_ASM18296v3_genomic.fna.gz
+gunzip GCF_000182965.3_ASM18296v3_genomic.fna.gz
+wget ftp://ftp.ncbi.nlm.nih.gov/genomes/refseq/fungi/Candida_albicans/all_assembly_versions/GCF_000182965.3_ASM18296v3/GCF_000182965.3_ASM18296v3_genomic.gff.gz
+gunzip GCF_000182965.3_ASM18296v3_genomic.gff.gz
+```
+
+For convenience, let's use a variable to abbreviate these paths:
+```sh
+GENOME=GCF_000182965.3_ASM18296v3_genomic
+```
+
+The 1-step approach is appropriate when the Feature you wish to remove contains a high quality Target within it. We will select a Feature from the GFF file using the `--selection` option.
+
+Let's pretend we are interested in the gene `GCN20`. Let's store it into a variable.
+```sh
+GENE=GCN20
+```
+For the purposes of this walkthrough, `GCN20` is interesting because all its potential Cas9 Targets have several off-targets across the genome.
+Because there is no precise Target, the Algorithm weight is especially useful for balancing the on-target and off-target scores.
+
+If we know its gene ID, we can directly include the option
+`--selection ID`. However, we don't know the ID for this gene, so we can search for it. To do this, we will use
+the `addtag find_feature` subroutine to find all Features associated with `GCN20`:
+```sh
+addtag find_feature --linked_tags --header --query ${GENE} --gff ${GENOME}.gff
+```
+> ```
+> # seqid	source	feature	start	end	score	strand	frame	attribute
+> NC_032089.1	RefSeq	CDS	75573	77828	.	-	0	ID=cds-XP_719022.1;Parent=rna-XM_713929.2;Dbxref=CGD:CAL0000181616,GeneID:3639314,Genbank:XP_719022.1;Name=XP_719022.1;Note=YEF3-subfamily ABC family protein%2C predicted not to be a transporter;gbkey=CDS;gene=GCN20;locus_tag=CAALFM_C100480CA;orig_transcript_id=gnl|WGS:AACQ|mrna_CAALFM_C100480CA;product=putative AAA family ATPase;protein_id=XP_719022.1;transl_table=12
+> NC_032089.1	RefSeq	exon	75573	77828	.	-	.	ID=exon-XM_713929.2-1;Parent=rna-XM_713929.2;Dbxref=GeneID:3639314,Genbank:XM_713929.2;end_range=77828,.;gbkey=mRNA;gene=GCN20;locus_tag=CAALFM_C100480CA;orig_protein_id=gnl|WGS:AACQ|CAALFM_C100480CA;orig_transcript_id=gnl|WGS:AACQ|mrna_CAALFM_C100480CA;partial=true;product=putative AAA family ATPase;start_range=.,75573;transcript_id=XM_713929.2
+> NC_032089.1	RefSeq	gene	75573	77828	.	-	.	ID=gene-CAALFM_C100480CA;Dbxref=GeneID:3639314;Name=GCN20;end_range=77828,.;gbkey=Gene;gene=GCN20;gene_biotype=protein_coding;locus_tag=CAALFM_C100480CA;partial=true;start_range=.,75573
+> NC_032089.1	RefSeq	mRNA	75573	77828	.	-	.	ID=rna-XM_713929.2;Parent=gene-CAALFM_C100480CA;Dbxref=GeneID:3639314,Genbank:XM_713929.2;Name=XM_713929.2;end_range=77828,.;gbkey=mRNA;gene=GCN20;locus_tag=CAALFM_C100480CA;orig_protein_id=gnl|WGS:AACQ|CAALFM_C100480CA;orig_transcript_id=gnl|WGS:AACQ|mrna_CAALFM_C100480CA;partial=true;product=putative AAA family ATPase;start_range=.,75573;transcript_id=XM_713929.2
+> ```
+
+We see there are 4 annotations associated with `GCN20`, each a different Feature type ('CDS', 'exon', 'gene', 'mRNA'), 
+and they all point toward the same 2256 nt on chromosome 1.
+
+Let's choose the Feature type `gene`, and its corresponding attribute ID `gene-CAALFM_C100480CA`.
+
+We will use a Target motif, an on-target score, and an off-target score each appropriate for Cas9. We use default score weights for both `Azimuth` and `CFD`. We want to narrow the specificity by broadening the number of sequences that can be considered off-target, so we specify the `--off_target_motifs` option.
+
+We will keep the rest of the AddTag default options. Our final command to identify the best Target sequences and generate the dDNA is the following:
+```sh
+addtag generate_all \
+  --features gene \
+  --selection gene-CAALFM_C100480CA \
+  --motifs 'N{17}|N{3}>NGG' \
+  --off_target_motifs 'N{17}|N{3}>NAG' \
+  --ontargetfilters Azimuth \
+  --offtargetfilters CFD \
+  --excise_insert_lengths 0 0 \
+  --ko-gRNA \
+  --ko-dDNA mintag \
+  --fasta ${GENOME}.fna \
+  --gff ${GENOME}.gff \
+  --folder ${GENE}g > ${GENE}g.out 2> ${GENE}g.err
+```
+
+This will output a single table, with the best Targets in the top of the output, and the worst toward the bottom.
+```sh
+head ${GENE}g.out 
+```
+> ```
+> # exTarget results
+> # gene	features	weight	exTarget name	exTarget sequence	OT:CFD	Azimuth	reDonors	None	feature:contig:strand:start..end	warnings
+> gene-CAALFM_C100480CA	gene-CAALFM_C100480CA	0.876615628563555	exTarget-96	CCAACGAAACAGTTTTCAGG>GGG	71.63	64.65		None	gene-CAALFM_C100480CA:NC_032089.1:-:76719..76742	None
+> gene-CAALFM_C100480CA	gene-CAALFM_C100480CA	0.6877504215295679	exTarget-110	CATTATTACGTGCCTTGTCG>AGG	57.83	57.84		None	gene-CAALFM_C100480CA:NC_032089.1:-:77090..77113	None
+> gene-CAALFM_C100480CA	gene-CAALFM_C100480CA	0.650732417867368	exTarget-86	CTCTTTCTATGCAACTCGTG>AGG	49.97	59.21		None	gene-CAALFM_C100480CA:NC_032089.1:-:76456..76479	None
+> gene-CAALFM_C100480CA	gene-CAALFM_C100480CA	0.6497399064714101	exTarget-84	ACAGTCTCGTATCAAGAAGT>TGG	47.83	61.06		None	gene-CAALFM_C100480CA:NC_032089.1:-:76324..76347	None
+> gene-CAALFM_C100480CA	gene-CAALFM_C100480CA	0.6373121738894936	exTarget-21	GACTTTCGTATTCACGACGT>TGG	61.75	55.93		None	gene-CAALFM_C100480CA:NC_032089.1:+:76420..76443	None
+> gene-CAALFM_C100480CA	gene-CAALFM_C100480CA	0.6105741443075372	exTarget-117	GAGCGAGGCGTCATTGACAT>TGG	61.2	55.21		None	gene-CAALFM_C100480CA:NC_032089.1:-:77164..77187	None
+> gene-CAALFM_C100480CA	gene-CAALFM_C100480CA	0.49714752260403006	exTarget-56	GGATGAACCGTCCAATCACT>TGG	49.7	54.11		None	gene-CAALFM_C100480CA:NC_032089.1:-:75787..75810	None
+> gene-CAALFM_C100480CA	gene-CAALFM_C100480CA	0.4582728976377312	exTarget-89	AGATATAATCCATCAACACT>CGG	40.04	66.96		None	gene-CAALFM_C100480CA:NC_032089.1:-:76513..76536	None
+> ```
+
+If you run this command again, but omit the `--off_target_motifs` option, you get the following:
+> ```
+> # exTarget results
+> # gene	features	weight	exTarget name	exTarget sequence	OT:CFD	Azimuth	reDonors	None	feature:contig:strand:start..end	warnings
+> gene-CAALFM_C100480CA	gene-CAALFM_C100480CA	0.8776689032281014	exTarget-96	CCAACGAAACAGTTTTCAGG>GGG	74.29	64.65		None	gene-CAALFM_C100480CA:NC_032089.1:-:76719..76742	None
+> gene-CAALFM_C100480CA	gene-CAALFM_C100480CA	0.8360644970889776	exTarget-95	CAACGAAACAGTTTTCAGGG>GGG	50.0	74.38		None	gene-CAALFM_C100480CA:NC_032089.1:-:76718..76741	None
+> gene-CAALFM_C100480CA	gene-CAALFM_C100480CA	0.8056514544867718	exTarget-84	ACAGTCTCGTATCAAGAAGT>TGG	91.67	61.06		None	gene-CAALFM_C100480CA:NC_032089.1:-:76324..76347	None
+> gene-CAALFM_C100480CA	gene-CAALFM_C100480CA	0.7897087206837166	exTarget-30	GTTTAACTCTCTCCTCGACA>AGG	49.97	67.38		None	gene-CAALFM_C100480CA:NC_032089.1:+:77078..77101	None
+> gene-CAALFM_C100480CA	gene-CAALFM_C100480CA	0.7553979473976637	exTarget-86	CTCTTTCTATGCAACTCGTG>AGG	76.79	59.21		None	gene-CAALFM_C100480CA:NC_032089.1:-:76456..76479	None
+> gene-CAALFM_C100480CA	gene-CAALFM_C100480CA	0.7126907697600093	exTarget-110	CATTATTACGTGCCTTGTCG>AGG	73.09	57.84		None	gene-CAALFM_C100480CA:NC_032089.1:-:77090..77113	None
+> gene-CAALFM_C100480CA	gene-CAALFM_C100480CA	0.6433552008729548	exTarget-100	GTATGGTTTGGGTTTCACAA>AGG	72.38	55.81		None	gene-CAALFM_C100480CA:NC_032089.1:-:76756..76779	None
+> gene-CAALFM_C100480CA	gene-CAALFM_C100480CA	0.6373121738894936	exTarget-21	GACTTTCGTATTCACGACGT>TGG	61.75	55.93		None	gene-CAALFM_C100480CA:NC_032089.1:+:76420..76443	None
+> ```
+
+Notice that by including the additional off-target motif, we see generally lower off-target scores (the `OT:CFD` column).
+
+Next we will identify the best cPCR primers for verifying the 'GCN20' full CDS deletion.
+
+
+</td></tr></tbody></table>
+</details>
+
+#### 2-step deletion of a single Feature ####
+<details>
+<summary>Click to expand/collapse</summary>
+<table><tbody><tr><td>
+
+We will delete a Feature that has no Target within it.
+
+*~ Section incomplete ~*
+
+</td></tr></tbody></table>
+</details>
+
+#### 1-step editing of a single Feature ####
+<details>
+<summary>Click to expand/collapse</summary>
+<table><tbody><tr><td>
+
+We will edit a Feature
+
+*~ Section incomplete ~*
+
+</td></tr></tbody></table>
+</details>
+
+#### 2-step editing of a single Feature ####
+<details>
+<summary>Click to expand/collapse</summary>
+<table><tbody><tr><td>
+
+We will edit a Feature that has no Target within it.
+
+*~ Section incomplete ~*
+
+</td></tr></tbody></table>
+</details>
+
+#### 2-step deletion and add-back of a single Feature ####
 <details>
 <summary>Click to expand/collapse</summary>
 <table><tbody><tr><td>
@@ -370,13 +574,13 @@ The standard procedure is to first run `addtag generate_all`, and use its output
 
 For simplicity, We will assume the name of the Feature you are interested in is `GENE`.
 
-The first thing you will want to do, is compose a Target motif for the RGN your biological system uses. To see a list of commonly-used Target motifs, run the following:
+The first thing you will want to do, is compose a Target motif for the ![RGN][RGN] your biological system uses. To see a list of commonly-used Target motifs, run the following:
 ```sh
 addtag list_motifs
 ```
-Let's pretend our biological system uses the 'AsCpf1' RGN. So we will use the associated `TTTN<N{19}/.{4,6}\` Target motif. Thus, we will add `--motifs 'TTTN<N{19}/.{4,6}\'` to the `addtag generate_all` command.
+Let's pretend our biological system uses the 'AsCpf1' ![RGN][RGN]. So we will use the associated `TTTN<N{19}/.{4,6}\` Target motif. Thus, we will add `--motifs 'TTTN<N{19}/.{4,6}\'` to the `addtag generate_all` command.
 
-The next step is to select one or more Algorithms to calculate the 'on-target' and 'off-target' scores for this RGN. To see a list of all implemented Algorithms, run the following:
+The next step is to select one or more Algorithms to calculate the 'on-target' and 'off-target' scores for this ![RGN][RGN]. To see a list of all implemented Algorithms, run the following:
 ```sh
 addtag list_algorithms
 ``` 
@@ -464,12 +668,34 @@ addtag generate_primers \
 </td></tr></tbody></table>
 </details>
 
-### Typical workflow for multiplexed Features ###
+#### 2-step deletion and add-back of a single, phased Feature ####
+<details>
+<summary>Click to expand/collapse</summary>
+<table><tbody><tr><td>
+
+*~ Section incomplete ~*
+
+</td></tr></tbody></table>
+</details>
+
+#### 2-step editing of several Features ####
+<details>
+<summary>Click to expand/collapse</summary>
+<table><tbody><tr><td>
+
+*~ Section incomplete ~*
+
+</td></tr></tbody></table>
+</details>
+
+#### Multiplexed, 2-step editing of several Features ####
 <details>
 <summary>Click to expand/collapse</summary>
 <table><tbody><tr><td>
 
 All Features in input GFF file will be evaluated simultaneously.
+
+*~ Section incomplete ~*
 
 </td></tr></tbody></table>
 </details>
@@ -587,6 +813,7 @@ Below are tips and descriptions of AddTag limitations that will help you make su
  * A corollary of this is that AddTag assumes all input sequences are DNA sequences. So the `--fasta` file specified will be treated as a DNA template. Thus, if there are any non-DNA residues, such as `U`, AddTag will probably fail. Also, since the Primer thermodynamics calculators are all set to estimate DNA:DNA hybridization (not DNA:RNA or RNA:RNA), any resulting calculations will be incorrect. 
  * Since Bartag motifs are user-specified, simple pre-computed lists of compatible 'bartag' sequences would be incomplete. Thus we implemented a greedy 'bartag' generation algorithm. When evaluating candidate 'bartag' sequences, AddTag will keep 'bartags' that satisfy all edit distance requirements with all previously-accepted 'bartags'. To limit runtime to a reasonable amount, we limited the total number of Features and 'bartags' that can be generated.
  * Of special note are things the Primer design does not explicitly consider, such as characteristics of the cPCR template molecule. AddTag does not exploit the differential nature of template sequence composition (e.g. H. sapiens compared to E. coli). Also, AddTag does not use information on the presence of known secondary modifications to the template, such as methylated residues or oxidative damage.
+ * One of the big limitations of this version of AddTag is that the Primer attribute stringencies are held uniform across all regions. You specify this using the `--cycle_start N` and `--cycle_stop N` options. If any one of the desired Primer Pairs is not found under the selected stringency, then no simulated annealing is performed. Cycles range from `N` of 0 to 21, with 0 being the most restrictive, and 21 being the most permissive. Due to the brute-force nature of the Primer Pair calculations, increasing `N` will exponentially increase the amount of memory needed to evaluate primers. So if you increase the cycles, be sure to monitor system RAM.
 
 </td></tr></tbody></table>
 </details>
