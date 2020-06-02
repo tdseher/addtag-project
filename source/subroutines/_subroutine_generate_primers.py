@@ -33,6 +33,13 @@ from ..algorithms import detect_overridden_methods
 
 logger = logging.getLogger(__name__)
 
+# TODO: If the absolute number of potential Primers in a region (UPSTREAM_F, DOWNSTREAM_R, FEATURE_F, FEATURE_R)
+#       is small (like <1000), then just do ALL the Primer and PrimerPair calculatons FOR THAT REGION
+#       Thus, the other regions don't have to be repeatedly calculated over and over.
+#       This probably should come AFTER making it so each 'PrimerPair' has its own 'Cutoff' level.
+# TODO: When Primer and PrimerPairs are queued for processing, just set their priority level based on their
+#       thermodynamic properties OR by their quasi-likelihood?
+
 class GeneratePrimersParser(subroutine.Subroutine):
     logger = logger.getChild(__qualname__)
     
@@ -137,13 +144,13 @@ class GeneratePrimersParser(subroutine.Subroutine):
         
         self.parser.add_argument("--subset_size", metavar="N", type=int, default=1000,
             help="Artificially limit the number of primer pairs that are calculated. \
-                 This represents the max each primer list could be. The maximum number \
-                 of paiwise comparisons is the square of this number.")
+            This represents the max each primer list could be. The maximum number \
+            of paiwise comparisons is the square of this number.")
         
         self.parser.add_argument("--cache", action="store_true", default=False,
             help="If you will be re-running designs on these same input files, \
-                 Intermediate results can be stored and retrieved to speed up \
-                 total calculations.")
+            Intermediate results can be stored and retrieved to speed up \
+            total calculations.")
         
         # Temporary: this expects 2 for each dDNA: a before and an after
 #        self.parser.add_argument("--internal_primers_required", metavar="y/n",
@@ -181,6 +188,9 @@ class GeneratePrimersParser(subroutine.Subroutine):
             require outer primers, then you would use these command-line \
             options: '--fasta genome.fasta --dDNAs ko.fasta ki.fasta \
             --o_primers_required y n y')")
+        
+        self.parser.add_argument("--skip_partial_sets", action="store_true", default=False,
+            help="Do not perform simulated annealing on primer sets that are missing required PrimerPairs.")
         
         # Default should be multi-allelic (NOT allele-agnostic).
         # If the users want allele-specific, then they should use this
@@ -1856,6 +1866,7 @@ class GeneratePrimersParser(subroutine.Subroutine):
                     pp_queue.append(pp_seq_list)
                     self.logger.info("      Added {} 'PrimerPair' objects for pair: '{}', '{}', amp={}, required={}".format(len(pp_seq_list), lab1, lab2, amp, required_pattern[pi]))
                     
+                    # TODO: Each pp should have its own cutoffs!
                     # Ideally:
                     #   Each pp should have its own cutoffs:
                     #     A, r0:B/C/D, r1:B/C/D, r2:B/C/D
@@ -1869,7 +1880,7 @@ class GeneratePrimersParser(subroutine.Subroutine):
                 
                 # Continue performing the pp calculations for the current round,
                 # Then skip without doing any simulated annealing
-                if should_skip:
+                if should_skip: # TODO: should this also be 'args.skip_partial_sets'???
                     self.logger.info("  Skipping simulated annealing")
                     continue
                 
@@ -1934,11 +1945,11 @@ class GeneratePrimersParser(subroutine.Subroutine):
                             break
                         if ((req_str not in ['y', 'Y', '1', 'T', 't', 'TRUE', 'True', 'true']) and (num_pp > 0)):
                             should_mask = True
-                    if should_skip:
+                    if args.skip_partial_sets and should_skip:
                         self.logger.info('  skipping...')
                         continue
                     if should_mask:
-                        self.logger.info('  masking...')
+                        self.logger.info('  masking...') # TODO: Re-implement masking (see 'calculate_them_primers()' and 'calculate_them_best_set()'
                         continue
                     
                     # Evaluate if any new primer designs are adequate
