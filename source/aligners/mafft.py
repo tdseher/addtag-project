@@ -39,7 +39,8 @@ class Mafft(MultipleSequenceAligner):
         self.ev = {}
         self.current_file = None
         self.records = {}
-        self.binary = self.get_binary()
+        if self.available:
+            self.binary = self.get_binary()
     
     def is_available(self):
         """
