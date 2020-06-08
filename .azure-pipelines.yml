@@ -176,6 +176,36 @@ steps:
   displayName: Show version of 'mafft'
 #### End MAFFT ####
 
+#### Begin BOWTIE2 ####
+# To install this package with 'conda' run the following (Linux and macOS):
+#   conda install -c bioconda bowtie2
+- bash: |
+    wget -nv https://phoenixnap.dl.sourceforge.net/project/bowtie-bio/bowtie2/2.4.1/bowtie2-2.4.1-linux-x86_64.zip
+    unzip bowtie2-2.4.1-linux-x86_64.zip
+    echo "##vso[task.prependpath]$(Build.SourcesDirectory)/bowtie2-2.4.1-linux-x86_64"
+  condition: eq( variables['Agent.OS'], 'Linux' )
+  displayName: Install 'BOWTIE2' dependencies on Linux
+
+- bash: |
+    curl -O https://phoenixnap.dl.sourceforge.net/project/bowtie-bio/bowtie2/2.4.1/bowtie2-2.4.1-macos-x86_64.zip
+    unzip bowtie2-2.4.1-macos-x86_64.zip
+    echo "##vso[task.prependpath]$(Build.SourcesDirectory)/bowtie2-2.4.1-macos-x86_64"
+  condition: eq( variables['Agent.OS'], 'Darwin' )
+  displayName: Install 'BOWTIE2' dependencies on macOS
+
+- powershell: |
+    Invoke-WebRequest -Uri https://phoenixnap.dl.sourceforge.net/project/bowtie-bio/bowtie2/2.3.4/bowtie2-2.3.4-mingw-x86_64.zip -OutFile bowtie2-2.3.4-mingw-x86_64.zip
+    7z.exe x .\bowtie2-2.3.4-mingw-x86_64.zip
+    echo "##vso[task.prependpath]$(Build.SourcesDirectory)\bowtie2-2.3.4-mingw-x86_64"
+  condition: eq( variables['Agent.OS'], 'Windows_NT' )
+  displayName: Install 'BOWTIE2' dependencies on Windows
+
+- script: |
+    bowtie2 --version
+    bowtie2-build --version
+  displayName: Show version of 'bowtie2'
+#### End BOWTIE2 ####
+
 #### Begin CAS-OFFINDER ####
 - bash: |
     mkdir cas-offinder-2.4
