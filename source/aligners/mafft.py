@@ -17,6 +17,7 @@ import regex
 
 # import AddTag-specific packages
 from .aligner import MultipleSequenceAligner, Record
+from ..utils import which
 
 class Mafft(MultipleSequenceAligner):
     def __init__(self):
@@ -38,6 +39,26 @@ class Mafft(MultipleSequenceAligner):
         self.ev = {}
         self.current_file = None
         self.records = {}
+        self.binary = self.get_binary()
+    
+    def is_available(self):
+        """
+        Determines if the prerequisites for the Aligner have been met.
+        :return: True or False
+        """
+        if which('mafft') or which('mafft.bat'):
+            return True
+        else:
+            return False
+    
+    def get_binary(self):
+        # 'portable' MAFFT installations may use the 'mafft.bat' file instead of 'mafft'
+        if which('mafft'):
+            return 'mafft'
+        elif which('mafft.bat'):
+            return 'mafft.bat'
+        else:
+            raise Exception("No 'mafft' binary found in PATH.")
     
     def align(self, query, output_filename, output_folder, threads, *args, **kwargs):
         """
