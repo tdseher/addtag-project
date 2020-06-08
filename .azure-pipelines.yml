@@ -105,6 +105,10 @@ steps:
     $(python2.pythonLocation)/python -m pip install git+https://github.com/MicrosoftResearch/Azimuth.git
   displayName: Install 'Azimuth' dependencies
 
+- script: |
+    $(python3.pythonLocation)/python -m pip install theano==1.0.4 keras==2.2.4
+  displayName: Install 'DeepCpf1/CINDEL' dependencies
+
 #### Begin BLAST+ ####
 # Linux
 - bash: |
