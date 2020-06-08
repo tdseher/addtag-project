@@ -150,6 +150,7 @@ steps:
     tar -xf mafft-7.467-linux.tgz
     echo "##vso[task.prependpath]$(Build.SourcesDirectory)/mafft-linux64/mafftdir/bin"
     echo "##vso[task.setvariable variable=MAFFT_BINARIES]$(Build.SourcesDirectory)/mafft-linux64/mafftdir/libexec"
+    echo '##vso[task.setvariable variable=MAFFT]mafft'
   condition: eq( variables['Agent.OS'], 'Linux' )
   displayName: Install 'MAFFT' dependencies on Linux
 
@@ -158,6 +159,7 @@ steps:
     unzip mafft-7.467-mac.zip
     echo "##vso[task.prependpath]$(Build.SourcesDirectory)/mafft-mac/mafftdir/bin"
     echo "##vso[task.setvariable variable=MAFFT_BINARIES]$(Build.SourcesDirectory)/mafft-mac/mafftdir/libexec"
+    echo '##vso[task.setvariable variable=MAFFT]mafft'
   condition: eq( variables['Agent.OS'], 'Darwin' )
   displayName: Install 'MAFFT' dependencies on macOS
 
@@ -166,13 +168,14 @@ steps:
     7z.exe x .\mafft-7.450-win64-signed.zip
     echo "##vso[task.setvariable variable=MAFFT_BINARIES]$(Build.SourcesDirectory)\mafft-win\usr\lib\mafft"
     echo "##vso[task.prependpath]$(Build.SourcesDirectory)\mafft-win\usr\bin"
+    echo '##vso[task.setvariable variable=MAFFT]mafft.bat'
   condition: eq( variables['Agent.OS'], 'Windows_NT' )
   displayName: Install 'MAFFT' dependencies on Windows
 
 - script: |
     echo MAFFT_BINARIES
     echo $(MAFFT_BINARIES)
-    mafft --version
+    $(MAFFT) --version
   displayName: Show version of 'mafft'
 #### End MAFFT ####
 
