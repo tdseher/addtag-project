@@ -168,6 +168,7 @@ steps:
     7z.exe x .\mafft-7.450-win64-signed.zip
     echo "##vso[task.setvariable variable=MAFFT_BINARIES]$(Build.SourcesDirectory)\mafft-win\usr\lib\mafft"
     echo "##vso[task.prependpath]$(Build.SourcesDirectory)\mafft-win\usr\bin"
+    echo "##vso[task.prependpath]$(Build.SourcesDirectory)\mafft-win"
     echo '##vso[task.setvariable variable=MAFFT]mafft.bat'
   condition: eq( variables['Agent.OS'], 'Windows_NT' )
   displayName: Install 'MAFFT' dependencies on Windows
