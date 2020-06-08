@@ -142,6 +142,40 @@ steps:
   displayName: Show version of 'blastn' binary
 #### End BLAST+ ####
 
+#### Begin MAFFT ####
+# To install this package with 'conda' run the following (Linux and macOS):
+#   conda install -c bioconda mafft
+- bash: |
+    wget -nv https://mafft.cbrc.jp/alignment/software/mafft-7.467-linux.tgz
+    tar -xf mafft-7.467-linux.tgz
+    echo "##vso[task.prependpath]$(Build.SourcesDirectory)/mafft-linux64/mafftdir/bin"
+    echo "##vso[task.setvariable variable=MAFFT_BINARIES]$(Build.SourcesDirectory)/mafft-linux64/mafftdir/libexec"
+  condition: eq( variables['Agent.OS'], 'Linux' )
+  displayName: Install 'MAFFT' dependencies on Linux
+
+- bash: |
+    curl -O https://mafft.cbrc.jp/alignment/software/mafft-7.467-mac.zip
+    unzip mafft-7.467-mac.zip
+    echo "##vso[task.prependpath]$(Build.SourcesDirectory)/mafft-mac/mafftdir/bin"
+    echo "##vso[task.setvariable variable=MAFFT_BINARIES]$(Build.SourcesDirectory)/mafft-mac/mafftdir/libexec"
+  condition: eq( variables['Agent.OS'], 'Darwin' )
+  displayName: Install 'MAFFT' dependencies on macOS
+
+- powershell: |
+    Invoke-WebRequest -Uri https://mafft.cbrc.jp/alignment/software/mafft-7.450-win64-signed.zip -OutFile mafft-7.450-win64-signed.zip
+    7z.exe x .\mafft-7.450-win64-signed.zip
+    echo "##vso[task.setvariable variable=MAFFT_BINARIES]$(Build.SourcesDirectory)\mafft-win\usr\lib\mafft"
+    echo "##vso[task.prependpath]$(Build.SourcesDirectory)\mafft-win\usr\bin"
+  condition: eq( variables['Agent.OS'], 'Windows_NT' )
+  displayName: Install 'MAFFT' dependencies on Windows
+
+- script: |
+    echo MAFFT_BINARIES
+    echo $(MAFFT_BINARIES)
+    mafft --version
+  displayName: Show version of 'mafft'
+#### End MAFFT ####
+
 #### Begin CAS-OFFINDER ####
 - bash: |
     mkdir cas-offinder-2.4
