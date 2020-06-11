@@ -1983,10 +1983,25 @@ class GeneratePrimersParser(subroutine.Subroutine):
                 
                 
             
-            # Write output
-            print('# ' + '\t'.join(map(str, ['Gene', 'Design'])))
-            for od in optimal_designs:
-                print(gene, od)
+            # Write output for Primer sequences
+            if (len(optimal_designs) > 0):
+                # Sort first by number of PrimerPair objects, and second by the weight
+                ordered_od_list = sorted(optimal_designs, key=lambda x: (x.get_primer_pair_count(), x.weight), reverse=True)
+                
+                print('# Compatible designs')
+                print('# Primer sequences')
+                print('# ' + '\t'.join(['Gene', 'Weight', 'Count'] + [x[0] for x in optimal_designs[0].get_primer_list()]))
+                for od in ordered_od_list: # od is a PrimerSet object
+                    gpl = od.get_primer_list()
+                    print('\t'.join([gene, str(od.weight), str(od.get_primer_count())] + [x[1].sequence if x[1] else 'None' for x in gpl]))
+                
+                print('# PrimerPairs')
+                print('# ' + '\t'.join(['Gene', 'Weight', 'Count'] + [x[0] for x in optimal_designs[0].get_primer_pair_list()]))
+                for od in ordered_od_list: # od is a PrimerSet object
+                    gppl = od.get_primer_pair_list()
+                    print('\t'.join([gene, str(od.weight), str(od.get_primer_pair_count())] + [str(x[1]) for x in gppl]))
+            else:
+                print('# No compatible designs')
             
         self.logger.info("Function 'primer_queue_test()' completed.")
     

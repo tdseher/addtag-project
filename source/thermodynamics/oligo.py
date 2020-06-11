@@ -1757,7 +1757,7 @@ class PrimerSet(object):
         '''
         Calculate joint weight of this specific pp_list
         '''
-        p_group_weight = self.p_group_weight(self.flatten_primer_pair_list(self.pp_list))
+        p_group_weight = self.p_group_weight(self.flatten_primer_pair_list())
         pp_group_weight = self.pp_group_weight(self.pp_list)
         joint_weight = p_group_weight * pp_group_weight
         return joint_weight
@@ -1814,9 +1814,9 @@ class PrimerSet(object):
         
         return weight
     
-    def flatten_primer_pair_list(self, pair_list):
+    def flatten_primer_pair_list(self):
         p_set = []
-        for pp in pair_list:
+        for pp in self.pp_list:
             if pp:
                 p_set.append(pp.forward_primer)
                 p_set.append(pp.reverse_primer)
@@ -1824,6 +1824,58 @@ class PrimerSet(object):
                 p_set.append(None)
                 p_set.append(None)
         return p_set
+    
+    def get_primer_pair_count(self):
+        return len([x[1] for x in self.get_primer_pair_list() if x[1]])
+    
+    def get_primer_pair_list(self):
+        output = []
+        output.append(('sF/sR', self.pp_list[0])) # Amplicon A
+        for r in range((len(self.pp_list)-1)//3):
+            output.append(('sF/r{}-oR'.format(r), self.pp_list[1+(r*3)]))
+            output.append(('r{}-oF/sR'.format(r), self.pp_list[2+(r*3)]))
+            output.append(('r{}-iF/r{}-iR'.format(r, r), self.pp_list[3+(r*3)]))
+        return output
+    
+    def get_primer_count(self):
+        return len(set([x[1] for x in self.get_primer_list() if x[1]]))
+    
+    def get_primer_list(self):
+        # The amplicon order for 'self.pp_list' is
+        #   A, (B, C, D), (B, C, D), ...
+        # Should output:
+        #   [sF, sR] + [rN-oR, rN-oF, rN-iF, rN-iR] + [...]
+        output = []
+        
+        # Amplicon A
+        output.append(('sF', self.pp_list[0].forward_primer))
+        output.append(('sR', self.pp_list[0].reverse_primer))
+        
+        for r in range((len(self.pp_list)-1)//3):
+            # Amplicon B
+            pp = self.pp_list[1+(r*3)]
+            if pp:
+                output.append(('r{}-oR'.format(r), pp.reverse_primer))
+            else:
+                output.append(('r{}-oR'.format(r), None))
+            
+            # Amplicon C
+            pp = self.pp_list[2+(r*3)]
+            if pp:
+                output.append(('r{}-oF'.format(r), pp.forward_primer))
+            else:
+                output.append(('r{}-oF'.format(r), None))
+            
+            # Amplicon D
+            pp = self.pp_list[3+(r*3)]
+            if pp:
+                output.append(('r{}-iF'.format(r), pp.forward_primer))
+                output.append(('r{}-iR'.format(r), pp.reverse_primer))
+            else:
+                output.append(('r{}-iF'.format(r), None))
+                output.append(('r{}-iR'.format(r), None))
+        
+        return output
     
     def __repr__(self):
         return self.__class__.__name__ + '(weight=' + str(self.weight) + ', ' + str(self.pp_list) + ')'
