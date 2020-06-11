@@ -60,6 +60,7 @@ class ViennaRNA(Oligo):
         Determines if the prerequisites for ViennaRNA have been met.
         :return: True or False
         """
+        # TODO: Add "which('RNAplex')"
         spec = importlib.util.find_spec('RNA')
         if spec:
             #self.available = True
@@ -76,7 +77,7 @@ class ViennaRNA(Oligo):
             os.path.abspath(os.path.join(os.path.dirname(RNA.__file__), '..', '..', '..', '..', 'share', 'ViennaRNA', 'dna_mathews2004.par'))
         )
         
-        prog_path = which('RNAfold')
+        prog_path = which('RNAplex') # 'RNAfold'
         if prog_path:
             dna_paths.append(
                 os.path.abspath(os.path.join(os.path.dirname(prog_path), 'Misc', 'dna_mathews2004.par'))
