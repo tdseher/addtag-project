@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 # import AddTag-specific packages
 #sys.path.append( os.path.join( os.path.dirname(__file__), os.path.pardir ) )
 #from utils import flatten
-from ..utils import flatten
+from ..utils import flatten, which
 
 class Aligner(object): # Name of the subclass
     """
@@ -66,6 +66,34 @@ class Aligner(object): # Name of the subclass
         :return: True or False
         """
         return False
+    
+    def get_binaries(self, binaries_list, full=False):
+        paths = []
+        
+        if sys.platform.startswith('win'):
+            for b in binaries_list:
+                for b2 in [b, b+'.bat']:
+                    p = which(b2)
+                    if full:
+                        paths.append(p)
+                        break
+                    elif p:
+                        paths.append(b2)
+                        break
+                else:
+                    paths.append(None)
+        
+        else:
+            for b in binaries_list:
+                p = which(b)
+                if full:
+                    paths.append(p)
+                elif p:
+                    paths.append(b)
+                else:
+                    paths.append(None)
+        
+        return paths
     
     def process(self, program, output_filename, fixed_options, *args, capture_stdout=False, append=False, **kwargs):
         """

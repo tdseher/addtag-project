@@ -5,6 +5,7 @@
 # source/aligners/bowtie2.py
 
 # List general Python imports
+import sys
 import os
 from collections import OrderedDict
 import logging
@@ -36,13 +37,16 @@ class Bowtie2(PairwiseAligner):
         )
         self.score_matrix = {}
         self.ev = {}
+        self.binaries = self.get_binaries(['bowtie2', 'bowtie2-build'], full=False)
 
     def is_available(self):
-        if all([which(x) for x in ['bowtie2-build', 'bowtie2']]):
+        if all([which(x) for x in ['bowtie2', 'bowtie2-build']]):
+            return True
+        elif (sys.platform.startswith('win') and all([which(x) for x in ['bowtie2.bat', 'bowtie2-build.bat']])):
             return True
         else:
             return False
-
+    
     def index(self, fasta, output_prefix, output_folder, threads, *args, **kwargs):
         """
         Call bowtie2-build on non-compressed FASTA file.
@@ -80,7 +84,7 @@ class Bowtie2(PairwiseAligner):
             (fasta, None),
             (index_file, None),
         ])
-        outpath = self.process('bowtie2-build', index_file, options)
+        outpath = self.process(self.binaries[1], index_file, options) # 'bowtie2-build'
         
         self.ev[outpath] = ev
         self.score_matrix[outpath] = score_matrix
@@ -144,7 +148,7 @@ class Bowtie2(PairwiseAligner):
             ('--xeq', None), # Use '='/'X', instead of 'M', to specify matches/mismatches in CIGAR string
         ])
         
-        outpath = self.process('bowtie2', output_filename_path, options)
+        outpath = self.process(self.binaries[0], output_filename_path, options) # 'bowtie2'
         
         self.ev[outpath] = self.ev[subject]
         self.score_matrix[outpath] = self.score_matrix[subject]

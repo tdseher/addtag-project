@@ -39,27 +39,17 @@ class Mafft(MultipleSequenceAligner):
         self.ev = {}
         self.current_file = None
         self.records = {}
-        if self.available:
-            self.binary = self.get_binary()
+        self.binaries = self.get_binaries(['mafft'], full=False)
     
     def is_available(self):
         """
         Determines if the prerequisites for the Aligner have been met.
         :return: True or False
         """
-        if which('mafft') or which('mafft.bat'):
+        if (which('mafft') or which('mafft.bat')):
             return True
         else:
             return False
-    
-    def get_binary(self):
-        # 'portable' MAFFT installations may use the 'mafft.bat' file instead of 'mafft'
-        if which('mafft'):
-            return 'mafft'
-        elif which('mafft.bat'):
-            return 'mafft.bat'
-        else:
-            raise Exception("No 'mafft' binary found in PATH.")
     
     def align(self, query, output_filename, output_folder, threads, *args, **kwargs):
         """
@@ -93,7 +83,7 @@ class Mafft(MultipleSequenceAligner):
         ])
         # output is sent to STDOUT
         
-        outpath = self.process('mafft', output_filename_path, options, capture_stdout=True)
+        outpath = self.process(self.binaries[0], output_filename_path, options, capture_stdout=True)
         
         # Karlin-Altschul calculations
         #self.ev[outpath] = self.ev[subject]
