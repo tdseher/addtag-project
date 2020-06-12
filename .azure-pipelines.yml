@@ -182,7 +182,7 @@ steps:
     echo MAFFT_BINARIES
     echo $(MAFFT_BINARIES)
     $(MAFFT) --version
-  displayName: Show version of 'mafft'
+  displayName: Show version of 'mafft' binary
 #### End MAFFT ####
 
 #### Begin BOWTIE2 ####
@@ -212,13 +212,19 @@ steps:
     echo "##vso[task.prependpath]$(Build.SourcesDirectory)\bowtie2-2.3.4-mingw-x86_64"
     echo '##vso[task.setvariable variable=BOWTIE2]bowtie2.bat'
     echo '##vso[task.setvariable variable=BOWTIE2_BUILD]bowtie2-build.bat'
+    New-Item -Name strawberry-perl -ItemType directory
+    (New-Object System.Net.WebClient).DownloadFile("http://strawberryperl.com/download/5.30.2.1/strawberry-perl-5.30.2.1-64bit-portable.zip","strawberry-perl-5.30.2.1-64bit-portable.zip")
+    7z.exe x .\strawberry-perl-5.30.2.1-64bit-portable.zip -ostrawberry-perl
+    echo "##vso[task.prependpath]$(Build.SourcesDirectory)\strawberry-perl\perl\bin"
+    #echo "##vso[task.prependpath]$(Build.SourcesDirectory)\strawberry-perl\c\bin"
+    #echo "##vso[task.prependpath]$(Build.SourcesDirectory)\strawberry-perl\perl\site\bin"
   condition: eq( variables['Agent.OS'], 'Windows_NT' )
   displayName: Install 'BOWTIE2' dependencies on Windows
 
 - script: |
     $(BOWTIE2) --version
     $(BOWTIE2_BUILD) --version
-  displayName: Show version of 'bowtie2'
+  displayName: Show version of 'bowtie2' binaries
 #### End BOWTIE2 ####
 
 #### Begin CAS-OFFINDER ####
@@ -248,7 +254,7 @@ steps:
 - script: |
     cas-offinder
   condition: False
-  displayName: Show version of 'cas-offinder'
+  displayName: Show version of 'cas-offinder' binary
 #### End CAS-OFFINDER ####
 
 - script: |
