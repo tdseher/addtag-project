@@ -206,7 +206,7 @@ steps:
   displayName: Install 'BOWTIE2' dependencies on macOS
 
 - powershell: |
-    Invoke-WebRequest -Uri https://phoenixnap.dl.sourceforge.net/project/bowtie-bio/bowtie2/2.3.4/bowtie2-2.3.4-mingw-x86_64.zip -OutFile bowtie2-2.3.4-mingw-x86_64.zip
+    (New-Object System.Net.WebClient).DownloadFile("https://sourceforge.net/projects/bowtie-bio/files/bowtie2/2.3.4/bowtie2-2.3.4-mingw-x86_64.zip/download","bowtie2-2.3.4-mingw-x86_64.zip")
     7z.exe x .\bowtie2-2.3.4-mingw-x86_64.zip
     echo "##vso[task.prependpath]$(Build.SourcesDirectory)\bowtie2-2.3.4-mingw-x86_64"
     echo '##vso[task.setvariable variable=BOWTIE2]bowtie2.bat'
@@ -214,9 +214,10 @@ steps:
   condition: eq( variables['Agent.OS'], 'Windows_NT' )
   displayName: Install 'BOWTIE2' dependencies on Windows
 
+# $(BOWTIE2_BUILD) --version
 - script: |
     $(BOWTIE2) --version
-    $(BOWTIE2_BUILD) --version
+    $(python2.pythonLocation)/python "##vso[task.prependpath]$(Build.SourcesDirectory)/bowtie2-2.3.4-mingw-x86_64/bowtie2-build" --version
   displayName: Show version of 'bowtie2'
 #### End BOWTIE2 ####
 
@@ -239,7 +240,7 @@ steps:
 
 - powershell: |
     New-Item -Name cas-offinder-2.4 -ItemType directory
-    Invoke-WebRequest -Uri https://versaweb.dl.sourceforge.net/project/cas-offinder/Binaries/2.4/Win64/cas-offinder.exe -OutFile cas-offinder-2.4\cas-offinder.exe
+    Invoke-WebRequest -Uri https://versaweb.dl.sourceforge.net/project/cas-offinder/Binaries/2.4/Win64/cas-offinder.exe -OutFile cas-offinder-2.4\cas-offinder.exe -UserAgent NativeHost
     echo "##vso[task.prependpath]$(Build.SourcesDirectory)\cas-offinder-2.4"
   condition: False # eq( variables['Agent.OS'], 'Windows_NT' )
   displayName: Install 'CAS-OFFINDER' dependencies on Windows
