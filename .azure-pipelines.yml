@@ -60,6 +60,7 @@ steps:
 - script: |
     $(python3.pythonLocation)/python --version
     $(python3.pythonLocation)/python -c "import sys; print(sys.executable)"
+    echo "##vso[task.prependpath]$(python3.pythonLocation)"
   displayName: Show version and location of 'python3' binary
 
 #### Begin CONDA ####
@@ -214,10 +215,9 @@ steps:
   condition: eq( variables['Agent.OS'], 'Windows_NT' )
   displayName: Install 'BOWTIE2' dependencies on Windows
 
-# $(BOWTIE2_BUILD) --version
 - script: |
     $(BOWTIE2) --version
-    $(python2.pythonLocation)/python "##vso[task.prependpath]$(Build.SourcesDirectory)/bowtie2-2.3.4-mingw-x86_64/bowtie2-build" --version
+    $(BOWTIE2_BUILD) --version
   displayName: Show version of 'bowtie2'
 #### End BOWTIE2 ####
 
