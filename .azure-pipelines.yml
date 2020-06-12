@@ -46,6 +46,7 @@ steps:
 - script: |
     $(python2.pythonLocation)/python --version
     $(python2.pythonLocation)/python -c "import sys; print(sys.executable)"
+    echo "##vso[task.prependpath]$(python2.pythonLocation)"
   displayName: Show version and location of 'python2' binary
 
 # linux
@@ -60,7 +61,6 @@ steps:
 - script: |
     $(python3.pythonLocation)/python --version
     $(python3.pythonLocation)/python -c "import sys; print(sys.executable)"
-    echo "##vso[task.prependpath]$(python3.pythonLocation)"
   displayName: Show version and location of 'python3' binary
 
 #### Begin CONDA ####
@@ -135,7 +135,7 @@ steps:
 # Windows
 #   $env:PATH += "$(Build.SourcesDirectory)\ncbi-blast-2.9.0+\bin;"
 - powershell: |
-    Invoke-WebRequest -Uri ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/2.9.0/ncbi-blast-2.9.0+-x64-win64.tar.gz -OutFile ncbi-blast-2.9.0+-x64-win64.tar.gz
+    (New-Object System.Net.WebClient).DownloadFile("ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/2.9.0/ncbi-blast-2.9.0+-x64-win64.tar.gz","ncbi-blast-2.9.0+-x64-win64.tar.gz")
     7z.exe x .\ncbi-blast-2.9.0+-x64-win64.tar.gz
     7z.exe x .\ncbi-blast-2.9.0+-x64-win64.tar
     echo "##vso[task.prependpath]$(Build.SourcesDirectory)\ncbi-blast-2.9.0+\bin"
