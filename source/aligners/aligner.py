@@ -74,11 +74,11 @@ class Aligner(object): # Name of the subclass
             for b in binaries_list:
                 for b2 in [b, b+'.bat']:
                     p = which(b2)
-                    if full:
-                        paths.append(p)
-                        break
-                    elif p:
-                        paths.append(b2)
+                    if p:
+                        if full:
+                            paths.append(p)
+                        else:
+                            paths.append(b2)
                         break
                 else:
                     paths.append(None)
