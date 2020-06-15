@@ -209,6 +209,7 @@ steps:
     (New-Object System.Net.WebClient).DownloadFile("https://github.com/BenLangmead/bowtie2/releases/download/v2.3.4.3/bowtie2-2.3.4.3-mingw-x86_64.zip","bowtie2-2.3.4.3-mingw-x86_64.zip")
     7z.exe x .\bowtie2-2.3.4.3-mingw-x86_64.zip
     echo "##vso[task.prependpath]$(Build.SourcesDirectory)\bowtie2-2.3.4.3-mingw-x86_64"
+    echo "##vso[task.setvariable variable=BOWTIE2_DIR]$(Build.SourcesDirectory)\bowtie2-2.3.4.3-mingw-x86_64"
     echo '##vso[task.setvariable variable=BOWTIE2]bowtie2.bat'
     echo '##vso[task.setvariable variable=BOWTIE2_BUILD]bowtie2-build.bat'
     New-Item -Name strawberry-perl -ItemType directory
@@ -218,27 +219,34 @@ steps:
     #echo "##vso[task.prependpath]$(Build.SourcesDirectory)\strawberry-perl\c\bin"
     #echo "##vso[task.prependpath]$(Build.SourcesDirectory)\strawberry-perl\perl\site\bin"
     echo "##vso[task.prependpath]$(python2.pythonLocation)"
-    
-    # Works
-    echo "$(python2.pythonLocation)\python $(Build.SourcesDirectory)\bowtie2-2.3.4.3-mingw-x86_64\bowtie2-build --version"
-    $(python2.pythonLocation)\python $(Build.SourcesDirectory)\bowtie2-2.3.4.3-mingw-x86_64\bowtie2-build --version
-    
-    # Works?
-    echo "$(Build.SourcesDirectory)\bowtie2-2.3.4.3-mingw-x86_64\bowtie2-build.bat --version" 
-    $(Build.SourcesDirectory)\bowtie2-2.3.4.3-mingw-x86_64\bowtie2-build.bat --version
-    
+  condition: eq( variables['Agent.OS'], 'Windows_NT' )
+  displayName: Install 'BOWTIE2' dependencies on Windows
+
+- script: |
+    # Works (before)
+    echo "$(python2.pythonLocation)\python $(BOWTIE2_DIR)\bowtie2-build --version"
+    $(python2.pythonLocation)\python $(BOWTIE2_DIR)\bowtie2-build --version
+
+    # Works (before)
+    echo "$(BOWTIE2_DIR)\bowtie2-build.bat --version" 
+    $(BOWTIE2_DIR)\bowtie2-build.bat --version
+
     # Runs without errors, but yields blank output
-    #echo "$(Build.SourcesDirectory)\bowtie2-2.3.4.3-mingw-x86_64\bowtie2-build --version"
-    #$(Build.SourcesDirectory)\bowtie2-2.3.4.3-mingw-x86_64\bowtie2-build --version
-    
+    #echo "$(BOWTIE2_DIR)\bowtie2-build --version"
+    #$(BOWTIE2_DIR)\bowtie2-build --version
+
+    # Cannot find this bin on PATH
+    # The term 'bowtie2-build.bat' is not recognized as the name of a cmdlet, function, script file, or operable 
+    # program. Check the spelling of the name, or if a path was included, verify that the path is correct and try 
+    # again.
     echo "bowtie2-build.bat --version"
     bowtie2-build.bat --version
-    
+
     # Cannot find this bin on PATH
     #echo "bowtie2-build --version" 
     #bowtie2-build --version
   condition: eq( variables['Agent.OS'], 'Windows_NT' )
-  displayName: Install 'BOWTIE2' dependencies on Windows
+  displayName: Test for Windows
 
 - script: |
     $(BOWTIE2) --version
