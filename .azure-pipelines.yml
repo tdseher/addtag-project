@@ -46,7 +46,6 @@ steps:
 - script: |
     $(python2.pythonLocation)/python --version
     $(python2.pythonLocation)/python -c "import sys; print(sys.executable)"
-    echo "##vso[task.prependpath]$(python2.pythonLocation)"
   displayName: Show version and location of 'python2' binary
 
 # linux
@@ -218,6 +217,7 @@ steps:
     echo "##vso[task.prependpath]$(Build.SourcesDirectory)\strawberry-perl\perl\bin"
     #echo "##vso[task.prependpath]$(Build.SourcesDirectory)\strawberry-perl\c\bin"
     #echo "##vso[task.prependpath]$(Build.SourcesDirectory)\strawberry-perl\perl\site\bin"
+    echo "##vso[task.prependpath]$(python2.pythonLocation)"
     $(python2.pythonLocation)\python $(Build.SourcesDirectory)\bowtie2-2.3.4.3-mingw-x86_64\bowtie2-build --version
     $(Build.SourcesDirectory)\bowtie2-2.3.4.3-mingw-x86_64\bowtie2-build.bat --version
     $(Build.SourcesDirectory)\bowtie2-2.3.4.3-mingw-x86_64\bowtie2-build --version
