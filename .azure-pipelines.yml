@@ -218,10 +218,20 @@ steps:
     #echo "##vso[task.prependpath]$(Build.SourcesDirectory)\strawberry-perl\c\bin"
     #echo "##vso[task.prependpath]$(Build.SourcesDirectory)\strawberry-perl\perl\site\bin"
     echo "##vso[task.prependpath]$(python2.pythonLocation)"
+    
+    echo $(python2.pythonLocation)\python $(Build.SourcesDirectory)\bowtie2-2.3.4.3-mingw-x86_64\bowtie2-build --version
     $(python2.pythonLocation)\python $(Build.SourcesDirectory)\bowtie2-2.3.4.3-mingw-x86_64\bowtie2-build --version
-    $(Build.SourcesDirectory)\bowtie2-2.3.4.3-mingw-x86_64\bowtie2-build.bat --version
+    
+    #echo $(Build.SourcesDirectory)\bowtie2-2.3.4.3-mingw-x86_64\bowtie2-build.bat --version 
+    #$(Build.SourcesDirectory)\bowtie2-2.3.4.3-mingw-x86_64\bowtie2-build.bat --version
+    
+    echo $(Build.SourcesDirectory)\bowtie2-2.3.4.3-mingw-x86_64\bowtie2-build --version
     $(Build.SourcesDirectory)\bowtie2-2.3.4.3-mingw-x86_64\bowtie2-build --version
-    bowtie2-build.bat --version
+    
+    #echo bowtie2-build.bat --version
+    #bowtie2-build.bat --version
+    
+    echo bowtie2-build --version 
     bowtie2-build --version
   condition: eq( variables['Agent.OS'], 'Windows_NT' )
   displayName: Install 'BOWTIE2' dependencies on Windows
