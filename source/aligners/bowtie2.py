@@ -100,11 +100,12 @@ class Bowtie2(PairwiseAligner):
         
         Returns the path of the SAM file generated
         """
+        os.environ['BOWTIE2_INDEXES'] = os.path.dirname(subject)
         output_filename_path = os.path.join(output_folder, output_prefix + '.' + self.output)
         options = OrderedDict([
             ('-p', threads), # Number of processors to use
             ('-S', output_filename_path), # sam file,
-            ('-x', subject), # Path to the index prefix (excludes file extensions)
+            ('-x', os.path.basename(subject)), # Path to the index prefix (excludes file extensions)
             ('-U', query),
             ('-k', 100), # specifies the maximum number of alignments per sequence to return
             ('-N', 1), # Sets the number of mismatches to allowed in a seed alignment

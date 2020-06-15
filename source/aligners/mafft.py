@@ -121,7 +121,7 @@ class Mafft(MultipleSequenceAligner):
                 # Ignore blank lines
                 if len(line) > 0:
                     # If this is the header line
-                    m = regex.match('^>(\S*)\s*(.*)$', line)
+                    m = regex.match(r'^>(\S*)\s*(.*)$', line)
                     if m:
                         if header:
                             yield self.create_record(header, info, sequence)

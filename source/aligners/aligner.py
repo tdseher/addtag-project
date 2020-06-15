@@ -72,7 +72,7 @@ class Aligner(object): # Name of the subclass
         
         if sys.platform.startswith('win'):
             for b in binaries_list:
-                for b2 in [b, b+'.bat']:
+                for b2 in [b+'.bat', b]:
                     p = which(b2)
                     if p:
                         if full:
