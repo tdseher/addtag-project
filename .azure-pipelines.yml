@@ -154,7 +154,7 @@ steps:
     tar -xf mafft-7.467-linux.tgz
     echo "##vso[task.prependpath]$(Build.SourcesDirectory)/mafft-linux64/mafftdir/bin"
     echo "##vso[task.setvariable variable=MAFFT_BINARIES]$(Build.SourcesDirectory)/mafft-linux64/mafftdir/libexec"
-    echo '##vso[task.setvariable variable=MAFFT]mafft'
+    echo "##vso[task.setvariable variable=MAFFT]mafft"
   condition: eq( variables['Agent.OS'], 'Linux' )
   displayName: Install 'MAFFT' dependencies on Linux
 
@@ -163,7 +163,7 @@ steps:
     unzip mafft-7.467-mac.zip
     echo "##vso[task.prependpath]$(Build.SourcesDirectory)/mafft-mac/mafftdir/bin"
     echo "##vso[task.setvariable variable=MAFFT_BINARIES]$(Build.SourcesDirectory)/mafft-mac/mafftdir/libexec"
-    echo '##vso[task.setvariable variable=MAFFT]mafft'
+    echo "##vso[task.setvariable variable=MAFFT]mafft"
   condition: eq( variables['Agent.OS'], 'Darwin' )
   displayName: Install 'MAFFT' dependencies on macOS
 
@@ -173,7 +173,7 @@ steps:
     echo "##vso[task.setvariable variable=MAFFT_BINARIES]$(Build.SourcesDirectory)\mafft-win\usr\lib\mafft"
     echo "##vso[task.prependpath]$(Build.SourcesDirectory)\mafft-win\usr\bin"
     echo "##vso[task.prependpath]$(Build.SourcesDirectory)\mafft-win"
-    echo '##vso[task.setvariable variable=MAFFT]mafft.bat'
+    echo "##vso[task.setvariable variable=MAFFT]mafft.bat"
   condition: eq( variables['Agent.OS'], 'Windows_NT' )
   displayName: Install 'MAFFT' dependencies on Windows
 
@@ -191,8 +191,8 @@ steps:
     wget -nv https://phoenixnap.dl.sourceforge.net/project/bowtie-bio/bowtie2/2.4.1/bowtie2-2.4.1-linux-x86_64.zip
     unzip bowtie2-2.4.1-linux-x86_64.zip
     echo "##vso[task.prependpath]$(Build.SourcesDirectory)/bowtie2-2.4.1-linux-x86_64"
-    echo '##vso[task.setvariable variable=BOWTIE2]bowtie2'
-    echo '##vso[task.setvariable variable=BOWTIE2_BUILD]bowtie2-build'
+    echo "##vso[task.setvariable variable=BOWTIE2]bowtie2"
+    echo "##vso[task.setvariable variable=BOWTIE2_BUILD]bowtie2-build"
   condition: eq( variables['Agent.OS'], 'Linux' )
   displayName: Install 'BOWTIE2' dependencies on Linux
 
@@ -200,8 +200,8 @@ steps:
     curl -O https://phoenixnap.dl.sourceforge.net/project/bowtie-bio/bowtie2/2.4.1/bowtie2-2.4.1-macos-x86_64.zip
     unzip bowtie2-2.4.1-macos-x86_64.zip
     echo "##vso[task.prependpath]$(Build.SourcesDirectory)/bowtie2-2.4.1-macos-x86_64"
-    echo '##vso[task.setvariable variable=BOWTIE2]bowtie2'
-    echo '##vso[task.setvariable variable=BOWTIE2_BUILD]bowtie2-build'
+    echo "##vso[task.setvariable variable=BOWTIE2]bowtie2"
+    echo "##vso[task.setvariable variable=BOWTIE2_BUILD]bowtie2-build"
   condition: eq( variables['Agent.OS'], 'Darwin' )
   displayName: Install 'BOWTIE2' dependencies on macOS
 
@@ -209,9 +209,8 @@ steps:
     (New-Object System.Net.WebClient).DownloadFile("https://github.com/BenLangmead/bowtie2/releases/download/v2.3.4.3/bowtie2-2.3.4.3-mingw-x86_64.zip","bowtie2-2.3.4.3-mingw-x86_64.zip")
     7z.exe x .\bowtie2-2.3.4.3-mingw-x86_64.zip
     echo "##vso[task.prependpath]$(Build.SourcesDirectory)\bowtie2-2.3.4.3-mingw-x86_64"
-    echo "##vso[task.setvariable variable=BOWTIE2_DIR]$(Build.SourcesDirectory)\bowtie2-2.3.4.3-mingw-x86_64"
-    echo '##vso[task.setvariable variable=BOWTIE2]bowtie2.bat'
-    echo '##vso[task.setvariable variable=BOWTIE2_BUILD]bowtie2-build.bat'
+    echo "##vso[task.setvariable variable=BOWTIE2]bowtie2.bat"
+    echo "##vso[task.setvariable variable=BOWTIE2_BUILD]bowtie2-build.bat"
     New-Item -Name strawberry-perl -ItemType directory
     (New-Object System.Net.WebClient).DownloadFile("http://strawberryperl.com/download/5.30.2.1/strawberry-perl-5.30.2.1-64bit-portable.zip","strawberry-perl-5.30.2.1-64bit-portable.zip")
     7z.exe x .\strawberry-perl-5.30.2.1-64bit-portable.zip -ostrawberry-perl
@@ -221,32 +220,6 @@ steps:
     echo "##vso[task.prependpath]$(python2.pythonLocation)"
   condition: eq( variables['Agent.OS'], 'Windows_NT' )
   displayName: Install 'BOWTIE2' dependencies on Windows
-
-- script: |
-    # Works (before)
-    echo "$(python2.pythonLocation)\python $(BOWTIE2_DIR)\bowtie2-build --version"
-    $(python2.pythonLocation)\python $(BOWTIE2_DIR)\bowtie2-build --version
-
-    # Works (before)
-    echo "$(BOWTIE2_DIR)\bowtie2-build.bat --version" 
-    $(BOWTIE2_DIR)\bowtie2-build.bat --version
-
-    # Runs without errors, but yields blank output
-    #echo "$(BOWTIE2_DIR)\bowtie2-build --version"
-    #$(BOWTIE2_DIR)\bowtie2-build --version
-
-    # Cannot find this bin on PATH
-    # The term 'bowtie2-build.bat' is not recognized as the name of a cmdlet, function, script file, or operable 
-    # program. Check the spelling of the name, or if a path was included, verify that the path is correct and try 
-    # again.
-    echo "bowtie2-build.bat --version"
-    bowtie2-build.bat --version
-
-    # Cannot find this bin on PATH
-    #echo "bowtie2-build --version" 
-    #bowtie2-build --version
-  condition: eq( variables['Agent.OS'], 'Windows_NT' )
-  displayName: Test for Windows
 
 - script: |
     $(BOWTIE2) --version
