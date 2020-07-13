@@ -305,7 +305,7 @@ man ./addtag.1
 </td></tr></tbody></table>
 </details>
 
-### Formatting input data ###
+### Format of input data ###
 <details>
 <summary>Click to expand/collapse</summary>
 <table><tbody><tr><td>
@@ -369,6 +369,121 @@ Some researchers are lucky enough to get to work on organisms with phased genome
 > GENE2	C1A_002	C1B_002	C1C_002
 > ```
 Each Feature identifier has its contig start and end position defined in the input GFF file. The 'homologs' file merely links them together. Columns in the homologs file are delimited by the `\t` character. The first column is the name of the group of Features. Every subsequent column should contain the identifier of a Feature to consider as a homolog. Homolog groups can each have any number of Features. If a Feature identifier appears on multiple lines, then all those Features are linked together as one homolog group. The identifier can be changed with the `--tag` command line option.  
+
+</td></tr></tbody></table>
+</details>
+
+### Format of output data ###
+<details>
+<summary>Click to expand/collapse</summary>
+<table><tbody><tr><td>
+
+AddTag outputs most of the experimental results you need to `STDOUT`. However, for simplicity sequences are output to `FASTA` files. Please note that the output table formats are not consistent among AddTag versions--more recent releases are more thorough and useful.
+
+#### STDOUT ####
+The final data are printed to `STDOUT` as tab-delimited tables. Lines containing column headers start with a `#` character.
+
+The `reTarget results` table contains information on optimal Targets that exist within the ★tag insert on the r1-gDNA.
+
+The `exTarget results` table contains information on optimal Targets that exist within the extended Feature on the r0-gDNA.
+
+The `AmpF/AmpR results` table contains information on optimal Primer Pairs for amplifying the Feature to create the r2-dDNAs.
+
+The `reDonor results` table lists information on r2-dDNAs.
+
+The `exDonor results` table lists information on r1-dDNAs.
+
+The `Region definitions` table lists the genome, contig, start and end coordinates for where cPCR Primers will be selected from.
+
+The `Primer sequences` table lists the optimal PrimerSets by weight order, with non-redundant Primers
+
+The `PrimerPairs` table lists the PrimerPair attributes for each amplicon.
+
+The `Amplicon diagram` succinctly relates the primer names to the regions in the genomes they bind to and amplify. 
+
+The `In silico recombination` table lists where in the gDNAs the dDNAs were incorporated.
+
+#### STDERR ####
+If the AddTag software fails for any reason, error messages will be printed to `STDERR`. If you pipe `STDERR` into a file, and the file size is nonzero, then this indicates that an error occurred.
+
+Often, errors happen if required AddTag arguments are missing, or input data is improperly formatted. 
+
+#### log.txt ####
+AddTag outputs intermediate calculations and computation status to the `log.txt` file. This includes the exact commands used when calling any external programs (such as [Aligners](#-supported-sequence-aligners)), alignments of Target sequences to dDNA sequences, and timestamps.
+
+#### excision-dDNAs.fasta ####
+The `excision-dDNAs.fasta` file contains the dDNA sequences for creating the intermediary genome that are referenced by the tables from `STDOUT`. These dDNA sequences contain the `mintag`, `addtag`, `unitag`, `bartag`, or `sigtag` as requested by the AddTag invocation arguments.
+
+An example of a nominal `mintag` that targets both alleles of a diploid chromosome:
+> ```fasta
+> >exDonor-0 spacers=4 C1A_002:C1A:+:272323..272373::274197..274247 C1B_002:C1B:+:272338..272388::274212..274262
+> ACTAAAATGAAAACCACATACAGCAGTAATAGTACTAGCCAACTCACTATTTTGATTTTGGGAACGGAGTTGAGCGGTATATGTGACAACAGTGACTATG
+> ```
+
+An example of an `addtag` experiment:
+> ```fasta
+> >exDonor-0 spacers=1 C1A_003:C1A:+:109972..110010:ctccgctctcgcctagactcggg:112195..112234 C1B_003:C1B:+:109967..110005:ctccgctctcgcctagactcggg:112220..112259
+> GCATAGGCTAGAGATAGTCCTCAGATAATAATAGAGCTctccgctctcgcctagactcgggAATATAAGATCAGTCTCTCCCGACTAGAATCTCTAGCAA
+> >exDonor-1 spacers=1 C1A_003:C1A:+:109972..110010:cccgagtctaggcgagagcggag:112195..112234 C1B_003:C1B:+:109967..110005:cccgagtctaggcgagagcggag:112220..112259
+> GCATAGGCTAGAGATAGTCCTCAGATAATAATAGAGCTcccgagtctaggcgagagcggagAATATAAGATCAGTCTCTCCCGACTAGAATCTCTAGCAA
+> ```
+These dDNAs each are predicted to recombine with contigs `C1A` and `C1B`. Note that each dDNA incorporates the exogenous `addtag` sequence in an opposite orientation.
+
+#### excision-targets.fasta ####
+This file contains only the Target sequences that are contained within the Feature, but in `FASTA` format. For the most part, the `exTarget results` table from `STDOUT` contains more information. We intend this file to be used as input to the `find_header` subroutine.
+
+#### reversion-dDNAs.fasta ####
+This file is structured identically to the `excision-dDNAs.fasta` file.
+
+If you direct AddTag to find Primers to amplify the wild type Feature, then their amplicon sequences will be stored in the `reversion-dDNAs.fasta` file. If you do not have AddTag find the AmpF/AmpR primers, then the entire region containing the Feature, upstream, and downstream sequences is written to the `reversion-dDNAs.fasta` file. 
+
+This example shows that polymorphisms at the Feature and its flanking sequences mean there are two possible dDNAs:
+> ```fasta
+> >reDonor-0 spacers=0 C3A_005:C3A:+:1722491..1722834
+> TTTTTTTTGGTTAACCACTTTGTGTCCCTTGCATACTTTTACATTGGAAACATACATACACTAACATTCACACTCAATAC
+> ACTCATATTATTTACCATTTTTGTTGTGAAGATACACGTATTTATTGAGTATTCCTTCATAACATTTAATTTATATTCCA
+> AGAGTTAATTGATTAAACAACTTGGTCCAAACAAACATAAACATAAACAAAAACGTTTTCTTTTTTTGCATAATATCTAT
+> CTATGTATATGTATATATATGTGTGTAAGTCATTGTCTTTTCCATTTTCTTTTCCATTTTCTTTTTTTTTTAGTTTTGTT
+> TTCAAGTGTGTAATAATAATAAT
+> >reDonor-1 spacers=0 C3B_005:C3B:+:1723088..1723418
+> TTTTTTTTGGTTAACCCCTTTGTGTCCCTTGCATACTTTTACATTGGAAACATACATACACTAACATTCACACTCAATAC
+> ACTCACATTATTTACCATTTTTGTTGTGAAGATACACGTATTTATTGAGTATTCCTTCATAACATTTAATTTATATTCCA
+> AGAGTTAATTGATTAAACAACTTGGTCCAAAAAACAAAAACGTTTTCTTTTTTTGCATAATATCTATCTATGTATATGTA
+> TATATATGTGTGTAAGTCATTGTCTTTTCCATTTTCTTTTCCATTTTCTTTTCTTTTTAGTTTTGTTTTCAAGTGTGTAA
+> TAATAATAAT
+> ```
+
+#### reversion-targets.fasta ####
+This file contains only the RGN Target sequences compatible with the `exDonor` sequences (and by extension, the intermediary genome). For the most part, the `reTarget results` table from `STDOUT` contains more information.
+
+#### genome-rN.fasta ####
+In silico recombination will integrate the input dDNAs into their respective loci within the input genome. Contig names (primary identifiers) are modified with the incorporated dDNAs as well as the round.
+
+For example, `genome-r0.fasta` may resemble the following:
+> ```fasta
+> >contig_001
+> GCTAAGCGCATCGCGCATAGGGCGGCAAAAAAGCGCTAGAGACTCAGAGGAGCGCTAGCG
+> GCTCGAATATAATAGATAGCTATAGCCTAGGAGATAGGAAACTCAGAAATAGACCATAAA
+> >contig_002
+> AATAAGCTCAGATAATATAGCTCGCTCTCTCGATAGCTCTAGACTCCCTAGAGCCCTAAG
+> CCCGCTCGCGAATAGATCCTCTAGACTAGATGAGAGCCGGCCCTCGCGCGCGATAGAGAA
+> ```
+
+If the first round dDNA contains the following:
+> ```fasta
+> >dDNA1
+> GCTCGAATATAATAGATAGCTATAGcccgggAGGAAACTCAGAAATAGACCATAAA
+> ```
+
+After the first round of *in silico* recombination, `genome-r1.fasta` will be:
+> ```fasta
+> >contig_001-r1[dDNA1]
+> GCTAAGCGCATCGCGCATAGGGCGGCAAAAAAGCGCTAGAGACTCAGAGGAGCGCTAGCG
+> GCTCGAATATAATAGATAGCTATAGcccgggAGGAAACTCAGAAATAGACCATAAA
+> >contig_002
+> AATAAGCTCAGATAATATAGCTCGCTCTCTCGATAGCTCTAGACTCCCTAGAGCCCTAAG
+> CCCGCTCGCGAATAGATCCTCTAGACTAGATGAGAGCCGGCCCTCGCGCGCGATAGAGAA
+> ```
 
 </td></tr></tbody></table>
 </details>
@@ -629,7 +744,7 @@ From the first table, we select the highest-weighed `reTarget` ('reversion Targe
 ```sh
 addtag find_header \
   --fasta GENEg/reversion-spacers.fasta 
-  --query "reTarget-3" > ki-target.fasta
+  --query 'reTarget-3\b' > ki-target.fasta
 ```
 
 Each `reTarget` can target one or more identified `reDonor` dDNA sequences.
@@ -814,6 +929,7 @@ Below are tips and descriptions of AddTag limitations that will help you make su
  * Since Bartag motifs are user-specified, simple pre-computed lists of compatible 'bartag' sequences would be incomplete. Thus we implemented a greedy 'bartag' generation algorithm. When evaluating candidate 'bartag' sequences, AddTag will keep 'bartags' that satisfy all edit distance requirements with all previously-accepted 'bartags'. To limit runtime to a reasonable amount, we limited the total number of Features and 'bartags' that can be generated.
  * Of special note are things the Primer design does not explicitly consider, such as characteristics of the cPCR template molecule. AddTag does not exploit the differential nature of template sequence composition (e.g. H. sapiens compared to E. coli). Also, AddTag does not use information on the presence of known secondary modifications to the template, such as methylated residues or oxidative damage.
  * One of the big limitations of this version of AddTag is that the Primer attribute stringencies are held uniform across all regions. You specify this using the `--cycle_start N` and `--cycle_stop N` options. If any one of the desired Primer Pairs is not found under the selected stringency, then no simulated annealing is performed. Cycles range from `N` of 0 to 21, with 0 being the most restrictive, and 21 being the most permissive. Due to the brute-force nature of the Primer Pair calculations, increasing `N` will exponentially increase the amount of memory needed to evaluate primers. So if you increase the cycles, be sure to monitor system RAM.
+ * To facilitate more straightforward programming, AddTag outputs 0-based genomic coordinates (as opposed to traditional 1-based coordinates). All input data, such as `GFF` files, are expected to use 1-based genomic coordinates.
 
 </td></tr></tbody></table>
 </details>
