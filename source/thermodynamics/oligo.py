@@ -1826,15 +1826,15 @@ class PrimerSet(object):
         return p_set
     
     def get_primer_pair_count(self):
-        return len([x[1] for x in self.get_primer_pair_list() if x[1]])
+        return len([x[2] for x in self.get_primer_pair_list() if x[1]])
     
     def get_primer_pair_list(self):
-        output = []
-        output.append(('sF/sR', self.pp_list[0])) # Amplicon A
+        output = [] # [(Amplicon, F/R, PrimerPair()), ...]
+        output.append(('A', 'sF/sR', self.pp_list[0])) # Amplicon A
         for r in range((len(self.pp_list)-1)//3):
-            output.append(('sF/r{}-oR'.format(r), self.pp_list[1+(r*3)]))
-            output.append(('r{}-oF/sR'.format(r), self.pp_list[2+(r*3)]))
-            output.append(('r{}-iF/r{}-iR'.format(r, r), self.pp_list[3+(r*3)]))
+            output.append(('r{}-B'.format(r), 'sF/r{}-oR'.format(r), self.pp_list[1+(r*3)])) # Amplicon B
+            output.append(('r{}-C'.format(r), 'r{}-oF/sR'.format(r), self.pp_list[2+(r*3)])) # Amplicon C
+            output.append(('r{}-D'.format(r), 'r{}-iF/r{}-iR'.format(r, r), self.pp_list[3+(r*3)])) # Amplicon D
         return output
     
     def get_primer_count(self):

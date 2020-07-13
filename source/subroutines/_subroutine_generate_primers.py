@@ -901,6 +901,7 @@ class GeneratePrimersParser(subroutine.Subroutine):
         self.logger.info('Printing to STDOUT...')
         
         # Print output header information describing the amplicons
+        print('# Amplicon diagram')
         print('#                                          Genome')
         print('# Amplicon  ──upstream─┐┌─homology─┐┌──insert/feature──┐┌─homology─┐┌─downstream──')
         print('#        A   sF ===>····················································<=== sR')
@@ -908,14 +909,17 @@ class GeneratePrimersParser(subroutine.Subroutine):
         print('#        C                             rN-oF ===>·······················<=== sR')
         print('#        D                        rN-iF ===>······<=== rN-iR')
         print('#')
-        print('# F=forward, R=reverse')
-        print('# s=shared, o=outer, i=inner')
-        print('# rN=round number')
-        print('#')
+        print('# F = forward')
+        print('# R = reverse')
+        print('# s = shared')
+        print('# o = outer')
+        print('# i = inner')
+        print('# rN = round number')
         
         # Print the various output tables
         # TODO: Put Locus/DatumGroup calculation into its own function:
         #       output0 = calc_loci(args, ...)
+        print("# In silico recombination")
         print('# ' + '\t'.join(['Locus', 'DatumGroup']))
         for line in output0:
             print('\t'.join(map(str, line)))
@@ -1358,6 +1362,14 @@ class GeneratePrimersParser(subroutine.Subroutine):
         FEATURE_F = 4
         FEATURE_R = 8
         
+        # Text representation of the regions (for debug output)
+        region_decode = {
+            FAR_UPSTREAM: 'FAR_UPSTREAM',
+            FAR_DOWNSTREAM: 'FAR_DOWNSTREAM',
+            FEATURE_F: 'FEATURE_F',
+            FEATURE_R: 'FEATURE_R',
+        }
+        
         search_distance = 800
         
         data = []
@@ -1438,11 +1450,12 @@ class GeneratePrimersParser(subroutine.Subroutine):
         
         ##### BEGIN OUTPUT 1 #####
         # Prints the REGIONS where the primers will be sought
-        #                       0        1       2         3         4         5         6        7
-        print('# ' + '\t'.join(['Gene', 'Locus', 'Genome', 'Region', 'Contig', 'Strand', 'Start', 'End']))
+        print('# Region definitions')
+        #                       0        1       2         (2)                 3         (3)                 4         5         6        7
+        print('# ' + '\t'.join(['Gene', 'Locus', 'Genome', 'Genome (decoded)', 'Region', 'Region (decoded)', 'Contig', 'Strand', 'Start', 'End']))
         for d in data:
-            # Should decode 'Region' column: region_decode[r]
-            print('\t'.join(map(str, d)), flush=True)
+            print('\t'.join(map(str, d[:3])) + ['genome-r{}.fasta'.format(d[2]), str(d[3]), region_decode[d[3]]] + map(str, d[4:]), flush=True)
+            #print('\t'.join(map(str, d)), flush=True)
         ##### END OUTPUT 1 #####
         
         self.logger.info('Finished testing new 2D simplification of the data')
@@ -1996,10 +2009,11 @@ class GeneratePrimersParser(subroutine.Subroutine):
                     print('\t'.join([gene, str(od.weight), str(od.get_primer_count())] + [x[1].sequence if x[1] else 'None' for x in gpl]))
                 
                 print('# PrimerPairs')
-                print('# ' + '\t'.join(['Gene', 'Weight', 'Count'] + [x[0] for x in optimal_designs[0].get_primer_pair_list()]))
+                print('# ' + '\t'.join(['', '', 'Amplicon'] + [x[0] for x in optimal_designs[0].get_primer_pair_list()]))
+                print('# ' + '\t'.join(['Gene', 'Weight', 'Count'] + [x[1] for x in optimal_designs[0].get_primer_pair_list()]))
                 for od in ordered_od_list: # od is a PrimerSet object
                     gppl = od.get_primer_pair_list()
-                    print('\t'.join([gene, str(od.weight), str(od.get_primer_pair_count())] + [str(x[1]) for x in gppl]))
+                    print('\t'.join([gene, str(od.weight), str(od.get_primer_pair_count())] + [str(x[2]) for x in gppl]))
             else:
                 print('# No compatible designs')
             
