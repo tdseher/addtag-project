@@ -26,8 +26,8 @@ class ExtractParser(subroutine.Subroutine):
         self.epilog = (
             "example:" "\n"
             "  Try running AddTag with the following arguments:" "\n"
-            "   $ python3 {__program__} {__subroutine__} --fasta excision-spacers.fasta" "\n"
-            "   --query exTarget-33 exTarget-21 > extract.fasta" "\n"
+            "   $ python3 {__program__} {__subroutine__} --fasta excision-targets.fasta" "\n"
+            "   --query 'exTarget-33\\b' 'exTarget-21\\b' > extract.fasta" "\n"
         ).format(**dict(list(subroutine.__dict__.items()) + list({"__subroutine__": self.name}.items()))) # key:value pairs in the latter dict will replace any instances in the prior dict
         
         self.define_parser()

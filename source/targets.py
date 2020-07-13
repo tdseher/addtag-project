@@ -214,7 +214,7 @@ class Target(object):
         Populate '*Target.sequences' and '*Target.indices' according to input FASTA files
         '''
 
-        # The 'excision-spacers.fasta' file has the following format:
+        # The 'excision-targets.fasta' file has the following format:
         #  >exTarget-17 motif=N{17}|N{3}>NGG locations=2 alignments=2/12 on-target=69.01 off-target=100.0 pam=GGG
         #  CCTCGAGCACTTCCACTGTG
         # The PAM motif should be obtained from either the 'motif=...' attribute,

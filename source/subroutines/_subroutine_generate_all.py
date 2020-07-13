@@ -633,7 +633,7 @@ class GenerateAllParser(subroutine.Subroutine):
                 self.logger.info(str(et_obj) + '\t' + '\t'.join(map(str, et_obj.locations)))
         
         # Generate the FASTA with the final scores
-        excision_spacers_file = ExcisionTarget.generate_spacers_fasta(os.path.join(args.folder, 'excision-spacers.fasta'))
+        excision_spacers_file = ExcisionTarget.generate_spacers_fasta(os.path.join(args.folder, 'excision-targets.fasta'))
         
         # Use selected alignment program to find all matches in the genome and dDNAs
         #re_align_file = align(re_query_file, genome_index_file, args)
@@ -679,7 +679,7 @@ class GenerateAllParser(subroutine.Subroutine):
                 self.logger.info(rt_obj)
             
             # Generate the FASTA with the final scores
-            reversion_spacers_file = ReversionTarget.generate_spacers_fasta(os.path.join(args.folder, 'reversion-spacers.fasta'))
+            reversion_spacers_file = ReversionTarget.generate_spacers_fasta(os.path.join(args.folder, 'reversion-targets.fasta'))
         
         # Test code to generate alignments
         ExcisionDonor.generate_alignments()

@@ -252,7 +252,7 @@ class EvaluateSpacersParser(subroutine.Subroutine):
             self.logger.info(str(et_obj) + '\t' + '\t'.join(map(str, et_obj.locations)))
 
         # Generate the FASTA with the final scores
-        excision_spacers_file = ExcisionTarget.generate_spacers_fasta(os.path.join(args.folder, 'excision-spacers.fasta'))
+        excision_spacers_file = ExcisionTarget.generate_spacers_fasta(os.path.join(args.folder, 'excision-targets.fasta'))
 
         # Write scores to STDOUT
         self.write_output()
