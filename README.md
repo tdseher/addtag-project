@@ -829,6 +829,22 @@ See also the list of [contributors](https://github.com/tdseher/addtag-project/gr
 
 ## 👥 Contributing ##
 
+### 🤔 What can I do to help improve AddTag? ###
+<details>
+<summary>Click to expand/collapse</summary>
+<table><tbody><tr><td>
+
+We are always looking for ways to broaden the usability of the AddTag software. Here is a list of things that would be great contributions.
+ * Improvements to the documentation, such as additional example workflows.
+ * More Target motifs (SPACER≷PAM combinations) from new CRISPR/Cas literature to add to the `motifs.txt` file.
+ * Support for additional pairwise sequence Aligners.
+ * Support for additional scoring Algorithms.
+ * Support for additional thermodynamics calculators.
+ * Running AddTag on different types of genomes with different parameters to test proper logic and assess compatibilities.
+
+</td></tr></tbody></table>
+</details>
+
 ### 🐞 How do I submit a bug report? ###
 <details>
 <summary>Click to expand/collapse</summary>
@@ -915,7 +931,8 @@ Below are tips and descriptions of AddTag limitations that will help you make su
  * Sequences in FASTA files should have unique names. In other words, the primary sequence identifier--everything following the '`>`' character and preceding the first whitespace/tab '` `' character--should exist only once across all input `*.fasta` files.
  * AddTag makes no effort to restrict which Target motifs the user can use according to the selected Algorithms. Therefore, the user needs to independently verify which Target motifs are compatible with the selected Algorithms.
  * Right now AddTag can only handle linear chromosomes. If you want to analyze a circular chromosome, then you will need to artificially concatenate the ends of the chromosome together and adjust any annotations before running AddTag. An additional complication the software does not address is circular chromosomes. Features and their flanking regions cannot span the junction created when the contig end is concatenated to the start (typically the starting position on a contig is labeled the ORIGIN). To address this, the user should manually shift the coordinates of the experimental Features, and wrap the contigs as appropriate.
- * AddTag assumes one Feature copy per contig. The current implementation of AddTag assumes homology regions around Features are not repeated across any one contig. This means that is will fail to generate cPCR oligos for a large proportion of genes in transposon-rich genomes such as [wheat](https://dx.doi.org/10.1186/s13059-018-1479-0).
+ * AddTag assumes one Feature copy per contig. The current implementation of AddTag assumes homology regions around Features are not repeated across any one contig. This means that is will fail to generate cPCR oligos for a large proportion of genes in transposon-rich genomes such as [wheat](https://dx.doi.org/10.1186/s13059-018-1479-0). This limitation is currently a result of both the *in silico* recombination and the primer identification routine. If there are tandem Features on a contig, then the sF and sR primers are likely duplicated across these adjacent loci. The shared primers thus can't specifically amplify one of the tandem duplications and not the other.
+ * AddTag uses the *in silico* recombination phase of `generate_primers` subroutine to determine if flanking homology regions of dDNAs are too repetetive across the genome (ideally, this would be performed in the `generate_all` subroutine).
  * A single Feature cannot span two or more contigs (partially a limitation of the GFF format). AddTag assumes that the entire feature sequence, and any flanking regions, are not in terminal regions of the reference contig. 
  * AddTag does not address overlapping genes, such as when an intron contains an exon for another gene, or when the same DNA encodes for genes on opposite strands. Everything between the Feature bounds is removed in the first engineering step. Currently, if the selected Feature overlaps with any other feature, only the selected Feature is considered. The other Feature will be disrupted. AddTag will report a warning that these other Features may be disrupted, but it does not attempt to reconcile this in any way. However, AddTag does have the ability to limit Feature expansion to keep the deletion outside of neighboring Features.
  * AddTag was not designed to perform paired Cas design, such as FokI-dCas9 nickase. You would need to run the program and select two gRNAs designed for opposite strands within a certain distance from each other. Alternatively, you could probably make some really-long Target motif. One way to mitigate errors is to use PAM-out nickases. This requires Cas9 cutting by two targets to get double-stranded break. This significantly decreases off-target genome editing. However, this initial AddTag version does not explicitly facilitate this.
@@ -932,6 +949,9 @@ Below are tips and descriptions of AddTag limitations that will help you make su
  * To facilitate more straightforward programming, AddTag outputs 0-based genomic coordinates (as opposed to traditional 1-based coordinates). All input data, such as `GFF` files, are expected to use 1-based genomic coordinates.
  * If Algorithm columns in the `STDOUT` of the `generate_all` subroutine, return `0.0`, then a likely cause is that the Algorithm prerequisites are not correctly installed. For instance, if `Azimuth` scores are all `0.0` on a Linux machine, then you might be missing the `python-tk` system package. In this case, try to run `source/algorithms/addtag_wrapper.py` in isolation to troubleshoot the problem.
  * The 'forward' and 'reverse' cognomina are absolute to the input contig coordinates. For instance, the 'sF' and 'sR' Primers are not relative to the orientation of the Feature defined in the input GFF. Instead, 'sF' is earlier in the contig (lower number), and 'sR' is later in the contig (higher number).
+ * In this current version, AddTag's `generate_primers` subroutine assumes that there is a double-stranded break (DSB) in the gDNA between the the locations the dDNA homology arms are similar to. Furthermore, it assumes these DSBs are repaired perfectly though homology-directed repair (HDR). This makes sense in our experimental biological system *C. albicans*. In other systems, such as *H. sapiens*, there is a higher amount of error-prone DSB repair.
+ * Run time is a function of the number of potential primers that need to be analyzed. Thus, genes that are longer have more potential primers. Also, the number of potential primers actually analyzed depends on the sequence composition of each region. If a region has great complexity, then more primers will be analyzed with the full suite of filters, and the analysis will take longer. If a region has little complexity, then more potential primers will be discarded at early filters, and the analysis will take less time.
+ * In rare cases, endogenous RNA may bind to the RGN to drive cutting at non-target loci. AddTag does not screen the input gDNA for this possibility because it does not analyze the scaffold section of the gRNA. 
 
 </td></tr></tbody></table>
 </details>
