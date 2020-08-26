@@ -101,13 +101,15 @@ class Doench2014(SingleSequenceAlgorithm):
         # The authors' web tool is available at http://www.broadinstitute.org/rnai/public/analysis-tools/sgrna-design
         # Thanks to Cameron Mac Pherson at Pasteur Paris for fixing my original version. Maximilian Haeussler 2014
         
+        #logger.info('DEBUG -- seq={}, pam={}, upstream={}, downstream={}'.format(seq, pam, upstream, downstream))
+        
         # We anchor the scoring algorithm at the PAM sequence
         # Inefficient code
         new = ['-'] * 30
-        for i, nt in enumerate(pam):
+        for i, nt in enumerate(pam[:6]):
             new[24+i] = nt
 
-        for i, nt in enumerate(seq[::-1]):
+        for i, nt in enumerate(seq[:-25:-1]):
             new[24-1-i] = nt
 
         for i, nt in enumerate(upstream[::-1]):

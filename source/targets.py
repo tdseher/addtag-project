@@ -656,7 +656,7 @@ class Target(object):
         
         # Code to add position within Feature to Algorithm input
         from . import feature
-        f = feature.Feature.features[loc[0].split(',')[0]] # Arbitrarrily select first element
+        f = feature.Feature.features[loc[0].split(',')[0]] # Arbitrarily select first element
         # Assuming that (f.contig == aligend_contig)
         # because this uses the Target.start and Feature.start, this metric is asymmetrical with regards to Feature.orientation
         f_position, f_length, f_orientation = aligned_start-f.start, f.end-f.start, f.strand

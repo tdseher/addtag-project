@@ -850,11 +850,11 @@ class Feature(object):
             # TODO: Ideally, every 'Feature.name' in an equivalence group would have the same '_derived-N' suffix
             #       However, the program is currently designed so only one Feature object per sequence can exist.
             #       If there are multiple Feature objects with the same sequence, then there will likely be a problem
-            #       So as a work-around, the names will look like this: '_derived-1,3,5,7'
-            #       with a comma-separated list of homology groups
+            #       So as a work-around, the names will look like this: '_derived-1/3/5/7'
+            #       ('/' because ',' is already taken) with a comma-separated list of homology groups
             d_fi, d_start, d_end = bounds
             f = feature_list[d_fi]
-            new_name = '{}_derived-{}'.format(f.name, ','.join(map(str, eqi_list)))
+            new_name = '{}_derived-{}'.format(f.name, '/'.join(map(str, eqi_list)))
             new_attributes = f.attributes.copy()
             new_attributes[args.tag] = new_name
             new_feature = Feature(f.contig, d_start, d_end, f.strand, name=new_name, source=f.source, feature_type=f.feature_type, score=f.score, frame=f.frame, attributes=new_attributes, origin=Feature.DERIVED, parent=f, gene=f.gene)
@@ -1050,7 +1050,7 @@ class Feature(object):
                     # TODO: Make a quick-align function to try first, BEFORE doing a third-party MSA
                     #       see 'quick-msa()' for my ideas.
                     #       If the homologous flanking regions pass 'quick-msa()', then there is no
-                    #       reason to do a potentially expensive/erronous third-party MSA
+                    #       reason to do a potentially expensive/erroneous third-party MSA
                     #       Perhaps, the 'quick-msa()' will only naively calculate whether-or-not expansion
                     #       is necessary, and not attempt to do it at all.
                     

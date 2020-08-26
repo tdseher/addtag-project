@@ -75,10 +75,10 @@ class MorenoMateos(SingleSequenceAlgorithm):
         # We anchor the scoring algorithm at the PAM sequence
         # Inefficient code
         new = ['-'] * 35
-        for i, nt in enumerate(pam):
+        for i, nt in enumerate(pam[:9]):
             new[26+i] = nt
 
-        for i, nt in enumerate(seq[::-1]):
+        for i, nt in enumerate(seq[:-27:-1]):
             new[26-1-i] = nt
 
         for i, nt in enumerate(upstream[::-1]):
