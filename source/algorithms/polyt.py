@@ -14,7 +14,7 @@ class PolyT(SingleSequenceAlgorithm):
     def __init__(self):
         super().__init__(
             name="PolyT",
-            authors=['Seher, Thaddeus D.'],
+            authors=['Seher, Thaddeus D.'], # Cite Braglia, P., Percudani, R. and Dieci, G. (2005) Sequence Context Effects on Oligo(dT) Termination Signal Recognition by Saccharomyces cerevisiae RNA Polymerase III. Journal of Biological Chemistry, 280, 19551-19562. https://www.jbc.org/content/280/20/19551.short
             title='',
             journal='',
             issuing='',
@@ -108,7 +108,7 @@ def test():
     g = ('', '>',                    'h', 'AGG', '', '') # 0.3333333333333333
     h = ('', '>',                    'N', 'AGG', '', '') # 0.25
     i = ('', '>', 'AACTTTTTYCCATTNTTTTT', 'GGG', '', '') # 7.25
-    '>', 
+    
     print("=== PolyT ===")
     C = PolyT()
     print(C.calculate(a))

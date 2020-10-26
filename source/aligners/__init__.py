@@ -28,6 +28,7 @@ exclusions = [
     'dsnickfury.py',
     'hyperscan.py',
     'inbuilt.py',
+    'kalign3.py',
 #    'mafft.py',
     'seqmap.py',
     'usearch.py',

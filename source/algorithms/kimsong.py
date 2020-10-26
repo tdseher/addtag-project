@@ -64,7 +64,10 @@ class DeepCpf1(BatchedSingleSequenceAlgorithm):
     CHROMATIN_IGNORED = 0
     CHROMATIN_INACCESSIBLE = 1
     CHROMATIN_ACCESSIBLE = 2
-        
+    # The DeepCpf1 paper is apparently the following:
+    #   Kim HK, Min S, Song M, Jung S, Choi JW, Kim Y, et al. Deep learning improves prediction of CRISPR–Cpf1 guide RNA activity. Nature Biotechnology. 2018;36(3):239-41. doi: 10.1038/nbt.4061.
+    # The CINDEL paper is the following:
+    #   Kim HK, Song M, Lee J, Menon AV, Jung S, Kang Y-M, et al. In vivo high-throughput profiling of CRISPR–Cpf1 activity. Nature Methods. 2016;14:153-9. doi: 10.1038/nmeth.4104.
     def __init__(self):
         super().__init__(
             name="DeepCpf1",

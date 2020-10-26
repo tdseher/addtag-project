@@ -659,20 +659,20 @@ except FileNotFoundError:
 def test():
     """Code to test the functions and classes"""
     
-    a = ('',   'CGATGGCTAGGATCGATTGA', 'TGG', '', '')
-    b = ('',   'RYMKWSACGTbDHVNACGTA', 'TGG', '', '')
-    c = ('',     'ATGSCTCGGATCGATTGA', 'AGG', '', '')
-    d = ('',   'GCGATGCGCAGCTAGGCCGG', 'CGG', '', '')
-    e = ('',   'CGAAGGCTCGGACCGATTGA', 'GGG', '', '')
-    f = ('',   'CGCTGGCTAGGATCGATTGA', 'AGG', '', '')
-    g = ('',   'AAAATTAACTATAGGTAAAG', 'TGG', '', '')
-    h = ('',   'AACATCAACTCTAGCTAACG', 'CGG', '', '')
-    i = ('',   'AACATCAACTCTACCTAACG', 'CGG', 'CCGA', 'AACA')
-    j = ('',   'GTTAGCGGTATGTATATGTG', 'TGG', 'GGGA', 'CTCA')
-    k = ('', 'CTCAACATGGTATGTATATGTG', 'TGG', 'TCGA', 'TTCA')
-    l = ('',   'GGCATGCGCCATCGCCGGAC', 'NNN', 'NNNN', 'NNN')
-    m = ('',   'GGCATGCGCCATCGCCGGAN', 'NNN', 'NNNN', 'NNN')
-    n = ('',   'GAAAATTGGCATAACCACCA', 'AGG', 'ACAAAATC', 'TCATTGC')
+    a = ('', '>',   'CGATGGCTAGGATCGATTGA', 'TGG', '', '')
+    b = ('', '>',   'RYMKWSACGTbDHVNACGTA', 'TGG', '', '')
+    c = ('', '>',     'ATGSCTCGGATCGATTGA', 'AGG', '', '')
+    d = ('', '>',   'GCGATGCGCAGCTAGGCCGG', 'CGG', '', '')
+    e = ('', '>',   'CGAAGGCTCGGACCGATTGA', 'GGG', '', '')
+    f = ('', '>',   'CGCTGGCTAGGATCGATTGA', 'AGG', '', '')
+    g = ('', '>',   'AAAATTAACTATAGGTAAAG', 'TGG', '', '')
+    h = ('', '>',   'AACATCAACTCTAGCTAACG', 'CGG', '', '')
+    i = ('', '>',   'AACATCAACTCTACCTAACG', 'CGG', 'CCGA', 'AACA')
+    j = ('', '>',   'GTTAGCGGTATGTATATGTG', 'TGG', 'GGGA', 'CTCA')
+    k = ('', '>', 'CTCAACATGGTATGTATATGTG', 'TGG', 'TCGA', 'TTCA')
+    l = ('', '>',   'GGCATGCGCCATCGCCGGAC', 'NNN', 'NNNN', 'NNN')
+    m = ('', '>',   'GGCATGCGCCATCGCCGGAN', 'NNN', 'NNNN', 'NNN')
+    n = ('', '>',   'GAAAATTGGCATAACCACCA', 'AGG', 'ACAAAATC', 'TCATTGC')
     
     print("=== Doench2014 ===")
     C = Doench2014()
@@ -709,8 +709,8 @@ def test():
     
     start = time.time()
     seqs = []
-    for I in range(10000):
-        seqs.append(('', random_sequence(20), random_sequence(3), random_sequence(4), random_sequence(3)))
+    for I in range(100000):
+        seqs.append(('', '>', random_sequence(20), random_sequence(3), random_sequence(4), random_sequence(3)))
     scores = C.calculate(seqs, disambiguate=True)
     
     print('min={}, max={}, mean={}, time={}'.format(min(scores), max(scores), sum(scores)/len(scores), time.time()-start))
