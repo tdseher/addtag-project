@@ -132,7 +132,7 @@ The following scoring algorithms are subclasses of `SingleSequenceAlgorithm`.
       
       note: requires python-tk to be installed. Also requires specific versions of scipy, numpy, matplotlib, nose, scikit-learn, pandas, biopython, pyparsing, cycler, six, pytz, python-dateutil, functools32, subprocess32.
 
- * [ ] DeepCpf1/CINDEL ([Kim, Song, et al (2016)](http://dx.doi.org/10.1038/nmeth.4104))
+ * [ ] CINDEL/DeepCpf1 ([Kim, Song, et al (2016)](http://dx.doi.org/10.1038/nmeth.4104), [Kim, Song, et al (2018)](https://doi.org/10.1038/nbt.4061))
        
    note: Requires both Keras and Theano Python modules.
    
@@ -144,6 +144,8 @@ The following scoring algorithms are subclasses of `SingleSequenceAlgorithm`.
  * [x] Housden ([Housden, et al (2015)](http://dx.doi.org/10.1126/scisignal.aab3729))
 
  * [x] Moreno-Mateos ([Moreno-Mateos, et al (2015)](http://dx.doi.org/10.1038/nmeth.3543))
+
+ * [x] CRISPRater ([Labuhn, et al. (2018)](http://dx.doi.org/10.1093/nar/gkx1268))
 
  * [x] GC ([Wang, et al (2014)](http://dx.doi.org/10.1126/science.1246981'))
 
@@ -162,8 +164,6 @@ The following scoring algorithms are subclasses of `PairedSequenceAlgorithm`.
  * [x] Substitutions, Insertions, Deletions, Errors ([Needleman, Wunsch (1970)](https://dx.doi.org/10.1016/0022-2836%2870%2990057-4))
 
  * [x] Hsu-Zhang ([Hsu, et al (2013)](http://dx.doi.org/10.1038/nbt.2647))
-
- * [x] CRISPRater ([Labuhn, et al. (2018)](http://dx.doi.org/10.1093/nar/gkx1268))
 
  * [x] Linear
 
