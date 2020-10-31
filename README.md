@@ -33,7 +33,7 @@ Basic Features:
    * [x] Searches for ![Target][Target]s using selectable pairwise alignment program (see [Aligners](#-supported-sequence-aligners)).
  * [x] Generates exogenous, donor DNAs (![dDNA][dDNA]s) to modify the same locus successively.
    * [x] Assembles unique ![Target][Target] sites (on ![dDNA][dDNA]s), thus maximizing **on-target** and **off-target** scores (because they don't resemble any input gDNA).
-   * [x] Adds unique ![Target][Target]s to ![dDNA][dDNA]s without inserting sequences (or while introducing minimal amounts of extrinsic DNA).
+   * [x] Adds unique ![Target][Target]s to ![dDNA][dDNA]s without inserting sequence (or while introducing minimal amounts of extrinsic DNA).
    * [x] Engineers a single set of conservative PCR (cPCR) ![Primer][Primer]s that work for all genotypes (wild type, knock-out, and add-back) to validate if a ![Feature][Feature] was engineered correctly.
    * [x] Produces homology-aware ![dDNA][dDNA]s (**multi-allelic**, **allele-specific**, and **allele-agnostic**).
  * [x] Performs *in silico* recombination between gDNA and ![dDNA][dDNA]s.
@@ -150,6 +150,8 @@ The following scoring algorithms are subclasses of `SingleSequenceAlgorithm`.
  * [x] GC ([Wang, et al (2014)](http://dx.doi.org/10.1126/science.1246981'))
 
  * [x] Homopolymer ([Hough, et al. (2017)](https://doi.org/10.1186/s12859-017-1581-4))
+
+ * [x] ProximalG
 
  * [x] PolyT
 
@@ -816,9 +818,9 @@ All Features in input GFF file will be evaluated simultaneously.
 </details>
 
 ## 📝 Citing AddTag ##
-If you use AddTag for your research, please cite us. Because the manuscript is currently in preparation, you will need to cite the code repository instead.
+If you use AddTag for your research, please cite us. Because the manuscript is currently pending review, you will need to cite the code repository instead.
 
- > Thaddeus D. Seher and Aaron D. Hernday. AddTag: Program for identifying exclusive endogenous gRNA sites and creating unique synthetic gRNA sites. University of California, Merced. Retrieved from <[https://github.com/tdseher/addtag-project](https://github.com/tdseher/addtag-project)> (2019).
+ > Thaddeus D. Seher, Diana Ramos, Namkha Nguyen, Priyanka Bapat, Clarissa J. Nobile, Suzanne S. Sindi, and Aaron D. Hernday. AddTag: software for automated design and validation of precision CRISPR/Cas genome edits. University of California, Merced. Retrieved from <[https://github.com/tdseher/addtag-project](https://github.com/tdseher/addtag-project)> (2019).
 
 ## ✍ Authors ##
 Who do I talk to?
