@@ -879,6 +879,21 @@ class ReversionDonor(Donor):
                     'max_tm_difference': 2.5,
                     'amplicon_size_range': (2*min(args.revert_homology_length)+min(feature_sizes), 2*max(args.revert_homology_length)+max(feature_sizes)),
                 }
+                
+                # Relax default cutoffs
+                cutoffs = {
+                    'length': (19, 32),
+                    'last5gc_count': (0, 4),
+                    'gc_clamp_length': (0, 3),
+                    'gc': (0.3, 0.7),
+                    'max_run_length': 5,
+                    'max_3prime_complementation_length': 4,
+                    'min_delta_g': -5.0,
+                    'tm': (52, 65),
+                    'max_tm_difference': 3.0,
+                    'amplicon_size_range': (2*min(args.revert_homology_length)+min(feature_sizes), 2*max(args.revert_homology_length)+max(feature_sizes)),
+                }
+                
                 # Add the invariant cutoff parameters
                 cutoffs['o_oligo'] = args.selected_oligo
                 cutoffs['folder'] = os.path.join(args.temp_folder, 'addtag', os.path.basename(args.folder))
