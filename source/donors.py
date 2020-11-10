@@ -836,6 +836,7 @@ class ReversionDonor(Donor):
             
             # Make simple dict to lookup the feature size given the gene/locus/contig
             gg2feature_size = {}
+            homolog_lookup = {} # key=locus, value=number homologs its parent has
             for feature_name, f in Feature.features.items():
                 f_gene = f.get_gene()
                 f_locus = f.get_parent().name
@@ -845,6 +846,8 @@ class ReversionDonor(Donor):
                 f_start, f_end = f.start, f.end
                 
                 gg2feature_size.setdefault((f_gene, f_locus, f_genome, f_contig), list()).append(f_end-f_start)
+                
+                homolog_lookup[f_locus] = len(f.get_parent().homologs)
             
             cls.logger.info("gene-to-feature:")
             for k, v in gg2feature_size.items():
@@ -952,18 +955,29 @@ class ReversionDonor(Donor):
                             ##    ampR_list.append(p)
                             
                         elif (args.donor_specificity == 'all'):
-                            p1_features = set()
-                            p2_features = set()
+                            # TODO: For some reason, the original code (from revision 507) 
+                            #       DOESN'T WORK when using expanded features.
+                            #       Is it because 'p.locations' contains several derived features?
+                            
+                            p1_features = set() # amount of times the specific locus is counted
+                            p2_features = set() # amount of times the specific locus is counted
                             for loc in p.locations:
-                                if (loc[0] == g):
+                                if (loc[0] == g): # loc[0] is the gene
                                     if (loc[3] == AMP_F):
-                                        p1_features.add(loc[1])
+                                        p1_features.add(loc[1]) # loc[1] is the locus
                                     if (loc[3] == AMP_R):
-                                        p2_features.add(loc[1])
-                            if (len(p1_features) == g_count):
+                                        p2_features.add(loc[1]) # loc[1] is the locus
+                            
+                            # TODO: Does this fix the problem?
+                            if (len(p1_features) in [homolog_lookup[xx] for xx in p1_features]):
                                 ampF_list.append(p)
-                            if (len(p2_features) == g_count):
+                            if (len(p2_features) in [homolog_lookup[xx] for xx in p2_features]):
                                 ampR_list.append(p)
+                            
+                            #if (len(p1_features) == g_count): # g_count has count of features with 'gene' as the parent
+                            #    ampF_list.append(p)
+                            #if (len(p2_features) == g_count):
+                            #    ampR_list.append(p)
                         
                         elif (args.donor_specificity == 'exclusive'):
                             # TODO: Test this (might be missing the case where F present in both alleles, but R is only in one)
@@ -1103,12 +1117,17 @@ class ReversionDonor(Donor):
                             for loc in pp.forward_primer.locations:
                                 if ((loc[0] == g) and (loc[3] == AMP_F) and (loc[4] == f.contig)):
                                     p1_se_list.append([loc[6], loc[7], loc])
-                            p1_location = max(p1_se_list)[2]
                             
                             p2_se_list = []
                             for loc in pp.reverse_primer.locations:
                                 if ((loc[0] == g) and (loc[3] == AMP_R) and (loc[4] == f.contig)):
                                     p2_se_list.append([loc[6], loc[7], loc])
+                            
+                            # When using feature expansion, we get an error, so this 'continue' condition should help 
+                            if ((len(p1_se_list) == 0) or (len(p2_se_list) == 0)):
+                                continue
+                            
+                            p1_location = max(p1_se_list)[2]
                             p2_location = min(p2_se_list)[2]
                             
                             start1, end1 = p1_location[6], f.start
