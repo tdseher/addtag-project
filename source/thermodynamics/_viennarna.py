@@ -134,7 +134,17 @@ class ViennaRNA(Oligo):
             mfe = duplex.energy
         
         if mfe != None:
-            s = Structure(seq1, seq2, mfe, None, None, None, sodium, magnesium, temperature, concentration)
+            # Only calculate perfect heterodimer melting temperature
+            if (seq2 and (seq1 == rc(seq2))):
+                tm = cls.find_tms([seq1])[0]
+            else:
+                tm = None
+            #if (seq2 == None):
+            #    tm = cls.find_tms([seq1])[0]
+            #else:
+            #    tm = cls.find_tms([min(seq1, seq2, key=len)])[0] # only calculates Tm of sequence annealed to its reverse complement, so we choose the sequence with smaller length
+            
+            s = Structure(seq1, seq2, mfe, None, None, tm, sodium, magnesium, temperature, concentration)
         else:
             s = Structure(seq1, seq2, math.inf, math.inf, math.inf, math.inf, sodium, magnesium, temperature, concentration)
         
