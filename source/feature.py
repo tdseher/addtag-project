@@ -1303,6 +1303,8 @@ class Feature(object):
                 cls.logger.info('') # Blank line
                 
                 # Print info message if no good windows found for either US or DS region
+                # good_windows[0] is the US region, and good_windows[1] is the DS region
+                # if either one contains 'None', then this Locus can't be edited according to the user-selected stringencies (right?)
                 if None in good_windows:
                     cls.logger.info('No adequate Windows meeting divergence thresholds found!')
                     cls.logger.info("Falling back on '--donor_specificity=any' implementation for this equivalent set")
@@ -1312,19 +1314,24 @@ class Feature(object):
                 d_starts = []
                 d_ends = []
                 
+                # Deal with US region
                 if (good_windows[0] == None):
-                    d_fis.append(bounds_list[eqi][0])
+                    #d_fis.append(blist[0])
+                    d_fis = [blt[0] for blt in blist] # TODO: Check to make sure this is the correct thing intended here
                     #d_starts.append(max(0, bounds_list[eqi][1]-length)) # When including homology arm
-                    d_starts.append(bounds_list[eqi][1])
+                    #d_starts.append(blist[1])
+                    d_starts = [blt[1] for blt in blist] # TODO: Check to make sure this is the correct thing intended here
                 else:
                     for wr in good_windows[0][1]: # US
                         d_fis.append(wr.feature_index)
                         #d_starts.append(wr.start) # When including homology arm
                         d_starts.append(wr.end)
                 
+                # Deal with DS region
                 if (good_windows[1] == None):
                     #d_ends.append(min(bounds_list[eqi][2]+length, len(contigs[feature_list[bounds_list[eqi][0]].contig]))) # When including homology arm
-                    d_ends.append(bounds_list[eqi][2])
+                    #d_ends.append(blist[2])
+                    d_ends = [blt[2] for blt in blist] # TODO: Check to make sure this is the correct thing intended here
                 else:
                     for wr in good_windows[1][1]: # DS
                         #d_ends.append(wr.end) # When including homology arm
