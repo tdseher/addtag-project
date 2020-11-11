@@ -1327,12 +1327,12 @@ class Primer(object):
         )
     
     def __repr__(self):
-        labs = ['name', 'seq', 'pos', 'strand', 'Tm', 'GC', 'min(dG)']
+        labs = ['name', 'seq', 'Tm', 'GC', 'min(dG)'] # 'pos', 'strand',
         vals = [
             self.get_name(),
             self.sequence,
-            self.position,
-            self.strand,
+            #self.position,
+            #self.strand,
             round(self.get_tm(), 2),
             round(self.gc, 2),
             round(self.get_min_delta_G(), 2)

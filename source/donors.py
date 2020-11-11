@@ -835,6 +835,7 @@ class ReversionDonor(Donor):
             cls.logger.info("Total 'Primer' objects: {}".format(len(Primer.sequences)))
             
             # Make simple dict to lookup the feature size given the gene/locus/contig
+            cls.logger.info("homolog_lookup:")
             gg2feature_size = {}
             homolog_lookup = {} # key=locus, value=number homologs its parent has
             for feature_name, f in Feature.features.items():
@@ -847,7 +848,8 @@ class ReversionDonor(Donor):
                 
                 gg2feature_size.setdefault((f_gene, f_locus, f_genome, f_contig), list()).append(f_end-f_start)
                 
-                homolog_lookup[f_locus] = len(f.get_parent().homologs)
+                homolog_lookup[feature_name] = len(f.get_parent().homologs[0]) # TODO: Why is 'f.homologs' a list of sets?
+                cls.logger.info('  feature_name={}, f_gene={}, f_locus={}, f_contig={}, f.get_parent().homologs={}'.format(feature_name, f_gene, f_locus, f_contig, f.get_parent().homologs))
             
             cls.logger.info("gene-to-feature:")
             for k, v in gg2feature_size.items():
@@ -967,6 +969,19 @@ class ReversionDonor(Donor):
                                         p1_features.add(loc[1]) # loc[1] is the locus
                                     if (loc[3] == AMP_R):
                                         p2_features.add(loc[1]) # loc[1] is the locus
+                            
+                            ### start debug ###
+                            #print('g={}'.format(g))
+                            #print('pi={}, seq={}, p={}'.format(pi, seq, p))
+                            #print('p1_features={}'.format(p1_features))
+                            #print('p2_features={}'.format(p2_features))
+                            #print('p.locations=')
+                            #for loc in p.locations:
+                            #    print(' loc={}'.format(loc))
+                            #    print(' homolog_lookup[loc[1]]={}'.format(homolog_lookup[loc[1]]))
+                            #print('', flush=True)
+                            
+                            ### end debug ###
                             
                             # TODO: Does this fix the problem?
                             if (len(p1_features) in [homolog_lookup[xx] for xx in p1_features]):
