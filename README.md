@@ -9,9 +9,12 @@ Program for identifying exclusive endogenous gRNA sites and creating unique synt
 [![Code coverage](https://img.shields.io/azure-devops/coverage/tdseher/addtag-project/1)](#)
 
 [![Python](https://img.shields.io/badge/Python-≥3.5.1-1f425f.svg?logo=python)](https://www.python.org/downloads/release/python-360/)
-[![downloads](https://img.shields.io/github/downloads/tdseher/addtag-project/total.svg)](https://github.com/tdseher/addtag-project/releases)
 [![PRs](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
 [![](https://img.shields.io/badge/doi-...-blue.svg)](#)
+
+[![Twitter](https://img.shields.io/badge/Twitter-@tdseher-blue?logo=twitter)](https://twitter.com/tdseher)
+[![Open Source](https://img.shields.io/badge/Open%20Source-❤-teal)](#)
+[![free software](https://img.shields.io/badge/Software-%F0%9F%97%BD%20free-teal)](https://www.gnu.org/philosophy/free-sw.html)
 
 [Features](#-features) • [Requirements](#-requirements) • [Installing](#-installing-addtag) • [Usage](#-program-instructions) • [Aligners](#-supported-sequence-aligners) • [Thermodynamics](#-supported-thermodynamics-calculators) • [Algorithms](#-supported-scoring-algorithms) • [Citing](#-citing-addtag) • [Contributing](#-contributing)
 
@@ -19,26 +22,26 @@ Program for identifying exclusive endogenous gRNA sites and creating unique synt
 Basic Features:
  * [x] Analyzes any arbitrary genomic DNA (gDNA).
    * [x] Fully supports ambiguous characters or polymorphisms (`RYMKWSBDHVN`).
-   * [x] Respects case-masked gDNA for ![Target][Target] and ![Primer][Primer] identification.
- * [x] Locates RNA-guided nuclease (![RGN][RGN]) cut sites (![Target][Target]s) within a ![Feature][Feature] (locus of interest) for optimal gRNA ![Spacer][Spacer]s.
-   * [x] Fully supports ambiguous bases (`RYMKWSBDHVN`) in ![Spacer][Spacer] or ![PAM][PAM].
-   * [x] Accepts 3'-adjacent ![PAM][PAM] sequences, such as Cas9 (`>NGG`).
-   * [x] Accepts 5'-adjacent ![PAM][PAM] sequences, such as Cas12a (`TTTN<`).
-   * [x] Supports arbitrary ![Spacer][Spacer] length and composition constraints, such as for plant experiments (`G{,2}N{19,20}`).
-   * [x] Supports arbitrary ![PAM][PAM] sequences (MAD7: `YTTN<`, Cas12d: `TA<`, BlCas9: `>NGGNCNDD`, etc).
+   * [x] Respects case-masked gDNA for [![Target][Target]](#) and [![Primer][Primer]](#) identification.
+ * [x] Locates RNA-guided nuclease ([![RGN][RGN]](#)) cut sites ([![Target][Target]](#)s) within a [![Feature][Feature]](#) (locus of interest) for optimal gRNA [![Spacer][Spacer]](#)s.
+   * [x] Fully supports ambiguous bases (`RYMKWSBDHVN`) in [![Spacer][Spacer]](#) or [![PAM][PAM]](#).
+   * [x] Accepts 3'-adjacent [![PAM][PAM]](#) sequences, such as Cas9 (`>NGG`).
+   * [x] Accepts 5'-adjacent [![PAM][PAM]](#) sequences, such as Cas12a (`TTTN<`).
+   * [x] Supports arbitrary [![Spacer][Spacer]](#) length and composition constraints, such as for plant experiments (`G{,2}N{19,20}`).
+   * [x] Supports arbitrary [![PAM][PAM]](#) sequences (MAD7: `YTTN<`, Cas12d: `TA<`, BlCas9: `>NGGNCNDD`, etc).
    * [x] Uses stranded forward (`/`), reverse (`\`) and unstranded (`|`) cut sites.
-   * [x] Supports ![PAM][PAM] sequences defined by complex nested logic, such as xCas9 (`>(N{1,2}G,GAW,CAA)`)
+   * [x] Supports [![PAM][PAM]](#) sequences defined by complex nested logic, such as xCas9 (`>(N{1,2}G,GAW,CAA)`)
    * [x] Calculates any number of **on-target** and **off-target** scores (see [Algorithms](#-supported-scoring-algorithms)).
-   * [x] Finds homology-aware ![Target][Target]s (**multi-allelic**, **allele-specific**, and **allele-agnostic**).
-   * [x] Searches for ![Target][Target]s using selectable pairwise alignment program (see [Aligners](#-supported-sequence-aligners)).
- * [x] Generates exogenous, donor DNAs (![dDNA][dDNA]s) to modify the same locus successively.
-   * [x] Assembles unique ![Target][Target] sites (on ![dDNA][dDNA]s), thus maximizing **on-target** and **off-target** scores (because they don't resemble any input gDNA).
-   * [x] Adds unique ![Target][Target]s to ![dDNA][dDNA]s without inserting sequence (or while introducing minimal amounts of extrinsic DNA).
-   * [x] Engineers a single set of conservative PCR (cPCR) ![Primer][Primer]s that work for all genotypes (wild type, knock-out, and add-back) to validate if a ![Feature][Feature] was engineered correctly.
-   * [x] Produces homology-aware ![dDNA][dDNA]s (**multi-allelic**, **allele-specific**, and **allele-agnostic**).
- * [x] Performs *in silico* recombination between gDNA and ![dDNA][dDNA]s.
- * [x] Determines thermodynamic properties of sets of ![Primer][Primer] pairs (Tm, minimum ΔG, amplicon size, etc).
- * [x] Displays all known ![RGN][RGN] ![Spacer][Spacer] and ![PAM][PAM] combinations.
+   * [x] Finds homology-aware [![Target][Target]](#)s (**multi-allelic**, **allele-specific**, and **allele-agnostic**).
+   * [x] Searches for [![Target][Target]](#)s using selectable pairwise alignment program (see [Aligners](#-supported-sequence-aligners)).
+ * [x] Generates exogenous, donor DNAs ([![dDNA][dDNA]](#)s) to modify the same locus successively.
+   * [x] Assembles unique [![Target][Target]](#) sites (on [![dDNA][dDNA]](#)s), thus maximizing **on-target** and **off-target** scores (because they don't resemble any input gDNA).
+   * [x] Adds unique [![Target][Target]](#)s to [![dDNA][dDNA]](#)s without inserting sequence (or while introducing minimal amounts of extrinsic DNA).
+   * [x] Engineers a single set of conservative PCR (cPCR) [![Primer][Primer]](#)s that work for all genotypes (wild type, knock-out, and add-back) to validate if a [![Feature][Feature]](#) was engineered correctly.
+   * [x] Produces homology-aware [![dDNA][dDNA]](#)s (**multi-allelic**, **allele-specific**, and **allele-agnostic**).
+ * [x] Performs *in silico* recombination between gDNA and [![dDNA][dDNA]](#)s.
+ * [x] Determines thermodynamic properties of sets of [![Primer][Primer]](#) pairs (Tm, minimum ΔG, amplicon size, etc).
+ * [x] Displays all known [![RGN][RGN]](#) [![Spacer][Spacer]](#) and [![PAM][PAM]](#) combinations.
 
 ## 📋 Requirements ##
 
@@ -50,8 +53,8 @@ Processor:
 Computations scale fairly linearly, so the more computational cores you can assign to the task, the faster it will go.
 
 Memory:
- * ≥ 1 Gb (for ![Target][Target] evaluation)
- * 4-128 Gb (for ![Primer][Primer] evaluation)
+ * ≥ 4 Gb (for [![Target][Target]](#) evaluation)
+ * ≥ 4 Gb (for [![Primer][Primer]](#) evaluation)
 
 See [Notes](#notes) for tips on memory optimization.
 
@@ -91,16 +94,14 @@ One pairwise sequence aligner is required:
 <!--
 ##### The following third-party integrations are currently incomplete #####
 
-For speed, we recommend at least one third-party pairwise nucleotide sequence alignment program:
-
  * [ ] BLAT ([source](https://genome.ucsc.edu/goldenPath/help/blatSpec.html), [binaries](http://hgdownload.cse.ucsc.edu/admin/exe/), [documentation](https://genome.ucsc.edu/goldenPath/help/blatSpec.html))
 
  * [ ] Bowtie ([source](https://github.com/BenLangmead/bowtie), [binaries](https://sourceforge.net/projects/bowtie-bio/files/bowtie/), [documentation](http://bowtie-bio.sourceforge.net/manual.shtml))
 
- * [ ] Usearch
+ * [ ] Usearch ([binaries](https://www.drive5.com/usearch/download.html), [documentation](https://drive5.com/usearch/manual/cmds_all.html))
 -->
 
-For polymorphism-aware ![Feature][Feature] expansion (using the `--homologs` option), one multiple sequence aligner is required:
+For polymorphism-aware [![Feature][Feature]](#) expansion (using the `--homologs` option), one multiple sequence aligner is required:
 
  * [ ] MAFFT ([source](https://mafft.cbrc.jp/alignment/software/source.html), [binaries](https://mafft.cbrc.jp/alignment/software/), [documentation](https://mafft.cbrc.jp/alignment/software/manual/manual.html))
 
@@ -326,7 +327,7 @@ AddTag requires a FASTA genome of the organism you wish to manipulate. FASTA fil
 > ```
 FASTA files are plain text files that use newline (`\n` or `\r\n`) characters as delimiters. If a line begins with a greater than (`>`) symbol, it represents the start of a new sequence record. All characters between the `>` and `\n` are considered the 'header' of the record. Everything between the `>` and the first whitespace character (` ` or `\t`), if one exists, is considered the 'primary identifier' for the record. All subsequent lines until the next 'header' line contain the sequence information for that record. Therefore FASTA files can contain many sequence records. Each record in a genome assembly's FASTA file is called a 'contig'. 
 
-Typically, the DNA sequence information in FASTA files are list a bunch of canonical nucletide abbreviations (`ACGT`). However, FASTA files can contain any number of ambiguous characters (`RYMKWSBDHVN`), which can represent allelic variation expected within the sample or sequencing uncertainty. FASTA files can also contain a mix of `UPPER` and `lower` cased characters. Typical use for `lower` case characters is to exclude these residues from ![Target][Target] or ![Primer][Primer] identification. 
+Typically, the DNA sequence information in FASTA files are list a bunch of canonical nucletide abbreviations (`ACGT`). However, FASTA files can contain any number of ambiguous characters (`RYMKWSBDHVN`), which can represent allelic variation expected within the sample or sequencing uncertainty. FASTA files can also contain a mix of `UPPER` and `lower` cased characters. Typical use for `lower` case characters is to exclude these residues from [![Target][Target]](#) or [![Primer][Primer]](#) identification. 
 
 #### GFF input ####
 AddTag requires a GFF file containing annotations for the Features you wish to manipulate ([technical specifications of GFF format](https://github.com/The-Sequence-Ontology/Specifications/blob/master/gff3.md)). GFF files resemble the following:
@@ -354,11 +355,11 @@ addtag find_feature --gff genome.fasta --query HSP90 --linked_tags Name Alias Pa
 ```
 
 #### Target motif input  ####
-The Target motif is written from 5' to 3'. Use a greater than (`>`) symbol if your ![RGN][RGN] has a 3'-adjacent PAM, and use a less than (`<`) symbol if your ![RGN][RGN] has a 5'-adjacent PAM. Ambiguous nucleotide characters are accepted. `{a,b}` are quantifiers. `(a,b,…)` are permitted alternatives. `/` is a sense strand cut, `\` is an antisense strand cut, and `|` is a double-strand cut. `.` is a base used for positional information, but not enzymatic recognition. Be sure to enclose each motif in quotes so your shell does not interpret `STDIN`/`STDOUT` redirection.
+The Target motif is written from 5' to 3'. Use a greater than (`>`) symbol if your [![RGN][RGN]](#) has a 3'-adjacent PAM, and use a less than (`<`) symbol if your [![RGN][RGN]](#) has a 5'-adjacent PAM. Ambiguous nucleotide characters are accepted. `{a,b}` are quantifiers. `(a,b,…)` are permitted alternatives. `/` is a sense strand cut, `\` is an antisense strand cut, and `|` is a double-strand cut. `.` is a base used for positional information, but not enzymatic recognition. Be sure to enclose each motif in quotes so your shell does not interpret `STDIN`/`STDOUT` redirection.
 
 You can specify any number of Target motifs to be considered 'on-target' using the `--motifs` command line option. You can also designate any number of Target motifs to be considered 'off-target' using the `--off_target_motigs` command line option. 
 
-To see an exhaustive list of all identified Target motifs for each known ![RGN][RGN], run the following command:
+To see an exhaustive list of all identified Target motifs for each known [![RGN][RGN]](#), run the following command:
 ```sh
 addtag list_motifs
 ```
@@ -510,7 +511,7 @@ The AddTag program contains a set of subroutines that can be run independently. 
 <summary>Click to expand/collapse</summary>
 <table><tbody><tr><td>
 
-Over the past few years, several Algorithms have been proposed to describe ![RGN][RGN] behavior within certain biological contexts. We implemented most of the commonly-used ones into the AddTag software. To view information about each, use the following command:
+Over the past few years, several Algorithms have been proposed to describe [![RGN][RGN]](#) behavior within certain biological contexts. We implemented most of the commonly-used ones into the AddTag software. To view information about each, use the following command:
 ```sh
 addtag list_algorithms
 ``` 
@@ -533,6 +534,59 @@ addtag list_thermodynamics
 
 </td></tr></tbody></table>
 </details>
+
+### Workflow for editing loci in the manuscript ###
+
+#### ADE2_CDS ####
+<details>
+<summary>Click to expand/collapse</summary>
+<table><tbody><tr><td>
+
+*~ Section incomplete ~*
+
+</td></tr></tbody></table>
+</details>
+
+#### EFG1_CDS ####
+<details>
+<summary>Click to expand/collapse</summary>
+<table><tbody><tr><td>
+
+*~ Section incomplete ~*
+
+</td></tr></tbody></table>
+</details>
+
+#### BRG1_CDS ####
+<details>
+<summary>Click to expand/collapse</summary>
+<table><tbody><tr><td>
+
+*~ Section incomplete ~*
+
+</td></tr></tbody></table>
+</details>
+
+#### ZAP1_US ####
+<details>
+<summary>Click to expand/collapse</summary>
+<table><tbody><tr><td>
+
+*~ Section incomplete ~*
+
+</td></tr></tbody></table>
+</details>
+
+#### ZRT2_US ####
+<details>
+<summary>Click to expand/collapse</summary>
+<table><tbody><tr><td>
+
+*~ Section incomplete ~*
+
+</td></tr></tbody></table>
+</details>
+
 
 ### Typical workflows ###
 
@@ -581,7 +635,7 @@ addtag find_feature --linked_tags --header --query ${GENE} --gff ${GENOME}.gff
 > NC_032089.1	RefSeq	mRNA	75573	77828	.	-	.	ID=rna-XM_713929.2;Parent=gene-CAALFM_C100480CA;Dbxref=GeneID:3639314,Genbank:XM_713929.2;Name=XM_713929.2;end_range=77828,.;gbkey=mRNA;gene=GCN20;locus_tag=CAALFM_C100480CA;orig_protein_id=gnl|WGS:AACQ|CAALFM_C100480CA;orig_transcript_id=gnl|WGS:AACQ|mrna_CAALFM_C100480CA;partial=true;product=putative AAA family ATPase;start_range=.,75573;transcript_id=XM_713929.2
 > ```
 
-We see there are 4 annotations associated with `GCN20`, each a different Feature type ('CDS', 'exon', 'gene', 'mRNA'), 
+We see there are 4 annotations associated with `GCN20`, each a different Feature type (`CDS`, `exon`, `gene`, `mRNA`), 
 and they all point toward the same 2256 nt on chromosome 1.
 
 Let's choose the Feature type `gene`, and its corresponding attribute ID `gene-CAALFM_C100480CA`.
@@ -691,13 +745,13 @@ The standard procedure is to first run `addtag generate_all`, and use its output
 
 For simplicity, We will assume the name of the Feature you are interested in is `GENE`.
 
-The first thing you will want to do, is compose a Target motif for the ![RGN][RGN] your biological system uses. To see a list of commonly-used Target motifs, run the following:
+The first thing you will want to do, is compose a Target motif for the [![RGN][RGN]](#) your biological system uses. To see a list of commonly-used Target motifs, run the following:
 ```sh
 addtag list_motifs
 ```
-Let's pretend our biological system uses the 'AsCpf1' ![RGN][RGN]. So we will use the associated `TTTN<N{19}/.{4,6}\` Target motif. Thus, we will add `--motifs 'TTTN<N{19}/.{4,6}\'` to the `addtag generate_all` command.
+Let's pretend our biological system uses the 'AsCpf1' [![RGN][RGN]](#). So we will use the associated `TTTN<N{19}/.{4,6}\` Target motif. Thus, we will add `--motifs 'TTTN<N{19}/.{4,6}\'` to the `addtag generate_all` command.
 
-The next step is to select one or more Algorithms to calculate the 'on-target' and 'off-target' scores for this ![RGN][RGN]. To see a list of all implemented Algorithms, run the following:
+The next step is to select one or more Algorithms to calculate the 'on-target' and 'off-target' scores for this [![RGN][RGN]](#). To see a list of all implemented Algorithms, run the following:
 ```sh
 addtag list_algorithms
 ``` 
@@ -885,10 +939,10 @@ Please submit a [pull request](https://github.com/tdseher/addtag-project/pulls).
 
 Scoring Algorithms have been broken down into two general types.
 
- * `SingleSequenceAlgorithm` objects calculate scores by comparing a potential RNA ![Spacer][Spacer] or DNA ![Target][Target] to a model trained on empirical data.
- * `PairedSequenceAlgorithm` instances generate scores that compare a potential RNA ![Spacer][Spacer] to a DNA ![Target][Target].
+ * `SingleSequenceAlgorithm` objects calculate scores by comparing a potential RNA [![Spacer][Spacer]](#) or DNA [![Target][Target]](#) to a model trained on empirical data.
+ * `PairedSequenceAlgorithm` instances generate scores that compare a potential RNA [![Spacer][Spacer]](#) to a DNA [![Target][Target]](#).
 
-To add a new scoring algorithm, you must subclass one of the the above types, and add it to a `*.py` file in the `source/algorithms/` subdirectory. AddTag will automatically calculate the score on every generated ![Spacer][Spacer].
+To add a new scoring algorithm, you must subclass one of the the above types, and add it to a `*.py` file in the `source/algorithms/` subdirectory. AddTag will automatically calculate the score on every generated [![Spacer][Spacer]](#).
 
 We welcome any `git pull` requests to widen the repertoire of scoring algorithms available to AddTag. The easiest way to get started is to copy and modify one of the provided subclasses.
 
@@ -928,7 +982,8 @@ Below are tips and descriptions of AddTag limitations that will help you make su
 <summary>Click to expand/collapse</summary>
 <table><tbody><tr><td>
 
- * The ![RGN][RGN] protein you use should be engineered specifically for your organism. It should be codon-optomized, and if using eukarya, contain an appropriate nuclear localization sequence.
+ * If you are identifying cPCR primers, then it is often useful to use the `--cache` option. This lets you decrease the stringency of the PCR conditions and run the `generate_primers` subroutine again, pointing to the same `--folder`, and AddTag will use the results from the previous calculations when it can instead of doing the computations from scratch.
+ * The [![RGN][RGN]](#) protein you use should be engineered specifically for your organism. It should be codon-optomized, and if using eukarya, contain an appropriate nuclear localization sequence.
  * By default, AddTag will avoid designing homology regions and Targets against polymorphisms whenever possible.
  * Sequences in FASTA files should have unique names. In other words, the primary sequence identifier--everything following the '`>`' character and preceding the first whitespace/tab '` `' character--should exist only once across all input `*.fasta` files.
  * AddTag makes no effort to restrict which Target motifs the user can use according to the selected Algorithms. Therefore, the user needs to independently verify which Target motifs are compatible with the selected Algorithms.
