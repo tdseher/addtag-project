@@ -1,9 +1,17 @@
 # Instructions #
 
-## Setup AddTag
-Download and install AddTag and its dependencies. For instructions, please refer to the `README.md` file located at the root of the Git repository.
+This file describes the commands used to obtain the Targets, dDNAs, and Primers used in the manuscript. 
 
-Please note that the commands listed here are for an outdated version of AddTag. Recent versions are much more streamlined, and do not strictly require viewing of the `log.txt` file.
+In order to proceed with the strain engineering portion of the manuscript in a reasonable time frame, we used an incomplete version of AddTag at the time.
+We used AddTag r284 as the base version, which may have had uncommitted changes which could potentially alter the expected output.
+Please note that the commands listed here are for an outdated version of AddTag.
+
+We recommend you use the latest version of AddTag that has the full complement of software features.
+The [README.md](../README.md) file contains these same workflows but updated for the current AddTag version.
+Recent versions are less error-prone, are much more streamlined, and do not strictly require viewing of the `log.txt` file.
+
+## Setup AddTag
+Download and install AddTag and its dependencies. For instructions, please refer to the [README.md](../README.md) file located at the root of the Git repository.
 
 ## Get genome data
 Download the *Candida albicans* reference genome and annotations used for this study.
