@@ -82,9 +82,9 @@ class GenerateAllParser(subroutine.Subroutine):
         # Add required arguments
         required_group = self.parser.add_argument_group('required arguments')
         required_group.add_argument("--fasta", required=True, nargs="+", metavar="*.fasta", type=str,
-            help="FASTA files with contigs to find unique gRNA sites. Input FASTA \
+            help="FASTA files with contigs to find unique RGN target sites. Input FASTA \
             must not be compressed. User can decide whether ambiguous bases can \
-            be chosen for gRNA sites. All FASTA sequences should have unique \
+            be chosen for RGN target sites. All FASTA sequences should have unique \
             primary headers (everything between the '>' symbol and the first \
             whitespace should be unique). You should include FASTA of the genome \
             and any plasmids.")
@@ -96,7 +96,7 @@ class GenerateAllParser(subroutine.Subroutine):
         
         # Add optional arguments
         self.parser.add_argument("--exhaustive", action="store_true", 
-            help="Perform brute force search for optimal gRNA design. \
+            help="Perform brute force search for optimal RGN target design. \
             This will significantly increase runtime.") # Default to on when not trimming???
         #parser.add_argument("--feature_homolog_regex", metavar="REGEX", type=str, default=None, help="regular expression with capturing group containing invariant feature. Example: '(.*)_[AB]' will treat features C2_10010C_A and C2_10010C_B as homologs")
         # okay idea, but needs more thought before implementation
@@ -140,24 +140,24 @@ class GenerateAllParser(subroutine.Subroutine):
         self.parser.add_argument("--ambiguities", type=str,
             choices=["exclusive", "discard", "disambiguate", "keep"],
             default="discard",
-            help="How generated gRNAs should treat ambiguous bases: \
-            exclusive - gRNAs will only be created for ambiguous locations; \
-            discard - no gRNAs will be created where the FASTA has an ambiguous base; \
-            disambiguate - gRNAs containing ambiguous bases will be converted to a set of non-ambiguous gRNAs; \
-            keep - gRNAs can have ambiguous bases.")
+            help="How generated RGN targets should utilize ambiguous bases: \
+            exclusive - targets will only be identified at ambiguous locations; \
+            discard - targets cannot overlap ambiguous bases; \
+            disambiguate - targets containing ambiguous bases will be converted to a set of non-ambiguous sequences; \
+            keep - targets can have ambiguous bases.")
         self.parser.add_argument("--case", type=str, default="ignore",
             choices=["ignore", "upper-only", "lower-only", "mixed-lower", "mixed-upper", "mixed-only"],
-            help="Restrict generation of gRNAs based on case of nucleotides in input FASTA: \
-            ignore - keep all spacers; \
-            upper-only - discard any potential spacer with a lower-case character in the genome; \
-            lower-only - discard all potential spacers with upper-case characters; \
-            mixed-lower - discard spacers that are all upper-case; \
-            mixed-upper - discard spacers that are all lower-case; \
-            mixed-only - only use spacers that have both lower- and upper-case characters.")
+            help="Restrict identification of RGN targets based on case of nucleotides in input FASTA: \
+            ignore - keep all targets; \
+            upper-only - discard any potential target with a lower-case character in the genome; \
+            lower-only - discard all potential target with upper-case characters; \
+            mixed-lower - discard targets that are all upper-case; \
+            mixed-upper - discard targets that are all lower-case; \
+            mixed-only - only use targets that have both lower- and upper-case characters.")
         #parser.add_argument("--min_contig_edge_distance", metavar="N", type=int, default=500,
         #    help="Minimum distance from contig edge a site can be found")
         self.parser.add_argument("--features", metavar="FEATURE", type=str, nargs="+", default=["gene"],
-            help="Features to design gRNAs against. Must exist in GFF file. \
+            help="Features to design RGN targets against. Must exist in GFF file. \
             Examples: 'CDS', 'gene', 'mRNA', 'exon', 'intron', 'tRNA', 'rRNA'.\
             The special 'all' feature type will include all listed features.")
         #self.parser.add_argument("--warning_features", metavar='FEATURE', nargs="+", type=str, default=['all'],
@@ -185,16 +185,22 @@ class GenerateAllParser(subroutine.Subroutine):
         #                  --------------------HHHH[...FEATURE.........TARGET]HHHH------------------------ pad=3
         self.parser.add_argument("--feature_expansion_format", type=str, default=None,
             choices=['center_feature', 'center_target', 'center_both', 'justify_feature', 'justify_target'],
-            help="If a feature needs to be expanded to contain a gRNA target, \
+            help="If a feature needs to be expanded to contain an RGN target, \
             expand the feature such that either the feature, the target, or \
             both the feature and the target are in the center.")
         self.parser.add_argument("--feature_expansion_lengths", nargs=2, metavar=("MIN", "MAX"), type=int, default=[100, 4000],
-            help="If a feature needs to be expanded to contain a gRNA target (SPACER>PAM site), \
-            the length of the expanded feature must be within this range, inclusive.")
-        self.parser.add_argument("--feature_expansion_pad", metavar="N", type=int, default=0,
-            help="If a feature needs to be expanded to contain a gRNA target, \
+            help="If a feature needs to be expanded to contain an RGN target (SPACER>PAM site), \
+            the length of the expanded feature must be within this range, inclusive. \
+            If a derived feature is smaller than MIN, then it is padded appropriately \
+            until it reaches the minimum size.")
+        self.parser.add_argument("--feature_expansion_pad", metavar="N", type=int, default=None,
+            help="If a feature needs to be expanded to contain an RGN target, \
             and the expanded feature is within the permitted lengths, then \
             the expanded feature will have N number of nucleotides padded.")
+        #    This is useful when the expanded feature would be small, and should \
+        #    be artificially enlarged to ensure decent iF/iR primer amplification. \
+        #    If left unspecified, feature expansion will be automatically applied \
+        #    to small features (<300 nt).")
         
         # TODO: Consider removing '--excise_upstream_homology' and '--excise_downstream_homology' and replacing them
         #       entirely with '--excise_donor_lengths'
@@ -287,22 +293,22 @@ class GenerateAllParser(subroutine.Subroutine):
         prefilter_choices = [C.name for C in algorithms.single_algorithms + algorithms.paired_algorithms + algorithms.batched_single_algorithms if C.prefilter]
         self.parser.add_argument("--prefilters", nargs='+', type=str,
             choices=prefilter_choices, default=['GC', 'PolyT'],
-            help="Specific algorithms for determining gRNA goodness.")
+            help="Specific algorithms for determining RGN target goodness.")
         
         off_target_choices = [C.name for C in algorithms.single_algorithms + algorithms.paired_algorithms + algorithms.batched_single_algorithms if C.off_target]
         self.parser.add_argument("--offtargetfilters", nargs='+', type=str,
             choices=off_target_choices, default=['CFD', 'Hsu-Zhang'],
-            help="Specific algorithms for determining gRNA goodness.")
+            help="Specific algorithms for determining RGN target goodness.")
         
         on_target_choices = [C.name for C in algorithms.single_algorithms + algorithms.paired_algorithms + algorithms.batched_single_algorithms if C.on_target]
         self.parser.add_argument("--ontargetfilters", nargs='+', type=str,
             choices=on_target_choices, default=['Azimuth'],
-            help="Specific algorithms for determining gRNA goodness.")
+            help="Specific algorithms for determining RGN target goodness.")
         
         postfilter_choices = [C.name for C in algorithms.single_algorithms + algorithms.paired_algorithms + algorithms.batched_single_algorithms if C.postfilter]
         self.parser.add_argument("--postfilters", nargs='*', type=str,
             choices=postfilter_choices, default=['Errors'],
-            help="Specific algorithms for determining gRNA goodness.")
+            help="Specific algorithms for determining RGN target goodness.")
         
         self.parser.add_argument("--weights", nargs='+', type=str, default=[], metavar='ALGORITHM:INFLECTION±SLOPE,*',
             help="Specify any number of non-default Algorithm weights with the following syntax. \
@@ -564,23 +570,24 @@ class GenerateAllParser(subroutine.Subroutine):
             ExcisionTarget.search_all_features(args, contig_sequences)
             
             # Write the query list to FASTA
-            # TODO: Make a method 'ExcisionTarget.fenerate_query(args, filename)' that automatically chooses
-            #       if it will create a 'fasta' or 'fastq' file.
+            # TODO: Make a method 'ExcisionTarget.generate_query(args, filename)' that automatically chooses
+            #       if it will create a 'fasta' or 'fastq' file, depending on which Aligner is selected.
             if (args.selected_aligner.input == 'fasta'):
                 ex_query_file = ExcisionTarget.generate_query_fasta(os.path.join(args.folder, 'excision-query.fasta'))
             elif (args.selected_aligner.input == 'fastq'):
                 ex_query_file = ExcisionTarget.generate_query_fastq(os.path.join(args.folder, 'excision-query.fastq'))
         
         # Generate excision dDNAs and their associated reversion gRNA spacers
+        # TODO: This should only be run if '--ko-dDNA' is specified
         ExcisionDonor.generate_donors(args, contig_sequences, feature2gene)
         
         # Design gRNAs to target the ko-dDNA.
         if (args.ki_gRNA):
             ReversionTarget.create_target_objects()
-        ex_dDNA_file = ExcisionDonor.generate_fasta(os.path.join(args.folder, 'excision-dDNAs.fasta')) # Program will fail with error if this file is empty...
+        ex_dDNA_file = ExcisionDonor.generate_fasta(os.path.join(args.folder, 'excision-dDNAs.fasta')) # TODO: Program will fail with error if this file is empty...
         
         if (args.ki_gRNA):
-            # TODO: See previous TODO
+            # TODO: See previous TODO--make automatic choice depending on which Aligner is used.
             if (args.selected_aligner.input == 'fasta'):
                 re_query_file = ReversionTarget.generate_query_fasta(os.path.join(args.folder, 'reversion-query.fasta'))
             elif (args.selected_aligner.input == 'fastq'):
@@ -885,6 +892,11 @@ class GenerateAllParser(subroutine.Subroutine):
         # Based on the primer pair weights, AND the 'exTarget' weights, the
         # possible 'reDonor's can be given weights, which can be used to
         # rank them
+        
+        # TODO: Make it so the 'reDonors' and 'feature:contig:strand:start..end' just print the SMALLEST
+        #       features that contain this Target (if the Features are derived)
+        #       As it is now, the huge list of derived features isn't useful.
+        
         header = ['# gene', 'features', 'weight', 'exTarget name', 'exTarget sequence'] + ['OT:{}'.format(x) for x in args.offtargetfilters] + [x for x in args.ontargetfilters] + ['reDonors', 'None', 'feature:contig:strand:start..end', 'warnings']
         print('\t'.join(header))
         
@@ -964,6 +976,14 @@ class GenerateAllParser(subroutine.Subroutine):
         '''
         # TODO: Finish this function that prints reDonors to STDOUT
         print('# reDonor results')
+        headers = ['gene', 'features', 'weight', 'reDonor name', 'exTargets', 'feature:contig:strand:start..end', 'sequence']
+        
+        # After struggling with the current, less-than-clear output AddTag returns, here are a few ideas of how they can be improved:
+        #   # Table of exTargets
+        #   gene	features	weight	exTarget name	exTarget sequence	SCORE	SCORE	SCORE	best reDonor	best (e)Feature	best exDonor	warnings
+        #   
+        #   # Table of designs
+        #   gene	features	reTarget	exTarget	exDonor	reDonor
     
     def print_exDonor_results(self, args):
         '''
@@ -973,6 +993,11 @@ class GenerateAllParser(subroutine.Subroutine):
         '''
         # TODO: Finish this function that prints exDonors to STDOUT
         print('# exDonor results')
+        # TODO: Need to invent a weight for a dDNA. Components:
+        #        * weight of best reTarget
+        #        * amount of extra DNA expanded from original Feature
+        #        * polymorphisms in homology regions (should be boolean)
+        headers = ['gene', 'features', 'weight', 'exDonor name', 'reTargets', 'feature:contig:strand:start..end', 'sequence']
     
     def print_AmpFR_results(self, args):
         '''
