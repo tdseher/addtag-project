@@ -316,7 +316,7 @@ class Feature(object):
             targets_dict = {} # key = target sequence, value = list of Features containing this target sequence
             for f in feature_list:
                 
-                targets_list = targets.Target.get_targets(args, contigs[f.contig], start=f.start, end=f.end) # Does both orientations (+/-)
+                targets_list = targets.Target.get_targets(args, contigs[f.contig], start=f.start, end=f.end, protruded_targets=args.protruded_targets) # Does both orientations (+/-)
                 
                 for t in targets_list:
                     # t = (orientation, start, end, upstream, downstream, filt_seq, side, filt_spacer, filt_pam, mymotif.motif_string, tuple([tuple(x) if isinstance(x, list) else x for x in mymotif.parsed_list])))
@@ -1512,7 +1512,7 @@ class Feature(object):
             ex_feature_end = min(feature_end+args.feature_expansion_lengths[1], len(contigs[f.contig]))
             
             # Identify all Targets within FULL region surrounding each homologous Feature
-            t_list = targets.Target.get_targets(args, contigs[f.contig], start=ex_feature_start, end=ex_feature_end) # Does both orientations (+/-)
+            t_list = targets.Target.get_targets(args, contigs[f.contig], start=ex_feature_start, end=ex_feature_end, protruded_targets=args.protruded_targets) # Does both orientations (+/-)
             targets_list.append(t_list)
         
         # We match all identified Targets to their putative homologs in other Features (to-be) (derived)
@@ -1724,7 +1724,7 @@ class Feature(object):
         #max_feature_sequence = contig_sequence[ex_feature_start:ex_feature_end]
         
         # We scan for targets only once
-        targetsl = targets.Target.get_targets(args, contig_sequence, start=ex_feature_start, end=ex_feature_end) # Does both orientations (+/-)
+        targetsl = targets.Target.get_targets(args, contig_sequence, start=ex_feature_start, end=ex_feature_end, protruded_targets=args.protruded_targets) # Does both orientations (+/-)
         self.logger.info('max targets: {}'.format(len(targetsl)))
         
         # The relative coordinates of FEATURE within EX_FEATURE:

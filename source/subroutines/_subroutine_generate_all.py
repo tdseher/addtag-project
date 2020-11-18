@@ -121,6 +121,8 @@ class GenerateAllParser(subroutine.Subroutine):
         self.parser.add_argument("--off_target_motifs", metavar="MOTIF", nargs="+", type=str,
             default=[],
             help="Defaults to the same as the on-target motif. Definition syntax is identical.")
+        self.parser.add_argument("--protruded_targets", action="store_true", default=False,
+            help="Allow RGN targets to only partially overlap input Features.")
         # TODO: Add '--constructs FILE' option for automatically stitching together SPACER & SCAFFOLD
         # Need to decide if construct inputs should be TSV, or FASTA
         # And whether or not there should be an upstream parameter separate from

@@ -484,7 +484,7 @@ class ExcisionDonor(Donor):
                 ##### Extra condition: ADDTAG must NOT be present in any of the ki-dDNAs #####
                 
                 # The target must match the 'addtag' sequence completely
-                targets = Target.get_targets(args, dDNA, start=len(upstream), end=len(upstream)+len(addtag)) # [(orientation, start, end, filt_seq, side, filt_spacer, filt_pam), ...]
+                targets = Target.get_targets(args, dDNA, start=len(upstream), end=len(upstream)+len(addtag), protruded_targets=args.protruded_targets) # [(orientation, start, end, filt_seq, side, filt_spacer, filt_pam), ...]
                 
                 for t in targets:
                     #                     0            1      2    3         4           5         6     7       8    9
@@ -522,7 +522,7 @@ class ExcisionDonor(Donor):
         
         # The target must match the 'addtag' sequence completely
         # This will search all OnTargetMotif motifs
-        targets = Target.get_targets(args, dDNA, start=len(upstream), end=len(upstream)+len(unitag)) # [(orientation, start, end, filt_seq, side, filt_spacer, filt_pam), ...]
+        targets = Target.get_targets(args, dDNA, start=len(upstream), end=len(upstream)+len(unitag), protruded_targets=args.protruded_targets) # [(orientation, start, end, filt_seq, side, filt_spacer, filt_pam), ...]
         
         for t in targets:
             #                     0            1      2    3         4           5         6     7       8    9
@@ -856,7 +856,9 @@ class ReversionDonor(Donor):
                 cls.logger.info("  {} {}".format(k, v))
             
             # Do required stuff
-            for g, g_count in gene_dict.items():
+            # TODO: This loop should be performed on a per-feature basis, and not a per-gene basis
+            #       That way primers are paired if they are in the expected AmpF and AmpR regions
+            for g, g_count in gene_dict.items(): # TODO: 'g_count' is no longer used, so it can be removed
                 ampF_list = []
                 ampR_list = []
                 for pi, (seq, p) in enumerate(Primer.sequences.items()):

@@ -569,51 +569,69 @@ class Target(object):
         return sorted(targets) # becomes a list
     
     @classmethod
-    def get_targets(cls, args, sequence, start=0, end=None):
+    def get_targets(cls, args, sequence, start=0, end=None, protruded_targets=False):
         """
         Tries to match all OnTargetMotif motifs to the input sequence
         ANYWHERE in the sequence
         Returns list of matches (as a tuple) from all OnTargetMotif motifs.
         Does NOT evaluate how good each Target is (in terms of score).
+        By default 'protruded_targets=False', this function will not find Targets
+        that are partially outside the input sequence bounds.
+        When 'progruded_targets=True', then Targets that only partially overlap
+        the input Feature will be identified.
         """
         # TODO: Add argument 'search=True' that when false, will disable searching for multiple Targets.
         #       Thus, 'start=0' and 'end=len(sequence)'
+        
         if (end == None):
             end = len(sequence)
         
         targets = set()
-        #for seq_i, sequence in enumerate(dDNAs):
-        for orientation in ['+', '-']:
-            search_seq = sequence[start:end]
-            if (orientation == '-'):
-                #sequence = nucleotides.rc(sequence)
-                search_seq = nucleotides.rc(search_seq)
+        
+        for mymotif in OnTargetMotif.motifs:
+            spacers, pams, side = mymotif.parsed_list
+            if protruded_targets:
+                max_target_length = max(map(len, spacers)) + max(map(len, pams))
+                actual_start = start - (max_target_length-1)
+                actual_end = end + (max_target_length-1)
+            else:
+                actual_start = start
+                actual_end = end
             
-            #for i in range(len(args.parsed_motifs)):
-            for mymotif in OnTargetMotif.motifs: # <------ Do I need to add OffTargetMotif.motifs here as well?
-                #spacers, pams, side = args.parsed_motifs[i]
-                spacers, pams, side = mymotif.parsed_list
-                #compiled_regex = args.compiled_motifs[i]
-                #matches = nucleotides.motif_search(sequence, spacers, pams, side)
-                matches = nucleotides.motif_search2(search_seq, side, mymotif.compiled_regex)
-                for seq, mstart, mend, spacer, pam in matches:
-                    if (orientation == '-'):
-                        sstart = start + len(search_seq) - mend
-                        send = start + len(search_seq) - mstart
-                        
-                        upstream = nucleotides.rc(sequence[send:send+10])
-                        downstream = nucleotides.rc(sequence[sstart-10:sstart])
-                    else:
-                        sstart = start + mstart
-                        send = start + mend
-                    
-                        upstream = sequence[sstart-10:sstart]
-                        downstream = sequence[send:send+10]
-                    
-                    filtered_targets = cls.target_filter(args, seq, side, spacer, pam, upstream, downstream)
-                    for filt_seq, filt_spacer, filt_pam in filtered_targets:
-                        targets.add((orientation, sstart, send, upstream, downstream, filt_seq, side, filt_spacer, filt_pam, mymotif.motif_string, tuple([tuple(x) if isinstance(x, list) else x for x in mymotif.parsed_list])))
-                        #cls.logger.info("DEBUG: {}, {}, {}, {}, {}, {}, {}, {}, {}".format(orientation, seq, mstart, mend, spacer, pam, mymotif.compiled_regex, sstart, send))
+            orientation = '+'
+            search_seq = sequence[actual_start:actual_end]
+            # Perform the string search
+            matches = nucleotides.motif_search2(search_seq, side, mymotif.compiled_regex)
+            
+            for seq, m_start, m_end, spacer, pam in matches:
+                s_start = actual_start + m_start
+                s_end = actual_start + m_end
+            
+                upstream = sequence[s_start-10:s_start]
+                downstream = sequence[s_end:s_end+10]
+                
+                filtered_targets = cls.target_filter(args, seq, side, spacer, pam, upstream, downstream)
+                for filt_seq, filt_spacer, filt_pam in filtered_targets:
+                    targets.add((orientation, s_start, s_end, upstream, downstream, filt_seq, side, filt_spacer, filt_pam, mymotif.motif_string, tuple([tuple(x) if isinstance(x, list) else x for x in mymotif.parsed_list])))
+                    #cls.logger.info("DEBUG: {}, {}, {}, {}, {}, {}, {}, {}, {}".format(orientation, seq, mstart, mend, spacer, pam, mymotif.compiled_regex, sstart, send))
+            
+            orientation = '-'
+            search_seq = nucleotides.rc(search_seq)
+            # Perform the string search
+            matches = nucleotides.motif_search2(search_seq, side, mymotif.compiled_regex)
+            
+            for seq, m_start, m_end, spacer, pam in matches:
+                s_start = actual_end - m_end
+                s_end = actual_end - m_start
+                
+                upstream = nucleotides.rc(sequence[s_end:s_end+10])
+                downstream = nucleotides.rc(sequence[s_start-10:s_start])
+                
+                filtered_targets = cls.target_filter(args, seq, side, spacer, pam, upstream, downstream)
+                for filt_seq, filt_spacer, filt_pam in filtered_targets:
+                    targets.add((orientation, s_start, s_end, upstream, downstream, filt_seq, side, filt_spacer, filt_pam, mymotif.motif_string, tuple([tuple(x) if isinstance(x, list) else x for x in mymotif.parsed_list])))
+                    #cls.logger.info("DEBUG: {}, {}, {}, {}, {}, {}, {}, {}, {}".format(orientation, seq, mstart, mend, spacer, pam, mymotif.compiled_regex, sstart, send))
+        
         return sorted(targets) # becomes a list
     
     def calculate_default_scores(self):
@@ -1017,7 +1035,7 @@ class ExcisionTarget(Target):
             # Search for targets in the feature
             contig_sequence = contigs[f.contig]
             #feature_sequence = contig_sequence[f.start:f.end]
-            targets = cls.get_targets(args, contig_sequence, start=f.start, end=f.end) # Does both orientations (+/-)
+            targets = cls.get_targets(args, contig_sequence, start=f.start, end=f.end, protruded_targets=args.protruded_targets) # Does both orientations (+/-)
             cls.logger.info("  found {} potential Targets".format(len(targets)))
             
             # Create ExcisionTarget objects for each found target
