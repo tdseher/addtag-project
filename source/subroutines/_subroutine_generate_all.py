@@ -581,12 +581,15 @@ class GenerateAllParser(subroutine.Subroutine):
         
         # Generate excision dDNAs and their associated reversion gRNA spacers
         # TODO: This should only be run if '--ko-dDNA' is specified
-        ExcisionDonor.generate_donors(args, contig_sequences, feature2gene)
+        if (args.ko_dDNA or args.ki_gRNA):
+            ExcisionDonor.generate_donors(args, contig_sequences, feature2gene)
         
         # Design gRNAs to target the ko-dDNA.
         if (args.ki_gRNA):
             ReversionTarget.create_target_objects()
-        ex_dDNA_file = ExcisionDonor.generate_fasta(os.path.join(args.folder, 'excision-dDNAs.fasta')) # TODO: Program will fail with error if this file is empty...
+        
+        if (args.ko_dDNA or args.ki_gRNA):
+            ex_dDNA_file = ExcisionDonor.generate_fasta(os.path.join(args.folder, 'excision-dDNAs.fasta')) # TODO: Program will fail with error if this file is empty...
         
         if (args.ki_gRNA):
             # TODO: See previous TODO--make automatic choice depending on which Aligner is used.
@@ -608,7 +611,8 @@ class GenerateAllParser(subroutine.Subroutine):
         # Index args.fasta for alignment
         #index_file = index_reference(args)
         genome_index_file = args.selected_aligner.index(genome_fasta_file, self.pathstrip(genome_fasta_file), args.folder, args.processors)
-        ex_dDNA_index_file = args.selected_aligner.index(ex_dDNA_file, self.pathstrip(ex_dDNA_file), args.folder, args.processors)
+        if (args.ko_dDNA or args.ki_gRNA):
+            ex_dDNA_index_file = args.selected_aligner.index(ex_dDNA_file, self.pathstrip(ex_dDNA_file), args.folder, args.processors)
         if (args.ki_dDNA == True):
             re_dDNA_index_file = args.selected_aligner.index(re_dDNA_file, self.pathstrip(re_dDNA_file), args.folder, args.processors)
         
@@ -616,7 +620,8 @@ class GenerateAllParser(subroutine.Subroutine):
             # Use selected alignment program to find all matches in the genome and dDNAs
             #ex_genome_align_file = align(ex_query_file, genome_index_file, args)
             exq2gDNA_align_file = args.selected_aligner.align(ex_query_file, genome_index_file, 'excision-query-2-gDNA', args.folder, args.processors)
-            exq2exdDNA_align_file = args.selected_aligner.align(ex_query_file, ex_dDNA_index_file, 'excision-query-2-excision-dDNA', args.folder, args.processors)
+            if (args.ko_dDNA or args.ki_gRNA):
+                exq2exdDNA_align_file = args.selected_aligner.align(ex_query_file, ex_dDNA_index_file, 'excision-query-2-excision-dDNA', args.folder, args.processors)
             
             #print("ExcisionTarget before SAM parsing")
             #for et_seq, et_obj in ExcisionTarget.sequences.items():
@@ -624,7 +629,8 @@ class GenerateAllParser(subroutine.Subroutine):
             
             # Load the SAM files and add Alignments to ExcisionTarget sequences
             ExcisionTarget.load_alignment(exq2gDNA_align_file, args, contig_sequences)
-            ExcisionTarget.load_alignment(exq2exdDNA_align_file, args, ExcisionDonor.get_contig_dict())
+            if (args.ko_dDNA or args.ki_gRNA):
+                ExcisionTarget.load_alignment(exq2exdDNA_align_file, args, ExcisionDonor.get_contig_dict())
             
             # Calculate off-target/guide scores for each algorithm
             self.logger.info("ExcisionTarget after SAM parsing and off-target scoring")
