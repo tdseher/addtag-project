@@ -1454,7 +1454,7 @@ class GeneratePrimersParser(subroutine.Subroutine):
         #                       0        1       2         (2)                 3         (3)                 4         5         6        7
         print('# ' + '\t'.join(['Gene', 'Locus', 'Genome', 'Genome (decoded)', 'Region', 'Region (decoded)', 'Contig', 'Strand', 'Start', 'End']))
         for d in data:
-            print('\t'.join(map(str, d[:3])) + ['genome-r{}.fasta'.format(d[2]), str(d[3]), region_decode[d[3]]] + map(str, d[4:]), flush=True)
+            print('\t'.join(list(map(str, d[:3])) + ['genome-r{}.fasta'.format(d[2]), str(d[3]), region_decode[d[3]]] + list(map(str, d[4:]))), flush=True)
             #print('\t'.join(map(str, d)), flush=True)
         ##### END OUTPUT 1 #####
         
@@ -1599,7 +1599,7 @@ class GeneratePrimersParser(subroutine.Subroutine):
                 Cutoff("min_delta_g", (-4.0,), (-7.0,), (-1.0,)), # 4, deltag_min
                 Cutoff("tm", (52,65), (52,65), (0,0)), # 1, tm
                 Cutoff("max_tm_difference", (2.5,), (4.0,), (0.5,)), # 4, deltatm_max
-                Cutoff("amplicon_size_range", (300,700), (300,700), (0,0)),
+                Cutoff("amplicon_size_range", (300,700), (300,700), (0,0)), # TODO: Make AddTag intellegently choose this based on the Feature and Insert sizes 
             ]
             
             # Create Iterator that returns the next cutoff and increments appropriately when 'next()' is called
@@ -1980,8 +1980,11 @@ class GeneratePrimersParser(subroutine.Subroutine):
                     
                     design_count += 1
                     
-                    if (design_count >= subset_size):
-                        self.logger.info("  Stopped queueing designs for 'optimization' because 'subset_size' has been reached.")
+                    #if (design_count >= subset_size):
+                    #    self.logger.info("  Stopped queueing designs for 'optimization' because 'subset_size' has been reached.")
+                    #    break
+                    if (design_count >= args.max_number_designs_reported):
+                        self.logger.info("  Stopped queueing designs for 'optimization' because 'max_number_designs_reported' has been reached.")
                         break
                 
                 ###### Start multiprocessing ######
