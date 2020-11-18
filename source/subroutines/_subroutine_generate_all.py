@@ -9,10 +9,10 @@
 #       and make it output by default to STDOUT! (not just to log)
 #       For example:
 #         Feature_01
-#         position            10        20        30        40        50        60        70        80        90        100
-#                      GAGTAGCAGTTATAAATACTAATCTTTTTGTTGTTAGATATATGAAGCCATCTTGTGCTTGAATCGACACTTTTCTCTCATTAGGATTAGGATTTGTGGT
-#         exTarget-1                                               3'-CCATCTTGTGCTTGAATCGA-5'
-#         exTarget-2                                                               5'-TCGACACTTTTCTCTCATTAGG-3'
+#         position                  10        20        30        40        50        60        70        80        90        100
+#                       5'-GAGTAGCAGTTATAAATACTAATCTTTTTGTTGTTAGATATATGAAGCCATCTTGTGCTTGAATCGACACTTTTCTCTCATTAGGATTAGGATTTGTGGT
+#         exTarget-1 -                                                 3'-GGTAGAACACGAACTTAGCT-5'
+#         exTarget-2 +                                                                 5'-TCGACACTTTTCTCTCATTAGG-3'
 
 # TODO: Add Tm calculation as an Algorithm
 # TODO: Add full and partial (N{20}>NGG, N{12}>NGG, N{8}>NGG) alignments for finding off-targets
@@ -124,6 +124,8 @@ class GenerateAllParser(subroutine.Subroutine):
         self.parser.add_argument("--protruded_targets", action="store_true", default=False,
             help="Allow RGN targets to only partially overlap input Features.")
         # TODO: Add '--constructs FILE' option for automatically stitching together SPACER & SCAFFOLD
+        #       If this is added, then some RNA folding needs to be done on the whole SPACER+SCAFFOLD sequence
+        #       To check if any unexpected secondary structures arise
         # Need to decide if construct inputs should be TSV, or FASTA
         # And whether or not there should be an upstream parameter separate from
         # a downstream one. or if they are the same, then what?
