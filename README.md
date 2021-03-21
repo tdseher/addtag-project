@@ -874,7 +874,7 @@ All Features in input GFF file will be evaluated simultaneously.
 ## 📝 Citing AddTag ##
 If you use AddTag for your research, please cite us. Because the manuscript is currently pending review, you will need to cite the code repository instead.
 
- > Thaddeus D. Seher, Diana Ramos, Namkha Nguyen, Priyanka Bapat, Clarissa J. Nobile, Suzanne S. Sindi, and Aaron D. Hernday. AddTag: software for automated design and validation of precision CRISPR/Cas genome edits. University of California, Merced. Retrieved from <[https://github.com/tdseher/addtag-project](https://github.com/tdseher/addtag-project)> (2019).
+ > Thaddeus D. Seher, Namkha Nguyen, Diana Ramos, Priyanka Bapat, Clarissa J. Nobile, Suzanne S. Sindi, and Aaron D. Hernday. AddTag, a two-step approach that overcomes targeting limitations of precision genome editing. University of California, Merced. Retrieved from <[https://github.com/tdseher/addtag-project](https://github.com/tdseher/addtag-project)> (2019).
 
 ## ✍ Authors ##
 Who do I talk to?
