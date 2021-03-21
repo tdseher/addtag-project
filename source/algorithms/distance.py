@@ -83,13 +83,32 @@ class GlobalAlignment(object):
         return sum(minimums), sum(maximums)
     
     @classmethod
-    def align(cls, seq1, seq2, scoring):
+    def align(cls, seq1, seq2, scoring, print_matrices=False):
         if cls.previous_alignment:
             if ((seq1 != cls.previous_alignment.seq1) or (seq2 != cls.previous_alignment.seq2)):
-                cls.previous_alignment = cls(seq1, seq2, scoring)
+                cls.previous_alignment = cls(seq1, seq2, scoring, print_matrices=print_matrices)
         else:
-            cls.previous_alignment = cls(seq1, seq2, scoring)
+            cls.previous_alignment = cls(seq1, seq2, scoring, print_matrices=print_matrices)
         return cls.previous_alignment
+    
+    def get_highest_score(self, m, d, i):
+        # MATCH = 0b1
+        # O_DEL = 0b100
+        # O_INS = 0b10000
+        if ((m > d) and (m > i)):
+            return 0b1, m
+        elif ((d > m) and (d > i)):
+            return 0b100, d
+        elif ((i > m) and (i > d)):
+            return 0b10000, i
+        elif ((m == d) and (m > i)):
+            return 0b1, m
+        elif ((m == i) and (m > d)):
+            return 0b1, m
+        elif ((d == i) and (d > m)):
+            return 0b100, d
+        else:
+            return 0b1, m
     
     def __init__(self, seq1, seq2, scoring, print_matrices=False):
         """
@@ -113,6 +132,24 @@ class GlobalAlignment(object):
         Gap opens are designated with '~' and gap extensions with '-'.
         Case is ignored. IUPAC ambiguities are counted as substitutions.
         """
+        # Binary conversion tables for 'choices' table
+        NONE = 0b0 # Nothing
+        MATCH = 0b1 # A match
+        SUB = 0b10 # A substitution
+        O_DEL = 0b100 # Start of a new deletion
+        C_DEL = 0b1000 # Continue an existing deletion
+        O_INS = 0b10000 # Start a new insertion
+        C_INS = 0b100000 # Continue an existing insertion
+        # char2bin = {
+        #     '': NONE,
+        #     'M': MATCH,
+        #     'S': SUB,
+        #     'D': O_DEL,
+        #     'd': C_DEL,
+        #     'I': O_INS,
+        #     'i': C_INS,
+        # }
+        
         # Convert to upper-case
         seq1 = seq1.upper()
         seq2 = seq2.upper()
@@ -122,7 +159,7 @@ class GlobalAlignment(object):
         
         # Generate DP table and traceback path pointer matrix
         score = self.zeros((len1+1, len2+1))      # the DP table
-        choices = [['']*(len2+1) for i in range(len1+1)]
+        choices = [[NONE]*(len2+1) for i in range(len1+1)]
         
         eseq1 = '-' + seq1
         eseq2 = '-' + seq2
@@ -132,34 +169,31 @@ class GlobalAlignment(object):
         for i1 in range(1, len1 + 1):
             if (i1 == 1):
                 gap_type = 'open'
+                choices[i1][0] = O_DEL
             else:
                 gap_type = 'extend'
+                choices[i1][0] = C_DEL
             score[i1][0] = score[i1-1][0] + scoring[(eseq1[i1], eseq2[0], gap_type)]
-            if (gap_type == 'open'):
-                choices[i1][0] = 'D'
-            else:
-                choices[i1][0] = 'd'
+        
         for i2 in range(1, len2 + 1):
             if (i2 == 1):
                 gap_type = 'open'
+                choices[0][i2] = O_INS
             else:
                 gap_type = 'extend'
+                choices[0][i2] = C_INS
             score[0][i2] = score[0][i2-1] + scoring[(eseq1[0], eseq2[i2], gap_type)]
-            if (gap_type == 'open'):
-                choices[0][i2] = 'I'
-            else:
-                choices[0][i2] = 'i'
         
         # Calculate the rest of the DP table
         for i1 in range(1, len1 + 1): # Cycle through rows
             for i2 in range(1, len2 + 1): # Cycle through columns
                 # If the best arrow pointing into this cell was a deletion
-                if (choices[i1-1][i2] in ['D', 'd']):
+                if (choices[i1-1][i2] in [O_DEL, C_DEL]):
                     deletion_gap_type = 'extend'
                 else:
                     deletion_gap_type = 'open'
                 # If the best arrow pointing into this cell was an insertions
-                if (choices[i1][i2-1] in ['I', 'i']):
+                if (choices[i1][i2-1] in [O_INS, C_INS]):
                     insertion_gap_type = 'extend'
                 else:
                     insertion_gap_type = 'open'
@@ -168,19 +202,23 @@ class GlobalAlignment(object):
                 delete = score[i1-1][i2] + scoring[(seq1[i1-1], '-', deletion_gap_type)]
                 insert = score[i1][i2-1] + scoring[('-', seq2[i2-1], insertion_gap_type)]
                 
-                v = {"M":match, "D":delete, "I":insert}
-                best = sorted(v, key=lambda x: v[x], reverse=True)[0]
                 
-                score[i1][i2] = v[best]
-                if (best == 'M'):
+                
+                #v = {"M":match, "D":delete, "I":insert}
+                #best = sorted(v, key=lambda x: v[x], reverse=True)[0]
+                #score[i1][i2] = v[best]
+                
+                best, score[i1][i2] = self.get_highest_score(match, delete, insert)
+                
+                if (best == MATCH):
                     if (seq1[i1-1] != seq2[i2-1]):
-                        best = 'S'
-                elif (best == 'I'):
+                        best = SUB
+                elif (best == O_INS):
                     if (insertion_gap_type == 'extend'):
-                        best = 'i'
-                elif (best == 'D'):
+                        best = C_INS
+                elif (best == O_DEL):
                     if (deletion_gap_type == 'extend'):
-                        best = 'd'
+                        best = C_DEL
                 choices[i1][i2] = best
         
         if print_matrices:
@@ -203,12 +241,34 @@ class GlobalAlignment(object):
             # Print the traceback matrix
             print("Traceback matrix")
             new_choices = []
-            temp = [list(eseq2)] + choices
+            
+            bin2char = {
+                NONE: '',
+                MATCH: 'M',
+                SUB: 'S',
+                O_DEL: 'D',
+                C_DEL: 'd',
+                O_INS: 'I',
+                C_INS: 'i',
+            }
+            
+            choices2 = []
+            for r in choices:
+                xx = []
+                for x in r:
+                    xx.append(bin2char[x])
+                choices2.append(xx)
+            
+            temp = [list(eseq2)] + choices2
             for i, char in enumerate(' '+eseq1):
                 new_choices.append([char] + temp[i])
             
             for r in new_choices:
                 print(' '.join(map(lambda x: '{:>2}'.format(x), r)))
+            
+            # TODO: Defer printing out the 'Traceback matrix' until the traceback is performed.
+            #       Then include '-', '\', and '|' for insertion, match/sub, and deletion in the
+            #       table to show the path.
         
         # Perform traceback
         count = 0
@@ -227,36 +287,36 @@ class GlobalAlignment(object):
                 raise Exception("Alignment failed to converge on valid solution")
             cumulative_traceback_scores.append(score[i1][i2])
             T = choices[i1][i2]
-            if (T == 'M'):
+            if (T == MATCH):
                 a1 += seq1[i1-1]
                 a2 += seq2[i2-1]
                 i1 -= 1
                 i2 -= 1
                 matches += 1
-            elif (T == 'S'):
+            elif (T == SUB):
                 a1 += seq1[i1-1]
                 a2 += seq2[i2-1]
                 i1 -= 1
                 i2 -= 1
                 substitutions += 1
-            elif (T == 'I'):
+            elif (T == O_INS):
                 a1 += '~'
                 a2 += seq2[i2-1]
                 i2 -= 1
                 insertions += 1
                 gap_opens += 1
-            elif (T == 'i'):
+            elif (T == C_INS):
                 a1 += '-'
                 a2 += seq2[i2-1]
                 i2 -= 1
                 insertions += 1
-            elif (T == 'D'):
+            elif (T == O_DEL):
                 a1 += seq1[i1-1]
                 a2 += '~'
                 i1 -= 1
                 deletions += 1
                 gap_opens += 1
-            elif (T == 'd'):
+            elif (T == C_DEL):
                 a1 += seq1[i1-1]
                 a2 += '-'
                 i1 -= 1
@@ -506,9 +566,9 @@ except FileNotFoundError:
 def test():
     """Code to test the functions and classes"""
     
-    a = ('',  'ACGTYGGCCATTKAGGCAg', 'TGG', '', '')
-    b = ('', 'ACATAGGTCCACTTAGGCaG', 'TGG', '', '')
-    c = ('', 'GCATTGCCACTTTGGCAGAG', 'AGG', '', '')
+    a = ('', '>',  'ACGTYGGCCATTKAGGCAg', 'TGG', '', '')
+    b = ('', '>', 'ACATAGGTCCACTTAGGCaG', 'TGG', '', '')
+    c = ('', '>', 'GCATTGCCACTTTGGCAGAG', 'AGG', '', '')
     
     print("=== Substitutions ===")
     C = Substitutions()
@@ -543,23 +603,23 @@ def test():
 #    print(C.calculate(('', '', 'CCCCAAG', '', ''), motif='N{{20}}>NHRBMAW'))
 #    print(C.calculate(('', '', 'AAATGG', '', ''), motif='N{{21,22}}>AAANGG'))
 #    print(C.calculate(('', '', 'AAATGG', '', ''), motif='N{{21,22}}>A{{3,4}}NGG'))
-    print(C.calculate(('', '', 'GGG', '', ''), parsed_motif=(['NNNNNNNNNNNNNNNNNNNN'], ['NGG'], '>')))
-    print(C.calculate(('', '', 'GAG', '', ''), parsed_motif=(['NNNNNNNNNNNNNNNNNNNN'], ['NGG'], '>')))
-    print(C.calculate(('', '', 'GAG', '', ''), parsed_motif=(['NNNNNNNNNNNNNNNNNNNN'], ['NRG'], '>')))
-    print(C.calculate(('', '', 'CCACAAA', '', ''), parsed_motif=(['NNNNNNNNNNNNNNNNNNNN'], ['NHRBMAW'], '>')))
-    print(C.calculate(('', '', 'ATGCCAT', '', ''), parsed_motif=(['NNNNNNNNNNNNNNNNNNNN'], ['NHRBMAW'], '>')))
-    print(C.calculate(('', '', 'CGACAAA', '', ''), parsed_motif=(['NNNNNNNNNNNNNNNNNNNN'], ['NHRBMAW'], '>')))
-    print(C.calculate(('', '', 'CGACAAC', '', ''), parsed_motif=(['NNNNNNNNNNNNNNNNNNNN'], ['NHRBMAW'], '>')))
-    print(C.calculate(('', '', 'CCACAGA', '', ''), parsed_motif=(['NNNNNNNNNNNNNNNNNNNN'], ['NHRBMAW'], '>')))
-    print(C.calculate(('', '', 'CCCCAAG', '', ''), parsed_motif=(['NNNNNNNNNNNNNNNNNNNN'], ['NHRBMAW'], '>')))
-    print(C.calculate(('', '', 'AAATGG', '', ''), parsed_motif=(['NNNNNNNNNNNNNNNNNNNNN', 'NNNNNNNNNNNNNNNNNNNNNN'], ['AAANGG'], '>')))
-    print(C.calculate(('', '', 'AAATGG', '', ''), parsed_motif=(['NNNNNNNNNNNNNNNNNNNNN', 'NNNNNNNNNNNNNNNNNNNNNN'], ['AAANGG', 'AAAANGG'], '>')))
-    print(C.calculate(('', '', 'AAAATGG', '', ''), parsed_motif=(['NNNNNNNNNNNNNNNNNNNNN', 'NNNNNNNNNNNNNNNNNNNNNN'], ['AAANGG', 'AAAANGG'], '>')))
-    print(C.calculate(('', '', 'AATATGG', '', ''), parsed_motif=(['NNNNNNNNNNNNNNNNNNNNN', 'NNNNNNNNNNNNNNNNNNNNNN'], ['AAANGG', 'AAAANGG'], '>')))
-    print(C.calculate(('', '', 'CAAATGG', '', ''), parsed_motif=(['NNNNNNNNNNNNNNNNNNNNN', 'NNNNNNNNNNNNNNNNNNNNNN'], ['AAANGG', 'AAAANGG'], '>')))
-    print(C.calculate(('', '', 'AAAATCG', '', ''), parsed_motif=(['NNNNNNNNNNNNNNNNNNNNN', 'NNNNNNNNNNNNNNNNNNNNNN'], ['AAANGG', 'AAAANGG'], '>')))
-    print(C.calculate(('', '', 'AAAATTG', '', ''), parsed_motif=(['NNNNNNNNNNNNNNNNNNNNN', 'NNNNNNNNNNNNNNNNNNNNNN'], ['AAANGG', 'AAAANGG'], '>')))
-    print(C.calculate(('', '', 'AAAATAG', '', ''), parsed_motif=(['NNNNNNNNNNNNNNNNNNNNN', 'NNNNNNNNNNNNNNNNNNNNNN'], ['AAANGG', 'AAAANGG'], '>')))
+    print(C.calculate(('', '>', '', 'GGG', '', ''), parsed_motif=(['NNNNNNNNNNNNNNNNNNNN'], ['NGG'], '>')))
+    print(C.calculate(('', '>', '', 'GAG', '', ''), parsed_motif=(['NNNNNNNNNNNNNNNNNNNN'], ['NGG'], '>')))
+    print(C.calculate(('', '>', '', 'GAG', '', ''), parsed_motif=(['NNNNNNNNNNNNNNNNNNNN'], ['NRG'], '>')))
+    print(C.calculate(('', '>', '', 'CCACAAA', '', ''), parsed_motif=(['NNNNNNNNNNNNNNNNNNNN'], ['NHRBMAW'], '>')))
+    print(C.calculate(('', '>', '', 'ATGCCAT', '', ''), parsed_motif=(['NNNNNNNNNNNNNNNNNNNN'], ['NHRBMAW'], '>')))
+    print(C.calculate(('', '>', '', 'CGACAAA', '', ''), parsed_motif=(['NNNNNNNNNNNNNNNNNNNN'], ['NHRBMAW'], '>')))
+    print(C.calculate(('', '>', '', 'CGACAAC', '', ''), parsed_motif=(['NNNNNNNNNNNNNNNNNNNN'], ['NHRBMAW'], '>')))
+    print(C.calculate(('', '>', '', 'CCACAGA', '', ''), parsed_motif=(['NNNNNNNNNNNNNNNNNNNN'], ['NHRBMAW'], '>')))
+    print(C.calculate(('', '>', '', 'CCCCAAG', '', ''), parsed_motif=(['NNNNNNNNNNNNNNNNNNNN'], ['NHRBMAW'], '>')))
+    print(C.calculate(('', '>', '', 'AAATGG', '', ''), parsed_motif=(['NNNNNNNNNNNNNNNNNNNNN', 'NNNNNNNNNNNNNNNNNNNNNN'], ['AAANGG'], '>')))
+    print(C.calculate(('', '>', '', 'AAATGG', '', ''), parsed_motif=(['NNNNNNNNNNNNNNNNNNNNN', 'NNNNNNNNNNNNNNNNNNNNNN'], ['AAANGG', 'AAAANGG'], '>')))
+    print(C.calculate(('', '>', '', 'AAAATGG', '', ''), parsed_motif=(['NNNNNNNNNNNNNNNNNNNNN', 'NNNNNNNNNNNNNNNNNNNNNN'], ['AAANGG', 'AAAANGG'], '>')))
+    print(C.calculate(('', '>', '', 'AATATGG', '', ''), parsed_motif=(['NNNNNNNNNNNNNNNNNNNNN', 'NNNNNNNNNNNNNNNNNNNNNN'], ['AAANGG', 'AAAANGG'], '>')))
+    print(C.calculate(('', '>', '', 'CAAATGG', '', ''), parsed_motif=(['NNNNNNNNNNNNNNNNNNNNN', 'NNNNNNNNNNNNNNNNNNNNNN'], ['AAANGG', 'AAAANGG'], '>')))
+    print(C.calculate(('', '>', '', 'AAAATCG', '', ''), parsed_motif=(['NNNNNNNNNNNNNNNNNNNNN', 'NNNNNNNNNNNNNNNNNNNNNN'], ['AAANGG', 'AAAANGG'], '>')))
+    print(C.calculate(('', '>', '', 'AAAATTG', '', ''), parsed_motif=(['NNNNNNNNNNNNNNNNNNNNN', 'NNNNNNNNNNNNNNNNNNNNNN'], ['AAANGG', 'AAAANGG'], '>')))
+    print(C.calculate(('', '>', '', 'AAAATAG', '', ''), parsed_motif=(['NNNNNNNNNNNNNNNNNNNNN', 'NNNNNNNNNNNNNNNNNNNNNN'], ['AAANGG', 'AAAANGG'], '>')))
     
     print("=== Test ===")
     print(GlobalAlignment.align('GGG', 'GGG', SCORES))
@@ -626,7 +686,7 @@ def test():
     print(a.score_extremes(SCORES, gaps=True), 'gaps')
     
     print('=======================================')
-    a = GlobalAlignment.align('NHRBMAW', 'CCACAAA', SCORES)
+    a = GlobalAlignment.align('NHRBMAW', 'CCACAAA', SCORES, print_matrices=False)
     print(a.align1)
     print(a.align2)
     print(a.bitscore)
@@ -634,7 +694,7 @@ def test():
     print(a.score_extremes(SCORES, gaps=True), 'gaps')
     
     print('=======================================')
-    a = GlobalAlignment.align('NHRBMAW', 'CGACAAA', SCORES)
+    a = GlobalAlignment.align('NHRBMAW', 'CGACAAA', SCORES, print_matrices=False)
     print(a.align1)
     print(a.align2)
     print(a.bitscore)
@@ -650,7 +710,7 @@ def test():
     print(a.score_extremes(SCORES, gaps=True), 'gaps')
     
     print('=======================================')
-    a = GlobalAlignment.align('AACGTACGTACAATAGTTTTACGATAACCGATAGCGATACCCATTAGACTATA', 'AAATAACGTAACTACAATAGTTCTACGATAACCGATATTGCGTTACCCAATAGACGATA', SCORES)
+    a = GlobalAlignment.align('AACGTACGTACAATAGTTTTACGATAACCGATAGCGATACCCATTAGACTATA', 'AAATAACGTAACTACAATAGTTCTACGATAACCGATATTGCGTTACCCAATAGACGATA', SCORES, print_matrices=False)
     print(a.align1)
     print(a.align2)
     print(a.bitscore)
