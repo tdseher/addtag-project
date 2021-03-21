@@ -475,7 +475,16 @@ class GeneratePrimersParser(subroutine.Subroutine):
                                     q_overlap = qcontig[qdsh_start:qush_end] # Just the overlapping subsequence of the query alignments
                                     if (us_record.flags & 16):
                                         q_overlap = nucleotides.rc(q_overlap)
-                                    m = regex.search('(?:'+q_overlap+'){e<'+str(len(q_overlap)//2)+'}$', s_ush_seq, flags=regex.IGNORECASE|regex.BESTMATCH)
+                                    
+                                    # Code to simplify regex
+                                    if (len(q_overlap)//2 > 1):
+                                        pattern_string = '(?:'+q_overlap+'){e<'+str(len(q_overlap)//2)+'}$'
+                                    else:
+                                        pattern_string = '(?:'+q_overlap+')$'
+                                    self.logger.info('pattern_string = '+pattern_string)
+                                    self.logger.info('s_ush_seq = '+s_ush_seq)
+                                    
+                                    m = regex.search(pattern_string, s_ush_seq, flags=regex.IGNORECASE|regex.BESTMATCH)
                                     if m:
                                         sush_end = sush_start + m.start()
                                     
@@ -485,7 +494,16 @@ class GeneratePrimersParser(subroutine.Subroutine):
                                 elif (sdsh_start < sush_end):
                                     # Calculate the query trim
                                     s_overlap = scontig[sdsh_start:sush_end]
-                                    m = regex.search('(?:'+s_overlap+'){e<'+str(len(s_overlap)//2)+'}$', q_ush_seq, flags=regex.IGNORECASE|regex.BESTMATCH)
+                                    
+                                    # Code to simplify regex
+                                    if (len(s_overlap)//2 > 1):
+                                        pattern_string = '(?:'+s_overlap+'){e<'+str(len(s_overlap)//2)+'}$'
+                                    else:
+                                        pattern_string = '(?:'+s_overlap+')$'
+                                    self.logger.info('pattern_string = '+pattern_string)
+                                    self.logger.info('q_ush_seq = '+q_ush_seq)
+                                    
+                                    m = regex.search(pattern_string, q_ush_seq, flags=regex.IGNORECASE|regex.BESTMATCH)
                                     if m:
                                         qush_end = qush_start + m.start()
                                     
