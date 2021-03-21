@@ -76,6 +76,9 @@ class Subroutine():
         self.parser.add_argument("-v", "--version", action='version',
             help="Show program's version number and exit.",
             version='{__program__} {__version__} (revision {__revision__})'.format(**globals()))
+        
+        # TODO: add '-i', '--info' option that shows the PATH of the python executable running AddTag
+        #       as well as the PATH of the 'addtag' executable that is being run
     
     def define_arguments(self):
         '''
@@ -181,6 +184,8 @@ class ValidatePrimersRequired(argparse.Action):
         # print '{n} {v} {o}'.format(n=args, v=values, o=option_string)
         f = '--'+self.dest
         if (values != None):
+            # TODO: This only works if '--dDNAs' comes BEFORE 'i_primers_required' and 'o_primers_required'.
+            #       Otherwise, an error will occur because args.dDNAs == None.
             if (len(args.dDNAs)+1 != len(values)):
                 parser.error('argument {f}: expected {n} arguments'.format(f=f, n=len(args.dDNAs)+1))
         

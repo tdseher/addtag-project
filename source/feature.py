@@ -279,6 +279,9 @@ class Feature(object):
             cls.logger.info('Finding equivalent Targets...')
             equivalents = cls.expand_for_targets(args, contigs, feature_list)
             
+            # TODO: Re-add the code that makes sure the expanded Feature does not overlap with '--excluded_features'
+            #       For reference, see 'Feature.expand_feature()' and 'Feature.previous_expand_feature()' (both vestigial)
+            
             # For each equivalent, we create expanded Features respecting 'args.feature_expansion_format'
             cls.logger.info('Formatting Feature+Target equivalents...')
             bounds = cls.expand_for_format(args, contigs, feature_list, equivalents)

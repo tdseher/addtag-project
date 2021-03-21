@@ -249,8 +249,12 @@ class Main(object):
         # It creates a new process (with a new pid), and exits the current one.
         # When a call to an _exec function is successful, the new process is
         # placed in the memory previously occupied by the calling process.
-        # Sufficient memory must be available for loading and executing the new
-        # process. 
+        # Sufficient memory must be available for loading and executing the new process. 
+        # TODO: make '--no_encoding_restart' an option via the command-line, because it can mess things up
+        # This means that if launch AddTag from another process
+        # that needs to monitor its progress, then it will only function correctly if
+        # you set the PYTHONIOENCODING variable before calling AddTag.
+        # For example, running 'python3 -m cProfile addtag-project\addtag' will not work because of this.
         
         #print('Executable: {}'.format(sys.executable))
         #print('ARGV: {}'.format(sys.argv))
@@ -348,6 +352,9 @@ class Main(object):
             help="Show program's version number and exit.",
             version='{__program__} {__version__} (revision {__revision__})'.format(**subroutine.__dict__)) # .format(**globals()))
         
+        # TODO: add '-i', '--info' option that shows the PATH of the python executable running AddTag
+        #       as well as the PATH of the 'addtag' executable that is being run
+        
         return parser, subparsers
     
     def parse_arguments(self):
@@ -394,7 +401,11 @@ class Main(object):
         if hasattr(args, 'folder'):
             # Create the project directory if it doesn't exist
             os.makedirs(args.folder, exist_ok=True)
-        
+            
+            # TODO: If the folder DOES exist, then check if a 'log.txt' file exists already.
+            #       If there is already a 'log.txt' file, then rename it to 'log-1.txt'
+            #       Do this for every previous log file.
+            
             # Create the logger, and have it write to 'folder/log.txt'
             #logging.basicConfig(filename=os.path.join(args.folder, 'log.txt'), level=logging.INFO, format='[%(asctime)s] [%(name)s.%(funcName)s] [%(lineno)d] %(message)s') # format='%(levelname)s %(asctime)s: %(message)s' #### %(pathname)s | %(filename)s | %(module)s
             #logging.basicConfig(filename=os.path.join(args.folder, 'log.txt'), level=logging.INFO, style='{', format='[{asctime}] [{name:<70}] [{funcName:<40}] [{lineno:>4}] {message}')
