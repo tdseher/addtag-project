@@ -125,7 +125,7 @@ class Algorithm(object): # Name of the subclass
             name, pars = weight_str.split(':')
             # TODO: use m=regex.match(...)
             #       then say 'if m: ...'
-            #                'else: raise "Wrong format"'
+            #                'else: raise Exception("Wrong format"')
             pars = [regex.match(r'(\d+(?:\.\d*)?)([+-])(\d+(?:\.\d*)?)', p).groups() for p in pars.split(',')]
             pars = [(float(a), b, float(c)) for a, b, c in pars]
             assert name == self.name

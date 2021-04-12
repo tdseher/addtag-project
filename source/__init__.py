@@ -506,7 +506,7 @@ class Main(object):
             return new_features
         else:
             if (len(features) == 0):
-                raise("Input '--gff' has no valid features.")
+                raise Exception("Input '--gff' has no valid features.")
                 #sys.exit(1)
             return features
 
