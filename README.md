@@ -538,6 +538,32 @@ addtag list_thermodynamics
 
 ### Workflow for editing loci in the manuscript ###
 
+#### Get genome data ####
+<details>
+<summary>Click to expand/collapse</summary>
+<table><tbody><tr><td>
+
+Download the *Candida albicans* reference genome and annotations used for this study.
+```sh
+wget http://www.candidagenome.org/download/sequence/C_albicans_SC5314/Assembly22/archive/C_albicans_SC5314_version_A22-s07-m01-r19_chromosomes.fasta.gz
+gunzip C_albicans_SC5314_version_A22-s07-m01-r19_chromosomes.fasta.gz
+wget http://www.candidagenome.org/download/gff/C_albicans_SC5314/archive/C_albicans_SC5314_version_A22-s07-m01-r19_features.gff
+```
+
+Set convenience variables for referencing these two files.
+```sh
+GENOME_FASTA=C_albicans_SC5314_version_A22-s07-m01-r19_chromosomes.fasta
+GENOME_GFF=C_albicans_SC5314_version_A22-s07-m01-r19_features.gff
+```
+
+Create the `*.homologs` file for the *C. albicans* genome.
+```sh
+python3 gff2homologs.py ${GENOME_FEATURES} > C_albicans_SC5314_A22_current_homologs.txt
+```
+
+</td></tr></tbody></table>
+</details>
+
 #### ADE2_CDS ####
 <details>
 <summary>Click to expand/collapse</summary>
@@ -588,6 +614,35 @@ addtag list_thermodynamics
 </td></tr></tbody></table>
 </details>
 
+#### WOR1_USd ####
+<details>
+<summary>Click to expand/collapse</summary>
+<table><tbody><tr><td>
+
+*~ Section incomplete ~*
+
+</td></tr></tbody></table>
+</details>
+
+#### WOR1_USp ####
+<details>
+<summary>Click to expand/collapse</summary>
+<table><tbody><tr><td>
+
+*~ Section incomplete ~*
+
+</td></tr></tbody></table>
+</details>
+
+#### WOR2_DS ####
+<details>
+<summary>Click to expand/collapse</summary>
+<table><tbody><tr><td>
+
+*~ Section incomplete ~*
+
+</td></tr></tbody></table>
+</details>
 
 ### Typical workflows ###
 
