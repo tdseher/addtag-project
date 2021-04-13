@@ -251,6 +251,7 @@ class GeneratePrimersParser(subroutine.Subroutine):
         #  - max_run_length
     
     def compute(self, args):
+        # TODO: Make this 'compute()' function WAY more modular
         print("# Confirmation primer design (cPCR).")
         
         # Create the 'cache' subdirectory if it doesn't exist already
@@ -640,7 +641,7 @@ class GeneratePrimersParser(subroutine.Subroutine):
         datum_groups = self.make_datum_groups(group_links, contig_groups, genome_contigs_list)
         
         ###### New code ######
-        self.primer_queue_test(args, datum_groups, genome_contigs_list, dDNA_contigs_list)
+        self.primer_queue(args, datum_groups, genome_contigs_list, dDNA_contigs_list)
         
         
         ######################
@@ -918,393 +919,20 @@ class GeneratePrimersParser(subroutine.Subroutine):
         
         self.logger.info('Printing to STDOUT...')
         
-        # Print output header information describing the amplicons
-        print('# Amplicon diagram')
-        print('#                                          Genome')
-        print('# Amplicon  ──upstream─┐┌─homology─┐┌──insert/feature──┐┌─homology─┐┌─downstream──')
-        print('#        A   sF ===>····················································<=== sR')
-        print('#        B   sF ===>···················<=== rN-oR')
-        print('#        C                             rN-oF ===>·······················<=== sR')
-        print('#        D                        rN-iF ===>······<=== rN-iR')
-        print('#')
-        print('# F = forward')
-        print('# R = reverse')
-        print('# s = shared')
-        print('# o = outer')
-        print('# i = inner')
-        print('# rN = round number')
-        
         # Print the various output tables
-        # TODO: Put Locus/DatumGroup calculation into its own function:
-        #       output0 = calc_loci(args, ...)
-        print("# In silico recombination")
-        print('# ' + '\t'.join(['Locus', 'DatumGroup']))
-        for line in output0:
-            print('\t'.join(map(str, line)))
+        self.print_diagram()
+        self.print_datumgroup(output0)
+        self.print_amplicon_weights(output1)
+        self.print_amplicon_details(output2)
+        self.print_something_1(output3)
+        self.print_something_2(output4)
         
-        print('# ' + '\t'.join(['Set', 'Locus', 'Weight', 'Amplicon']))
-        for line in output1:
-            print('\t'.join(map(str, line)))
-        
-        # TODO: Put in-silico PCR (output2) into its own function
-        print('# ' + '\t'.join(['Set', 'Index', 'Locus', 'Amplicon', 'Template', 'Genome', 'F', 'R', 'Sizes', 'Tm']))
-        for line in output2:
-            print('\t'.join(map(str, line)))
-        
-        print('# ' + '\t'.join(['Set', 'Index', 'Locus', 'Primer', 'Sequence']))
-        for line in output3:
-            print('\t'.join(map(str, line)))
-        
-        print('# ' + '\t'.join(['Set', 'Index', 'Locus', 'Primer', 'Sequence', 'File', 'Contig', 'Start', 'End', 'Strand']))
-        for line in output4:
-            print('\t'.join(map(str, line)))
-        
-                        #####################
-                        # Cut code was here #
-                        #####################
-                        
-                        # This code output GenBank '*.gb' files
+        # Make any additional output files
+        self.write_gbk() # TODO: Fix *.gbk output (see previous version for messy implementation)
         
         # End 'compute()'
-    
-    def primer_queue_test_old(self, args, loci, genome_contigs_list, dDNA_contigs_list):
-        '''
-        New pseudocode for primer set calculations
-        needs to handle:
-          allele-specific, multi-allele, allele-agnostic
-          masked characters
-        '''
-        
-        self.logger.info("Starting 'primer_queue_test()'...")
-        # This should be input to this function
-        # loci = datum_list/datum_groups
-        #loci = ['hapA', 'hapB']
-        
-        FAR_UPSTREAM = 1
-        FAR_DOWNSTREAM = 2
-        FEATURE = 4
-        INSERT = 8
-        
-        pairs = [
-            ((FAR_UPSTREAM, '+', 'sF'), (FAR_DOWNSTREAM, '-', 'sR')), # sF sR = Amp A
-            
-            ((FAR_UPSTREAM, '+', 'sF'), (FEATURE, '-', 'oR')),        # sF oR = Amp B
-            ((FEATURE, '+', 'oF'), (FAR_DOWNSTREAM, '-', 'sR')),      # oF sR = Amp C
-            ((FEATURE, '+', 'iF'), (FEATURE, '-', 'iR')),             # iF iR = Amp D
-            
-            ((FAR_UPSTREAM, '+', 'sF'), (INSERT, '-', 'oR')),         # sF oR = Amp B
-            ((INSERT, '+', 'oF'), (FAR_DOWNSTREAM, '-', 'sR')),       # oF sR = Amp C
-            ((INSERT, '+', 'iF'), (INSERT, '-', 'iR')),               # iF iR = Amp D
-        ]
-        regions = set(x for y in pairs for x in y)
-        
-        # Populate the 'Primer.sequences' dict to serve as a queue (but don't do any calculations yet)
-        # Scan each region, and add the sequence as a 'Primer' object
-        for locus, dg in enumerate(loci):
-            for datum in dg:
-                if (datum.ins_start != None):
-                    for region, orientation, name in regions:
-                        if (region == FAR_UPSTREAM):
-                            start, end = max(0, datum.ush_start-1300), datum.ush_start
-                            sequence = genome_contigs_list[datum.genome_r][datum.genome_contig]
-                            contig = datum.genome_contig
-                            nname = name
-                        
-                        elif (region == FAR_DOWNSTREAM):
-                            start, end = datum.dsh_end, min(datum.dsh_end+1300, len(genome_contigs_list[datum.genome_r][datum.genome_contig]))
-                            sequence = genome_contigs_list[datum.genome_r][datum.genome_contig]
-                            contig = datum.genome_contig
-                            nname = name
-                        
-                        elif (region == FEATURE):
-                            start, end = datum.ush_end, datum.dsh_start
-                            sequence = genome_contigs_list[datum.genome_r][datum.genome_contig]
-                            contig = datum.genome_contig
-                            nname = 'r'+str(datum.genome_r)+'-'+name
-                        
-                        elif (region == INSERT):
-                            start, end = datum.ins_start, datum.ins_end
-                            sequence = dDNA_contigs_list[datum.dDNA_r][datum.dDNA_contig]
-                            contig = datum.dDNA_contig
-                            nname = 'r'+str(datum.genome_r+1)+'-'+name
-                                
-                        #args.selected_oligo.scan(ins.seq, 'left',  primer_size=primer_length_range, folder=temp_folder, us_seq=ins.us_seq, ds_seq=ins.ds_seq, time_limit=args.primer_scan_limit)
-                        #args.selected_oligo.scan(seq, l, r, o)
-                        nname = None
-                        Primer.scan(sequence, 0, locus, datum.genome_r, region, contig, orientation, start, end, nname, primer_size=(19,36))
-        
-        self.logger.info("Total 'Primer' objects before filtering: {}".format(len(Primer.sequences)))
-        
-        # Determine the minimal set of loci/genomes/contigs to constitute correct specificity
-        # Filter the primer queue in 'Primer.sequences' so only valid primers remain
-        self.logger.info("Removing 'Primer' objects that don't meet desired: specificity='{}'".format(args.specificity))
-        
-        if (args.specificity == 'exclusive'): # allele-specific
-            # Primer must be present in only one locus and not any others
-            new_primer_sequences = {}
-            for seq, p in Primer.sequences.items():
-                if (len(p.get_specificity()) == 1): # Assumes non-multiplex design
-                    new_primer_sequences[seq] = p
-            Primer.sequences = new_primer_sequences
-            
-        elif (args.specificity == 'all'): # multi-allelic
-            # Primer must be present in all loci
-            new_primer_sequences = {}
-            for seq, p in Primer.sequences.items():
-                if (len(p.get_specificity()) == len(loci)):
-                    new_primer_sequences[seq] = p
-            Primer.sequences = new_primer_sequences
-            
-        elif (args.specificity == 'any'): # allele-agnostic
-            # Primer can be present in any number of loci
-            pass
-        
-        self.logger.info("Total 'Primer' objects after filtering: {}".format(len(Primer.sequences)))
-        
-        # Set up 'PrimerPair' objects, and place them in a queue 'PrimerPair.pairs'
-        self.logger.info("Setting up 'PrimerPair' objects")
-        
-        
-        clist = [
-            #   Name, initial, final, delta # states
-            Cutoff("length", (19,28), (19,36), (0,2), separate=True), # 1,5
-            Cutoff("last5gc_count", (1,3), (0,4), (-1,1), separate=True), # 2, last5gc
-            Cutoff("gc_clamp_length", (1,2), (0,4), (-1,1), separate=True), # 2, gcclamp
-            Cutoff("gc", (0.4, 0.6), (0.2, 0.8), (-0.1, 0.1)), # 3, gcfreq
-            Cutoff("max_run_length", (4,), (6,), (1,)), # 3, runlen_max
-            Cutoff("max_3prime_complementation_length", (3,), (6,), (1,)), # 4, 3primecomplen_max
-            Cutoff("min_delta_g", (-4.0,), (-7.0,), (-1.0,)), # 4, deltag_min
-            Cutoff("tm", (52,65), (52,65), (0,0)), # 1, tm
-            Cutoff("max_tm_difference", (2.5,), (4.0,), (0.5,)), # 4, deltatm_max
-        ]
-        
-        citer = CutoffIterator()
-        
-        design_found = False
-        # Do calculations until either:
-        #  * all primers are assayed,
-        #  * an adequate design is found,
-        #  * or the time limit expires
-        cycle_n = 0
-        while (design_found == False):
-            break # added so these calculations won't be run
-            try:
-                # Get the initial cutoffs (if this is the first loop)
-                # or get the next-most relaxed cutoffs (if this isn't the first loop)
-                cutoffs = next(citer)
-            except StopIteration:
-                break
-            cutoffs['o_oligo'] = args.selected_oligo
-            cutoffs['folder'] = os.path.join(args.temp_folder, 'addtag', os.path.basename(args.folder))
-            
-            self.logger.info("cycle {}".format(cycle_n))
-            self.logger.info("  cutoffs = {}".format(cutoffs))
-            
-            # Do 'Primer' calculations until the time limit is reached
-            p_tot = 0
-            p_checked_now = 0
-            p_passed_previously = 0
-            p_rejected = 0
-            p_skipped = 0
-            start_time = time.time()
-            time_expired = False
-            #while (time.time()-start_time < args.primer_scan_limit):
-            #    p = primer_queue.get()
-            #    # First, perform cheap calculation on the primers
-            #    # If there is time remaining, then perform the next-most expensive calculation
-            #    # If there is time remaining, then perform the most expensive calculations
-            #    # If there are no good primers, then 'relax' the thresholds
-            #    # Then do calculations using the 'relaxed' thresholds
-            for pi, (seq, p) in enumerate(Primer.sequences.items()):
-                if (pi % 1000 == 0):
-                    if ((time.time()-start_time) > args.primer_scan_limit):
-                        time_expired = True
-                
-                if not time_expired:
-                    cpass = p.summarize(p.checks)
-                    if ((p.checks[0] == None) or (not cpass)):
-                        p.progressive_check(cutoffs)
-                        p_checked_now += 1
-                    elif cpass:
-                        p_passed_previously += 1
-                    else:
-                        p_rejected += 1
-                else:
-                    p_skipped += 1
-                
-                p_tot += 1
-            
-            self.logger.info("  'Primer' objects: checked_now={}, passed_previously={}, not_checked={}, skipped={}, total={}".format(p_checked_now, p_passed_previously, p_rejected, p_skipped, p_tot))
-            
-            
-            ##### Some debug code #####
-            sss = 0
-            ttt = 0
-            nnn = 0
-            hhh = 0
-            ddd = 0
-            ooo = 0
-            for seq, p in Primer.sequences.items():
-                ttt += 1
-                if p.summarize(p.checks):
-                    sss += 1
-                if ((p.checks[0] != None) and p.summarize(p.checks)):
-                    nnn += 1
-                if (p.o_hairpin != None):
-                    hhh += 1
-                if (p.o_self_dimer != None):
-                    ddd += 1
-                if (p.o_reverse_complement != None):
-                    ooo += 1
-            self.logger.info("   sss={}, nnn={}, ttt={}, hhh={}, ddd={}, ooo={}".format(sss, nnn, ttt, hhh, ddd, ooo))
-            ##### Some debug code #####
-            
-            
-            
-            subset_size = 1000
-            self.logger.info("  Queueing 'PrimerPair' objects")
-            #pair_queue = []
-            # pair_queue = [
-            #     [                        # Locus 0
-            #         [PrimerPair(), ...], # ((FAR_UPSTREAM, '+', 'sF'), (FAR_DOWNSTREAM, '-', 'sR')),
-            #         [PrimerPair(), ...], # ((FAR_UPSTREAM, '+', 'sF'), (FEATURE, '-', 'oR'))
-            #         ...
-            #     ],
-            #     ...
-            # ]
-            
-            
-            
-            # BEGIN Try 3/27/2019
-            pair_queue = []
-            
-            for (f_reg, f_ori, f_name), (r_reg, r_ori, r_name) in pairs:
-                self.logger.info("  pair: F={}, R={}".format((f_reg, f_ori, f_name), (r_reg, r_ori, r_name)))
-                f_list = []
-                r_list = []
-                #loci_needed = list(range(len(loci)))
-                for seq, p in Primer.sequences.items():
-                    if ((p.checks[0] != None) and p.summarize(p.checks)):
-                        plocs = [loc[0:2]+loc[3:4] for loc in p.locations] # [locus, region, strand]
-                        
-                        # Assume multi-allelic
-                        f_in = [False] * len(loci)
-                        r_in = [False] * len(loci)
-                        for locus, dg in enumerate(loci):
-                            if ((locus, f_reg, f_ori) in plocs):
-                                f_in[locus] = True
-                            #else:
-                            #    break # Already failed, so might as well stop loop to save computations
-                            if ((locus, r_reg, r_ori) in plocs):
-                                r_in[locus] = True
-                            #else:
-                            #    break # Already failed, so might as well stop loop to save computations
-                                
-                        if all(f_in):
-                            f_list.append(seq)
-                            p.set_name('r?-'+f_name)
-                        if all(r_in):
-                            r_list.append(seq)
-                            p.set_name('r?-'+r_name)
-                self.logger.info("    len(f_list)={}, len(r_list)={}".format(len(f_list), len(r_list)))
-                pp_list = []
-                for p1 in sorted(f_list, reverse=True)[:subset_size]:
-                    for p2 in sorted(r_list, reverse=True)[:subset_size]:
-                        #if (p1, p2) not in pp_list: # This is implicit
-                        PrimerPair(Primer.sequences[p1], Primer.sequences[p2])
-                        
-                        pair = (p1, p2)
-                        pp = PrimerPair.pairs[pair]
-                        pp.progressive_check(cutoffs)
-                        
-                        if ((pp.checks[0] != None) and Primer.summarize(pp.checks)):
-                            pp_list.append(pair)
-                pair_queue.append(pp_list)
-                self.logger.info("    Added {} 'PrimerPair' objects for pair: F={}, R={}".format(len(pp_list), (f_reg, f_ori, f_name), (r_reg, r_ori, r_name)))
-            
-            
-            
-            # Populate sF_sR_paired_primers with primer objects
-            sF_sR_paired_primers = []
-            
-            for pair in pair_queue[0]:
-                pp = PrimerPair.pairs[pair]
-                #pp.weight = pp.get_weight(locus, FAR_UPSTREAM, FAR_DOWNSTREAM, contig, minimize=True)
-                pp.weight = pp.get_weight(minimize=True)
-                sF_sR_paired_primers.append(pp)
-            
-            # Go through the 'pair_queue' one sF sR pair at a time
-            design_count = 0
-            for loop_i, sF_sR_pair in enumerate(sorted(sF_sR_paired_primers, reverse=True)):
-                self.logger.info('  loop {}:'.format(loop_i))
-                pp_sources = []
-                pp_sources.append([sF_sR_pair])
-                
-                # Order in 'pairs' variable
-                # A,   B,C,D,   B,C,D
-                #for ppi, pp_list in pp2d_list:
-                for ppi, pp_seq_list in enumerate(pair_queue[1:]):
-                    pp_list = []
-                    for pair in pp_seq_list:
-                        pp_list.append(PrimerPair.pairs[pair])
-                    
-                    if (ppi in [0, 3]): # B
-                        pp_sources.append(self.filter_primer_pairs(pp_list, forward=sF_sR_pair.forward_primer))
-                    elif (ppi in [1, 4]): # C
-                        pp_sources.append(self.filter_primer_pairs(pp_list, reverse=sF_sR_pair.reverse_primer))
-                    elif (ppi in [2, 5]): # D
-                        pp_sources.append(pp_list)
-                
-                current_pp_sources = [len(x) for x in pp_sources]
-                self.logger.info('  length of sources: {}'.format(current_pp_sources))
-                
-                
-                # Ideally, similar code should be executed, but before the 'PrimerPair.progressive_check()' is calculated
-                #required_pattern = [val for val in args.internal_primers_required for b in range(2)]
-                required_pattern = ['y', 'y', 'y', 'n', 'y', 'y', 'n']
-                should_mask = False
-                should_skip = False
-                for req_str, num_pp in zip(required_pattern, current_pp_sources):
-                    if ((req_str in ['y', 'Y', '1', 'T', 't', 'TRUE', 'True', 'true']) and (num_pp == 0)):
-                        should_skip = True
-                        break
-                    if ((req_str not in ['y', 'Y', '1', 'T', 't', 'TRUE', 'True', 'true']) and (num_pp > 0)):
-                        should_mask = True
-                if should_skip:
-                    self.logger.info('  skipping...')
-                    continue
-                if should_mask:
-                    self.logger.info('  masking...')
-                    continue
-                
-                
-                
-                
-                # Evaluate if any new primer designs are adequate
-                design = PrimerDesign(pp_sources)
-                #design.optimize(mode='direct')
-                design.optimize()
-                optimal = design.optimal
-                
-                design_count += 1
-                
-                if (design_count >= subset_size):
-                    break
-            
-            # END Try 3/27/2019
-            
-            cycle_n += 1
-            
-        
-        # Output the results, starting with the best-found design
-        #for locus in datum_list:
-        #    sets = calculate_primer_sets()
-        #    for s in sets[:max_sets]:
-        #        print(s)
-        self.logger.info("Function 'primer_queue_test()' completed.")
-        
-    
-    def primer_queue_test(self, args, loci, genome_contigs_list, dDNA_contigs_list):
+
+    def primer_queue(self, args, loci, genome_contigs_list, dDNA_contigs_list):
         '''
         New Code for primer set calculations
         needs to handle:
@@ -1314,8 +942,8 @@ class GeneratePrimersParser(subroutine.Subroutine):
           disambiguation of ambiguous characters (not yet) (This can be handled in the Primer object by taking averages of metrics for each disambiguated sequence)
           masked amplicons (not yet)
         '''
-        
-        self.logger.info("Starting 'primer_queue_test()'...")
+        # TODO: Make this 'primer_queue()' function WAY more modular
+        self.logger.info("Starting 'primer_queue()'...")
         
         #### BEGIN 3/28 ####
         
@@ -1466,15 +1094,7 @@ class GeneratePrimersParser(subroutine.Subroutine):
                     
                     temp2 = [datum.dDNA_r, datum.genome_r, datum.ins_start, datum.ins_end]
         
-        ##### BEGIN OUTPUT 1 #####
-        # Prints the REGIONS where the primers will be sought
-        print('# Region definitions')
-        #                       0        1       2         (2)                 3         (3)                 4         5         6        7
-        print('# ' + '\t'.join(['Gene', 'Locus', 'Genome', 'Genome (decoded)', 'Region', 'Region (decoded)', 'Contig', 'Strand', 'Start', 'End']))
-        for d in data:
-            print('\t'.join(list(map(str, d[:3])) + ['genome-r{}.fasta'.format(d[2]), str(d[3]), region_decode[d[3]]] + list(map(str, d[4:]))), flush=True)
-            #print('\t'.join(map(str, d)), flush=True)
-        ##### END OUTPUT 1 #####
+        self.print_regions(data, region_decode)
         
         self.logger.info('Finished testing new 2D simplification of the data')
         
@@ -1699,44 +1319,6 @@ class GeneratePrimersParser(subroutine.Subroutine):
                 
                 ###### End multiprocessing ######
                 
-#                for seq_list in p_queue:
-#                    # For each region, we reset the timer
-#                    start_time = time.time()
-#                    time_expired = False
-#                    
-#                    # reset metrics for this region
-#                    p_tot = 0
-#                    p_checked_now = 0
-#                    p_passed_previously = 0
-#                    p_rejected = 0
-#                    p_skipped = 0
-#                    p_newly_passed = 0
-#                    
-#                    for pi, seq in enumerate(seq_list):
-#                        p = Primer.sequences[seq]
-#                    #for pi, (seq, p) in enumerate(Primer.sequences.items()):
-#                        if (pi % 1000 == 0):
-#                            if (args.primer_scan_limit and ((time.time()-start_time) > args.primer_scan_limit)):
-#                                time_expired = True
-#                        
-#                        if not time_expired:
-#                            cpass = p.summarize(p.checks)
-#                            if ((p.checks[0] == None) or (not cpass)):
-#                                p.progressive_check(cutoffs)
-#                                p_checked_now += 1
-#                                if ((p.checks[0] != None) and p.summarize(p.checks)):
-#                                    p_newly_passed += 1
-#                            elif cpass:
-#                                p_passed_previously += 1
-#                            else:
-#                                p_rejected += 1
-#                        else:
-#                            p_skipped += 1
-#                        
-#                        p_tot += 1
-#                
-#                    self.logger.info("  'Primer' objects: checked_now={}, passed_previously={}, newly_passed={}, not_checked={}, skipped={}, total={}".format(p_checked_now, p_passed_previously, p_newly_passed, p_rejected, p_skipped, p_tot))
-                
                 
                 ##### Some debug code #####
                 sss = 0
@@ -1799,9 +1381,6 @@ class GeneratePrimersParser(subroutine.Subroutine):
                     pairs.append([sF_seq_list, featureR_seq_lists[r], 'sF', 'r{}-oR'.format(genome_list[r]), 'B'])
                     pairs.append([featureF_seq_lists[r], sR_seq_list, 'r{}-oF'.format(genome_list[r]), 'sR', 'C'])
                     pairs.append([featureF_seq_lists[r], featureR_seq_lists[r], 'r{}-iF'.format(genome_list[r]), 'r{}-iR'.format(genome_list[r]), 'D'])
-                
-                
-                
                 
                 
                 
@@ -2014,31 +1593,21 @@ class GeneratePrimersParser(subroutine.Subroutine):
                         design_found = True
                 
                 ###### End multiprocessing ######
-                
-                
+            
             
             # Write output for Primer sequences
             if (len(optimal_designs) > 0):
                 # Sort first by number of PrimerPair objects, and second by the weight
                 ordered_od_list = sorted(optimal_designs, key=lambda x: (x.get_primer_pair_count(), x.weight), reverse=True)
                 
-                print('# Compatible designs')
-                print('# Primer sequences')
-                print('# ' + '\t'.join(['Gene', 'Weight', 'Count'] + [x[0] for x in optimal_designs[0].get_primer_list()]))
-                for od in ordered_od_list: # od is a PrimerSet object
-                    gpl = od.get_primer_list()
-                    print('\t'.join([gene, str(od.weight), str(od.get_primer_count())] + [x[1].sequence if x[1] else 'None' for x in gpl]))
+                print('# Compatible designs for {}'.format(gene))
+                self.print_primers(gene, ordered_od_list)
+                self.print_primerpairs(gene, ordered_od_list)
                 
-                print('# PrimerPairs')
-                print('# ' + '\t'.join(['', '', 'Amplicon'] + [x[0] for x in optimal_designs[0].get_primer_pair_list()]))
-                print('# ' + '\t'.join(['Gene', 'Weight', 'Count'] + [x[1] for x in optimal_designs[0].get_primer_pair_list()]))
-                for od in ordered_od_list: # od is a PrimerSet object
-                    gppl = od.get_primer_pair_list()
-                    print('\t'.join([gene, str(od.weight), str(od.get_primer_pair_count())] + [str(x[2]) for x in gppl]))
             else:
                 print('# No compatible designs')
             
-        self.logger.info("Function 'primer_queue_test()' completed.")
+        self.logger.info("Function 'primer_queue()' completed.")
     
     def mp_setup(self, args, cutoffs, data):
         '''
@@ -2473,6 +2042,7 @@ class GeneratePrimersParser(subroutine.Subroutine):
         """
         This function should replace 'get_far_lcs_regions()'
         """
+        # TODO: Finish this function to replace 'get_far_lcs_regions()'? 
         # If allele-specific, then do this for each locus.
         # If NOT allele-specific, then include all alleles in the same 'Datum' (will this even work?)
         
@@ -2591,157 +2161,6 @@ class GeneratePrimersParser(subroutine.Subroutine):
         
         return pcr_regions, pcr_region_positions
     
-    def calculate_them_primers(self, args, far_us_seq, far_ds_seq, insert_seqs):
-        """
-        """
-        primer_length_range = (19,32)
-        
-        # Limit for the number of primers that go into the pair() function.
-        # At most, there will be 1000*1000 = 1 millon possible pairs
-        subset_size = 1000
-        
-        self.logger.info('Scanning the regions (shared upstream (sF), shared downstream (sR), feature/insert (rN-oF,rN-oR,rN-iF,rN-iR) for all decent primers')
-        
-        # Make the 'temp_folder' path
-        temp_folder = os.path.join('/dev/shm/addtag', os.path.basename(args.folder))
-        
-        self.logger.info("Scanning far upstream for 'sF' primers:")
-        sF_list = sorted(
-            args.selected_oligo.scan(far_us_seq, 'left', primer_size=primer_length_range, folder=temp_folder, time_limit=args.primer_scan_limit),
-            key=lambda x: x.weight,
-            reverse=True
-        )
-        self.logger.info('  len(sF_list) = {}'.format(len(sF_list)))
-        self.logger.info('  sF: skipping {}/{} calculated primers'.format(max(0, len(sF_list)-subset_size), len(sF_list)))
-        sF_list = sF_list[:subset_size]
-        # Need to add a condition that if (len(sF_list) < N), then it should re-evaluate the far-upstream region to try to get
-        # more sequence to search.
-        
-        self.logger.info("Scanning far downstream for 'sR' primers:")
-        sR_list = sorted(
-            args.selected_oligo.scan(far_ds_seq, 'right', primer_size=primer_length_range, folder=temp_folder, time_limit=args.primer_scan_limit),
-            key=lambda x: x.weight,
-            reverse=True
-        )
-        self.logger.info('  len(sR_list) = {}'.format(len(sR_list)))
-        self.logger.info('  sR: skipping {}/{} calculated primers'.format(max(0, len(sR_list)-subset_size), len(sR_list)))
-        sR_list = sR_list[:subset_size]
-        # Need to add condition that if there aren't enough putative 'sR' primers, then the sR region is expanded
-        # Otherwise, the script can just end prematurely
-        
-        insert_list = []
-        for ins in insert_seqs:
-            self.logger.info("Scanning feature/insert for 'rN-oF', 'rN-oR', 'rN-iF', 'rN-iR' primers:")
-            iF_list = sorted(
-                args.selected_oligo.scan(ins.seq, 'left',  primer_size=primer_length_range, folder=temp_folder, us_seq=ins.us_seq, ds_seq=ins.ds_seq, time_limit=args.primer_scan_limit),
-                key=lambda x: x.weight,
-                reverse=True
-            )
-            self.logger.info('  len(iF_list) = {}'.format(len(iF_list)))
-            self.logger.info('  insert_F: skipping {}/{} calculated primers'.format(max(0, len(iF_list)-subset_size), len(iF_list)))
-            iF_list = iF_list[:subset_size]
-            
-            iR_list = sorted(
-                args.selected_oligo.scan(ins.seq, 'right', primer_size=primer_length_range, folder=temp_folder, us_seq=ins.us_seq, ds_seq=ins.ds_seq, time_limit=args.primer_scan_limit),
-                key=lambda x: x.weight,
-                reverse=True
-            )
-            self.logger.info('  len(iR_list) = {}'.format(len(iR_list)))
-            self.logger.info('  insert_R: skipping {}/{} calculated primers'.format(max(0, len(iR_list)-subset_size), len(iR_list)))
-            iR_list = iR_list[:subset_size]
-            
-            insert_list.append([iF_list, iR_list])
-        
-        # Select the best subset of primers so the pairing doesn't take too long
-        # This will cap the maximum number of primer pairs for each region span
-        # to be 100 x 100 = 10,000
-        
-        # Do the pair calculations that involve 'sF' and 'sR'
-        self.logger.info("Calculating: 'sF' 'sR' paired primers...")
-        sF_sR_paired_primers = args.selected_oligo.pair(sF_list, sR_list, intervening=0, folder=temp_folder, time_limit=args.primer_pair_limit)
-        
-        for pp in sF_sR_paired_primers:
-            # Re-calculate the PrimerPair weights to prefer the smallest amplicon sizes
-            pp.weight = pp.get_weight(minimize=True)
-            
-            # Re-name the primers so when they are printed, they are easy to distinguish
-            pp.forward_primer.set_name('sF')
-            pp.reverse_primer.set_name('sR')
-        
-        # Sort by weight
-        sF_sR_paired_primers = sorted(
-            sF_sR_paired_primers,
-            key=lambda x: x.get_joint_weight(),
-            reverse=True
-        )
-        self.logger.info('  len(sF_sR_paired_primers) = {}'.format(len(sF_sR_paired_primers)))
-        
-        # pair_list[ins index] = [sF_oR_paired_primers, oF_sR_paired_primers, iF_iR_paired_primers]
-        pair_list = []
-        insert_pair_list = []
-        
-        #for i, (iF_list, iR_list) in enumerate(insert_list):
-        for i in range(len(insert_seqs)):
-            iF_list, iR_list = insert_list[i]
-            ins = insert_seqs[i]
-            
-            self.logger.info('Pairing primers: ' + str(i))
-        
-            # If there is a hard constraint for primers that should be used
-            # That is, if flanktag primers should be used
-            if (len(args.mandatory_primers) > 0):
-                pass
-            # Otherwise, no flanktags are specified
-            else:
-                # sF rN-oR
-                self.logger.info("  Calculating: 'sF' 'r"+str(ins.genome_r)+ins.type+"-oR' paired_primers...")
-                sF_oR_paired_primers = sorted(
-                    args.selected_oligo.pair(sF_list, iR_list, intervening=ins.fus_dist, folder=temp_folder, time_limit=args.primer_pair_limit),
-                    key=lambda x: x.get_joint_weight(),
-                    reverse=True
-                )
-                for pp in sF_oR_paired_primers:
-                    pp.forward_primer.set_name('sF')
-                    pp.reverse_primer.set_name('r'+str(ins.genome_r)+ins.type+'-oR')
-                self.logger.info('  len(sF_oR_paired_primers) = {}'.format(len(sF_oR_paired_primers)))
-            
-                # rN-0F sR
-                self.logger.info("  Calculating: 'r"+str(ins.genome_r)+ins.type+"-oF' 'sR' paired_primers...")
-                oF_sR_paired_primers = sorted(
-                    args.selected_oligo.pair(iF_list, sR_list, intervening=ins.fds_dist, folder=temp_folder, time_limit=args.primer_pair_limit),
-                    key=lambda x: x.get_joint_weight(),
-                    reverse=True
-                )
-                for pp in oF_sR_paired_primers:
-                    pp.forward_primer.set_name('r'+str(ins.genome_r)+ins.type+'-oF')
-                    pp.reverse_primer.set_name('sR')
-                self.logger.info('  len(oF_sR_paired_primers) = {}'.format(len(oF_sR_paired_primers)))
-                
-                # rN-iF rN-iR
-                self.logger.info("  Calculating: 'r"+str(ins.genome_r)+ins.type+"-iF' 'r"+str(ins.genome_r)+ins.type+"-iR' paired_primers...")
-                iF_iR_paired_primers = sorted(
-                    args.selected_oligo.pair(iF_list, iR_list, intervening=0, same_template=True, folder=temp_folder, time_limit=args.primer_pair_limit),
-                    key=lambda x: x.get_joint_weight(),
-                    reverse=True
-                )
-                for pp in iF_iR_paired_primers:
-                    pp.forward_primer.set_name('r'+str(ins.genome_r)+ins.type+'-iF')
-                    pp.reverse_primer.set_name('r'+str(ins.genome_r)+ins.type+'-iR')
-                self.logger.info('  len(iF_iR_paired_primers) = {}'.format(len(iF_iR_paired_primers)))
-                
-                # Add calculated primer pairs to the list
-                pair_list.append([sF_oR_paired_primers, oF_sR_paired_primers, ins])
-                insert_pair_list.append(iF_iR_paired_primers)
-        
-        # If a primer in feature/insert of one round ALSO is identical
-        # with a primer in another round,
-        # Then it should only be weighted for a SINGLE entry
-        starting_set, finished_set, round_labels = self.calculate_them_best_set(args, sF_sR_paired_primers, pair_list)
-        
-        d_starting_set, d_finished_set = self.calculate_amp_d_set(args, insert_pair_list)
-        
-        return finished_set, insert_pair_list, round_labels, d_finished_set
-    
     def get_primer_location(self, filenames, genomes, primer_sequence):
         #[filename, contig, start, end, strand]
         locations = []
@@ -2782,84 +2201,6 @@ class GeneratePrimersParser(subroutine.Subroutine):
         else:
             return int(count[:-1])+1
     
-    def flatten_primer_pair_list(self, pair_list):
-        p_set = []
-        for pp in pair_list:
-            if pp:
-                p_set.append(pp.forward_primer)
-                p_set.append(pp.reverse_primer)
-            else:
-                p_set.append(None)
-                p_set.append(None)
-        return p_set
-    
-    def optimize_pp_list_by_weight(self, args, pair_list, semirandom=True):
-        """
-        This will effectively minimize the number of primers sequences needed.
-        """
-        
-        if semirandom:
-            # Get ranked-random set
-            pp_set = [self.random_primer_by_weight(pp_list) for pp_list in pair_list]
-        else:
-            # Get top-ranked set
-            pp_set = [pp_list[0] if (len(pp_list) > 0) else None for pp_list in pair_list]
-        
-        p_group_weight = args.selected_oligo.p_group_weight(self.flatten_primer_pair_list(pp_set))
-        pp_group_weight = args.selected_oligo.pp_group_weight(pp_set)
-        joint_weight = p_group_weight * pp_group_weight
-        
-        starting_set = (joint_weight, pp_set) # initial set
-        
-        # iteratively improve until a local maxima is found
-        # By continually swapping out the least-weighted component primer
-        weight_delta = 1
-        while (weight_delta > 0):
-            # Get list of indices from smallest weight to largest weight (excluding 'sF' and 'sR')
-            # If a primer is 'None', then it is right-most in the list.
-            # Left-most element is the smallest weight. Weights increase as the index of the list increases.
-            
-            wi_order = self.rank_order([pp.get_joint_weight() if pp else math.inf for pp in pp_set])
-            
-            # If primer is 'None', then its weight will be 'math.inf', and the index
-            # corresponding to it will be the last element in wi_order:
-            #   rank_order([1, 2, 2.5, 0.001, math.inf]) # [3, 0, 1, 2, 4]
-            
-            # Start at the worst, and go to the next-worst, then next, then next
-            for wi in wi_order:
-                # Copy the list of primer pairs
-                pp_set2 = pp_set[:]
-                
-                # Swap the worst-performing primer with an alternative.
-                # If the alternative gives a better weight, then keep it
-                # and break out of the loop
-                for source_pp in pair_list[wi]:
-                    pp_set2[wi] = source_pp
-                    
-                    new_p_group_weight = args.selected_oligo.p_group_weight(self.flatten_primer_pair_list(pp_set2))
-                    new_pp_group_weight = args.selected_oligo.pp_group_weight(pp_set2)
-                    new_joint_weight = new_p_group_weight * new_pp_group_weight
-                    
-                    weight_delta = new_joint_weight - joint_weight
-                    
-                    if (weight_delta > 0):
-                        # replace values for next iteration
-                        pp_set = pp_set2
-                        joint_weight = new_joint_weight
-                        self.logger.info('          t-set: ' + str((joint_weight, pp_set)))
-                        break
-                else:
-                    # If no pp swap in 'source_pp' is higher-weighted, then return 0 rather than the last-calculated 'weight_delta'
-                    weight_delta = 0
-                
-                # If the pp swap already produces a higher-weighted primer set, then skip the rest of the 'wi'
-                if (weight_delta > 0):
-                    break
-        
-        finished_set = (joint_weight, pp_set)
-        
-        return starting_set, finished_set
-    
     def random_choices(self, population, weights, k=1):
         """
         Return a k sized list of population elements chosen with replacement.
@@ -2878,27 +2219,6 @@ class GeneratePrimersParser(subroutine.Subroutine):
             else:
                 values.append(random.choice(population))
         return values
-    
-    def random_primer_by_weight(self, pairs):
-        if (len(pairs) == 0):
-            return None
-        elif ('choices' in random.__all__):
-            return random.choices(pairs, [x.get_joint_weight() for x in pairs])[0]
-        else:
-            return self.random_choices(pairs, [x.get_joint_weight() for x in pairs])[0]
-    
-    def nsum(self, n):
-        return n*(n+1)/2
-    
-    def rank_order(self, x, reverse=False, shift=0):
-        return [y+shift for y in sorted(range(len(x)), key=x.__getitem__, reverse=reverse)]
-    
-    def rank(self, x, reverse=False, shift=0):
-        return [z[0]+shift for z in sorted(enumerate(sorted(enumerate(x), key=lambda w: w[1], reverse=reverse)), key=lambda y: y[1][0])]
-    
-    def rank_dist(self, x):
-        s = nsum(len(x))
-        return [y/s for y in rank(x, reverse=False, shift=1)]
     
     #def product(x):
     #    z = 1
@@ -2925,278 +2245,7 @@ class GeneratePrimersParser(subroutine.Subroutine):
             ooo = pairs
         
         return ooo
-    
-    def pp_sets_equal(self, set1, set2):
-        seqs1 = [(pp.forward_primer.sequence, pp.reverse_primer.sequence) if pp else (None, None) for pp in set1[1]]
-        seqs2 = [(pp.forward_primer.sequence, pp.reverse_primer.sequence) if pp else (None, None) for pp in set2[1]]
-        return seqs1 == seqs2
-    
-    def which_pp_equal(self, pp_set, shift=1):
-        t_num = (len(pp_set)-1)//2
-        for t1 in range(t_num):
-            pp1L = pp_set[1+(2*t1)]
-            if pp1L:
-                pp1Ls = (pp1L.forward_primer.sequence, pp1L.reverse_primer.sequence)
-            else:
-                pp1Ls = None
-            
-            pp1R = pp_set[1+(2*t1)+1]
-            if pp1R:
-                pp1Rs = (pp1R.forward_primer.sequence, pp1R.reverse_primer.sequence)
-            else:
-                pp1Rs = None
-            
-            for t2 in range(t_num):
-                if (t1 < t2):
-                    pp2L = pp_set[1+(2*t2)]
-                    if pp2L:
-                        pp2Ls = (pp2L.forward_primer.sequence, pp2L.reverse_primer.sequence)
-                    else:
-                        pp2Ls = None
-                        
-                    pp2R = pp_set[1+(2*t2)+1]
-                    if pp2R:
-                        pp2Rs = (pp2R.forward_primer.sequence, pp2R.reverse_primer.sequence)
-                    else:
-                        pp2Rs = None
-                    
-                    Ltest = None if (pp1Ls == pp2Ls == None) else pp1Ls == pp2Ls
-                    Rtest = None if (pp1Rs == pp2Rs == None) else pp1Rs == pp2Rs
-                    self.logger.info('PrimerPair equals ({} vs {}): L={}, R={}'.format(t1, t2, Ltest, Rtest))
-    
-    def calculate_them_best_set(self, args, sF_sR_paired_primers, pair_list, max_iterations=10000):
-        """
-        Takes input primer sets and calculates their weights
-        
-        This starts with the best from a sorted list of 'sF' 'sR' primer pairs
-        Then it optimizes by swapping the worst component a finite number of times
-        (or until the delta drops below a certain amount)
-        """
-        
-        # This should be in a loop...
-        #sF_oR_paired_primers, oF_sR_paired_primers, iF_iR_paired_primers, ins = pair_list[0]
-        
-        # Set initial iteration count to zero
-        iteration_count = 0
-        
-        # Create lists to hold n-set of primer pairs, and their joint weight
-        starting_set = [] # initial set
-        finished_set = [] # final set
-        
-        # Make a list that describes the order of the output
-        round_labels = [] # ['0b', '0a', '1b', '1a', '0b',      '0b',      '0a',      '0a',      '1b',      '1b',      '1a',      '1a']
-        #                    ^^^^^^^^ sF sR ^^^^^^^, sF r0b-oR, r0b-oF sR, sF r0b-oR, r0b-oF sR, sF r0b-oR, r0b-oF sR, sF r0b-oR, r0b-oF sR
-        #                    'A',  'A',  'A',  'A',  'B',       'C',       'B',       'C',       'B',       'C',       'B',       'C'
-        
-        #for sF_oR_paired_primers, oF_sR_paired_primers, ins in pair_list:
-        #    round_labels.append(('A', str(ins.genome_r)+ins.type))
-        round_labels.append(('A', None))
-        
-        for sF_oR_paired_primers, oF_sR_paired_primers, ins in pair_list:
-            for amplicon_side in ['B', 'C']:
-                round_labels.append((amplicon_side, str(ins.genome_r)+ins.type))
-        
-        
-        sF_sR_iterator = iter(sF_sR_paired_primers)
-        
-        if ((max_iterations != None) and (len(sF_sR_paired_primers) > max_iterations)):
-            self.logger.info('sF_sR_paired_primers: skipping {}/{} calculated primer pairs'.format(max(0, len(sF_sR_paired_primers)-max_iterations), len(sF_sR_paired_primers)))
-        
-        while (iteration_count < max_iterations):
-            # Increment the count
-            iteration_count += 1
-            
-            # Create random 6-sets, with each pair's probability determined by its joint weight
-            #uf_dr_pair = random_primer_by_weight(sF_sR_paired_primers) # comment this out to prevent random sampling of this one
-            try:
-                sF_sR_pair = next(sF_sR_iterator)
-            except StopIteration:
-                break
-            
-            self.logger.info('loop {}:'.format(iteration_count))
-            
-            # Populate set with all primer pairs that have 'sF' and 'sR'
-            pp_sources = []
-            
-            for sF_oR_paired_primers, oF_sR_paired_primers, ins in pair_list:
-                # Add the 'oR' from 'sF-oR' pair. These should already be sorted by weight from highest to lowest.
-                pp_sources.append(self.filter_primer_pairs(sF_oR_paired_primers, forward=sF_sR_pair.forward_primer))
-                
-                # Add the 'oF' from 'oF-sR' pair. These should already be sorted by weight from highest to lowest.
-                pp_sources.append(self.filter_primer_pairs(oF_sR_paired_primers, reverse=sF_sR_pair.reverse_primer))
-            
-            self.logger.info('  length of sources: ' + str([len(x) for x in pp_sources]))
-            
-            # Only proceed with calculations (finally adding this primer to
-            # 'starting_set' and 'finished_set') if it has potential internal
-            # primers available, according to 'args.internal_primers_required'
-            
-            # Turns list ['y', 'n', 'y'] into ['y', 'y', 'n', 'n', 'y', 'y']
-            if args.internal_primers_required:
-                required_pattern = [val for val in args.internal_primers_required for b in range(2)]
-                current_pp_sources = [len(x) for x in pp_sources]
-                should_mask = False
-                should_skip = False
-                for req_str, num_pp in zip(required_pattern, current_pp_sources):
-                    if ((req_str in ['y', 'Y', '1', 'T', 't', 'TRUE', 'True', 'true']) and (num_pp == 0)):
-                        should_skip = True
-                        break
-                    if ((req_str not in ['y', 'Y', '1', 'T', 't', 'TRUE', 'True', 'true']) and (num_pp > 0)):
-                        should_mask = True
-                if should_skip:
-                    self.logger.info('  skipping...')
-                    continue
-            
-            # If required_list=['y', 'n', 'n', 'y']
-            # And current_pp_sources=[4, 3, 1, 0, 1, 0, 10, 9]
-            # Then by default the program will always try to include the 1s, which aren't required
-            # To make it okay for the problem to ignore these, then we can either
-            #  1) Duplicate, then mask current_pp_sources so it artificially looks like this: [4, 3, 0, 0, 0, 0, 10, 9]
-            #  2) or we can modify the algorithm to allow discarding elements if there is a 'n' in 'required_pattern'
-            # Let's go with (1)
-            
-            # Oldish code to test
-            test_starting, test_final = self.optimize_pp_list_by_weight(args, [[sF_sR_pair]]+pp_sources, semirandom=False)
-            self.logger.info('  test-starting: ' + str(test_starting))
-            self.logger.info('     test-final: ' + str(test_final))
-            # Report whether the "optimal" PrimerPairs chosen are identical
-            self.which_pp_equal(test_final[1])
-            starting_set.append(test_starting)
-            finished_set.append(test_final)
-            
-            # Brand new code to test
-            pp_set = PrimerDesign([[sF_sR_pair]]+pp_sources)
-            for oo in range(2):
-                pp_set.optimize()
-            self.logger.info('NEW >= OLD: ' + str(pp_set.optimal.weight >= test_final[0]))
-            
-            
-            # If necessary, we "mask" the non-required PrimerPairs, then calculate.
-            if args.internal_primers_required:
-                if should_mask:
-                    masked_pp_sources = []
-                    for req_str, pp_s in zip(required_pattern, pp_sources):
-                        if (req_str in ['y', 'Y', '1', 'T', 't', 'TRUE', 'True', 'true']):
-                            masked_pp_sources.append(pp_s)
-                        else:
-                            masked_pp_sources.append([])
-                    masked_starting, masked_final = self.optimize_pp_list_by_weight(args, [[sF_sR_pair]]+masked_pp_sources, semirandom=False)
-                    self.logger.info('masked-starting: ' + str(masked_starting))
-                    self.logger.info('   masked-final: ' + str(masked_final))
-                    # Report whether the "optimal" PrimerPairs chosen are identical
-                    self.which_pp_equal(masked_final[1])
-                    starting_set.append(masked_starting)
-                    finished_set.append(masked_final)
-                    
-                    # Brand new code to test
-                    pp_set = PrimerDesign([[sF_sR_pair]]+masked_pp_sources)
-                    for oo in range(2):
-                        pp_set.optimize()
-                    self.logger.info('NEW >= OLD: ' + str(pp_set.optimal.weight >= masked_final[0]))
-            
-            # Report the number of PrimerPairs that are shared among the inserts
-            t_num = len(pp_sources)//2
-            for t1 in range(t_num):
-                t1L_set = set([(x.forward_primer.sequence, x.reverse_primer.sequence) for x in pp_sources[2*t1] if x])
-                t1R_set = set([(x.forward_primer.sequence, x.reverse_primer.sequence) for x in pp_sources[(2*t1)+1] if x])
-                for t2 in range(t_num):
-                    if (t1 < t2):
-                        t2L_set = set([(x.forward_primer.sequence, x.reverse_primer.sequence) for x in pp_sources[2*t2] if x])
-                        t2R_set = set([(x.forward_primer.sequence, x.reverse_primer.sequence) for x in pp_sources[(2*t2)+1] if x])
-                        tL_num = len(t1L_set.intersection(t2L_set))
-                        tL_den = len(t1L_set.union(t2L_set))
-                        tR_num = len(t1R_set.intersection(t2R_set))
-                        tR_den = len(t1R_set.union(t2R_set))
-                        self.logger.info('number shared insert PrimerPairs ({} vs {}): L={}/{}, R={}/{}'.format(t1, t2, tL_num, tL_den, tR_num, tR_den))
-        
-        return starting_set, finished_set, round_labels
-    
-    def which_d_equal(self, pp_set):
-        """
-        Does all pairwise comparisons of PrimerPairs within list 'pp_set'
-        to identify which pairs have identical sequences.
-        """
-        for i, ppi in enumerate(pp_set):
-            if ppi:
-                i_seq = (ppi.forward_primer.sequence, ppi.reverse_primer.sequence)
-            else:
-                i_seq = (None, None)
-            
-            for j, ppj in enumerate(pp_set):
-                if (i < j):
-                    if ppj:
-                        j_seq = (ppj.forward_primer.sequence, ppj.reverse_primer.sequence)
-                    else:
-                        j_seq = (None, None)
-                    
-                    comparison = None if (i_seq == j_seq == (None, None)) else (i_seq == j_seq)
-                    self.logger.info("Amp 'D' PrimerPair {} equals PrimerPair {}: {}".format(i, j, comparison))
-    
-    def calculate_amp_d_set(self, args, insert_pair_list, max_iterations=1000):
-        iteration_count = 0
-        
-        starting_set = []
-        finished_set = [] # final set
-        
-        while (iteration_count < max_iterations):
-            # Increment the count
-            iteration_count += 1
-            self.logger.info('loop {}:'.format(iteration_count))
-            
-            self.logger.info('  length of sources: ' + str([len(x) for x in insert_pair_list]))
-            if args.internal_primers_required:
-                current_pp_sources = [len(x) for x in insert_pair_list]
-                should_mask = False
-                should_skip = False
-                for req_str, num_pp in zip(args.internal_primers_required, current_pp_sources):
-                    if ((req_str in ['y', 'Y', '1', 'T', 't', 'TRUE', 'True', 'true']) and (num_pp == 0)):
-                        should_skip = True
-                        break
-                    if ((req_str not in ['y', 'Y', '1', 'T', 't', 'TRUE', 'True', 'true']) and (num_pp > 0)):
-                        should_mask = True
-                if should_skip:
-                    self.logger.info('  skipping...')
-                    continue
-                
-            d_starting, d_final = self.optimize_pp_list_by_weight(args, insert_pair_list, semirandom=True)
-            self.logger.info('  test-starting: ' + str(d_starting))
-            self.logger.info('    Amp-D-final: ' + str(d_final))
-            # Report whether the "optimal" PrimerPairs chosen are identical
-            self.which_d_equal(d_final[1])
-            starting_set.append(d_starting)
-            finished_set.append(d_final)
-            
-            # Brand new code to test
-            pp_set = PrimerDesign(insert_pair_list)
-            for oo in range(2):
-                pp_set.optimize()
-            self.logger.info('NEW >= OLD: ' + str(pp_set.optimal.weight >= d_final[0]))
-            
-            # If necessary, we "mask" the non-required PrimerPairs, then calculate.
-            if args.internal_primers_required:
-                if should_mask:
-                    masked_insert_pair_list = []
-                    for req_str, pp_list in zip(args.internal_primers_required, insert_pair_list):
-                        if (req_str in ['y', 'Y', '1', 'T', 't', 'TRUE', 'True', 'true']):
-                            masked_insert_pair_list.append(pp_list)
-                        else:
-                            masked_insert_pair_list.append([])
-                    masked_starting, masked_final = self.optimize_pp_list_by_weight(args, masked_insert_pair_list, semirandom=True)
-                    self.logger.info('masked-starting: ' + str(masked_starting))
-                    self.logger.info('   masked-final: ' + str(masked_final))
-                    # Report whether the "optimal" PrimerPairs chosen are identical
-                    self.which_d_equal(masked_final[1])
-                    starting_set.append(masked_starting)
-                    finished_set.append(masked_final)
-                    
-                    # Brand new code to test
-                    pp_set = PrimerDesign(masked_insert_pair_list)
-                    for oo in range(2):
-                        pp_set.optimize()
-                    self.logger.info('NEW >= OLD: ' + str(pp_set.optimal.weight >= masked_final[0]))
-        
-        return starting_set, finished_set
-    
+
     def filter_alignment_records_for_cPCR(self, args, alignment_filename, dDNA_contigs):
         """
         Parse the alignment to identify the exogenous DNA, as well as pairs of left/right flanking homology regions
@@ -3298,6 +2347,86 @@ class GeneratePrimersParser(subroutine.Subroutine):
     
     def pathstrip(self, path):
         return os.path.splitext(os.path.basename(path))[0]
+    
+    def print_regions(self, data, region_decode):
+        # Prints the REGIONS where the primers will be sought
+        print('# Region definitions')
+        #                       0        1       2         (2)                 3         (3)                 4         5         6        7
+        print('# ' + '\t'.join(['Gene', 'Locus', 'Genome', 'Genome (decoded)', 'Region', 'Region (decoded)', 'Contig', 'Strand', 'Start', 'End']))
+        for d in data:
+            print('\t'.join(list(map(str, d[:3])) + ['genome-r{}.fasta'.format(d[2]), str(d[3]), region_decode[d[3]]] + list(map(str, d[4:]))), flush=True)
+            #print('\t'.join(map(str, d)), flush=True)
+    
+    def print_primers(self, gene, ordered_od_list):
+        print('# Primer sequences')
+        print('# ' + '\t'.join(['Gene', 'Weight', 'Count'] + [x[0] for x in ordered_od_list[0].get_primer_list()]))
+        for od in ordered_od_list: # od is a PrimerSet object
+            gpl = od.get_primer_list()
+            print('\t'.join([gene, str(od.weight), str(od.get_primer_count())] + [x[1].sequence if x[1] else 'None' for x in gpl]))
+    
+    def print_primerpairs(self, gene, ordered_od_list):
+        print('# PrimerPairs')
+        print('# ' + '\t'.join(['', '', 'Amplicon'] + [x[0] for x in ordered_od_list[0].get_primer_pair_list()]))
+        print('# ' + '\t'.join(['Gene', 'Weight', 'Count'] + [x[1] for x in ordered_od_list[0].get_primer_pair_list()]))
+        for od in ordered_od_list: # od is a PrimerSet object
+            gppl = od.get_primer_pair_list()
+            print('\t'.join([gene, str(od.weight), str(od.get_primer_pair_count())] + [str(x[2]) for x in gppl]))
+    
+    def print_diagram(self):
+        # Print output header information describing the amplicons
+        print('# Amplicon diagram')
+        print('#                                          Genome')
+        print('# Amplicon  ──upstream─┐┌─homology─┐┌──insert/feature──┐┌─homology─┐┌─downstream──')
+        print('#        A   sF ===>····················································<=== sR')
+        print('#        B   sF ===>···················<=== rN-oR')
+        print('#        C                             rN-oF ===>·······················<=== sR')
+        print('#        D                        rN-iF ===>······<=== rN-iR')
+        print('#')
+        print('# F = forward')
+        print('# R = reverse')
+        print('# s = shared')
+        print('# o = outer')
+        print('# i = inner')
+        print('# rN = round number')
+    
+    def print_datumgroup(self, output):
+        # TODO: Put Locus/DatumGroup calculation into its own function:
+        #       output0 = calc_loci(args, ...)
+        print("# In silico recombination")
+        print('# ' + '\t'.join(['Locus', 'DatumGroup']))
+        for line in output:
+            print('\t'.join(map(str, line)))
+        
+    def print_amplicon_weights(self, output):
+        print('# Amplicon weights')
+        print('# ' + '\t'.join(['Set', 'Locus', 'Weight', 'Amplicon']))
+        for line in output:
+            print('\t'.join(map(str, line)))
+    
+    def print_amplicon_details(self, output):
+        # TODO: Put in-silico PCR (output2) into its own function
+        print('# Amplicon details')
+        print('# ' + '\t'.join(['Set', 'Index', 'Locus', 'Amplicon', 'Template', 'Genome', 'F', 'R', 'Sizes', 'Tm']))
+        for line in output:
+            print('\t'.join(map(str, line)))
+    
+    def print_something_1(self, output):
+        # TODO: Finish this
+        print('# Something 1')
+        print('# ' + '\t'.join(['Set', 'Index', 'Locus', 'Primer', 'Sequence']))
+        for line in output:
+            print('\t'.join(map(str, line)))
+    
+    def print_something_2(self, output):
+        # TODO: Finish this
+        print('# Something 2')
+        print('# ' + '\t'.join(['Set', 'Index', 'Locus', 'Primer', 'Sequence', 'File', 'Contig', 'Start', 'End', 'Strand']))
+        for line in output:
+            print('\t'.join(map(str, line)))
+    
+    def write_gbk(self):
+        # This code output GenBank '*.gb' files
+        pass
 
 class PrimerWorker(multiprocessing.Process):
     def __init__(self, args, cutoffs, queue, results_queue, log_lock, data_lock):
@@ -3599,6 +2728,4 @@ class CutoffIterator(object):
             raise StopIteration
         else:
             return d
-    
-    
-        
+
