@@ -628,6 +628,7 @@ class GenerateAllParser(subroutine.Subroutine):
             #    print(et_obj)
             
             # Load the SAM files and add Alignments to ExcisionTarget sequences
+            self.logger.info("Loading alignments")
             ExcisionTarget.load_alignment(exq2gDNA_align_file, args, contig_sequences)
             if (args.ko_dDNA or args.ki_gRNA):
                 ExcisionTarget.load_alignment(exq2exdDNA_align_file, args, ExcisionDonor.get_contig_dict())
@@ -648,9 +649,6 @@ class GenerateAllParser(subroutine.Subroutine):
             self.logger.info("ExcisionTarget after Azimuth calculation")
             for et_seq, et_obj in ExcisionTarget.sequences.items():
                 self.logger.info(str(et_obj) + '\t' + '\t'.join(map(str, et_obj.locations)))
-        
-        # Generate the FASTA with the final scores
-        excision_spacers_file = ExcisionTarget.generate_spacers_fasta(os.path.join(args.folder, 'excision-targets.fasta'))
         
         # Use selected alignment program to find all matches in the genome and dDNAs
         #re_align_file = align(re_query_file, genome_index_file, args)
@@ -694,9 +692,6 @@ class GenerateAllParser(subroutine.Subroutine):
             self.logger.info("ReversionTarget after Azimuth calculation")
             for rt_seq, rt_obj in ReversionTarget.sequences.items():
                 self.logger.info(rt_obj)
-            
-            # Generate the FASTA with the final scores
-            reversion_spacers_file = ReversionTarget.generate_spacers_fasta(os.path.join(args.folder, 'reversion-targets.fasta'))
         
         # Test code to generate alignments
         ExcisionDonor.generate_alignments()
@@ -706,11 +701,17 @@ class GenerateAllParser(subroutine.Subroutine):
         
         # If '--ki-gRNA' was on command line, then print to STDOUT
         if args.ki_gRNA:
-            self.print_reTarget_results(args, homologs, feature2gene)
+            self.print_reTarget_results(args, homologs, feature2gene) # Also calculates and stores each exTarget's final weight
+            
+            # Generate the FASTA with the final scores
+            reversion_spacers_file = ReversionTarget.generate_spacers_fasta(os.path.join(args.folder, 'reversion-targets.fasta'))
         
         # If '--ko-gRNA' was on command line, then print to STDOUT
         if args.ko_gRNA:
             self.print_exTarget_results(args, homologs, feature2gene)
+            
+            # Generate the FASTA with the final scores
+            excision_spacers_file = ExcisionTarget.generate_spacers_fasta(os.path.join(args.folder, 'excision-targets.fasta'))
         
         self.print_reDonor_results(args)
         self.print_exDonor_results(args)
@@ -718,6 +719,9 @@ class GenerateAllParser(subroutine.Subroutine):
         # If reversion AmpF/AmpR primers were desired, then print them to STDOUT
         if args.revert_amplification_primers:
             self.print_AmpFR_results(args)
+        
+        # TODO: Print a recommended design (highest weights, while making sure that exTarget != reTarget)
+        self.print_recommendation(args)
         
         #print('======')
         #self.get_best_table(args, homologs, feature2gene)
@@ -843,13 +847,17 @@ class GenerateAllParser(subroutine.Subroutine):
         #       So this needs to be modified so that it DOES (somehow)...
         
         print('# reTarget results')
-        header = ['# gene', 'features', 'weight', 'reTarget name', 'reTarget sequence'] + ['OT:{}'.format(x) for x in args.offtargetfilters] + [x for x in args.ontargetfilters] + ['exDonors', 'us-trim:mAT:ds-trim', 'feature:contig:strand:start..end', 'warnings']
-        print('\t'.join(header))
+        header = ['gene', 'features', 'weight', 'reTarget name', 'reTarget sequence'] + ['OT:{}'.format(x) for x in args.offtargetfilters] + [x for x in args.ontargetfilters] + ['exDonors', 'us-trim:mAT:ds-trim', 'feature:contig:strand:start..end', 'warnings']
+        print('# ' + '\t'.join(header))
         
         results = []
         # for weight, obj in self.rank_targets(ret_dict2[feature_homologs]):
         #for rt in ReversionTarget.indices.items()
-        for weight, rt in self.rank_targets(args, ReversionTarget.indices.values()):
+        for rank, (weight, rt) in enumerate(self.rank_targets(args, ReversionTarget.indices.values())):
+            
+            # Set the final weight
+            rt.weight = weight
+            rt.rank = rank
             
             genes = set()
             features = set()
@@ -905,12 +913,12 @@ class GenerateAllParser(subroutine.Subroutine):
         #       features that contain this Target (if the Features are derived)
         #       As it is now, the huge list of derived features isn't useful.
         
-        header = ['# gene', 'features', 'weight', 'exTarget name', 'exTarget sequence'] + ['OT:{}'.format(x) for x in args.offtargetfilters] + [x for x in args.ontargetfilters] + ['reDonors', 'None', 'feature:contig:strand:start..end', 'warnings']
-        print('\t'.join(header))
+        header = ['gene', 'features', 'weight', 'exTarget name', 'exTarget sequence'] + ['OT:{}'.format(x) for x in args.offtargetfilters] + [x for x in args.ontargetfilters] + ['reDonors', 'None', 'feature:contig:strand:start..end', 'warnings']
+        print('# ' + '\t'.join(header))
         
         results = []
         
-        for weight, et in self.rank_targets(args, ExcisionTarget.indices.values()):
+        for rank, (weight, et) in enumerate(self.rank_targets(args, ExcisionTarget.indices.values())):
         
         #for feature in sorted(Feature.features):
         #    et_list = []
@@ -929,6 +937,10 @@ class GenerateAllParser(subroutine.Subroutine):
         #    # Print the top 20
         #    for weight, et in self.rank_targets(et_list)[:20]:
         #    self.logger.info('---weight, et: {}, {}'.format(weight, et))
+            
+            # Set the final weight
+            et.weight = weight
+            et.rank = rank
             
             genes = set()
             features = set()
@@ -1013,10 +1025,15 @@ class GenerateAllParser(subroutine.Subroutine):
         :param args: Argparse Namespace object containing commandline parameters
         :return: None
         '''
+        print('# AmpF/AmpR results')
         header = ['gene', 'features', 'weight', 'reDonor name', 'AmpF', 'AmpR', 'amplicon sizes', 'Tms', 'GCs', 'min(delta-G)']
-        print('\t'.join(header))
+        print('# ' + '\t'.join(header))
         # TODO: Finish this function that prints AmpF/AmpR results to STDOUT
         #       For previous implementation, see lines around 1050~1100 in 'donors.py'
+    
+    def print_recommendation(self):
+        print("# Recommended exTarget, reTarget, exDonor, reDonor, AmpF/AmpR")
+        pass
     
     @classmethod
     def log_results(cls, args, homologs, n=None):

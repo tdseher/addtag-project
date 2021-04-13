@@ -762,7 +762,7 @@ Let's use the `mintag` method for creating an RGN Target on the dDNA we generate
 
 Because our input genome is a phased diploid assembly, and we want our gRNAs to target both alleles, we use the default `--target_specificity`. Because we want a single dDNA to repair both alleles, we also use the default `--donor_specificity`. Since we want the computer to use all available compute power, we use the default number of processors (which automatically selects all available). Let's also use the default thermodynamics calculator and the default aligner.
 
-Let's store all the output in paths that start with `GENEg`, where '`g`' is for '`generate_all`'.
+Let's store all the output in paths that start with `GENEga`, where '`ga`' is for '`generate_all`'.
  
 To identify the best Target locations within our Feature of interest, and to generate dDNA for knock-out, we run the full command:
 ```sh
@@ -777,10 +777,10 @@ addtag generate_all \
   --revert_amplification_primers \
   --fasta genome.fasta \
   --gff genome.gff \
-  --folder GENEg > GENEg.out 2> GENEg.err
+  --folder GENEga > GENEga.out 2> GENEga.err
 ```
 
-This writes 4 output tables to the `GENEg.out` file. Each of these tables refers to sequences in output FASTA files. Please note that certain sequence Aligners, such as 'Bowtie2' can have non-deterministic output. Therefore, your results may vary from what is presented here.
+This writes 4 output tables to the `GENEga.out` file. Each of these tables refers to sequences in output FASTA files. Please note that certain sequence Aligners, such as 'Bowtie2' can have non-deterministic output. Therefore, your results may vary from what is presented here.
 
 Now would be a good time to explain the terminology you will see in the AddTag input and output. For simplicity in text processing, we use different labels than what are presented in the manuscript, though they are equivalent.
 ```
@@ -796,36 +796,38 @@ reDonor/r2-dDNA  AdDNA    Reversion, add-back, or knock-in dDNA (ki-dDNA)
 
 Thus, we refer to the first round of genome engineering (r1) as the knock-out round, and the second round (r2) as the knock-in round.
 
-From the first table, we select the highest-weighed `reTarget` ('reversion Target', abbreviated), and one of its corresponding dDNA sequences. Then we store these two sequences in their own FASTA files.
+From the first table, we select the highest-weighed `reTarget` ('reversion Target', abbreviated), and then we store it in its own FASTA file.
 
 ```sh
 addtag find_header \
-  --fasta GENEg/reversion-spacers.fasta 
-  --query 'reTarget-3\b' > ki-target.fasta
+  --fasta GENEga/reversion-targets.fasta \
+  --query '\brank=0\b' > ki-target.fasta
 ```
 
-Each `reTarget` can target one or more identified `reDonor` dDNA sequences.
-
-In this example, we expect only a single excision dDNA with the header `exDonor-0`, so we extract that sequence, and store it in a conveniently-accessible place.
+Each `reTarget` can target one or more identified `exDonor` dDNA sequences.
+In this example, we expect only a single `exDonor` associated with the highest-weight `reTarget`.
+We extract that sequence, and store it in a convenient file `ko-dDNA.fasta`.
 
 ```sh
+DONOR=$(grep '# reTarget results' -A 2 GENEga.out | tail -n +3 | cut -f 9 | cut -d ',' -f 1)
 addtag find_header \
-  --fasta GENEg/excision-dDNAs.fasta \
-  --query 'exDonor-0\b' > ko-dDNA.fasta
+  --fasta GENEga/excision-dDNAs.fasta \
+  --query "${DONOR}\b" > ko-dDNA.fasta
 ```
 
 From the second table, we select the highest-weighted `exTarget` ('excision Target' abbreviated), which is used for excising the input Feature from the input gDNA:
 
 ```sh
-TARGET=$(grep '# exTarget results' -A 2 GENEg.out | tail -n +3 | cut -f 4)
 addtag find_header \
-  --fasta GENEg/excision-spacers.fasta 
-  --query "${TARGET}\b" > ko-target.fasta
+  --fasta GENEga/excision-targets.fasta \
+  --query '\brank=0\b' > ko-target.fasta
 ```
 
 Finally, we identify the highest-weight dDNA for reverting back to the wild type, and put it in its own FASTA file:
 ```sh
-addtag find_header --fasta GENEg/reversion-dDNAs.fasta --query 'reDonor-0\b' > ki-dDNA.fasta
+addtag find_header \
+  --fasta GENEga/reversion-dDNAs.fasta \
+  --query 'reDonor-0\b' > ki-dDNA.fasta
 ```
 
 Next we need to identify a single cPCR verification primer design. Let's use the default pairwise sequence aligner.
@@ -834,7 +836,7 @@ Next we need to identify a single cPCR verification primer design. Let's use the
 addtag generate_primers \
   --fasta genome.fasta \
   --dDNAs ko-dDNA.fasta ki-dDNA.fasta \
-  --folder GENEc > GENEc.out 2> GENEc.err
+  --folder GENEgp > GENEgp.out 2> GENEgp.err
 ``` 
 
 </td></tr></tbody></table>

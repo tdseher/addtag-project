@@ -185,6 +185,10 @@ class Target(object):
         self.pam = pam
         self.motif = motif
         self.parsed_motif = parsed_motif
+        
+        # Final weight calculation
+        self.weight = 0.0
+        self.rank = None
 
         # List to store alignments
         self.alignments = []
@@ -361,7 +365,9 @@ class Target(object):
                     'alignments=' + str(len([a for a in obj.alignments if a.postfilter])) + '/' + str(len(obj.alignments)),
                     'on-target=' + str(round(obj.score['Azimuth'], 2)),
                     'off-target=' + str(round(obj.off_targets['Hsu-Zhang'], 2)), # TODO: Change this to be only the Algorithms specified by the user on the command line
-                    'pam=' + obj.pam
+                    'weight=' + str(obj.weight),
+                    'rank=' + str(obj.rank),
+                    'pam=' + obj.pam,
                 ]), file=flo)
                 print(obj.spacer, file=flo)
         cls.logger.info(cls.__name__ + ' spacers FASTA generated: {!r}'.format(filename))
