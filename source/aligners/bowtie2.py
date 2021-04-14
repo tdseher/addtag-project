@@ -211,11 +211,12 @@ class Bowtie2(PairwiseAligner):
         evalue = ev.calculate_evalue(cigar_score, sline[9])
         
         # Build Record
+        c2sal = cigar2subject_aligned_length(sline[5])
         record = Record(
             sline[0], sline[2], # query_name, subject_name,
             sline[9], None, # query_sequence, subject_sequence,
-            cigar2query_position(sline[5]), (int(sline[3])-1, int(sline[3])-1+cigar2subject_aligned_length(sline[5])), # query_position, subject_position,
-            cigar2query_aligned_length(sline[5]), cigar2subject_aligned_length(sline[5]), # query_length, subject_length,
+            cigar2query_position(sline[5]), (int(sline[3])-1, int(sline[3])-1+c2sal), # query_position, subject_position,
+            cigar2query_aligned_length(sline[5]), c2sal, # query_length, subject_length,
             int(sline[1]), sline[5], float(sline[4]), evalue, None # flags, cigar, score, evalue, length
         )
 
