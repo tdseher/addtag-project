@@ -1041,7 +1041,7 @@ Below are tips and descriptions of AddTag limitations that will help you make su
 <table><tbody><tr><td>
 
  * If you are identifying cPCR primers, then it is often useful to use the `--cache` option. This lets you decrease the stringency of the PCR conditions and run the `generate_primers` subroutine again, pointing to the same `--folder`, and AddTag will use the results from the previous calculations when it can instead of doing the computations from scratch.
- * The [![RGN][RGN]](#) protein you use should be engineered specifically for your organism. It should be codon-optomized, and if using eukarya, contain an appropriate nuclear localization sequence.
+ * The [![RGN][RGN]](#) protein you use should be engineered specifically for your organism. If you are using an eukaryotic system, the [![RGN][RGN]](#) should contain an appropriate nuclear localization sequence. To determine a codon-optimized [![RGN][RGN]](#) sequence for your experimental organism, you can use [Simple Codon Optimizer](https://github.com/tdseher/simple-codon-optimizer).
  * By default, AddTag will avoid designing homology regions and Targets against polymorphisms whenever possible.
  * Sequences in FASTA files should have unique names. In other words, the primary sequence identifier--everything following the '`>`' character and preceding the first whitespace/tab '` `' character--should exist only once across all input `*.fasta` files.
  * AddTag makes no effort to restrict which Target motifs the user can use according to the selected Algorithms. Therefore, the user needs to independently verify which Target motifs are compatible with the selected Algorithms.
