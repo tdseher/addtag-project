@@ -621,7 +621,7 @@ def dummy_homologs():
     feature2gene = {}
     for f_name, f in sorted(Feature.features.items()):
         feature2gene[f_name] = f_name
-        homologs[f_name] = set(f_name)
+        homologs[f_name] = set([f_name])
     
     return homologs, feature2gene
 

@@ -615,6 +615,7 @@ class GenerateAllParser(subroutine.Subroutine):
             ex_dDNA_index_file = args.selected_aligner.index(ex_dDNA_file, self.pathstrip(ex_dDNA_file), args.folder, args.processors)
         if (args.ki_dDNA == True):
             re_dDNA_index_file = args.selected_aligner.index(re_dDNA_file, self.pathstrip(re_dDNA_file), args.folder, args.processors)
+            # FIXME: this will throw an error if the 'reversion-dDNAs.fasta' file is empty!
         
         if (args.ko_gRNA):
             # Use selected alignment program to find all matches in the genome and dDNAs
@@ -1031,7 +1032,7 @@ class GenerateAllParser(subroutine.Subroutine):
         # TODO: Finish this function that prints AmpF/AmpR results to STDOUT
         #       For previous implementation, see lines around 1050~1100 in 'donors.py'
     
-    def print_recommendation(self):
+    def print_recommendation(self, args):
         print("# Recommended exTarget, reTarget, exDonor, reDonor, AmpF/AmpR")
         pass
     
