@@ -46,9 +46,18 @@ class Donor(object):
         """
         with open(filename, 'w') as flo:
             for sequence, obj in sorted(cls.sequences.items(), key=lambda x: int(x[1].name.split('-')[1])):
-            #for sequence, obj in cls.sequences.items():
-                #don_entry = tuple(["dDNA-"+str(i), feature, contig, '+', start1, start2, end1, end2, dDNA])
-                print(' '.join(['>'+obj.name, 'spacers='+str(len(obj.spacers))] + sorted([obj.format_location(x, sep) for x in obj.locations])), file=flo)
+                header_list = [
+                    '>'+obj.name,
+                    'spacers='+str(len(obj.spacers))
+                ]
+                if (cls.__name__ == 'ReversionDonor'):
+                    header_list.append('rank='+str(obj.rank))
+                    header_list.append('weight='+str(obj.weight))
+                    header_list.append('forward_primer='+str(obj.primer_pair.forward_primer.sequence))
+                    header_list.append('reverse_primer='+str(obj.primer_pair.reverse_primer.sequence))
+                header_list += sorted([obj.format_location(x, sep) for x in obj.locations])
+                
+                print(' '.join(header_list), file=flo)
                 print(sequence, file=flo)
         cls.logger.info(cls.__name__ + ' dDNA FASTA generated: {!r}'.format(filename))
         if (len(cls.sequences) == 0):
@@ -134,6 +143,12 @@ class Donor(object):
     #       and have it be empty by default?
     def __init__(self, feature, contig, orientation, sequence, *segments, spacer=None):
     #def __init__(self, feature, contig, orientation, segment1, insert, segment2, sequence, spacer=None):
+        
+        # Attributes to store the best primers for creating/amplifying this Donor
+        self.primer_pair = None
+        self.weight = 0.0 # At the moment, this weight only reflects the PrimerPair weight 'self.primer_pair.get_joint_weight()'
+        self.rank = None # Currently determined by PrimerPair weight only
+        
         # List of all genomic locations and features this dDNA corresponds to
         location = (feature, contig, orientation, *segments)
         self.locations = set()
@@ -798,6 +813,7 @@ class ReversionDonor(Donor):
         #subset_size = 1000 # 500 # Temporarily limit number of Primer objects used as input to the pair() function
         pp_subset_size = 1000 # Temporarily limit the number of PrimerPairs that are used to create ReversionDonor objects
         #temp_folder = os.path.join(args.temp_folder, 'addtag', os.path.basename(args.folder))
+        max_primer_pairs_printed = 10
         
         # Make a folder to store the *.gb Genbank flat files
         os.makedirs(os.path.join(args.folder, 'reversion-gb'), exist_ok=True)
@@ -1167,7 +1183,7 @@ class ReversionDonor(Donor):
                     ### Copied from earlier in function ###
                     
                     cls.logger.info('Using AmpF/AmpR to create new ReversionDonor objects for: {}'.format(feature_name))
-                    
+                    pp_output_source = []
                     #for pp_count, pp in enumerate(uf_dr_paired_primers[:pp_subset_size]):
                     for pp in uf_dr_paired_primers:
                         
@@ -1211,6 +1227,8 @@ class ReversionDonor(Donor):
                         #cls.logger.info('  F: {}'.format(sorted(pp.forward_primer.locations)))
                         #cls.logger.info('  R: {}'.format(sorted(pp.reverse_primer.locations)))
                         
+                        pp_output_source.append((rd.name, feature_name, pp.get_joint_weight(), pp))
+                        
                         ###### alignment ######
                         pp_labels_list.append('{: 18.15f}'.format(pp.get_joint_weight()) + ' ' + rd.name)  # <<<<< In pp, the 'amplicon_size' attribute is calculated INCORRECTLY for some derived features. Also, the x-shift seems off in the alignment
                         ###### alignment ######
@@ -1235,8 +1253,31 @@ class ReversionDonor(Donor):
                         # gb.add_annotation('primer', end2 - segment_start-len(pp.reverse_primer.sequence), end2 - segment_start, '-', label='ampr_primer', ApEinfo_revcolor=colors['pink'], ApEinfo_fwdcolor=colors['pink']) # pink
                         # gb.write(os.path.join(args.folder, 'reversion-gb', 'pp-'+str(pp_count)+'.gb')) # pp_labels_list[-1]
                         # ############# Write to Genbank flat file #############
-                
-            
+                    
+                    # Assign the best AmpF/AmpR primer pair to each reDonor.
+                    pp_output_index = set()
+                    for pp_donor_name, pp_feature_name, pp_weight, pp in pp_output_source:
+                        if not pp_donor_name in pp_output_index:
+                            current_rd = ReversionDonor.indices[pp_donor_name]
+                            current_rd.primer_pair = pp
+                            current_rd.weight = pp_weight
+                            current_rd.rank = len(pp_output_index)
+                            pp_output_index.add(pp_donor_name)
+                    
+                    # TODO: Move these print statements out of 'donors.py' and into the 'compute()' method of '_subroutine_generate_all.py'
+                    # TODO: Need to make it so this output can have the 'features' column, and not just 'feature'
+                    #       That is, merge AmpF/AmpR pairs that share the reDonor for different features
+                    
+                    # Prints only the BEST AmpF/AmpR primer pair for each reDonor.
+                    print('# ' + '\t'.join(['reDonor', 'feature', 'weight', 'PrimerPair']))
+                    pp_output_index = set()
+                    for pp_donor_name, pp_feature_name, pp_weight, pp in pp_output_source:
+                        if not pp_donor_name in pp_output_index:
+                            print('\t'.join([pp_donor_name, pp_feature_name, str(pp_weight), str(pp)]))
+                            pp_output_index.add(pp_donor_name)
+                        if (len(pp_output_index) >= max_primer_pairs_printed):
+                            break
+                    
                     ###### alignment ######
                     # TODO: Something is wrong with these AmpF/AmpR alignments. Try to fix it. 
                     label_list = ['us_region', 'us_skipped', 'us_extend_feature', 'feature', 'ds_extend_feature', 'ds_skipped', 'ds_region']
