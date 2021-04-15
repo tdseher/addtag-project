@@ -206,7 +206,7 @@ class GenerateAllParser(subroutine.Subroutine):
         
         # TODO: Consider removing '--excise_upstream_homology' and '--excise_downstream_homology' and replacing them
         #       entirely with '--excise_donor_lengths'
-        self.parser.add_argument("--excise_upstream_homology", nargs=2, metavar=("MIN", "MAX"), type=int, default=[50,50],
+        self.parser.add_argument("--excise_upstream_homology", nargs=2, metavar=("MIN", "MAX"), type=int, default=[47,50],
             help="Range of homology lengths acceptable for knock-out dDNAs, inclusive.")
         self.parser.add_argument("--excise_downstream_homology", nargs=2, metavar=("MIN", "MAX"), type=int, default=[47,50],
             help="Range of homology lengths acceptable for knock-out dDNAs, inclusive.")
