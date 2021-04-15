@@ -538,6 +538,9 @@ addtag list_thermodynamics
 
 ### Workflow for editing loci in the manuscript ###
 
+These are instructions for using the current version of AddTag to re-design the experiments featured in the manuscript.
+The commands for the original design are in the [methods.md](manuscript/methods.md) file.
+
 #### Get genome data ####
 <details>
 <summary>Click to expand/collapse</summary>
@@ -554,11 +557,12 @@ Set convenience variables for referencing these two files.
 ```sh
 GENOME_FASTA=C_albicans_SC5314_version_A22-s07-m01-r19_chromosomes.fasta
 GENOME_GFF=C_albicans_SC5314_version_A22-s07-m01-r19_features.gff
+GENOME_HOMOLOGS=C_albicans_SC5314_version_A22-s07-m01-r19_homologs.txt
 ```
 
 Create the `*.homologs` file for the *C. albicans* genome.
 ```sh
-python3 gff2homologs.py ${GENOME_FEATURES} > C_albicans_SC5314_A22_current_homologs.txt
+python3 gff2homologs.py ${GENOME_GFF} > ${GENOME_HOMOLOGS}
 ```
 
 </td></tr></tbody></table>
@@ -569,7 +573,78 @@ python3 gff2homologs.py ${GENOME_FEATURES} > C_albicans_SC5314_A22_current_homol
 <summary>Click to expand/collapse</summary>
 <table><tbody><tr><td>
 
-*~ Section incomplete ~*
+For simplicity, we use a variable to hold the label for this computational experiment.
+```sh
+GENE=ADE2
+```
+
+Create and enter the directory for this experiment.
+```sh
+mkdir ${GENE}_CDS
+cd ${GENE}_CDS
+```
+
+Extract the feature IDs of the genes we want to remove from the `*.homologs` file.
+```sh
+SELECTION=$(grep ${GENE} ${GENOME_HOMOLOGS} | cut -f 2- --output-delimiter ' ')
+```
+
+Identify the optimal Target sites and generate potential dDNAs.
+```sh
+addtag generate \
+  --fasta ../${GENOME_FASTA} \
+  --gff ../${GENOME_GFF} \
+  --homologs ../${GENOME_HOMOLOGS} \
+  --selection ${SELECTION} \
+  --features gene \
+  --tag ID \
+  --ko-gRNA \
+  --ko-dDNA mintag \
+  --ki-gRNA \
+  --ki-dDNA \
+  --motifs 'N{17}|N{3}>NGG' \
+  --off_target_motifs 'N{17}|N{3}>NAG' \
+  --excise_insert_lengths 0 4  \
+  --revert_amplification_primers \
+  --revert_homology_length 100 200 \
+  --folder ${GENE}ga > ${GENE}ga.out 2> ${GENE}ga.err
+```
+
+Select the best +Target and ΔTarget.
+```sh
+addtag find_header --fasta ${GENE}ga/excision-targets.fasta --query '\brank=0\b' > ko-target.fasta
+addtag find_header --fasta ${GENE}ga/reversion-targets.fasta --query '\brank=0\b' > ki-target.fasta
+```
+
+Select an arbitrary ΔdDNA associated with the top-ranked ΔTarget, select the AdDNA with the best AmpF/AmpR primer pair.
+```sh
+DONOR=$(grep '# reTarget results' -A 2 TESTga.out | tail -n +3 | cut -f 9 | cut -d ',' -f 1)
+addtag find_header --fasta ${GENE}ga/excision-dDNAs.fasta --query "${DONOR}\b" > ko-dDNA.fasta
+addtag find_header --fasta ${GENE}ga/reversion-dDNAs.fasta --query '\brank=0\b' > ki-dDNA.fasta
+```
+
+Calculate a decent Primer Design for validating each genome engineering step.
+```sh
+addtag generate_primers \
+  --fasta ../${GENOME_FASTA} \
+  --dDNAs ko-dDNA.fasta ki-dDNA.fasta \
+  --primer_scan_limit 600 \
+  --primer_pair_limit 300 \
+  --o_primers_required y n y \
+  --i_primers_required y n y \
+  --oligo ViennaRNA \
+  --specificity all \
+  --max_number_designs_reported 1000 \
+  --folder ${GENE}gp > ${GENE}gp.out 2> ${GENE}gp.err
+```
+
+The file `ADE2gp.out` contains any identified sets of primers, ordered by weight.
+Choose one that has the highest weight for the number of primers you need.
+
+Finally change back to the parent folder
+```sh
+cd ..
+```
 
 </td></tr></tbody></table>
 </details>

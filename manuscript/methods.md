@@ -127,7 +127,7 @@ addtag extract --fasta ${GENE}g/reversion-dDNAs.fasta --query "${DONOR}\b" > ${G
 Calculate a decent Primer Design for validating each genome engineering step. We killed the process after getting through the first cycle.
 
 ```sh
-addtag confirm 
+addtag confirm \
   --fasta ../${GENOME_FASTA} \
   --dDNAs ${GENE}-ko-dDNA.fasta ${GENE}-ki-dDNA.fasta \
   --primer_scan_limit 600 \
