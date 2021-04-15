@@ -53,8 +53,15 @@ class Donor(object):
                 if (cls.__name__ == 'ReversionDonor'):
                     header_list.append('rank='+str(obj.rank))
                     header_list.append('weight='+str(obj.weight))
-                    header_list.append('forward_primer='+str(obj.primer_pair.forward_primer.sequence))
-                    header_list.append('reverse_primer='+str(obj.primer_pair.reverse_primer.sequence))
+                    if obj.primer_pair: # Only include primers in FASTA header if they were calculated
+                        header_list.append('forward_primer='+str(obj.primer_pair.forward_primer.sequence))
+                        header_list.append('reverse_primer='+str(obj.primer_pair.reverse_primer.sequence))
+                elif (cls.__name__ == 'ExcisionDonor'):
+                    # TODO: The weight of the exDonor should depend on the following:
+                    #        - weight of the reTarget it contains
+                    #        - length of homology arms (otherwise, the length of the insert)
+                    #        - uniqueness of homology arms across the genome (an alignment should be performed)?
+                    pass
                 header_list += sorted([obj.format_location(x, sep) for x in obj.locations])
                 
                 print(' '.join(header_list), file=flo)
