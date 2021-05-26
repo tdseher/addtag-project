@@ -799,6 +799,8 @@ class Primer(object):
                     pf = j_seq[i:i+p_len]
                     
                     if cls.check_case(case, pf):
+                        if (case == 'ignore'):
+                            pf = pf.upper()
                         #primer_object = Primer.create(sequence=pf, position=pos, template_length=len(seq), strand='+', o_oligo=self)
                         #p = Primer(pf, gene, locus, genome, region, contig, strand, start+i, start+i+p_len, name=name)
                         p = Primer(pf, gene, locus, genome, region, contig, strand, pos, pos+p_len, name=name)
@@ -839,6 +841,8 @@ class Primer(object):
                     pr = rc(j_seq[i:i+p_len])
                     
                     if cls.check_case(case, pr):
+                        if (case == 'ignore'):
+                            pr = pr.upper()
                         #primer_object = Primer.create(sequence=pr, position=pos, template_length=len(seq), strand='-', o_oligo=self)
                         #p = Primer(pr, gene, locus, genome, region, contig, strand, start+i, start+i+p_len, name=name)
                         p = Primer(pr, gene, locus, genome, region, contig, strand, pos, pos+p_len, name=name)
