@@ -19,6 +19,9 @@ import random
 # Import non-standard packages
 import regex
 
+# Import included AddTag-specific modules
+from ..nucleotides import random_choices
+
 logger = logging.getLogger(__name__)
 
 # Treat modules in PACKAGE_PARENT as in working directory
@@ -1834,32 +1837,11 @@ class PrimerDesign(object):
         self.optimal = None # Store 'PrimerSet' object
         self.done = False
     
-    def random_choices(self, population, weights, k=1):
-        """
-        Return a k sized list of population elements chosen with replacement.
-        """
-        weight_sum = sum(weights)
-        choices = zip(population, weights)
-        values = []
-        for i in range(k):
-            r = random.uniform(0, weight_sum)
-            upto = 0
-            for c, w in choices:
-                if upto + w >= r:
-                    values.append(c)
-                    break
-                upto += w
-            else:
-                values.append(random.choice(population))
-        return values
-    
     def random_primer_by_weight(self, pairs):
         if (len(pairs) == 0):
             return None
-        elif ('choices' in random.__all__):
-            return random.choices(pairs, [x.get_joint_weight() for x in pairs])[0]
         else:
-            return self.random_choices(pairs, [x.get_joint_weight() for x in pairs])[0]
+            return random_choices(pairs, [x.get_joint_weight() for x in pairs])[0]
     
     def rank_order(self, x, reverse=False, shift=0):
         return [y+shift for y in sorted(range(len(x)), key=x.__getitem__, reverse=reverse)]

@@ -2201,25 +2201,6 @@ class GeneratePrimersParser(subroutine.Subroutine):
         else:
             return int(count[:-1])+1
     
-    def random_choices(self, population, weights, k=1):
-        """
-        Return a k sized list of population elements chosen with replacement.
-        """
-        weight_sum = sum(weights)
-        choices = zip(population, weights)
-        values = []
-        for i in range(k):
-            r = random.uniform(0, weight_sum)
-            upto = 0
-            for c, w in choices:
-                if upto + w >= r:
-                    values.append(c)
-                    break
-                upto += w
-            else:
-                values.append(random.choice(population))
-        return values
-    
     #def product(x):
     #    z = 1
     #    for y in x:

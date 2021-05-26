@@ -257,13 +257,37 @@ def random_sequence(length=100, compositions=None):
     '''
     if (compositions == None):
         compositions = {'A':0.25, 'C':0.25, 'G':0.25, 'T':0.25}
-    return ''.join(random.choices(['A', 'C', 'G', 'T'], weights=[compositions['A'], compositions['C'], compositions['G'], compositions['T']], k=length))
+    return ''.join(random_choices(['A', 'C', 'G', 'T'], weights=[compositions['A'], compositions['C'], compositions['G'], compositions['T']], k=length))
 
 def flip(text):
     """Rotates the input text 180 degrees"""
     a = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
     f = 'ɐqɔpǝɟɓɥᴉſʞ┐ɯuodbɹsʇnʌʍxʎzⱯʚ'+'\u0186'+'pƎℲϑHIſʞ˥WNOԀÕᴚS┴ՈΛMXʎZ'
     return text.translate(str.maketrans(a, f))[::-1]
+
+def random_choices(population, weights=None, k=1):
+    """Return a k sized list of population elements chosen with replacement."""
+    #if hasattr(random, "choices"):
+    if ('choices' in random.__all__):
+        return random.choices(population, weights, k)
+    else:
+        if (weights != None):
+            weight_sum = sum(weights)
+            choices = zip(population, weights)
+            values = []
+            for i in range(k):
+                r = random.uniform(0, weight_sum)
+                upto = 0
+                for c, w in choices:
+                    if upto + w >= r:
+                        values.append(c)
+                        break
+                    upto += w
+                else:
+                    values.append(random.choice(population))
+            return values
+        else:
+            return [random.choice(population) for i in range(k)]
 
 # def rc(seq, kind="dna"):
 #     """Returns the reverse-complement of a string containing DNA or RNA characters"""
