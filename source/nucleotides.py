@@ -299,8 +299,8 @@ def random_choices(population, weights=None, k=1):
 #         raise ValueError("'" + str(kind) + "' is an invalid argument for rc()")
 #     return seq.translate(complements)[::-1]
 
-DNA_COMPLEMENTS = str.maketrans('acgtrymkbdhvACGTRYMKBDHV', 'tgcayrkmvhdbTGCAYRKMVHDB') # exclude ws, WS
-RNA_COMPLEMENTS = str.maketrans('acgturymkbdhvACGTURYMKBDHV', 'ugcaayrkmvhdbTGCAAYRKMVHDB') # exclude ws, WS
+DNA_COMPLEMENTS = str.maketrans('acgtrymkbdhvACGTRYMKBDHV', 'tgcayrkmvhdbTGCAYRKMVHDB') # exclude ws/WS, n/N
+RNA_COMPLEMENTS = str.maketrans('acgturymkbdhvACGTURYMKBDHV', 'ugcaayrkmvhdbTGCAAYRKMVHDB') # exclude ws/WS, n/N
 
 def rc(seq, kind="dna"):
     """Returns the reverse-complement of a string containing DNA or RNA characters"""

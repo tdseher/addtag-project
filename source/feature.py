@@ -405,7 +405,7 @@ class Feature(object):
         # Non-redundant list of features to add (same as a 'bounds' tuple)
         #bounds_set = set() # (fi, start, end)
         bounds_dict = {} # key=(fi, start, end), value=[i, i, ...] list of equivalents group indices
-        targets_dict = {}
+        targets_dict = {} # key=bounds, value=target...?
         new_features_dict = {}
         
         for i, (el, bl) in enumerate(zip(equivalents_list, bounds_list)):
@@ -1130,13 +1130,13 @@ class Feature(object):
         #    t2fi[t] = fi
         
         
-        t2fi = {}
+        t2fi = {} # key = pseudo-target, value = "feature index"
         for fi, tlist in enumerate(targets_list):
             for ti, t in enumerate(tlist):
                 t2fi[t] = fi
         
         
-        new_equivalents = {}
+        new_equivalents = {} # key = ("feature index", pseudo-target "index"), value = dict(with k="feature index", v=list of pseudo-targets)
         
         for fi1, tlist1 in enumerate(targets_list):
             for ti1, t1 in enumerate(tlist1):
@@ -1167,11 +1167,11 @@ class Feature(object):
                                 #   key=seq, value=set(seq, seq, ...)
                                 #   # Example: { 'ACA': {'ACA', 'CCA'}, 'CCA': {'ACA', 'CCA'}}
                                 # This will only store equivalents if they are on different features (not the same feature)
-                                s = targets.Target.equivalents.setdefault(t1[5], set())
+                                s = targets.Target.equivalents.setdefault(t1[5], set()) # t[5] is the sequence
                                 s.add(t1[5])
                                 s.add(t2[5])
                                 
-                                s = targets.Target.equivalents.setdefault(t2[5], set())
+                                s = targets.Target.equivalents.setdefault(t2[5], set()) # t[5] is the sequence
                                 s.add(t1[5])
                                 s.add(t2[5])
         
@@ -1199,7 +1199,7 @@ class Feature(object):
             for be in be_list:
                 sbe = sorted(be)
                 if sbe not in better_equivalents:
-                    better_equivalents.append(sbe)
+                    better_equivalents.append(sbe) # sbe = [[("feature index", pseudo-target), ...], ...]  # I think?
         
         spec_dict = {
             'all': 0b1, # multi-allelic

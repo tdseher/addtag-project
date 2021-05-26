@@ -39,6 +39,8 @@ logger = logging.getLogger(__name__)
 #       This probably should come AFTER making it so each 'PrimerPair' has its own 'Cutoff' level.
 # TODO: When Primer and PrimerPairs are queued for processing, just set their priority level based on their
 #       thermodynamic properties OR by their quasi-likelihood?
+# TODO: Make sure that if a gene is '+' on one chromosome, and '-' on the other, and you want to develop
+#       primers across them, then one strand should be rc(), so FAR_UPSTREAM and FAR_DOWNSTREAM match.
 
 class GeneratePrimersParser(subroutine.Subroutine):
     logger = logger.getChild(__qualname__)
@@ -1172,6 +1174,10 @@ class GeneratePrimersParser(subroutine.Subroutine):
             featureR_seq_lists = [list() for r in genome_list]
             
             # Get the reference locations needed for 'sF' and 'sR'
+            # This *should* be one location in FAR_UPSTREAM for each genome,
+            # And one location in FAR_DOWNSTREAM for each genome, respectively
+            # These locations don't include the start/end positions of the primer, because they are compared
+            # against all primers.
             sF_loc_set = set()
             sR_loc_set = set()
             for d in data:
@@ -2065,7 +2071,7 @@ class GeneratePrimersParser(subroutine.Subroutine):
     
     def get_far_lcs_regions(self, datum_groups, genome_contigs_list):
         
-        # Let's find the longest common substring in the far_upstream and far_downstream regions of each
+        # Let's find the longest common substring in the far_upstream and far_downstream regions of each genome
         # We also need the distance (in nt) between this LCS and the feature/insert
         # (for both the upstream and downstream)
         # (so we can do proper amplicon size calculations later)
