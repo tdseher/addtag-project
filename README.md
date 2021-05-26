@@ -586,12 +586,12 @@ cd ${GENE}_CDS
 
 Extract the feature IDs of the genes we want to remove from the `*.homologs` file.
 ```sh
-SELECTION=$(grep ${GENE} ${GENOME_HOMOLOGS} | cut -f 2- --output-delimiter ' ')
+SELECTION=$(grep ${GENE} ../${GENOME_HOMOLOGS} | cut -f 2- --output-delimiter ' ')
 ```
 
 Identify the optimal Target sites and generate potential dDNAs.
 ```sh
-addtag generate \
+addtag generate_all \
   --fasta ../${GENOME_FASTA} \
   --gff ../${GENOME_GFF} \
   --homologs ../${GENOME_HOMOLOGS} \
@@ -618,7 +618,7 @@ addtag find_header --fasta ${GENE}ga/reversion-targets.fasta --query '\brank=0\b
 
 Select an arbitrary ΔdDNA associated with the top-ranked ΔTarget, select the AdDNA with the best AmpF/AmpR primer pair.
 ```sh
-DONOR=$(grep '# reTarget results' -A 2 TESTga.out | tail -n +3 | cut -f 9 | cut -d ',' -f 1)
+DONOR=$(grep '# reTarget results' -A 2 ${GENE}ga.out | tail -n +3 | cut -f 9 | cut -d ',' -f 1)
 addtag find_header --fasta ${GENE}ga/excision-dDNAs.fasta --query "${DONOR}\b" > ko-dDNA.fasta
 addtag find_header --fasta ${GENE}ga/reversion-dDNAs.fasta --query '\brank=0\b' > ki-dDNA.fasta
 ```
