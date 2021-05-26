@@ -2120,9 +2120,9 @@ class GeneratePrimersParser(subroutine.Subroutine):
                         ds_done = True
                     fds = genome_contigs_list[datum.genome_r][datum.genome_contig][datum.dsh_end:datum.dsh_end+ds_dist]
                     m = nucleotides.lcs(fds0, fds)
-                    self.logger.info('us_dist = ' + str(ds_dist))
-                    self.logger.info('   fus0 = ' + fds0)
-                    self.logger.info(('fus'+str(di+1)).rjust(7) +' = ' + fds)
+                    self.logger.info('ds_dist = ' + str(ds_dist))
+                    self.logger.info('   fds0 = ' + fds0)
+                    self.logger.info(('fds'+str(di+1)).rjust(7) +' = ' + fds)
                     self.logger.info('      m = ' + str(m))
                     if (m.size < 200):
                         ds_dist += 100
