@@ -488,6 +488,8 @@ class Main(object):
         # Current implementation limitations
         # GFF file only has 'Gene=' tag on ONE of the homologs, and not the other
         # User will have to specify the feature twice if he wants to target both homologs
+        # TODO: Let let user specify 'Gene=XXXX' attribute tag, and have AddTag automatically select its homologous Features
+        #       (Possibly by cross-referencing the '--homologs' file)
         
         # Require at least one in order to filter
         # Feature has this format: key=gene/tag, value = (contig, start(bp), end(bp), strand)

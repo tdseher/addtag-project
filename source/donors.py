@@ -461,7 +461,7 @@ class ExcisionDonor(Donor):
         
         genome_composition = nucleotides.get_seq_dist(contig_sequence, 1, 4) # step_size=1, kmer_size=4
         
-        for m in motifs.OnTargetMotif.motifs: # <------ Do I need to add OffTargetMotif.motifs here as well?
+        for m in motifs.OnTargetMotif.motifs:
             addtag_seqs = [] # holds at most, 10x1000= 10000 sequences
             
             # Keep generating and testing addtags until the score raises above the arbitrary threshold of 0.9
@@ -488,7 +488,7 @@ class ExcisionDonor(Donor):
                 
                 best_score = 0
             
-            # Only keep the top N best (i.e. 100)
+            # TODO: Only keep the top N best (i.e. 100)
             #for addtag in sorted(addtag_seqs, key=lambda x: x.score, reverse=True)[:100]:
             # Since we haven't scored these yet, then let's just keep all of them
             for addtag in addtag_seqs:
@@ -599,7 +599,8 @@ class ExcisionDonor(Donor):
             # Add that best tag to all dDNAs
             
             # Pick an arbitrary motif (this is just the first-defined one)
-            m = motifs.OnTargetMotif.motifs[0] # <------ Do I need to add OffTargetMotif.motifs here as well?
+            # TODO: generate a set of unitags for each OnTargetMotif!
+            m = motifs.OnTargetMotif.motifs[0]
             
             # Create a single, random unitag according to the chosen motif (for testing)
             # TODO: add 'genome_composition = ...' calculation (because it is missing)
