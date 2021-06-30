@@ -269,7 +269,7 @@ def random_choices(population, weights=None, k=1):
     """Return a k sized list of population elements chosen with replacement."""
     #if hasattr(random, "choices"):
     if ('choices' in random.__all__):
-        return random.choices(population, weights, k)
+        return random.choices(population, weights=weights, k=k)
     else:
         if (weights != None):
             weight_sum = sum(weights)
