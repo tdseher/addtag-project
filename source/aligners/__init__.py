@@ -30,7 +30,10 @@ exclusions = [
     'inbuilt.py',
     'kalign3.py',
 #    'mafft.py',
+    'python-bwa.py',
+    'python-nmslib.py',
     'seqmap.py',
+    'star.py',
     'usearch.py',
     'varscot.py',
 ]
