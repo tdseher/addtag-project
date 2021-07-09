@@ -21,28 +21,36 @@ Program for identifying exclusive endogenous gRNA sites and creating unique synt
 
 ## ☑ Features ##
 Basic Features:
- * [x] Analyzes any arbitrary genomic DNA (gDNA).
-   * [x] Fully supports ambiguous characters or polymorphisms (`RYMKWSBDHVN`).
-   * [x] Respects case-masked gDNA for [![Target][Target]](#) and [![Primer][Primer]](#) identification.
- * [x] Locates RNA-guided nuclease ([![RGN][RGN]](#)) cut sites ([![Target][Target]](#)s) within a [![Feature][Feature]](#) (locus of interest) for optimal gRNA [![Spacer][Spacer]](#)s.
-   * [x] Fully supports ambiguous bases (`RYMKWSBDHVN`) in [![Spacer][Spacer]](#) or [![PAM][PAM]](#).
-   * [x] Accepts 3'-adjacent [![PAM][PAM]](#) sequences, such as Cas9 (`>NGG`).
-   * [x] Accepts 5'-adjacent [![PAM][PAM]](#) sequences, such as Cas12a (`TTTN<`).
-   * [x] Supports arbitrary [![Spacer][Spacer]](#) length and composition constraints, such as for plant experiments (`G{,2}N{19,20}`).
-   * [x] Supports arbitrary [![PAM][PAM]](#) sequences (MAD7: `YTTN<`, Cas12d: `TA<`, BlCas9: `>NGGNCNDD`, etc).
-   * [x] Uses stranded forward (`/`), reverse (`\`) and unstranded (`|`) cut sites.
-   * [x] Supports [![PAM][PAM]](#) sequences defined by complex nested logic, such as xCas9 (`>(N{1,2}G,GAW,CAA)`)
-   * [x] Calculates any number of **on-target** and **off-target** scores (see [Algorithms](#-supported-scoring-algorithms)).
-   * [x] Finds homology-aware [![Target][Target]](#)s (**multi-allelic**, **allele-specific**, and **allele-agnostic**).
-   * [x] Searches for [![Target][Target]](#)s using selectable pairwise alignment program (see [Aligners](#-supported-sequence-aligners)).
- * [x] Generates exogenous, donor DNAs ([![dDNA][dDNA]](#)s) to modify the same locus successively.
-   * [x] Assembles unique [![Target][Target]](#) sites (on [![dDNA][dDNA]](#)s), thus maximizing **on-target** and **off-target** scores (because they don't resemble any input gDNA).
-   * [x] Adds unique [![Target][Target]](#)s to [![dDNA][dDNA]](#)s without inserting sequence (or while introducing minimal amounts of extrinsic DNA).
-   * [x] Engineers a single set of conservative PCR (cPCR) [![Primer][Primer]](#)s that work for all genotypes (wild type, knock-out, and add-back) to validate if a [![Feature][Feature]](#) was engineered correctly.
-   * [x] Produces homology-aware [![dDNA][dDNA]](#)s (**multi-allelic**, **allele-specific**, and **allele-agnostic**).
- * [x] Performs *in silico* recombination between gDNA and [![dDNA][dDNA]](#)s.
- * [x] Determines thermodynamic properties of sets of [![Primer][Primer]](#) pairs (Tm, minimum ΔG, amplicon size, etc).
- * [x] Displays all known [![RGN][RGN]](#) [![Spacer][Spacer]](#) and [![PAM][PAM]](#) combinations.
+ 1. Supports both direct (1-step) and indirect (2-step) genome editing through CRISPR/Cas-induced homology-directed repair (HDR). 
+ 2. Analyzes arbitrary genomic DNA (gDNA).
+    * Fully supports ambiguous characters or polymorphisms (`RYMKWSBDHVN`) in genome contigs.
+    * Respects case-masked gDNA for [![Target][Target]](#) and [![Primer][Primer]](#) identification.
+ 3. Uses an intuitive syntax to locate RNA-guided nuclease ([![RGN][RGN]](#)) cut sites ([![Target][Target]](#)s) within a locus of interest ([![Feature][Feature]](#)).
+    * Fully supports ambiguous bases (`RYMKWSBDHVN`) in [![Spacer][Spacer]](#) or [![PAM][PAM]](#).
+    * Accepts 3'-adjacent [![PAM][PAM]](#) sequences, such as Cas9 (`>NGG`).
+    * Accepts 5'-adjacent [![PAM][PAM]](#) sequences, such as Cas12a (`TTTN<`).
+    * Supports arbitrary [![Spacer][Spacer]](#) length and composition constraints, such as for plant experiments (`G{,2}N{19,20}`).
+    * Supports arbitrary [![PAM][PAM]](#) sequences (MAD7: `YTTN<`, Cas12d: `TA<`, BlCas9: `>NGGNCNDD`, etc).
+    * Supports any number of stranded forward (`/`), reverse (`\`) and unstranded (`|`) cut sites.
+    * Supports [![PAM][PAM]](#) sequences defined by complex nested logic, such as xCas9 (`>(N{1,2}G,GAW,CAA)`)
+ 4. Simultaneously calculates any number of **on-target** and **off-target** scores (see [Algorithms](#-supported-scoring-algorithms)).
+    * Includes a "weight" calculation for balancing both **on-target** and **off-target** scores.
+    * The "weight" allows for comparing efficiency and specificity betweeen [![Target][Target]](#)s from different [![RGN][RGN]](#)s.
+ 5. Searches for [![Target][Target]](#)s using selectable pairwise alignment program (see [Aligners](#-supported-sequence-aligners)).
+ 6. Generates exogenous, donor DNA ([![dDNA][dDNA]](#)) sequences for modifying the same locus successively.
+    * Assembles unique [![Target][Target]](#) sites on [![dDNA][dDNA]](#) so the locus can be edited again (`addtag`).
+    * Adds unique [![Target][Target]](#)s to [![dDNA][dDNA]](#)s while introducing minimal amounts of extrinsic DNA (`mintag`).
+ 7. Engineers a single set of verification PCR (vPCR) [![Primer][Primer]](#)s for assessing genome editing.
+    * Performs *in silico* recombination between gDNA and [![dDNA][dDNA]](#)s to predict the genome sequences after editing.
+    * Same [![Primer][Primer]](#)s work for all genotypes (reference, intermediary, and add-back)
+    * Positive amplification shows if [![Feature][Feature]](#) was edited correctly.
+    * A different, positive amplification shows if [![Feature][Feature]](#) was edited incorrectly.
+    * Determines thermodynamic properties of [![Primer][Primer]](#) pairs (Tm, minimum ΔG, amplicon size, etc).
+    * Uses a genetic algorithm to select [![Primer][Primer]](#) sequences that have compatible properties, so they can be run in parallel with the same thermal cycler conditions.
+ 8. Facilitates ploidy-aware editing (**multi-allelic**, **allele-specific**, and **allele-agnostic**).
+    * Identifies ploidy-aware [![Target][Target]](#)s.
+    * Produces [![dDNA][dDNA]](#) that have poidy-aware homology arms.
+ 9. Contains the most-complete index of all known [![PAM][PAM]](#)s for [![RGN][RGN]](#)s.
 
 ## 📋 Requirements ##
 
@@ -1007,8 +1015,8 @@ All Features in input GFF file will be evaluated simultaneously.
 ## 📝 Citing AddTag ##
 If you use the AddTag indirect genome editing method, please cite the paper with the initial proof-of-concept (1) as well as the full method description (2). If you use the AddTag software for your research, please cite (2):
 
- > 1) Namkha Nguyen, Morgan M. F. Quail, and Aaron D. Hernday. <ins>An efficient, rapid, and recyclable system for CRISPR-mediated genome editing in Candida albicans</ins>. *mSphere* 2, (2017). doi: [10.1128/mSphereDirect.00149-17](https://doi.org/10.1128/mSphereDirect.00149-17), PMID: [28497115](https://pubmed.ncbi.nlm.nih.gov/28497115/), PMCID: [PMC5422035](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5422035/).
- > 2) Thaddeus D. Seher, Namkha Nguyen, Diana Ramos, Priyanka Bapat, Clarissa J. Nobile, Suzanne S. Sindi, and Aaron D. Hernday. <ins>AddTag, a two-step approach with supporting software package that facilitates CRISPR/Cas-mediated precision genome editing</ins>. *G3 Genes|Genomes|Genetics* (2021). doi: [10.1093/g3journal/jkab216](https://doi.org/10.1093/g3journal/jkab216), retrieved from: <[https://github.com/tdseher/addtag-project](https://github.com/tdseher/addtag-project)>.
+ > 1. Namkha Nguyen, Morgan M. F. Quail, and Aaron D. Hernday. <ins>An efficient, rapid, and recyclable system for CRISPR-mediated genome editing in Candida albicans</ins>. *mSphere* 2, (2017). doi: [10.1128/mSphereDirect.00149-17](https://doi.org/10.1128/mSphereDirect.00149-17), PMID: [28497115](https://pubmed.ncbi.nlm.nih.gov/28497115/), PMCID: [PMC5422035](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5422035/).
+ > 2. Thaddeus D. Seher, Namkha Nguyen, Diana Ramos, Priyanka Bapat, Clarissa J. Nobile, Suzanne S. Sindi, and Aaron D. Hernday. <ins>AddTag, a two-step approach with supporting software package that facilitates CRISPR/Cas-mediated precision genome editing</ins>. *G3 Genes|Genomes|Genetics* (2021). doi: [10.1093/g3journal/jkab216](https://doi.org/10.1093/g3journal/jkab216), retrieved from: <[https://github.com/tdseher/addtag-project](https://github.com/tdseher/addtag-project)>.
 
 ## ✍ Authors ##
 Who do I talk to?
