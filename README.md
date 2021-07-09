@@ -1007,8 +1007,8 @@ All Features in input GFF file will be evaluated simultaneously.
 ## 📝 Citing AddTag ##
 If you use the AddTag indirect genome editing method, please cite the paper with the initial proof-of-concept (1) as well as the full method description (2). If you use the AddTag software for your research, please cite (2):
 
- > 1) Namkha Nguyen, Morgan M. F. Quail, and Aaron D. Hernday. <u>An efficient, rapid, and recyclable system for CRISPR-mediated genome editing in Candida albicans</u>. *mSphere* 2, (2017). doi: [10.1128/mSphereDirect.00149-17](https://doi.org/10.1128/mSphereDirect.00149-17), PMID: [28497115](https://pubmed.ncbi.nlm.nih.gov/28497115/), PMCID: [PMC5422035](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5422035/).
- > 2) Thaddeus D. Seher, Namkha Nguyen, Diana Ramos, Priyanka Bapat, Clarissa J. Nobile, Suzanne S. Sindi, and Aaron D. Hernday. <u>AddTag, a two-step approach with supporting software package that facilitates CRISPR/Cas-mediated precision genome editing</u>. *G3 Genes|Genomes|Genetics* (2021). doi: [10.1093/g3journal/jkab216](https://doi.org/10.1093/g3journal/jkab216), retrieved from: <[https://github.com/tdseher/addtag-project](https://github.com/tdseher/addtag-project)>.
+ > 1) Namkha Nguyen, Morgan M. F. Quail, and Aaron D. Hernday. <ins>An efficient, rapid, and recyclable system for CRISPR-mediated genome editing in Candida albicans</ins>. *mSphere* 2, (2017). doi: [10.1128/mSphereDirect.00149-17](https://doi.org/10.1128/mSphereDirect.00149-17), PMID: [28497115](https://pubmed.ncbi.nlm.nih.gov/28497115/), PMCID: [PMC5422035](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5422035/).
+ > 2) Thaddeus D. Seher, Namkha Nguyen, Diana Ramos, Priyanka Bapat, Clarissa J. Nobile, Suzanne S. Sindi, and Aaron D. Hernday. <ins>AddTag, a two-step approach with supporting software package that facilitates CRISPR/Cas-mediated precision genome editing</ins>. *G3 Genes|Genomes|Genetics* (2021). doi: [10.1093/g3journal/jkab216](https://doi.org/10.1093/g3journal/jkab216), retrieved from: <[https://github.com/tdseher/addtag-project](https://github.com/tdseher/addtag-project)>.
 
 ## ✍ Authors ##
 Who do I talk to?
