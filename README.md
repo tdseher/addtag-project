@@ -11,10 +11,10 @@ Program for identifying exclusive endogenous gRNA sites and creating unique synt
 
 [![Python](https://img.shields.io/badge/Python-≥3.5.1-1f425f.svg?logo=python)](https://www.python.org/downloads/release/python-360/)
 [![PRs](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
-[![](https://img.shields.io/badge/doi-...-blue.svg)](#)
+[![doi](https://img.shields.io/badge/doi-10.1093/g3journal/jkab216-blue.svg)](https://doi.org/10.1093/g3journal/jkab216)
 
 [![Twitter](https://img.shields.io/badge/Twitter-@tdseher-blue?logo=twitter)](https://twitter.com/tdseher)
-[![Open Source](https://img.shields.io/badge/Open%20Source-❤-teal)](#)
+[![Open Source](https://img.shields.io/badge/Open%20Source-❤-teal)](https://opensource.org/)
 [![free software](https://img.shields.io/badge/Software-%F0%9F%97%BD%20free-teal)](https://www.gnu.org/philosophy/free-sw.html)
 
 [Features](#-features) • [Requirements](#-requirements) • [Installing](#-installing-addtag) • [Usage](#-program-instructions) • [Aligners](#-supported-sequence-aligners) • [Thermodynamics](#-supported-thermodynamics-calculators) • [Algorithms](#-supported-scoring-algorithms) • [Citing](#-citing-addtag) • [Contributing](#-contributing)
