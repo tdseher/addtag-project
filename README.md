@@ -80,7 +80,7 @@ For tips on setting up AddTag requirements, please review the commands in the `.
 
 Base operation of AddTag requires the following:
 
- * [ ] Python ≥ 3.5.1 ([source](https://www.python.org/downloads/), [binaries](https://www.python.org/downloads/), [documentation](https://docs.python.org/3/))
+ * [ ] Python ≥ 3.5.1 ([source](https://www.python.org/downloads/source/), [binaries](https://www.python.org/downloads/), [documentation](https://docs.python.org/3/))
 
  * [ ] regex Python module ([source](https://bitbucket.org/mrabarnett/mrab-regex), [whls](https://pypi.org/project/regex/), [documentation](https://pypi.org/project/regex/))
 
@@ -138,7 +138,7 @@ The following scoring algorithms are subclasses of `SingleSequenceAlgorithm`.
       Other dependencies include click, biopython, scipy, GPy, hyperopt, paramz, theanets, glmnet_py, dill, matplotlib, pytz, python-dateutil, six, tqdm, future, networkx, pymongo, decorator, downhill, theano, nose-parameterized, joblib, kiwisolver, cycler, pyparsing, setuptools, glmnet-py.
 
     * Azimuth 2 Python module ([source](https://github.com/MicrosoftResearch/Azimuth), [documentation](https://www.microsoft.com/en-us/research/project/crispr/))
-      on 2.7.10 ≤ Python < 3.0.0 ([source](https://www.python.org/downloads/), [binaries](https://www.python.org/downloads/), [documentation](https://docs.python.org/2/)) 
+      on 2.7.10 ≤ Python < 3.0.0 ([source](https://www.python.org/downloads/source/), [binaries](https://www.python.org/downloads/), [documentation](https://docs.python.org/2/)) 
       
       note: requires python-tk to be installed. Also requires specific versions of scipy, numpy, matplotlib, nose, scikit-learn, pandas, biopython, pyparsing, cycler, six, pytz, python-dateutil, functools32, subprocess32.
 
