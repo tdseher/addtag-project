@@ -95,6 +95,8 @@ class GeneratePrimersParser(subroutine.Subroutine):
         self.parser.add_argument("--aligner", type=str, choices=aligner_choices, default='blastn',
             help="Program to calculate pairwise alignments. Please note that the 'addtag' internal aligner is very slow.")
         
+        # TODO: Allow users to specify the number of PCR conditions they want to develop primers for.
+        #       Each can have a different target amplicon size and a different melting temp/annealing temp
         #self.parser.add_argument("--number_pcr_conditions", metavar="N", type=int, default=None,
         #    help="Number of PCR conditions to develop primers for. All amplicons \
         #    within each condition will have similar size (nt) and melting temperatures. \
@@ -205,7 +207,7 @@ class GeneratePrimersParser(subroutine.Subroutine):
         #   'exclusive' (single/specific),
                     #   'all' (multi),
                     #   'any' (agnostic)
-        self.parser.add_argument("--specificity", choices=['exclusive', 'all', 'any'], default='all',
+        self.parser.add_argument("--primer_specificity", choices=['exclusive', 'all', 'any'], default='all',
             help="Report only *-specific primer designs. Either primer \
             amplicons will be diagnostially-different sizes, or primer \
             sequences themselves will be different. The choices are as \
@@ -1204,6 +1206,7 @@ class GeneratePrimersParser(subroutine.Subroutine):
                 
                 
                 ###### BEGIN THIS ######
+                # TODO: Double-check implementation of primer specificity (i.e. test it again, and correct if broken)
                 # These 'intersection' expressions is where the allele-specific calculations should be made
                 #if (args.specificity == 'exclusive'): # allele-specific
                 #elif (args.specificity == 'all'): # multi-allelic
