@@ -36,7 +36,12 @@ class Feature(object):
     
     logger = logger.getChild('Feature')
     
-    def __init__(self, contig, start, end, strand, name=None, attributes=None, source=None, feature_type=None, score=None, frame=None, origin=NONE, sep=';', parent=None, gene=None, homologs=None):
+    def __init__(self,
+        contig, start, end, strand, # GFF fields
+        name=None,
+        attributes=None, source=None, feature_type=None, score=None, frame=None, # GFF fields
+        origin=NONE, sep=';', parent=None, gene=None, homologs=None, seed_targets=None
+    ):
         self.contig = contig
         self.source = source
         self.feature_type = feature_type
@@ -66,6 +71,11 @@ class Feature(object):
         else:
             self.homologs = []
         self.gene = gene
+        
+        if seed_targets:
+            self.seed_targets = set(seed_targets)
+        else:
+            self.seed_targets = None
     
     def get_homologs(self):
         return self.homologs
@@ -258,10 +268,8 @@ class Feature(object):
         if (len(cls.features) == 0):
             raise Exception("Input '--gff' and '--selection' combination returns no valid features.")
     
-    # TODO: Delete previous versions of 'Feature.new_new_expand_all_features()'
-    
     @classmethod
-    def new_new_expand_all_features(cls, args, contigs, h_groups):
+    def expand_all_features(cls, args, contigs, h_groups):
         '''
         New method makes Features expand by homology group (instead of in isolation).
         :param args: Argparse namespace object
@@ -405,7 +413,7 @@ class Feature(object):
         # Non-redundant list of features to add (same as a 'bounds' tuple)
         #bounds_set = set() # (fi, start, end)
         bounds_dict = {} # key=(fi, start, end), value=[i, i, ...] list of equivalents group indices
-        targets_dict = {} # key=bounds, value=target...?
+        targets_dict = {} # key=bounds, value=[target,...]
         new_features_dict = {}
         
         for i, (el, bl) in enumerate(zip(equivalents_list, bounds_list)):
@@ -436,7 +444,26 @@ class Feature(object):
             new_name = '{}_derived-{}'.format(f.name, '/'.join(map(str, eqi_list)))
             new_attributes = f.attributes.copy()
             new_attributes[args.tag] = new_name
-            new_feature = Feature(f.contig, d_start, d_end, f.strand, name=new_name, source=f.source, feature_type=f.feature_type, score=f.score, frame=f.frame, attributes=new_attributes, origin=Feature.DERIVED, parent=f, gene=f.gene)
+            new_targets = targets_dict[bounds] # should be a list of Targets--one for each in the equivalence group.
+            
+            # Create the new, derived feature
+            new_feature = Feature(
+                f.contig,
+                d_start,
+                d_end,
+                f.strand,
+                name=new_name,
+                source=f.source,
+                feature_type=f.feature_type,
+                score=f.score,
+                frame=f.frame,
+                attributes=new_attributes,
+                origin=Feature.DERIVED,
+                parent=f,
+                gene=f.gene,
+                seed_targets=new_targets
+            )
+            
             Feature.features[new_name] = new_feature
             new_features_dict[bounds] = new_feature
             
@@ -561,6 +588,7 @@ class Feature(object):
         # If/elif/elif tatement for selecting between 'all', 'exclusive', and 'any' dDNA homologies based on input parameters
         if (args.donor_specificity == 'any'): # Allele-agnostic
             # For allele-agnostic ('any') dDNA, then no MSA is performed
+            # TODO: Need to enforce the minimum expanded Feature size
             
             # Thus, we just return the 'bounds_list' with just -/+ length to US/DS
             # for blist in bounds_list:
@@ -575,7 +603,7 @@ class Feature(object):
         
         else: # 'all' or 'exclusive'
             for eqi, (elist, blist) in enumerate(zip(equivalents_list, bounds_list)):
-                gene = feature_list[0].get_gene() # They should all be the same gene
+                gene = feature_list[blist[0][0]].get_gene() # Features in the same blist should all be the same gene
                 
                 # 'good_windows' stores closest determined flanking homology arms
                 # good_windows = [
@@ -946,6 +974,8 @@ class Feature(object):
                 feature_start = f.start
                 feature_end = f.end or len(contigs[f.contig]) # if (f.end == None), then it will be len(contig_sequence)
                 
+                target_sequence = t[5]
+                target_orientation = t[0]
                 target_start = t[1]
                 target_end = t[2]
                 
@@ -1028,46 +1058,45 @@ class Feature(object):
                         new_pad = (size_difference+1)//2
                         derived_start -= new_pad
                         derived_end += new_pad
-                        cls.logger.info("Added {} nt of padding bases to either side of DERIVED FEATURE".format(new_pad))
+                        cls.logger.info("DERIVED FEATURE has {} nt of padding bases added to either side of Feature".format(new_pad))
                     
                     elif (args.feature_expansion_format == 'justify_feature'):
                         if (derived_start == feature_start):
                             derived_end += size_difference
                         else:
                             derived_start -= size_difference
-                        cls.logger.info("Added {} nt of padding bases to one side of DERIVED FEATURE".format(size_difference))
+                        cls.logger.info("DERIVED FEATURE has {} nt of padding bases added to one side of Feature".format(size_difference))
                     
                     elif (args.feature_expansion_format == 'justify_target'):
                         if (derived_start == target_start):
                             derived_end += size_difference
                         else:
                             derived_start += size_difference
-                        cls.logger.info("Added {} nt of padding bases to one side of DERIVED FEATURE".format(size_difference))
+                        cls.logger.info("DERIVED FEATURE has {} nt of padding bases added to one side of Feature".format(size_difference))
                 
-                cls.logger.info("  eqi={}, fi={}, derived=({}, {}), len(derived)={}, target=({}, {}), feature={}".format(eqi, fi, derived_start, derived_end, derived_end-derived_start, target_start, target_end, f))
+                cls.logger.info("  eqi={}, fi={}, derived=({}, {}), len(derived)={}, target={}:{}:{}..{}, feature={}".format(eqi, fi, derived_start, derived_end, derived_end-derived_start, target_sequence, target_orientation, target_start, target_end, f))
                 
                 fb.append((fi, derived_start, derived_end))
             
             feature_bounds.append(fb) # Will contain redundant bounds if a Target appears multiple times
         
         # Return bounds
+        # 'feature_bounds[i]' corresponds to equivalents[i]
+        # 'feature_bounds[i][j] corresponds to equivalents[i][j], which contains (fi, t)
         return feature_bounds
     
     @classmethod
     def expand_for_targets(cls, args, contigs, feature_list):
         '''
-        Expand all input features in parallel, the same amounts, taking 'args.feature_expansion_format' into account
-        Will expand to all appropriate sizes within 'args.feature_expansion_lengths'.
+        Finds Target equivalents according to user-input Target specificity.
+        Does not expand the Feature. Only returns list of Targets as 'better_equaivalents'
+        Does not take 'args.feature_expansion_format' into account
+        Searches for all Targets within 'args.feature_expansion_lengths' distance from the Feature.
         :param args: argparse Namespace object
         :param contigs: dict with key=header value=sequence
         :param feature_list: List of all features that make up a homologous group
-        :return: 
+        :return: A list of 'better_equivalents' that match the user-specified 'args.target_specificity'
         '''
-        
-        # TODO: Check to see if this function is supposed to match allele-specific Target permutations as equivalence groups
-        #       If it is supposed to, then make sure it is actually doing this (I forgot if it is).
-        #       If it is not supposed to, then make sure it doesn't actually do this.
-        #       (For conceptual details, see Jan 2020 presentation)
         
         from . import targets
         
@@ -1130,11 +1159,13 @@ class Feature(object):
         #    t2fi[t] = fi
         
         
-        t2fi = {} # key = pseudo-target, value = "feature index"
-        for fi, tlist in enumerate(targets_list):
-            for ti, t in enumerate(tlist):
-                t2fi[t] = fi
-        
+        ###### Unused code block ######
+        ## stores which feature index corresponds to which list of potential Targets
+        #t2fi = {} # key = pseudo-target, value = "feature index"
+        #for fi, tlist in enumerate(targets_list):
+        #    for ti, t in enumerate(tlist):
+        #        t2fi[t] = fi
+        ###### End unused code block ######
         
         new_equivalents = {} # key = ("feature index", pseudo-target "index"), value = dict(with k="feature index", v=list of pseudo-targets)
         
@@ -1240,245 +1271,6 @@ class Feature(object):
         
         # Return equivalents list
         return return_list
-    
-    def expand_feature(self, args, contig_sequence):
-        """
-        Expand the feature to ensure it has a viable 'Target' sequence
-        Will generate all possible expanded features, which will be
-        evaluated later to determine which is the best.
-        """
-        # Import included AddTag-specific modules
-        from . import targets
-        
-        # Option 1 (Can't do because target evaluation happens later)
-        #  keep expanding the feature until a target of minimum quality is found
-        #  or until the maximum size 'args.feature_expansion_lengths[1]' is reached
-        
-        # Option 2 (Can't do because target evaluation happens later)
-        #  scan the widest region for targets
-        #  evaluate target scores/weights
-        #  pick the best target
-        #  center/justify the FEATURE and TARGET
-        #  create the derived feature object
-        
-        # Option 3
-        #  create all derived features within 'args.feature_expansion_lengths' limits
-        #  these are centered/justified already around each target/feature (as specified by user command line options)
-        #  later:
-        #   evaluate the target scores/weights
-        #   pick the feature with the best target
-        
-        contig_length = len(contig_sequence)
-        
-        # First we identify all the features from -max to +max
-        feature_start = self.start
-        feature_end = self.end or contig_length # if (self.end == None), then it will be len(contig_sequence)
-        
-        # Find the maximum distance the feature can be expanded both up- and down-stream:
-        max_upstream_coord = 0
-        max_downstream_coord = contig_length
-        for exf_name, exf_obj in Feature.excluded_features.items():
-            if (self.contig == exf_obj.contig):
-                if (exf_obj.end < self.start):
-                    max_upstream_coord = max(max_upstream_coord, exf_obj.end)
-                if (exf_obj.start > self.end):
-                    max_downstream_coord = min(max_downstream_coord, exf_obj.start)
-                if (Feature.overlap_coverage(self.start, self.end, exf_obj.start, exf_obj.end) > 0):
-                    self.logger.info("WARNING: Selected feature '{}' overlaps with excluded feature '{}'".format(self.name, exf_obj.name))
-        
-        self.logger.info('    feature: {}'.format(self.name))
-        self.logger.info('     bounds: {}..{}'.format(self.start, self.end))
-        self.logger.info('     limits: {}..{}'.format(max_upstream_coord, max_downstream_coord))
-        
-        
-        
-        #feature_sequence = contig_sequence[feature_start:feature_end]
-        # The '10' is for upstream/downstream adjacent sequences
-        #ex_feature_start = max(0, feature_start-(10+args.feature_expansion_lengths[1]))
-        #ex_feature_end = min(feature_end+(10+args.feature_expansion_lengths[1]), contig_length)
-        ex_feature_start = max(0, feature_start-args.feature_expansion_lengths[1])
-        ex_feature_end = min(feature_end+args.feature_expansion_lengths[1], contig_length)
-        
-        #max_feature_sequence = contig_sequence[ex_feature_start:ex_feature_end]
-        
-        # We scan for targets only once
-        targetsl = targets.Target.get_targets(args, contig_sequence, start=ex_feature_start, end=ex_feature_end, protruded_targets=args.protruded_targets) # Does both orientations (+/-)
-        self.logger.info('max targets: {}'.format(len(targetsl)))
-        
-        # The relative coordinates of FEATURE within EX_FEATURE:
-        #relative_feature_start = feature_start - ex_feature_start
-        #relative_feature_end = feature_end - ex_feature_start
-        
-        derived_sets = set()
-        
-        # We generate a derived feature for each identified target
-        for t in targetsl:
-            # t = (orientation, start, end, upstream, downstream, filt_seq, side, filt_spacer, filt_pam, mymotif.motif_string, tuple([tuple(x) if isinstance(x, list) else x for x in mymotif.parsed_list])))
-            
-            target_start = t[1]
-            target_end = t[2]
-            
-            #  center_feature: --------HHHH[...............FEATURE.........TARGET]HHHH------------------------
-            #                  -----HHHH[..................FEATURE.........TARGET...]HHHH--------------------- pad=3
-            #   center_target: -----------------------HHHH[FEATURE.........TARGET................]HHHH--------
-            #                  --------------------HHHH[...FEATURE.........TARGET...................]HHHH----- pad=3
-            #     center_both: -----------------------HHHH[FEATURE.........TARGET]HHHH------------------------
-            #                  --------------------HHHH[...FEATURE.........TARGET...]HHHH--------------------- pad=3
-            # justify_feature: -----------------------HHHH[FEATURE.........TARGET]HHHH------------------------
-            #                  -----------------------HHHH[FEATURE.........TARGET...]HHHH--------------------- pad=3
-            #  justify_target: -----------------------HHHH[FEATURE.........TARGET]HHHH------------------------
-            #                  --------------------HHHH[...FEATURE.........TARGET]HHHH------------------------ pad=3
-            
-            # max(end2-start1, end1-start2) # Full distance including X and Y = 19
-            # max(start2-end1, start1-end2) # Distance in between between X and Y = 3
-            #     1 XXXXXXXXXX
-            #     2              YYYYYY
-            #    
-            #     1          XXXXXXXXXX
-            #     2 YYYYYY
-            
-            if (args.feature_expansion_format == 'center_feature'):
-                # ----[........FFF....TTTT]----  Terminal 3'
-                # ----[TTTT....FFF........]----  Terminal 5'
-                # ----------[..fffTT]----------  Overlapping 3'
-                # ----------[TTfff..]----------  Overlapping 5'
-                # ----------[.TfffTT]----------  Complete overlap 3' longer
-                # ----------[TTfffT.]----------  Complete overlap 5' longer
-                full_dist = max(target_end-feature_start, feature_end-target_start)
-                derived_start = feature_end - full_dist - args.feature_expansion_pad
-                derived_end = feature_start + full_dist + args.feature_expansion_pad
-            
-            elif (args.feature_expansion_format == 'center_target'):
-                # ----[....TTTT.FFF]----
-                # ----[FFF.TTTT....]----
-                full_dist = max(target_end-feature_start, feature_end-target_start)
-                derived_start = target_end - full_dist - args.feature_expansion_pad
-                derived_end = target_start + full_dist + args.feature_expansion_pad
-            
-            elif (args.feature_expansion_format == 'center_both'):
-                # ----[TTTT...FFF]----
-                # ----[FFF...TTTT]----
-                derived_start = min(feature_start, target_start) - args.feature_expansion_pad
-                derived_end = max(target_end, feature_end) + args.feature_expansion_pad
-            
-            elif (args.feature_expansion_format == 'justify_feature'):
-                # ----[FFF....TTTTxxx]----
-                # ----[xxxTTTT....FFF]----
-                derived_start = min(feature_start, target_start)
-                derived_end = max(target_end, feature_end)
-                if (derived_start == feature_start):
-                    derived_end += args.feature_expansion_pad
-                else:
-                    derived_start -= args.feature_expansion_pad
-                
-            elif (args.feature_expansion_format == 'justify_target'):
-                # ----[TTTT....FFFxxx]----
-                # ----[xxxFFF....TTTT]----
-                derived_start = min(feature_start, target_start)
-                derived_end = max(target_end, feature_end)
-                if (derived_start == target_start):
-                    derived_end += args.feature_expansion_pad
-                else:
-                    derived_start -= args.feature_expansion_pad
-            
-            # If derived feature is too small, then we automatically pad it
-            # so it reaches the minimum length
-            if (derived_end - derived_start < args.feature_expansion_lengths[0]):
-                size_difference = args.feature_expansion_lengths[0] - (derived_end - derived_start)
-                if (args.feature_expansion_format in ['center_feature', 'center_target', 'center_both']):
-                    new_pad = (size_difference+1)//2
-                    derived_start -= new_pad
-                    derived_end += new_pad
-                    self.logger.info("Added {} nt of padding bases to either side of DERIVED FEATURE".format(new_pad))
-                
-                elif (args.feature_expansion_format == 'justify_feature'):
-                    if (derived_start == feature_start):
-                        derived_end += size_difference
-                    else:
-                        derived_start -= size_difference
-                    self.logger.info("Added {} nt of padding bases to one side of DERIVED FEATURE".format(size_difference))
-                
-                elif (args.feature_expansion_format == 'justify_target'):
-                    if (derived_start == target_start):
-                        derived_end += size_difference
-                    else:
-                        derived_start += size_difference
-                    self.logger.info("Added {} nt of padding bases to one side of DERIVED FEATURE".format(size_difference))
-            
-            self.logger.info("derived_start = {}".format(derived_start))
-            self.logger.info("  derived_end = {}".format(derived_end))
-            self.logger.info("derived_end - derived_start = {}".format(derived_end - derived_start))
-            derived_sets.add((derived_start, derived_end))
-        
-        # Create a counter for the derived feature
-        count = 0
-        for derived_start, derived_end in sorted(derived_sets, key=lambda x: x[1]-x[0]): # in order from smallest to largest
-            # If derived feature length is within the desired size range, then create the derived feature
-            if (args.feature_expansion_lengths[0] <= derived_end - derived_start <= args.feature_expansion_lengths[1]):
-                if (max_upstream_coord <= derived_start <= derived_end <= max_downstream_coord):
-                    new_name = self.name + '_derived-' + str(count)
-                    new_attributes = self.attributes.copy()
-                    new_attributes[args.tag] = new_name
-                    new_feature = Feature(self.contig, derived_start, derived_end, self.strand, name=new_name, source=self.source, feature_type=self.feature_type, score=self.score, frame=self.frame, attributes=new_attributes, origin=Feature.DERIVED, parent=self, gene=self.gene)
-                    Feature.features[new_name] = new_feature
-                    count += 1
-                    self.logger.info("DERIVED FEATURE '{}' created.".format(new_name))
-                else:
-                    self.logger.info("DERIVED FEATURE would overlap with excluded feature.")
-        # END expand_feature()
-    
-    def previous_expand_feature(self, args, contig_sequence, expansion_size=20, minimum_targets_per_feature=5):
-        # Import included AddTag-specific modules
-        from . import targets
-        
-        feature_start = self.start
-        feature_end = self.end
-        
-        contig_length = len(contig_sequence)
-        
-        if (feature_end == None):
-            feature_end = len(contig_sequence)
-        
-        # Find the maximum distance the feature can be expanded both up- and down-stream:
-        max_upstream_coord = 0
-        max_downstream_coord = contig_length
-        for exf_name, exf_obj in Feature.excluded_features.items():
-            if (self.contig == exf_obj.contig):
-                if (exf_obj.end < self.start):
-                    max_upstream_coord = max(max_upstream_coord, exf_obj.end)
-                if (exf_obj.start > self.end):
-                    max_downstream_coord = min(max_downstream_coord, exf_obj.start)
-                if (Feature.overlap_coverage(self.start, self.end, exf_obj.start, exf_obj.end) > 0):
-                    self.logger.info("WARNING: Selected feature '{}' overlaps with excluded feature '{}'".format(self.name, exf_obj.name))
-        
-        self.logger.info('feature: {}'.format(self.name))
-        self.logger.info( 'bounds: {}..{}'.format(self.start, self.end))
-        self.logger.info(' limits: {}..{}'.format(max_upstream_coord, max_downstream_coord))
-        
-        # Gradually expand feature size until the minimum number of targets is found
-        feature_sequence = contig_sequence[feature_start:feature_end]
-        targetsl = targets.Target.get_targets(args, feature_sequence) # Does both orientations (+/-)
-        self.logger.info('targets: {}'.format(len(targetsl)))
-        count = 0
-        while ((len(targetsl) < minimum_targets_per_feature) and (((feature_start, feature_end) != (0, contig_length)) or ((feature_start, feature_end) != (max_upstream_coord, max_downstream_coord)))):
-            feature_start = max(0, feature_start-expansion_size, max_upstream_coord)
-            feature_end = min(contig_length, feature_end + expansion_size, max_downstream_coord)
-            
-            feature_sequence = contig_sequence[feature_start:feature_end]
-            targetsl = targets.Target.get_targets(args, feature_sequence) # Does both orientations (+/-)
-            self.logger.info('targets: {}'.format(len(targetsl)))
-            count += 1
-        
-        # Save the new feature as a Feature object
-        if (count > 0):
-            new_name = self.name + '_derived'
-            new_attributes = self.attributes.copy()
-            new_attributes[args.tag] = new_name
-            new_feature = Feature(self.contig, feature_start, feature_end, self.strand, name=new_name, source=self.source, feature_type=self.feature_type, score=self.score, frame=self.frame, attributes=new_attributes, origin=Feature.DERIVED, parent=self)
-            Feature.features[new_name] = new_feature
-            return new_feature
-        else:
-            return self
     
 #    def overlap_distance(self, start1, end1, start2, end2):
 #        coverage = self.overlap_coverage(start1, end1, start2, end2)
@@ -1938,10 +1730,15 @@ class Feature(object):
         return lines
     
     def __repr__(self):
-        labs = ['name', 'gene', 'location']
+        labs = ['name', 'gene', 'location', 'seed_targets']
         vals = [
             self.name,
             self.get_gene(),
-            '{}:{}:{}..{}'.format(self.contig, self.strand, self.start, self.end)
-        ]
+            '{}:{}:{}..{}'.format(self.contig, self.strand, self.start, self.end),
+            ]
+        if self.seed_targets:
+            vals.append(['{}:{}:{}..{}'.format(x[5], x[0], x[1], x[2]) for x in self.seed_targets])
+        #else:
+        #    vals.append(None)
+        
         return self.__class__.__name__ + '(' + ', '.join('='.join(map(str, x)) for x in zip(labs, vals)) + ')'

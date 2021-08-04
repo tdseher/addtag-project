@@ -923,6 +923,8 @@ class ReversionDonor(Donor):
         # Do required stuff
         # TODO: This loop should be performed on a per-feature basis, and not a per-gene basis
         #       That way primers are paired if they are in the expected AmpF and AmpR regions
+        # TODO: I believe this does redundant calculations for each derived Feature from the same gene
+        #       This needs to be fixed
         for g, g_count in gene_dict.items(): # TODO: 'g_count' is no longer used, so it can be removed
             ampF_list = []
             ampR_list = []

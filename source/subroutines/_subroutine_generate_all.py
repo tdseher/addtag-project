@@ -540,13 +540,15 @@ class GenerateAllParser(subroutine.Subroutine):
         if (args.ko_dDNA or args.ko_gRNA):
             # Only expand features if '--feature_expansion_format' is not 'None'
             if (args.feature_expansion_format != None):
-                #Feature.expand_all_features(args, contig_sequences) # OLD code
-                Feature.new_new_expand_all_features(args, contig_sequences, h_groups)
+                Feature.expand_all_features(args, contig_sequences, h_groups)
                 
-                # Print the set of new features
+                # Print the set of new Features to log file
                 self.logger.info('Feature.features')
                 for f_name, f in sorted(Feature.features.items()):
                     self.logger.info("  {}:{}:{}:{}..{} PARENT={}".format(f.name, f.contig, f.strand, f.start, f.end, f.get_parent().name))
+                
+        # Write all Features (input and derived) to STDOUT
+        self.print_Feature_results(args)
         
         # TODO: Will need to rewrite this filtering step BECAUSE some original (non-derived)
         #       Features will need to be filtered out
@@ -988,6 +990,53 @@ class GenerateAllParser(subroutine.Subroutine):
         
         for r in results:
             print('\t'.join(map(str, r)))
+    
+    def print_Feature_results(self, args):
+        '''
+        Print to STDOUT the input Features and any derived Features
+        :param args: 
+        :return: 
+        '''
+        print('# Feature results')
+        headers = ['gene', 'parent', 'name', 'contig', 'start', 'end', 'strand', 'seed_targets', 'eUS:?:Int:?:eDS', 'homologs']
+        print('# ' + '\t'.join(headers))
+        for f_name, f in sorted(Feature.features.items()):
+            if f.seed_targets:
+                seed_targets = ['{}:{}:{}..{}'.format(x[5], x[0], x[1], x[2]) for x in f.seed_targets]
+                temp_target_tuple = next(iter(f.seed_targets), None)
+                t_start = temp_target_tuple[1] # TODO: This assumes there is only 1 seed_target
+                t_end = temp_target_tuple[2] # TODO: This assumes there is only 1 seed_target
+            else:
+                seed_targets = None
+                t_start = 0
+                t_end = 0
+            
+            homs = []
+            for fhomset in f.homologs: # TODO: Why is a Feature's homologs stored as a list of sets of Features?
+                for fhom in fhomset:
+                    if (fhom.name != f.name):
+                        homs.append(fhom.name)
+            
+            if (f.name == f.get_parent().name):
+                ex_str = None
+            else:
+                # TODO: This assumes there is only 1 seed_target
+                if (f.get_parent().start < t_start):
+                    ex_us = f.get_parent().start - f.start
+                    ex_int = t_start - f.get_parent().end
+                    ex_ds = f.end - t_end
+                    ex_first = 'F'
+                    ex_second = 'T'
+                else:
+                    ex_us = t_start - f.start
+                    ex_int = f.get_parent().start - t_end
+                    ex_ds = f.end - f.get_parent().end
+                    ex_first = 'T'
+                    ex_second = 'F'
+                ex_str = '{}:{}:{}:{}:{}'.format(ex_us, ex_first, ex_int, ex_second, ex_ds)
+            
+            print('\t'.join(map(str, [f.get_gene(), f.get_parent().name, f.name, f.contig, f.start, f.end, f.strand, seed_targets, ex_str, homs])))
+        sys.stdout.flush()
     
     def print_reDonor_results(self, args):
         '''
