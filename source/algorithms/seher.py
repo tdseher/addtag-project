@@ -2,7 +2,7 @@
 
 """AddTag Copyright (c) 2016 Thaddeus D. Seher & Aaron Hernday"""
 
-# source/algorithms/linear.py
+# source/algorithms/seher.py
 
 if (__name__ == "__main__"):
     from algorithm import PairedSequenceAlgorithm
@@ -13,12 +13,12 @@ class Linear(PairedSequenceAlgorithm):
     def __init__(self):
         super().__init__(
             name="Linear",
-            authors=['Seher, Thaddeus D.'],
-            title='',
-            journal='',
+            authors=['Seher, Thaddeus D.', 'Nguyen, Namkha', 'Ramos, Diana', 'Bapat, Priyanka', 'Nobile, Clarissa J.', 'Sindi, Suzanne S.', 'Hernday, Aaron D.'],
+            title='AddTag, a two-step approach with supporting software package that facilitates CRISPR/Cas-mediated precision genome editing',
+            journal='G3 Genes|Genomes|Genetis',
             issuing='',
-            year=2017,
-            doi='',
+            year=2021,
+            doi='https://doi.org/10.1093/g3journal/jkab216',
             #citation="AddTag",
             off_target=True,
             prefilter=False,
@@ -72,12 +72,15 @@ class Linear(PairedSequenceAlgorithm):
         return score*100
 
 def test():
-    a = ('', 'AAAATTAACTATAGGTAAAG', 'TGG', '', '')
-    b = ('', 'AACATCAACTCTAGCTAACG', 'CGG', '', '')
+    Cas9_a = ('', '>', 'AAAATTAACTATAGGTAAAG', 'TGG', '', '')
+    Cas9_b = ('', '>', 'AACATCAACTCTAGCTAACG', 'CGG', '', '')
+    Cas12a_a = ('', '<', 'AAAATTAACTATAGGTAAAGACCA', 'TTTA', '', '')
+    Cas12a_b = ('', '<', 'AACATCAACTCTAGCTAACGACCA', 'TTTG', '', '')
     
     print("=== Linear ===")
     C = Linear()
-    print(C.calculate(a, b))
+    print('Cas9', C.calculate(Cas9_a, Cas9_b))
+    print('Cas12a', C.calculate(Cas12a_a, Cas12a_b))
 
 if (__name__ == "__main__"):
     test()
