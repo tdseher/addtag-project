@@ -22,6 +22,8 @@
 # Keras must be set to use the 'theano' backend
 # DeepCpf1 will work on either Python 2.7 or 3.5/63.
 
+# TODO: Add the DeepCas9 Algorithm from this same author
+
 
 # Import standard packages
 import sys

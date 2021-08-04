@@ -2,7 +2,7 @@
 
 """AddTag Copyright (c) 2016 Thaddeus D. Seher & Aaron Hernday"""
 
-# source/algorithms/first.py
+# source/algorithms/hsuzhang.py
 
 # Import standard packages
 import os
@@ -32,7 +32,7 @@ class HsuZhang(PairedSequenceAlgorithm):
             minimum=0.1,
             maximum=100.0,
             default=100.0,
-            weight_str='Hsu-Zhang:90+1.8' # Severly penalize any score less than 95
+            weight_str='Hsu-Zhang:90+1.8' # Severely penalize any score less than 95
         )
     
     def is_available(self):

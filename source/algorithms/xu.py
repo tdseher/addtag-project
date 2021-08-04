@@ -5,7 +5,7 @@
 # source/xu/__init__.py
 
 # Metric for "efficiency"
-#  Xu
+#  Han Xu
 #   Range ~ -2 - +2. Aka 'SSC score'. Linear regression model trained on
 #   data from >1000 genes in human KBM7/HL60 cells (Wang et al) and mouse
 #   (Koike-Yusa et al.). Delivery: lentivirus. Ranges mostly -2 to +2.
@@ -17,3 +17,7 @@
 # This program scans spacer sequence of CRISPR to predict effectiveness of guide RNA.
 
 # Either port the algorithm to Python, or run SSC externally, and import the results
+
+
+
+
