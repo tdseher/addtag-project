@@ -7,7 +7,6 @@ Program for identifying exclusive endogenous gRNA sites and creating unique synt
 [![macOS](https://img.shields.io/badge/macOS-✓-darkgreen.svg?logo=apple)](#)
 [![Build Status](https://dev.azure.com/tdseher/addtag-project/_apis/build/status/tdseher.addtag-project?branchName=master)](https://dev.azure.com/tdseher/addtag-project/_build/latest?definitionId=1&branchName=master)
 [![Code coverage](https://img.shields.io/azure-devops/coverage/tdseher/addtag-project/1)](#)
-[![deepcode](https://www.deepcode.ai/api/gh/badge?key=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJwbGF0Zm9ybTEiOiJnaCIsIm93bmVyMSI6InRkc2VoZXIiLCJyZXBvMSI6ImFkZHRhZy1wcm9qZWN0IiwiaW5jbHVkZUxpbnQiOmZhbHNlLCJhdXRob3JJZCI6MTUxMTcsImlhdCI6MTYxODUyMzM4OH0._-Crz_785ZTJRiNe8x8aSiwdADk9dCNcQY4Z4nWLtCE)](https://www.deepcode.ai/app/gh/tdseher/addtag-project/_/dashboard?utm_content=gh%2Ftdseher%2Faddtag-project)
 
 [![Python](https://img.shields.io/badge/Python-≥3.5.1-1f425f.svg?logo=python)](https://www.python.org/downloads/release/python-360/)
 [![PRs](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
